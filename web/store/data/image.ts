@@ -16,8 +16,7 @@ export async function generateImage({ chatId, messageId, onDone, ...opts }: Gene
   const prompt = opts.prompt ? opts.prompt : createImagePrompt(entities)
 
   if (!isLoggedIn()) {
-    const image = await horde.generateImage(entities.user, prompt)
-    onDone(image)
+    return { error: "Sorry, members only.. don't worry it is free!" }
   }
 
   const res = await api.post<{ success: boolean }>(`/chat/${chatId || entities.chat._id}/image`, {

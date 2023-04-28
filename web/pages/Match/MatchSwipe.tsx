@@ -14,7 +14,7 @@ import { getAssetUrl } from '../../shared/util'
 
 const MatchList: Component = () => {
   const swipeCount = swipeStore()
-  let curApiref
+  let curApiref: string
   let totalSwipes = []
   let tmpSwipes = []
 
@@ -30,7 +30,7 @@ const MatchList: Component = () => {
   const [charsList, setCharList] = createSignal(matchItems)
   const [charsIds, setCharIds] = createSignal(matchItems)
 
-  const showZindex = { min: 1000000, plus: 2000000 }
+  const showZindex = { min: 10000, plus: 20000 }
   const [undoDisabled, setUndo] = createSignal('disabled')
   const [colorSwipeMove, setSwipeMove] = createSignal({
     left: ' text-red-500 fill-red-500 ',
@@ -175,10 +175,10 @@ const MatchList: Component = () => {
   return (
     <>
       <PageHeader title="Likes" subtitle="" />
-      <Show when={!charsList().loaded || !swipeCount.loaded}>
-        <div>Loading ...</div>
+      <Show when={!charsList().list}>
+        <div>Loading ...{charsList()}</div>
       </Show>
-      <Show when={charsList().loaded && swipeCount.loaded}>
+      <Show when={charsList().list}>
         <div class="flex w-full flex-col gap-2 ">
           <For each={charsList().list}>
             {(char, i) => (

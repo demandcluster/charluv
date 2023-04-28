@@ -34,7 +34,9 @@ You can perform an action by placing the action in between asterisks \*action\*.
 
 If you don't like a reply, you can just reroll it and get another reply. You can even edit the reply to be exactly as you like. This will take away the fun for a large part, so in order to access the edit feaetures, you first have to toggle the switch on top of the chat window to activate them.
 
-When you do not want to answer the character but just want them to continue, just say continue. This can be helpful if the character is telling you a story.
+When you do not want to answer the character but just want them to continue, press \`Generate more\` on the chat options (right of chat input). This can be helpful if the character is telling you a story.
+
+You can use the same chat options button to get the \`Generate image\` option. This will generate an image based on the current chat history. 
 
 ### How to get premium?
 
@@ -45,6 +47,12 @@ Upgrade to our premium service and enjoy the benefits of skipping message queues
 ### Can I create my own characters?
 
 Yes you can. However, you need to goto our Discord to submit the character. All characters are evaluated for quality and age. We do not allow any character under the age of 18.
+
+### Survival Goals
+
+In order to survive as a website we need ***€800,--*** before summer 2023. So far we got ***€50,--***. 
+All proceeds will be used to pay for the server and the AI. We will not take any money out of this project.
+We are currently investing in a NVIDIA P40. We keep you posted.
 
 ### About
 
@@ -102,10 +110,7 @@ const HomePage: Component = () => {
             <A href="/changelog">Change Log</A>
           </li>
           <li>
-            <A
-              href="https://github.com/demandcluster/aivo.chat/blob/aivo/instructions/memory.md"
-              target="_blank"
-            >
+            <A href="/memory/instructions" target="_blank">
               Memory Book Guide
             </A>
           </li>

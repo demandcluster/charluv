@@ -94,20 +94,6 @@ const ChatOptions: Component<{
         >
           <Users /> Participants
         </Option>
-
-        <Option
-          onClick={() => props.show('gen')}
-          class="flex justify-start gap-2 hover:bg-[var(--bg-700)]"
-        >
-          <Sliders /> Generation Settings
-        </Option>
-
-        <Option
-          onClick={() => props.show('settings')}
-          class="flex justify-start gap-2 hover:bg-[var(--bg-700)]"
-        >
-          <Settings /> Chat Settings
-        </Option>
       </Show>
 
       <Option

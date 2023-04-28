@@ -8,6 +8,11 @@ export const createImage = handle(async ({ body, userId, socketId, log, params }
   const user = userId ? await store.users.getUser(userId) : body.user
 
   const guestId = userId ? undefined : socketId
+
+  if (userId === 'anon') {
+    return { success: false }
+  }
+
   generateImage(
     {
       user,

@@ -9,7 +9,7 @@ import {
   createSignal,
   onMount,
 } from 'solid-js'
-import { NewCharacter, characterStore } from '../../store'
+import { NewCharacter, characterStore, userStore } from '../../store'
 import PageHeader from '../../shared/PageHeader'
 import Select, { Option } from '../../shared/Select'
 import TextInput from '../../shared/TextInput'
@@ -72,6 +72,7 @@ const CharacterList: Component = () => {
   const [sortDirection, setSortDirection] = createSignal(cached.sort.direction)
   const [search, setSearch] = createSignal('')
   const [showImport, setImport] = createSignal(false)
+  const user = userStore()
 
   const onImport = (char: NewCharacter) => {
     characterStore.createCharacter(char, () => setImport(false))
@@ -102,20 +103,22 @@ const CharacterList: Component = () => {
           <div class="flex w-full justify-between">
             <div>Matches</div>
             <div class="flex text-base">
-              <div class="px-1">
-                <Button onClick={() => setImport(true)}>
-                  <Import />
-                  <span class="hidden sm:inline">Import</span>
-                </Button>
-              </div>
-              <div class="px-1">
-                <A href="/character/create">
-                  <Button>
-                    <Plus />
-                    <span class="hidden sm:inline">Create</span>
+              <Show when={user.user.admin}>
+                <div class="px-1">
+                  <Button onClick={() => setImport(true)}>
+                    <Import />
+                    <span class="hidden sm:inline">Import</span>
                   </Button>
-                </A>
-              </div>
+                </div>
+                <div class="px-1">
+                  <A href="/character/create">
+                    <Button>
+                      <Plus />
+                      <span class="hidden sm:inline">Create</span>
+                    </Button>
+                  </A>
+                </div>
+              </Show>
             </div>
           </div>
         }
@@ -170,12 +173,15 @@ const CharacterList: Component = () => {
           </div>
         </div>
       </div>
+
       <Characters
         type={view()}
+        user={user}
         filter={search()}
         sortField={sortField()}
         sortDirection={sortDirection()}
       />
+
       <ImportCharacterModal show={showImport()} close={() => setImport(false)} onSave={onImport} />
     </>
   )
@@ -184,6 +190,7 @@ const CharacterList: Component = () => {
 const Characters: Component<{
   type: ViewTypes
   filter: string
+  user: AppSchema.User
   sortField: SortFieldTypes
   sortDirection: SortDirectionTypes
 }> = (props) => {
@@ -226,6 +233,12 @@ const Characters: Component<{
           <NoCharacters />
         </Match>
         <Match when={state.loaded}>
+          <Show when={props.user.user._id === 'anon'}>
+            <div class="gap-2 p-4 text-lg font-bold">
+              You are not <a href="/login">registered</a>. You can only chat with the helpdesk bot.
+            </div>
+          </Show>
+
           <Show when={props.type === 'list'}>
             <div class="flex w-full flex-col gap-2 pb-5">
               <For each={groups()}>
@@ -239,6 +252,7 @@ const Characters: Component<{
                         <Character
                           type={props.type}
                           char={char}
+                          user={props.user}
                           delete={() => setDelete(char)}
                           download={() => setDownload(char)}
                           toggleFavorite={(value) => toggleFavorite(char._id, value)}
@@ -265,6 +279,7 @@ const Characters: Component<{
                         <Character
                           type={props.type}
                           char={char}
+                          user={props.user}
                           delete={() => setDelete(char)}
                           download={() => setDownload(char)}
                           toggleFavorite={(value) => toggleFavorite(char._id, value)}
@@ -296,6 +311,7 @@ const Characters: Component<{
 const Character: Component<{
   type: string
   char: AppSchema.Character
+  user: AppSchema.User
   delete: () => void
   download: () => void
   toggleFavorite: (value: boolean) => void
@@ -303,6 +319,7 @@ const Character: Component<{
   const [opts, setOpts] = createSignal(false)
   const [listOpts, setListOpts] = createSignal(false)
   const nav = useNavigate()
+
   if (props.type === 'list') {
     return (
       <div class="flex w-full flex-row items-center justify-between gap-4 rounded-xl bg-[var(--bg-700)] py-1 px-2">
@@ -327,15 +344,18 @@ const Character: Component<{
             <Show when={!props.char.favorite}>
               <Star class="icon-button" onClick={() => props.toggleFavorite(true)} />
             </Show>
-            <a onClick={props.download}>
-              <Download class="icon-button" />
-            </a>
-            <A href={`/character/${props.char._id}/edit`}>
-              <Edit class="icon-button" />
-            </A>
-            <A href={`/character/create/${props.char._id}`}>
-              <Copy class="icon-button" />
-            </A>
+            <Show when={props.user.user.admin}>
+              <a onClick={props.download}>
+                <Download class="icon-button" />
+              </a>
+
+              <A href={`/character/${props.char._id}/edit`}>
+                <Edit class="icon-button" />
+              </A>
+              <A href={`/character/create/${props.char._id}`}>
+                <Copy class="icon-button" />
+              </A>
+            </Show>
             <Trash class="icon-button" onClick={props.delete} />
           </div>
           <div class="flex items-center sm:hidden" onClick={() => setListOpts(true)}>
@@ -358,15 +378,17 @@ const Character: Component<{
                   <Star /> Favorite
                 </Show>
               </Button>
-              <Button alignLeft onClick={props.download}>
-                <Download /> Download
-              </Button>
-              <Button alignLeft onClick={() => nav(`/character/${props.char._id}/edit`)}>
-                <Edit /> Edit
-              </Button>
-              <Button alignLeft onClick={() => nav(`/character/create/${props.char._id}`)}>
-                <Copy /> Duplicate
-              </Button>
+              <Show when={props.user?.user?.admin}>
+                <Button alignLeft onClick={props.download}>
+                  <Download /> Downloadsss
+                </Button>
+                <Button alignLeft onClick={() => nav(`/character/${props.char._id}/edit`)}>
+                  <Edit /> Edit
+                </Button>
+                <Button alignLeft onClick={() => nav(`/character/create/${props.char._id}`)}>
+                  <Copy /> Duplicate
+                </Button>
+              </Show>
               <Button alignLeft onClick={props.delete}>
                 <Trash /> Delete
               </Button>
@@ -430,15 +452,17 @@ const Character: Component<{
                   <Star /> Favorite
                 </Show>
               </Button>
-              <Button alignLeft onClick={props.download}>
-                <Download /> Download
-              </Button>
-              <Button alignLeft onClick={() => nav(`/character/${props.char._id}/edit`)}>
-                <Edit /> Edit
-              </Button>
-              <Button alignLeft onClick={() => nav(`/character/create/${props.char._id}`)}>
-                <Copy /> Duplicate
-              </Button>
+              <Show when={props.user?.user?.admin}>
+                <Button alignLeft onClick={props.download}>
+                  <Download /> Download
+                </Button>
+                <Button alignLeft onClick={() => nav(`/character/${props.char._id}/edit`)}>
+                  <Edit /> Edit
+                </Button>
+                <Button alignLeft onClick={() => nav(`/character/create/${props.char._id}`)}>
+                  <Copy /> Duplicate
+                </Button>
+              </Show>
               <Button alignLeft onClick={props.delete}>
                 <Trash /> Delete
               </Button>

@@ -1,0 +1,14 @@
+stages:
+  - name: Build & Publish
+    steps:
+      - publishImageConfig:
+          dockerfilePath: ./Dockerfile
+          buildContext: .
+          tag: demandcluster/charluv:v1
+          pushRemote: true
+          registry: harbor.demandcluster.com
+timeout: 60
+branch:
+  include:
+    - trunk
+notification: {}

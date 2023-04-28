@@ -22,7 +22,7 @@ You can also provide \`priority\` and \`weight\`, but we'll get to that later.
   - This is the text that is inserted into your prompt when one of your keywords is found.
   - E.g. \`{{user}}'s favourite drink is red cordial on the rocks\`
 
-Your generation settings will have a **Memory Depth**. This is the maximum number of chat messages that Agnai will scan for keywords.  
+Your generation settings will have a **Memory Depth**. This is the maximum number of chat messages that AIVO will scan for keywords.  
 It is important to remember this all happens in your browser.
 
 ### Why is it important to remember this occurs in the browser?

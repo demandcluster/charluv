@@ -6,7 +6,7 @@ import { config } from '../config'
 import { v4 } from 'uuid'
 import { saveFile } from '../api/upload'
 import { handleSDImage } from './stable-diffusion'
-import { sendGuest, sendMany } from '../api/ws'
+import { sendGuest, sendMany, sendOne } from '../api/ws'
 import { handleHordeImage } from './horde'
 
 export async function generateImage(
@@ -20,6 +20,12 @@ export async function generateImage(
     broadcastIds.push(user._id)
     const members = await store.chats.getActiveMembers(chatId)
     broadcastIds.push(...members, user._id)
+  }
+
+  if (guestId) {
+    const emsg = { type: 'image-failed', guestId, error: 'Members only' }
+    sendGuest(guestId, emsg)
+    return { success: false }
   }
 
   let image: ImageAdapterResponse | undefined
@@ -93,6 +99,9 @@ export async function generateImage(
   } else if (guestId) {
     sendGuest(guestId, message)
   }
+  const credits = await store.credits.updateCredits(user._id!, -20)
+
+  sendOne(user._id!, { type: 'credits-updated', credits })
 
   return { output }
 }
@@ -119,6 +128,10 @@ async function createImageMessage(opts: {
       message: opts.filename,
       adapter: 'image',
     })
+    const credits = await store.credits.updateCredits(opts.userId!, -20)
+
+    sendOne(opts.userId!, { type: 'credits-updated', credits })
+
     return msg
   } else {
     const msg = await store.msgs.createChatMessage({
@@ -129,6 +142,11 @@ async function createImageMessage(opts: {
     })
 
     sendMany(opts.memberIds, { type: 'message-created', msg, chatId: opts.chatId })
+
+    const credits = await store.credits.updateCredits(opts.userId!, -20)
+
+    sendOne(opts.userId!, { type: 'credits-updated', credits })
+
     return msg
   }
 }

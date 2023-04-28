@@ -6,6 +6,7 @@ import * as msg from './messages'
 import * as presets from './presets'
 import * as memory from './memory'
 import * as image from './image'
+import * as swipe from './swipe'
 
 export const data = {
   local,
@@ -16,4 +17,5 @@ export const data = {
   presets,
   memory,
   image,
+  swipe,
 }

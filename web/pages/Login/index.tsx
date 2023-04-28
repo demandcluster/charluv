@@ -84,6 +84,7 @@ const RegisterForm: Component<FormProps> = (props) => {
       username: 'string',
       password: 'string',
       confirm: 'string',
+      invitecode: 'string',
     })
 
     if (!handle || !username || !password) return
@@ -108,6 +109,12 @@ const RegisterForm: Component<FormProps> = (props) => {
           required
         />
         <TextInput fieldName="confirm" placeholder="Confirm Password" type="password" required />
+        <TextInput
+          label="Invite code"
+          fieldName="invitecode"
+          placeholder="Get an invite on our Discord!"
+          required
+        />
       </div>
 
       <Button type="submit" disabled={props.isLoading}>

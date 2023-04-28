@@ -21,6 +21,15 @@ const options = [
   { id: 'text', label: 'Plain Text' },
 ]
 
+const premiumoptions = [
+  { id: 'true', label: 'Premium' },
+  { id: 'false', label: 'Free' },
+]
+const matchoptions = [
+  { id: 'true', label: 'Matchable' },
+  { id: 'false', label: 'Hidden' },
+]
+
 const CreateCharacter: Component = () => {
   const params = useParams<{ editId?: string; duplicateId?: string }>()
   setComponentPageTitle(
@@ -72,6 +81,9 @@ const CreateCharacter: Component = () => {
       description: 'string?',
       greeting: 'string',
       scenario: 'string',
+      xp: 'number',
+      premium: 'string',
+      match: 'string',
       sampleChat: 'string',
     } as const)
     const attributes = getAttributeMap(ev)
@@ -87,6 +99,9 @@ const CreateCharacter: Component = () => {
       scenario: body.scenario,
       avatar: avatar(),
       greeting: body.greeting,
+      xp: body.xp,
+      match: body.match,
+      premium: body.premium,
       sampleChat: body.sampleChat,
       persona,
       originalAvatar: state.edit?.avatar,
@@ -150,6 +165,34 @@ const CreateCharacter: Component = () => {
           />
           <div class="flex items-end">{/* <Button>Generate</Button> */}</div>
         </div>
+
+        <RadioGroup
+          name="premium"
+          horizontal
+          options={premiumoptions}
+          value={toString(state.edit?.premium) || 'false'}
+        />
+
+        <FormLabel
+          label="Matchable Status"
+          helperText={
+            <>
+              <p>Setting this to true will allow this character to be matched with users.</p>
+            </>
+          }
+        />
+        <RadioGroup
+          name="match"
+          horizontal
+          options={matchoptions}
+          value={toString(state.edit?.match) || 'false'}
+        />
+        <TextInput
+          fieldName="xp"
+          label="XP"
+          helperText="Start XP of character (best to leave at 0)"
+          value={state.edit?.xp}
+        />
 
         <TextInput
           fieldName="scenario"

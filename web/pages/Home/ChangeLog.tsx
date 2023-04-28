@@ -26,10 +26,16 @@ _24 Apr 2023_
 
 _25 Apr 2023_
 - Added toggle image/list view on matches page
+- Added favorites
 
 _28 Apr 2023_
 - Merged with upstream Agnaistic
 - Added current wait time for text on information page (premium users skip the queue)
+- Started rebranding due to stupid aivo.co
+
+KNOWN ISSUES:
+- Progress of character is not visible atm, character still progresses and scenarios are still updated nevertheless.
+- Profile page of characters not reachable from matches page
 
 `
 

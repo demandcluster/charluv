@@ -1,7 +1,7 @@
 import { AppSchema } from '../srv/db/schema'
 import { CLAUDE_MODELS, OPENAI_MODELS } from './adapters'
 
-const MAX_TOKENS = 80
+const MAX_TOKENS = 120
 
 export const defaultPresets = {
   basic: {
@@ -11,10 +11,10 @@ export const defaultPresets = {
     repetitionPenalty: 1.08,
     repetitionPenaltySlope: 0.9,
     repetitionPenaltyRange: 1024,
-    temp: 0.65,
+    temp: 0.59,
     topK: 0,
-    topP: 0.9,
-    typicalP: 1,
+    topP: 0.97,
+    typicalP: 0.95,
     topA: 1,
     tailFreeSampling: 0.9,
     order: [0, 1, 2, 3, 4, 5, 6],
@@ -31,15 +31,15 @@ export const defaultPresets = {
   },
   horde: {
     name: 'Horde',
-    maxTokens: 80,
-    maxContextLength: 1024,
-    repetitionPenalty: 1.08,
+    maxTokens: 120,
+    maxContextLength: 2048,
+    repetitionPenalty: 1.19,
     repetitionPenaltySlope: 0.9,
     repetitionPenaltyRange: 1024,
-    temp: 0.65,
+    temp: 0.59,
     topK: 0,
-    topP: 0.9,
-    typicalP: 1,
+    topP: 0.97,
+    typicalP: 0.95,
     topA: 1,
     tailFreeSampling: 0.9,
     order: [6, 0, 1, 2, 3, 4, 5],
@@ -49,7 +49,7 @@ export const defaultPresets = {
     ultimeJailbreak: '',
     oaiModel: OPENAI_MODELS.Turbo,
     memoryDepth: 50,
-    memoryContextLimit: 256,
+    memoryContextLimit: 500,
     memoryReverseWeight: false,
     useGaslight: false,
     antiBond: false,
