@@ -59,4 +59,5 @@ export const errors = {
   Unauthorized: new StatusError('Unauthorized', 401),
   Forbidden: new StatusError('Forbidden', 403),
   BadRequest: new StatusError('Bad request', 400),
+  MissingCredits: new StatusError('Not enough credits', 402),
 }

@@ -10,8 +10,8 @@ export const handleHordeImage: ImageAdapter = async ({ user, prompt }, log, gues
   //     ? user.hordeKey
   //     : decryptText(user.hordeKey)
   //   : HORDE_GUEST_KEY
-
-  const key = user.premium ? config.hordeKeyImages : HORDE_GUEST_KEY
+  // do premium check on nest line by the time it is needed...
+  const key = user ? config.hordeKeyImages : HORDE_GUEST_KEY
   const image = await horde.generateImage({ ...user, hordeKey: key }, prompt)
   const buffer = Buffer.from(image, 'base64')
   return { ext: 'png', content: buffer }

@@ -49,6 +49,10 @@ export const generateMessageV2 = handle(async ({ userId, body, socketId, params,
   if (userId) {
     const user = await store.users.getUser(userId!)
     body.user = user
+    if (user && user.credits < 10) {
+      // return res.json({ success: false, generating: false, message: 'Not enough credits' })
+      throw errors.MissingCredits
+    }
   }
 
   const guest = userId ? undefined : socketId
