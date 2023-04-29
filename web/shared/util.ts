@@ -33,7 +33,8 @@ export function getAssetUrl(filename: string) {
   if (!isFile) return filename
 
   const infix = assetPrefix.endsWith('/') || filename.startsWith('/') ? '' : '/'
-  return `${assetPrefix}${infix}${filename}`
+  return `https://cdn.aivo.chat/${filename}`
+  //return `${assetPrefix}${infix}${filename}`
 }
 
 export function setAssetPrefix(prefix: string) {
