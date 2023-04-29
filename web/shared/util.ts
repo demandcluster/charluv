@@ -14,12 +14,12 @@ type FormRef = {
     | 'boolean?'
 }
 
-const PREFIX_CACHE_KEY = 'agnai-asset-prefix'
+const PREFIX_CACHE_KEY = 'aivo-asset-prefix'
 
-let assetPrefix: string = localStorage.getItem(PREFIX_CACHE_KEY) || ''
+let assetPrefix = 'https://cdn.aivo.chat' //: string = localStorage.getItem(PREFIX_CACHE_KEY) || ''
 
 export function getAssetPrefix() {
-  return "https://cdn.aivo.chat"
+  return 'https://cdn.aivo.chat'
 }
 
 export function getAssetUrl(filename: string) {
