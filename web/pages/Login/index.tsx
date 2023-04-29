@@ -76,7 +76,7 @@ type FormProps = { isLoading: boolean }
 const RegisterForm: Component<FormProps> = (props) => {
   const navigate = useNavigate()
   const register = (evt: Event) => {
-    const { username, password, confirm, handle } = getStrictForm(evt, {
+    const { username, password, confirm, handle, invitecode } = getStrictForm(evt, {
       handle: 'string',
       username: 'string',
       password: 'string',
@@ -84,13 +84,13 @@ const RegisterForm: Component<FormProps> = (props) => {
       invitecode: 'string',
     })
 
-    if (!handle || !username || !password) return
+    if (!handle || !username || !password || !invitecode) return
     if (password !== confirm) {
       toastStore.warn('Passwords do not match', 2)
       return
     }
 
-    userStore.register({ handle, username, password }, () => navigate('/profile'))
+    userStore.register({ handle, username, password, invitecode }, () => navigate('/profile'))
   }
 
   return (
