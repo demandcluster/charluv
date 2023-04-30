@@ -176,7 +176,6 @@ export const msgStore = createStore<MsgState>(
         yield { partial: undefined }
         return
       }
-
       yield { partial: '', waiting: { chatId, mode } }
 
       switch (mode) {

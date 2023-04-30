@@ -181,7 +181,6 @@ const CharacterList: Component = () => {
         sortField={sortField()}
         sortDirection={sortDirection()}
       />
-
       <ImportCharacterModal show={showImport()} close={() => setImport(false)} onSave={onImport} />
     </>
   )
@@ -319,7 +318,6 @@ const Character: Component<{
   const [opts, setOpts] = createSignal(false)
   const [listOpts, setListOpts] = createSignal(false)
   const nav = useNavigate()
-
   if (props.type === 'list') {
     return (
       <div class="flex w-full flex-row items-center justify-between gap-4 rounded-xl bg-[var(--bg-700)] py-1 px-2">

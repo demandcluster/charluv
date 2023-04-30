@@ -9,6 +9,7 @@ import PersonaAttributes, { getAttributeMap } from '../../shared/PersonaAttribut
 import TextInput from '../../shared/TextInput'
 import { getForm, getFormEntries, getStrictForm } from '../../shared/util'
 import { characterStore, chatStore, userStore } from '../../store'
+import CharacterSelect from '../../shared/CharacterSelect'
 
 const options = [
   { value: 'wpp', label: 'W++' },
@@ -49,7 +50,7 @@ const CreateChatModal: Component<{
     }
   })
 
-  const selectChar = async (chr: AppSchema.Character) => {
+  const selectChar = (chr: AppSchema.Character | undefined) => {
     setChar(chr)
   }
 
@@ -99,7 +100,7 @@ const CreateChatModal: Component<{
             Close
           </Button>
 
-          <Button onClick={onCreate}>
+          <Button onClick={onCreate} disabled={!char()}>
             <Check />
             Create
           </Button>
@@ -117,12 +118,13 @@ const CreateChatModal: Component<{
           The information provided here is only applied to the newly created conversation.
         </div>
         <Show when={!props.char}>
-          <Select
-            items={state.chars.map((char) => ({ label: char.name, value: char._id }))}
+          <CharacterSelect
+            items={state.chars}
+            value={char()}
             fieldName="character"
             label="Character"
             helperText="The conversation's central character"
-            onChange={(item) => selectChar(state.chars.find((ch) => ch._id === item.value)!)}
+            onChange={(c) => selectChar(c!)}
           />
         </Show>
 
@@ -137,79 +139,77 @@ const CreateChatModal: Component<{
           }
           placeholder="Untitled"
         />
-        <Show when={user?.admin}>
-          <TextInput
-            isMultiline
-            fieldName="greeting"
-            label="Greeting"
-            value={char()?.greeting}
-            class="text-xs"
-          ></TextInput>
+        <TextInput
+          isMultiline
+          fieldName="greeting"
+          label="Greeting"
+          value={char()?.greeting}
+          class="text-xs"
+        ></TextInput>
 
-          <TextInput
-            isMultiline
-            fieldName="scenario"
-            label="Scenario"
-            value={char()?.scenario}
-            class="text-xs"
-          ></TextInput>
+        <TextInput
+          isMultiline
+          fieldName="scenario"
+          label="Scenario"
+          value={char()?.scenario}
+          class="text-xs"
+        ></TextInput>
 
-          <TextInput
-            isMultiline
-            fieldName="sampleChat"
-            label="Sample Chat"
-            value={char()?.sampleChat}
-            class="text-xs"
-          ></TextInput>
+        <TextInput
+          isMultiline
+          fieldName="sampleChat"
+          label="Sample Chat"
+          value={char()?.sampleChat}
+          class="text-xs"
+        ></TextInput>
 
-          <Show when={(props.char?.persona.kind || char()?.persona.kind) !== 'text'}>
-            <Select
-              class="mb-2 text-sm"
-              fieldName="schema"
-              label="Persona"
-              items={options}
-              value={props.char?.persona.kind || char()?.persona.kind}
+        <Show when={(props.char?.persona.kind || char()?.persona.kind) !== 'text'}>
+          <Select
+            class="mb-2 text-sm"
+            fieldName="schema"
+            label="Persona"
+            items={options}
+            value={props.char?.persona.kind || char()?.persona.kind}
+          />
+        </Show>
+
+        <Show when={(props.char?.persona.kind || char()?.persona.kind) === 'text'}>
+          <Select
+            class="mb-2 text-sm"
+            fieldName="schema"
+            label="Persona"
+            items={[{ label: 'Plain text', value: 'text' }]}
+            value={'text'}
+          />
+        </Show>
+
+        <div class="w-full text-sm">
+          <Show when={props.char}>
+            <PersonaAttributes
+              value={props.char!.persona.attributes}
+              hideLabel
+              plainText={props.char?.persona.kind === 'text'}
             />
           </Show>
-
-          <Show when={(props.char?.persona.kind || char()?.persona.kind) === 'text'}>
-            <Select
-              class="mb-2 text-sm"
-              fieldName="schema"
-              label="Persona"
-              items={[{ label: 'Plain text', value: 'text' }]}
-              value={'text'}
-            />
-          </Show>
-
-          <div class="w-full text-sm">
-            <Show when={props.char}>
-              <PersonaAttributes
-                value={props.char!.persona.attributes}
-                hideLabel
-                plainText={props.char?.persona.kind === 'text'}
-              />
-            </Show>
-            <Show when={!props.char && !!selectedChar()}>
-              {/* <PersonaAttributes
+          <Show when={!props.char && !!selectedChar()}>
+            {/* <PersonaAttributes
               value={selectedChar()?.persona.attributes}
               hideLabel
               plainText={selectedChar()?.persona.kind === 'text'}
             /> */}
-              <For each={state.chars}>
-                {(item) => (
-                  <Show when={selectedChar()?._id === item._id}>
-                    <PersonaAttributes
-                      value={item.persona.attributes}
-                      hideLabel
-                      plainText={item.persona.kind === 'text'}
-                    />
-                  </Show>
-                )}
-              </For>
-            </Show>
-          </div>
-        </Show>
+            <For each={state.chars}>
+              {(item) => (
+                <Show when={selectedChar()?._id === item._id}>
+                  <PersonaAttributes
+                    value={item.persona.attributes}
+                    hideLabel
+                    plainText={item.persona.kind === 'text'}
+                  />
+                </Show>
+              )}
+            </For>
+          </Show>
+        </div>
       </form>
     </Modal>
   )

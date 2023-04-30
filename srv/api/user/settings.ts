@@ -11,6 +11,7 @@ import { getAppConfig } from '../settings'
 import { entityUpload, handleForm } from '../upload'
 import { errors, handle, StatusError } from '../wrap'
 import { sendAll } from '../ws'
+import { v4 } from 'uuid'
 
 export const getInitialLoad = handle(async ({ userId }) => {
   const [profile, user, presets, config, books] = await Promise.all([
@@ -51,6 +52,14 @@ export const deleteClaudeKey = handle(async ({ userId }) => {
   return { success: true }
 })
 
+export const deleteThirdPartyPassword = handle(async ({ userId }) => {
+  await store.users.updateUser(userId!, {
+    thirdPartyPassword: '',
+  })
+
+  return { success: true }
+})
+
 export const deleteHordeKey = handle(async ({ userId }) => {
   await store.users.updateUser(userId!, {
     hordeKey: '',
@@ -84,7 +93,9 @@ export const updateConfig = handle(async ({ userId, body }) => {
       novelModel: 'string?',
       koboldUrl: 'string?',
       thirdPartyFormat: 'string?',
+      thirdPartyPassword: 'string?',
       hordeUseTrusted: 'boolean?',
+      oobaUrl: 'string?',
       hordeApiKey: 'string?',
       hordeKey: 'string?',
       hordeModel: 'string?',
@@ -146,6 +157,8 @@ export const updateConfig = handle(async ({ userId, body }) => {
     update.thirdPartyFormat = body.thirdPartyFormat as typeof update.thirdPartyFormat
   }
 
+  const validOobaUrl = await verifyOobaUrl(prevUser, body.oobaUrl)
+  if (validOobaUrl !== undefined) update.oobaUrl = validOobaUrl
   if (body.luminaiUrl !== undefined) update.luminaiUrl = body.luminaiUrl
 
   if (body.images) {
@@ -184,16 +197,20 @@ export const updateConfig = handle(async ({ userId, body }) => {
     update.claudeApiKey = encryptText(body.claudeApiKey)
   }
 
+  if (body.thirdPartyPassword) {
+    update.thirdPartyPassword = encryptText(body.thirdPartyPassword)
+  }
+
   await store.users.updateUser(userId!, update)
   const user = await getSafeUserConfig(userId!)
   return user
 })
 
 export const updateProfile = handle(async (req) => {
-  const form = await handleForm(req, { handle: 'string' } as const)
+  const form = handleForm(req, { handle: 'string' } as const)
   const filename = await entityUpload(
     'profile',
-    req.userId,
+    v4(),
     form.attachments.find((a) => a.field === 'avatar')
   )
 
@@ -226,7 +243,7 @@ async function verifyKobldUrl(user: AppSchema.User, incomingUrl?: string) {
   const url = incomingUrl.match(/(http(s{0,1})\:\/\/)([a-z0-9\.\-]+)(\:[0-9]+){0,1}/gm)
   if (!url || !url[0]) {
     throw new StatusError(
-      `Kobold URL provided could not be verified: Invalid URL format. Use a fully qualified URL, e.g.: http://127.0.0.1:5000`,
+      `Kobold URL provided could not be verified: Invalid URL format. Use a fully qualified URL. E.g.: https://local-tunnel-url-10-20-30-40.loca.lt`,
       400
     )
   }
@@ -239,6 +256,21 @@ async function verifyKobldUrl(user: AppSchema.User, incomingUrl?: string) {
   return url[0]
 }
 
+async function verifyOobaUrl(user: AppSchema.User, incomingUrl?: string) {
+  if (!incomingUrl) return incomingUrl
+  if (user.oobaUrl === incomingUrl) return
+
+  const url = incomingUrl.match(/(http(s{0,1})\:\/\/)([a-z0-9\.\-]+)(\:[0-9]+){0,1}/gm)
+
+  if (!url || !url[0]) {
+    throw new StatusError(
+      `Ooba URL provided could not be verified: Invalid URL format. Use a fully qualified URL. E.g.: https://local-tunnel-url-10-20-30-40.loca.lt`,
+      400
+    )
+  }
+
+  return url[0]
+}
 async function verifyNovelKey(key: string) {
   const res = await needle('get', `${NOVEL_BASEURL}/user/data`, {
     headers: { Authorization: `Bearer ${key}` },
@@ -268,6 +300,11 @@ async function getSafeUserConfig(userId: string) {
     if (user.claudeApiKey) {
       user.claudeApiKey = ''
       user.claudeApiKeySet = true
+    }
+
+    if (user.thirdPartyPassword) {
+      user.thirdPartyPassword = ''
+      user.thirdPartyPasswordSet = true
     }
   }
   return user

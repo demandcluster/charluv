@@ -84,7 +84,7 @@ export const config = {
   discordId: env('DISCORD_ID', ''),
   hordeKeyPremium: env('HORDE_KEY_PREMIUM', ''),
   hordeKeyImages: env('HORDE_KEY_IMAGES', ''),
-  adapters: env('ADAPTERS', 'novel,horde,kobold,luminai,openai,scale,claude')
+  adapters: env('ADAPTERS', 'novel,horde,kobold,luminai,openai,scale,claude,ooba')
     .split(',')
     .filter((i) => !!i) as AIAdapter[],
   storage: {

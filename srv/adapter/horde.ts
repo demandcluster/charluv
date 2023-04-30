@@ -4,7 +4,7 @@ import { HORDE_GUEST_KEY } from '../api/horde'
 import { decryptText } from '../db/util'
 import { ModelAdapter } from './type'
 import { config } from '../config'
-
+import { logger } from '../logger'
 const { hordeKeyPremium } = config
 
 export const handleHorde: ModelAdapter = async function* ({
@@ -27,6 +27,7 @@ export const handleHorde: ModelAdapter = async function* ({
     const trimmed = trimResponseV2(sanitised, char, members, ['END_OF_DIALOG'])
     yield trimmed || sanitised
   } catch (ex: any) {
+    logger.error({ err: ex, body: ex.body }, `Horde request failed`)
     yield { error: ex.message }
   }
 }
