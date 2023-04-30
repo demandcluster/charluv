@@ -2,6 +2,7 @@ import { Menu } from 'lucide-solid'
 import { Component, Show } from 'solid-js'
 import { A } from '@solidjs/router'
 import { settingStore } from '../store'
+import logoDark from '../assets/logoDark.png'
 
 const NavBar: Component = () => {
   const cfg = settingStore()
@@ -18,7 +19,7 @@ const NavBar: Component = () => {
           </div>
           <div>
             <A href="/">
-              Agn<span class="rounded-xl text-[var(--hl-500)]">ai</span>stic
+              <img width="75px" src={logoDark} />
             </A>
           </div>
           <div class="w-8 sm:hidden"></div>
