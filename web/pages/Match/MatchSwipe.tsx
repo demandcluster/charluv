@@ -9,10 +9,11 @@ import { matchStore, userStore, swipeStore } from '../../store'
 
 import { SwipeCard } from '../../shared/Swipe'
 import type { SwipeCardRef } from '../../shared/Swipe'
-
+import { setComponentPageTitle } from '../../shared/util'
 import { getAssetUrl } from '../../shared/util'
 
 const MatchList: Component = () => {
+  setComponentPageTitle('Likes')
   const swipeCount = swipeStore()
   let curApiref: string
   let totalSwipes = []

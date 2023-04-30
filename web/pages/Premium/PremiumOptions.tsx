@@ -6,10 +6,11 @@ import { cartStore } from '../../store'
 import { CalendarHeart, Coins, ShoppingCart } from 'lucide-solid'
 import logo from '../../assets/logo.png'
 import Modal from '../../shared/Modal'
-
+import { setComponentPageTitle } from '../../shared/util'
 import { loadScript } from '@paypal/paypal-js'
 
 const PremiumOptions: Component = () => {
+  setComponentPageTitle('Shop')
   const items = cartStore((state) => state.items)
   const cartItems = cartStore((state) => state.cartItems)
   const [cartSignal, setCartSignal] = createSignal(cartItems)

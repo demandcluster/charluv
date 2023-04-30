@@ -5,9 +5,10 @@ import { settingStore } from '../../store'
 import { markdown } from '../../shared/markdown'
 import { A } from '@solidjs/router'
 import Divider from '../../shared/Divider'
+import Button from '../../shared/Button'
 import logoDark from '../../assets/logoDark.png'
 import logo from '../../assets/logo.png'
-
+import discordLogo from '../../assets/discord-logo-blue.svg'
 const text = `
 
 ### This website is a simulation
@@ -119,6 +120,14 @@ const HomePage: Component = () => {
           </li>
           <li>
             <A href="/privacy">Privacy Policy</A>
+          </li>
+          <li>
+            <Button class="my-4 bg-white fill-white shadow shadow-emerald-500 drop-shadow-xl">
+              <a href="https://discord.gg/vr8M57PDwH" target="blank">
+                {' '}
+                <img src={discordLogo} alt="discord" class="w-24 max-w-xs fill-white" />
+              </a>
+            </Button>
           </li>
         </ul>
       </div>

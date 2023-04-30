@@ -26,7 +26,7 @@ export type UISettings = {
 }
 
 const defaultUIsettings: UISettings = {
-  theme: 'sky',
+  theme: 'teal',
   mode: 'dark',
   avatarSize: 'md',
   avatarCorners: 'circle',
