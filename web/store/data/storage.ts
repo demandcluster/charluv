@@ -37,6 +37,7 @@ export const KEYS = {
   presets: 'presets',
   lastChatId: 'guestLastChatId',
   memory: 'memory',
+  cartItems: 'cartItems',
 }
 
 type LocalStorage = {
@@ -48,6 +49,7 @@ type LocalStorage = {
   presets: AppSchema.UserGenPreset[]
   lastChatId: string
   memory: AppSchema.MemoryBook[]
+  cartItems: AppSchema.ShopItem[]
 }
 
 const localStore = new Map<keyof LocalStorage, any>()
@@ -86,6 +88,7 @@ const fallbacks: { [key in StorageKey]: LocalStorage[key] } = {
   lastChatId: '',
   messages: [],
   memory: [],
+  cartItems: [],
 }
 
 export async function handleGuestInit() {
@@ -210,6 +213,15 @@ export function deleteChatMessages(chatId: string) {
   localStorage.removeItem(`messages-${chatId}`)
 }
 
+export function loadCartItems<TKey extends keyof typeof KEYS>(key: TKey): LocalStorage[TKey] {
+  const item = localStorage.getItem(KEYS[key])
+  if (item) return JSON.parse(item)
+  return []
+}
+export function saveCartItem(state: AppSchema.ShopItem[]) {
+  localStorage.setItem(KEYS.cartItems, JSON.stringify(state))
+}
+
 function saveItem<TKey extends keyof typeof KEYS>(key: TKey, value: LocalStorage[TKey]) {
   if (SELF_HOSTING) {
     localStore.set(key, value)
@@ -267,6 +279,8 @@ export const local = {
   deleteChatMessages,
   loadItem,
   getMessages,
+  saveCartItem,
+  loadCartItems,
   KEYS,
   ID,
   error,
