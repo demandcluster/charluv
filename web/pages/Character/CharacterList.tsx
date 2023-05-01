@@ -335,8 +335,7 @@ const Character: Component<{
         </A>
         <div>
           <div class="hidden flex-row items-center justify-center gap-2 sm:flex">
-            <Gauge currentXP={props.char.xp} />
-
+            <Gauge showBar={false} currentXP={props.char.xp} />
             <Show when={props.char.favorite}>
               <Star
                 class="icon-button fill-[var(--text-900)] text-[var(--text-900)]"

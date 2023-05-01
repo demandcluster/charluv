@@ -31,7 +31,7 @@ function xpNeededForLevelUp(currentXP: number) {
 }
 
 const Gauge = (props: Props) => {
-  const { currentXP } = props
+  const { currentXP, showBar } = props
   const xpNeeded = xpNeededForLevelUp(currentXP).xp
   const level = xpNeededForLevelUp(currentXP).lvl
   const levelXP = calculateTotalXPNeededForLevel(level)
@@ -39,6 +39,7 @@ const Gauge = (props: Props) => {
 
   const [color, setColor] = createSignal('bg-red-500')
 
+  const highbox = 25-Math.round(percentFilled /4);
   // Change the color based on the percentage filled
   if (percentFilled >= 50) {
     setColor('bg-red-500')
@@ -48,19 +49,18 @@ const Gauge = (props: Props) => {
     setColor('bg-green-500')
   }
 
-  return (
+  return(
     <>
-      <Show when={currentXP > 10}>
-        <div class="flex">
-          <div class="relative my-auto h-7 w-6 overflow-hidden rounded-full bg-gray-300">
-            <div
-              class={`absolute bottom-0 w-full bg-red-500`}
-              style={{ height: `${percentFilled}%` }}
-            >
-              <Heart class="absolute  bottom-0 left-1/2 -translate-x-1/2 transform text-white" />
-            </div>
-          </div>
-          <div class="m-2 text-2xl text-teal-300 opacity-60">{level}</div>
+      <div class="flex justify-between">
+        <div class="text-base font-medium"> 
+          <div><Heart class="absolute inline-block transform " /><Heart class="relative transform hearttest fill-red-600" viewBox={`0 ${highbox} 24 24`} style={`top: ${(highbox)}px`} /></div>
+        </div>
+      </div>
+      <div class="-mt-2 -ml-2 text-[var(--hl-400)] font-bold">{level}</div>
+      
+      <Show when={showBar}>
+        <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+          <div class= {`bg-[var(--hl-900)] h-2.5 rounded-full` } style={`width: ${Math.round(percentFilled)}%`}></div>
         </div>
       </Show>
     </>
