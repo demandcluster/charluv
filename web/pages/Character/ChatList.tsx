@@ -124,14 +124,7 @@ const CharacterChats: Component = () => {
       >
         <Import /> <span class="hidden sm:inline">Import</span>
       </button>
-      <Show when={!!params.id}>
-        <button
-          class={`btn-primary w-full items-center justify-start py-2 sm:w-fit sm:justify-center`}
-          onClick={() => nav(`/character/${params.id}/edit`)}
-        >
-          <Edit /> <span class="hidden sm:inline">Edit</span>
-        </button>
-      </Show>
+
       <button
         class={`btn-primary w-full items-center justify-start py-2 sm:w-fit sm:justify-center`}
         onClick={() => setCreate(true)}

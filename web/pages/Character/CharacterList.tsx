@@ -30,6 +30,7 @@ import {
   SortDesc,
   LayoutList,
   Image,
+  User,
 } from 'lucide-solid'
 import { A, useNavigate } from '@solidjs/router'
 import AvatarIcon from '../../shared/AvatarIcon'
@@ -355,6 +356,7 @@ const Character: Component<{
               </A>
             </Show>
             <Trash class="icon-button" onClick={props.delete} />
+            <User class="icon-button" onClick={() => nav(`/likes/${props.char._id}/profile`)} />
           </div>
           <div class="flex items-center sm:hidden" onClick={() => setListOpts(true)}>
             <Menu class="icon-button" />
@@ -378,7 +380,7 @@ const Character: Component<{
               </Button>
               <Show when={props.user?.user?.admin}>
                 <Button alignLeft onClick={props.download}>
-                  <Download /> Downloadsss
+                  <Download /> Download
                 </Button>
                 <Button alignLeft onClick={() => nav(`/character/${props.char._id}/edit`)}>
                   <Edit /> Edit
@@ -389,6 +391,9 @@ const Character: Component<{
               </Show>
               <Button alignLeft onClick={props.delete}>
                 <Trash /> Delete
+              </Button>
+              <Button alignLeft onClick={() => nav(`/likes/${props.char._id}/profile`)}>
+                <User /> Profile
               </Button>
             </div>
           </DropMenu>

@@ -33,9 +33,13 @@ _28 Apr 2023_
 - Added current wait time for text on information page (premium users skip the queue)
 - Started rebranding due to stupid aivo.co
 
+_30 Apr 2023_
+- Fixed iOS height
+- Improved character filter
+
 KNOWN ISSUES:
 - Progress of character is not visible atm, character still progresses and scenarios are still updated nevertheless.
-- Profile page of characters not reachable from matches page
+
 
 `
 
