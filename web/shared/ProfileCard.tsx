@@ -131,7 +131,7 @@ const ProfileCard: Component<{ character: AppSchema.Character; href: string }> =
                 </div>
                 <div class=" w-full">
                   <div class="mx-1 mb-3 inline-block rounded-xl border bg-[var(--hl-900)] p-1 px-2 text-xs first-letter:capitalize">
-                    {props.character.persona?.attributes?.country2 || ''}
+                    {props.character.persona?.attributes?.country || ''}
                   </div>
                 </div>
               </Show>
