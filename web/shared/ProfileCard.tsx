@@ -114,7 +114,7 @@ const ProfileCard: Component<{ character: AppSchema.Character; href: string }> =
                 <hr class=" mt-8 ml-24 w-[calc(100%-5rem)] opacity-40" />
                 <div class=" relative -top-4 -ml-3  mr-3 inline-block text-shadow">
                   <Moon class="mr-1 inline w-10 text-[var(--hl-200)]" />
-                  Zodiac sign
+                  Zodiac
                 </div>
                 <div class=" w-full">
                   <div class="mx-1 mb-3 inline-block rounded-xl border bg-[var(--hl-900)] p-1 px-2 text-xs first-letter:capitalize">

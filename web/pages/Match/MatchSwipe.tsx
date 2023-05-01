@@ -12,6 +12,22 @@ import type { SwipeCardRef } from '../../shared/Swipe'
 import { setComponentPageTitle } from '../../shared/util'
 import { getAssetUrl } from '../../shared/util'
 
+const CACHE_KEY = 'charluv-likes-cache'
+
+function getListCache(): ListCache {
+  const existing = localStorage.getItem(CACHE_KEY)
+  const defaultCache: ListCache = { sort: { field: 'modified', direction: 'desc' }, view: 'likes' }
+
+  if (!existing) {
+    return defaultCache
+  }
+
+  return { ...defaultCache, ...JSON.parse(existing) }
+}
+function saveListCache(cache: ListCache) {
+  localStorage.setItem(CACHE_KEY, JSON.stringify(cache))
+}
+
 const MatchList: Component = () => {
   setComponentPageTitle('Likes')
   const swipeCount = swipeStore()
@@ -175,6 +191,7 @@ const MatchList: Component = () => {
 
   return (
     <>
+    <div class="overflow-hidden">
       <PageHeader title="Likes" subtitle="" />
       <Show when={!charsList().list}>
         <div>Loading ...{charsList()}</div>
@@ -195,6 +212,7 @@ const MatchList: Component = () => {
             )}
           </For>
         </div>
+      <Show when={charsList().list && charsList().list.length>0}>
         <div class=" m-[26em] mx-auto mb-4 w-96 max-w-5xl pl-6 pb-2 md:w-[26rem] md:pl-1 sm:mt-[36em]">
           <button
             onclick={() => buttonSwipe('left')}
@@ -233,8 +251,10 @@ const MatchList: Component = () => {
             />
           </button>
         </div>
+      </Show>
         {charsList().list?.length === 0 ? <NoMatches /> : null}
       </Show>
+      </div>
     </>
   )
 }
@@ -266,14 +286,14 @@ const DSwipeCard: Component<{ character: AppSchema.Character; match: Any }> = (p
           class="absolute h-full max-h-full w-full max-w-full bg-cover"
           style={{ 'background-image': `url(${getAssetUrl(props.character.avatar)})` }}
         >
-          <div class="size text-shadow absolute bottom-4 w-full p-2 text-3xl text-white sm:bottom-10 sm:text-5xl">
-            <span class=" font-black ">{props.character.name}</span> {age}
+          <div class="size text-shadow-lg shadow-black absolute bottom-6 w-full p-2 text-3xl text-white sm:bottom-10 sm:text-5xl">
+            <span class="font-black ">{props.character.name}</span> {age}
           </div>
           <Suspense>
-            <div class="absolute bottom-1 h-6 overflow-hidden sm:h-10">
+            <div class="absolute bottom-1 h-8 overflow-hidden sm:h-10">
               <For each={props.character.persona.attributes.likes}>
                 {(attr) => (
-                  <div class=" float-left m-1 rounded-md border bg-[var(--hl-900)] bg-opacity-80 px-2 py-1 text-[8px] capitalize sm:py-2 sm:text-[12px]">
+                  <div class=" float-left m-1 rounded-md border bg-[var(--hl-900)] bg-opacity-80 px-2 py-[5px] text-[8px] capitalize sm:py-2 sm:text-[12px]">
                     {attr}
                   </div>
                 )}
