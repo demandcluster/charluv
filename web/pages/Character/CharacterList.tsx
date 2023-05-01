@@ -43,6 +43,7 @@ import Modal from '../../shared/Modal'
 import { exportCharacter } from '../../../common/prompt'
 import Loading from '../../shared/Loading'
 import Divider from '../../shared/Divider'
+import Gauge from '../../shared/Gauge'
 
 const CACHE_KEY = 'agnai-charlist-cache'
 
@@ -334,6 +335,8 @@ const Character: Component<{
         </A>
         <div>
           <div class="hidden flex-row items-center justify-center gap-2 sm:flex">
+            <Gauge currentXP={props.char.xp} />
+
             <Show when={props.char.favorite}>
               <Star
                 class="icon-button fill-[var(--text-900)] text-[var(--text-900)]"
