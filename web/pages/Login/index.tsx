@@ -56,14 +56,32 @@ const LoginPage: Component = () => {
         </Show>
       </div>
       <div class="mt-8 w-full gap-4">
-        <p class="flex justify-center text-xl text-[var(--hl-400)]">Why register?</p>
-        <div class="flex flex-col items-center">
-          <p>You need an account to use the virtual dating services and see all the characters.</p>
-          <p>
-            If you choose to register your data will be stored and accessible on any devices you
-            login with.
+        <Show when={!register()}>
+          <p class="flex justify-center text-xl text-[var(--hl-400)]">Why register?</p>
+          <div class="flex flex-col items-center text-center">
+            <p>
+              You need an account to use the virtual dating services and see all the characters.
+            </p>
+            <p>
+              If you choose to register your data will be stored and accessible on any devices you
+              login with.
+            </p>
+          </div>
+        </Show>
+        <Show when={register()}>
+          <p class="flex justify-center text-xl text-[var(--hl-400)]">
+            Why do I need an access code?
           </p>
-        </div>
+
+          <div class="mx-4 flex flex-col items-center text-center ">
+            <p>
+              We need to have some sort of control on the amount of people joining since we do not
+              require an email for registration (we find privacy more important). You can join our
+              Discord, check our Twitter or try <b>AIVO8592094</b>{' '}
+              <span class="text-sm">(this code could run out)</span>
+            </p>
+          </div>
+        </Show>
       </div>
     </div>
   )
@@ -109,9 +127,10 @@ const RegisterForm: Component<FormProps> = (props) => {
         <TextInput
           label="Invite code"
           fieldName="invitecode"
-          placeholder="Get an invite on our Discord!"
+          placeholder="Check below for a code!"
           required
         />
+        <div></div>
       </div>
 
       <Button type="submit" disabled={props.isLoading}>

@@ -23,7 +23,7 @@ const DateSettings: Component = () => {
 
   return (
     <>
-      <h3 class="text-lg font-bold">Character Style</h3>
+      <h3 class="text-lg font-bold" >Character Style</h3>
       <div class="flex flex-row justify-start gap-4">
         <Toggle
           fieldName="charAnime"
