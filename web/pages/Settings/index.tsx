@@ -7,6 +7,7 @@ import { CHAT_ADAPTERS, ChatAdapter, AIAdapter } from '../../../common/adapters'
 import { userStore } from '../../store'
 import { AppSchema } from '../../../srv/db/schema'
 import UISettings from './UISettings'
+import DateSettings from './DateSettings'
 import Tabs from '../../shared/Tabs'
 import AISettings from './AISettings'
 import { Show } from 'solid-js'
@@ -17,6 +18,7 @@ const settingTabs = {
   ui: 'UI Settings',
   image: 'Image Settings',
   guest: 'Guest Data',
+  date: 'Dating Settings',
 }
 
 type Tab = keyof typeof settingTabs
@@ -33,6 +35,7 @@ const Settings: Component = () => {
   const [workers, setWorkers] = createSignal<string[]>(state.user?.hordeWorkers || [])
 
   const tabs: Tab[] = ['ui']
+  // if (state.loggedIn) tabs.push('date')
   if (!state.loggedIn) tabs.push('guest')
   const currentTab = createMemo(() => tabs[tab()])
 
@@ -140,6 +143,9 @@ const Settings: Component = () => {
 
           <div class={currentTab() === 'image' ? tabClass : 'hidden'}>
             <ImageSettings />
+          </div>
+          <div class={currentTab() === 'date' ? tabClass : 'hidden'}>
+            <DateSettings />
           </div>
 
           <div class={currentTab() === 'guest' ? tabClass : 'hidden'}>

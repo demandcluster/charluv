@@ -37,8 +37,8 @@ _30 Apr 2023_
 - Fixed iOS height
 - Improved character filter
 
-KNOWN ISSUES:
-- Progress of character is not visible atm, character still progresses and scenarios are still updated nevertheless.
+_1 May 2023_
+- Fixed XP on matches page (list view only)
 
 
 `
