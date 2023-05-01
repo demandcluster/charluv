@@ -34,6 +34,12 @@ const defaultUIsettings: UISettings = {
   msgOpacity: 0.8,
   chatWidth: 'full',
   logPromptsToBrowserConsole: false,
+  charAnime: true,
+  charRealistic: true,
+  charMale: true,
+  charFemale: true,
+  charTrans: true,
+  charOther: true,
 }
 
 const fontFaces: { [key in FontSetting]: string } = {
@@ -170,7 +176,7 @@ export const userStore = createStore<UserState>(
         jwt: res.result.token,
       }
 
-      toastStore.success('Welcome to Agnaistic')
+      toastStore.success('Welcome to AIVO')
       onSuccess?.()
       publish({ type: 'login', token: res.result.token })
     },

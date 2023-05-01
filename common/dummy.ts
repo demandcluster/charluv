@@ -21,6 +21,7 @@ export function toChar(name: string): AppSchema.Character {
     match: false,
     xp: 0,
     premium: false,
+    anime: true,
     updatedAt: '',
     userId: '',
     favorite: false,

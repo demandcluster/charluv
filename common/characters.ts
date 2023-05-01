@@ -6,6 +6,7 @@ export const defaultChars = {
     match: false,
     xp: 0,
     premium: false,
+    anime: true,
     avatar: '/assets/aiva.png',
     persona: {
       kind: 'boostyle',
@@ -33,5 +34,6 @@ export const defaultChars = {
     | 'xp'
     | 'premium'
     | 'avatar'
+    | 'anime'
   >
 }

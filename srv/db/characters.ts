@@ -17,6 +17,7 @@ type CharacterUpdate = Partial<
     | 'match'
     | 'xp'
     | 'premium'
+    | 'anime'
   >
 >
 
@@ -35,6 +36,7 @@ export async function createCharacter(
     | 'match'
     | 'xp'
     | 'premium'
+    | 'anime'
   >
 ) {
   const newChar: AppSchema.Character = {

@@ -19,6 +19,7 @@ const valid = {
   xp: 'string',
   match: 'string',
   premium: 'string',
+  anime: 'string',
   persona: {
     kind: PERSONA_FORMATS,
     attributes: 'any',
@@ -38,6 +39,7 @@ const createCharacter = handle(async (req) => {
     premium: body.premium.toString() === 'true',
     xp: 0,
     match: false,
+    anime: body.anime.toString() === 'true',
     sampleChat: body.sampleChat,
     description: body.description,
     scenario: body.scenario,
@@ -86,6 +88,7 @@ const editCharacter = handle(async (req) => {
     xp: Number(body.xp),
     premium: body.premium.toString() === 'true',
     match: body.match.toString() === 'true',
+    anime: body.anime.toString() === 'true',
     description: body.description,
     greeting: body.greeting,
     scenario: body.scenario,

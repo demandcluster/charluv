@@ -35,7 +35,7 @@ const Settings: Component = () => {
   const [workers, setWorkers] = createSignal<string[]>(state.user?.hordeWorkers || [])
 
   const tabs: Tab[] = ['ui']
-  // if (state.loggedIn) tabs.push('date')
+  if (state.loggedIn) tabs.push('date')
   if (!state.loggedIn) tabs.push('guest')
   const currentTab = createMemo(() => tabs[tab()])
 
