@@ -274,7 +274,7 @@ const Characters: Component<{
                   <Show when={showGrouping()}>
                     <h2 class="text-xl font-bold">{group.label}</h2>
                   </Show>
-                  <div class="grid w-full grid-cols-[repeat(auto-fit,minmax(105px,1fr))] flex-row flex-wrap justify-start gap-2 py-2">
+                  <div class="grid w-full grid-cols-[repeat(auto-fit,minmax(160px,1fr))] flex-row flex-wrap justify-start gap-2 md:gap-4 py-2">
                     <For each={group.list}>
                       {(char) => (
                         <Character
@@ -405,12 +405,12 @@ const Character: Component<{
   }
 
   return (
-    <div class="flex flex-col items-center justify-between gap-1 rounded-md bg-[var(--bg-700)] p-1">
+    <div class="flex flex-col items-center justify-between gap-1 rounded-md bg-[var(--bg-800)] p-1">
       <div class="w-full">
         <Show when={props.char.avatar}>
           <A
             href={`/character/${props.char._id}/chats`}
-            class="block h-32 w-full justify-center overflow-hidden rounded-lg"
+            class="block h-56 w-full justify-center overflow-hidden rounded-lg "
           >
             <img
               src={getAssetUrl(props.char.avatar!)}
@@ -422,22 +422,28 @@ const Character: Component<{
         <Show when={!props.char.avatar}>
           <A
             href={`/character/${props.char._id}/chats`}
-            class="flex h-32 w-full items-center justify-center rounded-md bg-[var(--bg-700)]"
+            class="flex h-56 w-full items-center justify-center rounded-md bg-[var(--bg-800)]"
           >
             <VenetianMask size={24} />
           </A>
         </Show>
       </div>
-      <div class="w-full text-sm">
-        <div class="overflow-hidden text-ellipsis whitespace-nowrap px-1 font-bold">
-          {props.char.name}
+      <div class="w-full text-sm h-18">
+        <div class="w-full text-right relative px-2 text-2xl text-white text-shadow right-0 md:right-1">
+          <span class=" font-black ">{props.char?.name}</span> {((props.char.persona?.attributes?.age) ? props.char?.persona?.attributes?.age[0].split(" ")[0] : '')}
         </div>
+        <div class="px-2 h-12 -mt-2">
+          <Show when={props.char.name!=="Aiva"}>
+              <div ><Gauge showBar={true} currentXP={props.char.xp} /></div>
+          </Show>
+        </div>
+
         {/* hacky positioning shenanigans are necessary as opposed to using an
             absolute positioning because if any of the DropMenu parent is
             positioned, then DropMenu breaks because it relies on the nearest
             positioned parent to be the sitewide container */}
         <div
-          class="float-right mt-[-149px] mr-[3px] flex justify-end"
+          class="-mt-[296px] float-right mr-1 flex justify-end"
           onClick={() => setOpts(true)}
         >
           <div class=" rounded-md bg-[var(--bg-500)] p-[2px]">
@@ -456,6 +462,9 @@ const Character: Component<{
                 <Show when={!props.char.favorite}>
                   <Star /> Favorite
                 </Show>
+              </Button>
+              <Button alignLeft onClick={() => nav(`/likes/${props.char._id}/profile`)}>
+                <User /> Profile
               </Button>
               <Show when={props.user?.user?.admin}>
                 <Button alignLeft onClick={props.download}>
