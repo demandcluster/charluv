@@ -35,11 +35,13 @@ const Gauge = (props: Props) => {
   const xpNeeded = xpNeededForLevelUp(currentXP).xp
   const level = xpNeededForLevelUp(currentXP).lvl
   const levelXP = calculateTotalXPNeededForLevel(level)
-  const percentFilled = Math.min((currentXP - levelXP) / xpNeeded, 1) * 100
+  let percentFilled = Math.min((currentXP - levelXP) / xpNeeded, 1) * 100
 
   const [color, setColor] = createSignal('bg-red-500')
-
+  const xpadjust = (showBar ? 41 : 25)
   const highbox = 25-Math.round(percentFilled /4);
+  const highboxtop = xpadjust-Math.round(percentFilled /4);
+  if(level==0){percentFilled = "0";}
   // Change the color based on the percentage filled
   if (percentFilled >= 50) {
     setColor('bg-red-500')
@@ -51,17 +53,21 @@ const Gauge = (props: Props) => {
 
   return(
     <>
-      <div class="flex justify-between">
+      <div class="inline-block">
         <div class="text-base font-medium"> 
-          <div><Heart class="absolute inline-block transform " /><Heart class="relative transform hearttest fill-red-600" viewBox={`0 ${highbox} 24 24`} style={`top: ${(highbox)}px`} /></div>
+          <div><Heart class={`absolute inline-block transform ${(showBar ? "mt-4" : "")} `} /><Heart class={`relative transform hearttest fill-red-600 ${(showBar ? "mt-4" : "")} `} viewBox={`0 ${highbox} 24 24`} style={`top: ${(highboxtop)}px`} /></div>
         </div>
       </div>
-      <div class="-mt-2 -ml-2 text-[var(--hl-400)] font-bold">{level}</div>
-      
+      <Show when={!showBar}>
+        <div class="-mt-2 -ml-2 text-[var(--hl-400)] font-bold">{level}</div>
+      </Show>
       <Show when={showBar}>
+      <div class="inline-block w-[calc(100%-30px)] pl-2">
+        <div class="inline-block text-[var(--hl-400)] font-bold ml-1">Level: {level}</div>
         <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
           <div class= {`bg-[var(--hl-900)] h-2.5 rounded-full` } style={`width: ${Math.round(percentFilled)}%`}></div>
         </div>
+      </div>
       </Show>
     </>
   )
