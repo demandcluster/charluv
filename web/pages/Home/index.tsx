@@ -51,7 +51,7 @@ Yes you can. However, you need to goto our Discord to submit the character. All 
 
 ### Survival Goals
 
-In order to survive as a website we need ***€800,--*** before summer 2023. So far we got ***€50,--***. 
+In order to survive as a website we need ***€800,--*** before summer 2023. So far we got ***€56,--***. 
 All proceeds will be used to pay for the server and the AI. We will not take any money out of this project.
 We are currently investing in a NVIDIA P40. We keep you posted.
 

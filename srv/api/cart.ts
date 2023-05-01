@@ -99,7 +99,7 @@ const createPaypalOrder = async (
               value: item.price.toFixed(2),
             },
             quantity: 1,
-            category: 'DIGITAL_GOODS',
+            category: 'SERVICE',
           }
         }),
       },
