@@ -1,7 +1,7 @@
 import { Component, createEffect, createSignal, For, Show } from 'solid-js'
 import Button from '../../shared/Button'
 import PageHeader from '../../shared/PageHeader'
-import { Check, Delete, Heart, Undo2, X, AlignLeft } from 'lucide-solid'
+import { Check, Delete, Heart, Undo2, X, AlignLeft, LayoutList, Image } from 'lucide-solid'
 import { AppSchema } from '../../../srv/db/schema'
 import { A, useNavigate } from '@solidjs/router'
 import AvatarIcon from '../../shared/AvatarIcon'
@@ -16,7 +16,7 @@ const CACHE_KEY = 'charluv-likes-cache'
 
 function getListCache(): ListCache {
   const existing = localStorage.getItem(CACHE_KEY)
-  const defaultCache: ListCache = { sort: { field: 'modified', direction: 'desc' }, view: 'likes' }
+  const defaultCache: ListCache = { view: 'likes' }
 
   if (!existing) {
     return defaultCache
@@ -37,16 +37,21 @@ const MatchList: Component = () => {
 
   createEffect(() => {
     curApiref = ''
-    totalSwipes = []
-    tmpSwipes = []
     swipeStore.getSwipe()
     matchStore.getMatches(swipeCount.lastid)
+    const next = {
+      view: view()
+    }
+
+    saveListCache(next)
   })
 
+  const cached = getListCache()
+  const [view, setView] = createSignal(cached.view)
+  const getNextView = () => (view() === 'likes' ? 'list' : 'likes')
   const matchItems = matchStore((s) => s.characters)
   const [charsList, setCharList] = createSignal(matchItems)
   const [charsIds, setCharIds] = createSignal(matchItems)
-
   const showZindex = { min: 10000, plus: 20000 }
   const [undoDisabled, setUndo] = createSignal('disabled')
   const [colorSwipeMove, setSwipeMove] = createSignal({
@@ -185,6 +190,16 @@ const MatchList: Component = () => {
       }
     })
   }
+  function endAllSwipes(){
+    setUndo('disabled')
+    Object.keys(tmpSwipes).forEach((key) => {
+        if (!tmpSwipes[key].deleted) {
+          totalSwipes[key].restoreBack(5)
+          setCharList({ loaded: true, list: tmpSwipes[key] })
+        }
+        delete tmpSwipes[key]
+    })
+  }
   function buttonSwipe(direction) {
     totalSwipes[charsIds().list[charsIds().list.length - 1]._id].swipe(direction)
   }
@@ -197,61 +212,82 @@ const MatchList: Component = () => {
         <div>Loading ...{charsList()}</div>
       </Show>
       <Show when={charsList().list}>
-        <div class="flex w-full flex-col gap-2 ">
-          <For each={charsList().list}>
-            {(char, i) => (
-              <DSwipeCard
-                character={char}
-                match={createMatch}
-                totalSwipes={totalSwipes}
-                swipeAction={swipeAction}
-                swipeMovement={swipeMovement}
-                swipeCount={swipeCount}
-                showZindex={i}
-              />
-            )}
-          </For>
-        </div>
-      <Show when={charsList().list && charsList().list.length>0}>
-        <div class=" m-[26em] mx-auto mb-4 w-96 max-w-5xl pl-6 pb-2 md:w-[26rem] md:pl-1 sm:mt-[36em]">
-          <button
-            onclick={() => buttonSwipe('left')}
-            class={`${
-              colorSwipeMove().left
-            } " " mx-3 h-16 w-16 rounded-full border-2 border-solid border-red-500 p-2 font-bold text-white shadow-lg duration-200 md:h-20 md:w-20 md:hover:scale-125`}
-          >
-            <X size={40} class={`${colorSwipeMove().left} "  icon-button " inline-block`} />
-          </button>
-          <button
-            onclick={() => showProfile()}
-            class={`${
-              colorSwipeMove().up
-            } " " mx-3 h-14 w-14 rounded-full border-2 border-solid border-cyan-300 p-2 align-bottom font-bold text-white shadow-lg duration-200 disabled:opacity-10 md:h-16 md:w-16 md:hover:scale-125`}
-          >
-            <AlignLeft size={30} class={`${colorSwipeMove().up} " icon-button inline-block" w-6`} />
-          </button>
-          <button
-            disabled={undoDisabled()}
-            onclick={() => SwipeUndo()}
-            class={`${
-              colorSwipeMove().down
-            } " " mx-3 h-14 w-14 rounded-full border-2 border-solid border-orange-300 p-2 align-bottom font-bold text-white shadow-lg duration-200 disabled:opacity-10 disabled:hover:scale-100 md:h-16 md:w-16 md:hover:scale-125`}
-          >
-            <Undo2 size={30} class={`${colorSwipeMove().down} " icon-button inline-block" w-6`} />
-          </button>
-          <button
-            onclick={() => buttonSwipe('right')}
-            class={`${
-              colorSwipeMove().right
-            } " " mx-3 h-16 w-16 rounded-full border-2 border-solid border-emerald-400 p-2 font-bold text-white shadow-lg duration-200 md:h-20 md:w-20 md:hover:scale-125`}
-          >
-            <Heart
-              size={40}
-              class={`${colorSwipeMove().right}  " icon-button " inline-block fill-emerald-400`}
-            />
-          </button>
-        </div>
-      </Show>
+        <Button class=" float-right -mt-16" schema="secondary" onClick={() => {setView(getNextView());endAllSwipes();}}>
+          <Switch>
+            <Match when={getNextView() == 'list'}>
+              <span>Swipe View</span> <LayoutList/>
+            </Match>
+            <Match when={getNextView() == 'likes'}>
+              <span>List View</span> <Image/>
+            </Match>
+          </Switch>
+        </Button> 
+        <Switch>
+        <Match when={getNextView() == 'list'}>
+          <div class="flex w-full flex-col gap-2">
+            <For each={charsList().list}>
+              {(char) => <MatchLike character={char} match={createMatch}/>}
+            </For>
+          </div>
+        </Match>
+        <Match when={getNextView() == 'likes'}>
+          <div class="flex w-full flex-col gap-2 ">
+            <For each={charsList().list}>
+              {(char, i) => (
+                <DSwipeCard
+                  character={char}
+                  match={createMatch}
+                  totalSwipes={totalSwipes}
+                  swipeAction={swipeAction}
+                  swipeMovement={swipeMovement}
+                  swipeCount={swipeCount}
+                  showZindex={i}
+                />
+              )}
+            </For>
+          </div>
+          <Show when={charsList().list && charsList().list.length>0}>
+            <div class=" m-[26em] mx-auto mb-4 w-96 max-w-5xl pl-6 pb-2 md:w-[26rem] md:pl-1 sm:mt-[36em]">
+              <button
+                onclick={() => buttonSwipe('left')}
+                class={`${
+                  colorSwipeMove().left
+                } " " mx-3 h-16 w-16 rounded-full border-2 border-solid border-red-500 p-2 font-bold text-white shadow-lg duration-200 md:h-20 md:w-20 md:hover:scale-125`}
+              >
+                <X size={40} class={`${colorSwipeMove().left} "  icon-button " inline-block`} />
+              </button>
+              <button
+                onclick={() => showProfile()}
+                class={`${
+                  colorSwipeMove().up
+                } " " mx-3 h-14 w-14 rounded-full border-2 border-solid border-cyan-300 p-2 align-bottom font-bold text-white shadow-lg duration-200 disabled:opacity-10 md:h-16 md:w-16 md:hover:scale-125`}
+              >
+                <AlignLeft size={30} class={`${colorSwipeMove().up} " icon-button inline-block" w-6`} />
+              </button>
+              <button
+                disabled={undoDisabled()}
+                onclick={() => SwipeUndo()}
+                class={`${
+                  colorSwipeMove().down
+                } " " mx-3 h-14 w-14 rounded-full border-2 border-solid border-orange-300 p-2 align-bottom font-bold text-white shadow-lg duration-200 disabled:opacity-60 disabled:hover:scale-100 md:h-16 md:w-16 md:hover:scale-125`}
+              >
+                <Undo2 size={30} class={`${colorSwipeMove().down} " icon-button inline-block" w-6`} />
+              </button>
+              <button
+                onclick={() => buttonSwipe('right')}
+                class={`${
+                  colorSwipeMove().right
+                } " " mx-3 h-16 w-16 rounded-full border-2 border-solid border-emerald-400 p-2 font-bold text-white shadow-lg duration-200 md:h-20 md:w-20 md:hover:scale-125`}
+              >
+                <Heart
+                  size={40}
+                  class={`${colorSwipeMove().right}  " icon-button " inline-block fill-emerald-400`}
+                />
+              </button>
+            </div>
+          </Show>
+        </Match>
+        </Switch>
         {charsList().list?.length === 0 ? <NoMatches /> : null}
       </Show>
       </div>
@@ -305,7 +341,7 @@ const DSwipeCard: Component<{ character: AppSchema.Character; match: Any }> = (p
     </div>
   )
 }
-const Match: Component<{ character: AppSchema.Character; match: Any }> = (props) => {
+const MatchLike: Component<{ character: AppSchema.Character;match: Any  }> = (props) => {
   return (
     <div class="flex w-full gap-2">
       <div class="flex h-12 w-full flex-row items-center gap-4 rounded-xl bg-[var(--bg-800)]">
@@ -314,17 +350,19 @@ const Match: Component<{ character: AppSchema.Character; match: Any }> = (props)
           href={`/likes/${props.character._id}/profile`}
         >
           <AvatarIcon avatarUrl={props.character.avatar} class="mx-4 h-10 w-10 rounded-md" />
-          <div class="text-lg font-bold">{props.character.name}</div>
+          <div class="text-lg">
+            <span class="font-bold">{props.character.name}</span>
+            <span class="ml-2">{props.character.description}</span>
+          </div>
         </A>
       </div>
-      <div class="flex flex-row items-center justify-center gap-2 sm:w-3/12">
-        <div
-          class="ml-4 flex h-3/4 cursor-pointer items-center rounded-2xl sm:w-9/12"
-          onClick={() => props.match(props.character._id)}
-        >
-          <Check class="cursor-pointer text-white/25 hover:text-white" />
-          red-800
-        </div>
+      <div class="flex flex-row items-center justify-center gap-2 sm:w-3/12" >
+       <Button
+          class="ml-4 flex h-3/4 cursor-pointer items-center rounded-2xl sm:w-9/12" onClick={()=>props.match(props.character._id)} >
+        
+          MATCH <Check class="cursor-pointer text-white/25 hover:text-white" />
+        
+         </Button>
       </div>
     </div>
   )
