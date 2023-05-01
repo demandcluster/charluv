@@ -1,13 +1,12 @@
 import { Router } from 'express'
 import { assertValid } from 'frisker'
 import { store } from '../db'
-import {v4} from 'uuid'
+import { v4 } from 'uuid'
 import { loggedIn } from './auth'
 import { handle, StatusError } from './wrap'
 //import { handleUpload } from './upload'
-import {now} from '../db/util'
+import { now } from '../db/util'
 import { PERSONA_FORMATS } from '../../common/adapters'
-
 
 const router = Router()
 
@@ -17,60 +16,57 @@ const valid = {
   scenario: 'string',
   greeting: 'string',
   sampleChat: 'string',
-  match: "boolean",
-  xp: "number",
+  match: 'boolean',
+  xp: 'number',
 
-  premium: "boolean",
-  summary: "string", 
+  premium: 'boolean',
+  description: 'string',
   persona: {
     kind: PERSONA_FORMATS,
     attributes: 'any',
   },
 } as const
 
+const getMatches = handle(async (req) => {
+  //console.log(loggedIn())
 
-
-const getMatches = handle(async (req ) => {
-    //console.log(loggedIn())
-   
-    const {userId}=req?.user||{userId:""}
+  const { userId } = req?.user || { userId: '' }
   const chars = await store.matches.getMatches(userId)
   const ownChars = await store.characters.getCharacters(userId)
   // return all chars that are now in ownChars
-    const newChars = chars.filter((char) => {
-        return !ownChars.some((ownChar) => {
-            return ownChar.parent === char._id
-        })
+  const newChars = chars.filter((char) => {
+    return !ownChars.some((ownChar) => {
+      return ownChar.parent === char._id
     })
+  })
 
   return { characters: newChars }
 })
 const createCharacter = handle(async (req) => {
-   // const body = await handleUpload(req, { ...valid, persona: 'string' })
+  // const body = await handleUpload(req, { ...valid, persona: 'string' })
   // const userId=params.user?.userId
-   const id = req.params.id||""
-   const {userId} = req?.user||{userId:""}
-   
-   const matchChar = await store.matches.getMatch(userId,id)
-   const oldId = matchChar?._id.toString()
-   const newChar = matchChar
-    if (newChar){
-        newChar.match=false
-        newChar.xp=0
-        newChar.parent=oldId
-        newChar._id=v4()
-        newChar.userId=userId
-        newChar.createdAt=now()
-        newChar.updatedAt=now()
-    }
-     if(newChar?._id){
-     const char = await store.characters.createCharacter(userId!,newChar)
-     return char
-     }else{
-        return false
-     }
+  const id = req.params.id || ''
+  const { userId } = req?.user || { userId: '' }
 
-  })
+  const matchChar = await store.matches.getMatch(userId, id)
+  const oldId = matchChar?._id.toString()
+  const newChar = matchChar
+  if (newChar) {
+    newChar.match = false
+    newChar.xp = 0
+    newChar.parent = oldId
+    newChar._id = v4()
+    newChar.userId = userId
+    newChar.createdAt = now()
+    newChar.updatedAt = now()
+  }
+  if (newChar?._id) {
+    const char = await store.characters.createCharacter(userId!, newChar)
+    return char
+  } else {
+    return false
+  }
+})
 
 router.use(loggedIn)
 //router.post('/', createMatch)

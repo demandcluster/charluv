@@ -38,33 +38,6 @@ const DateSettings: Component = () => {
           onChange={(enabled) => userStore.updateUI({ charRealistic: enabled })}
         />
       </div>
-      <h3 class="text-lg font-bold">Gender</h3>
-      <div class="flex flex-row justify-start gap-4">
-        <Toggle
-          fieldName="charMale"
-          label="Show Male"
-          value={state.ui?.charMale ?? false}
-          onChange={(enabled) => userStore.updateUI({ charMale: enabled })}
-        />
-        <Toggle
-          fieldName="charFemale"
-          label="Show Female"
-          value={state.ui?.charFemale ?? false}
-          onChange={(enabled) => userStore.updateUI({ charFemale: enabled })}
-        />
-        <Toggle
-          fieldName="charTrans"
-          label="Show Transgender"
-          value={state.ui?.charTrans ?? false}
-          onChange={(enabled) => userStore.updateUI({ charTrans: enabled })}
-        />
-        <Toggle
-          fieldName="charOther"
-          label="Show Other"
-          value={state.ui?.charOther ?? false}
-          onChange={(enabled) => userStore.updateUI({ charOther: enabled })}
-        />
-      </div>
     </>
   )
 }

@@ -126,6 +126,7 @@ type ImportKeys = {
   greeting: string
   scenario: string
   sampleChat: string
+  anime: boolean
 }
 
 function jsonToCharacter(json: any): NewCharacter {
@@ -153,6 +154,7 @@ function jsonToCharacter(json: any): NewCharacter {
     },
     sampleChat: json[map.sampleChat],
     scenario: json[map.scenario],
+    anime: json[map.anime],
   }
 
   return char
@@ -167,5 +169,12 @@ function getImportFormat(obj: any): ImportFormat {
 }
 
 function isNative(obj: any): obj is AppSchema.Character {
-  return !!obj.name && !!obj.persona && !!obj.greeting && !!obj.scenario && !!obj.sampleChat
+  return (
+    !!obj.name &&
+    !!obj.persona &&
+    !!obj.greeting &&
+    !!obj.scenario &&
+    !!obj.sampleChat &&
+    !!obj.anime
+  )
 }

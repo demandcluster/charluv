@@ -23,6 +23,7 @@ export type NewCharacter = {
   scenario: string
   sampleChat: string
   avatar?: File
+  anime?: boolean
   persona: AppSchema.Persona
   originalAvatar?: any
 }
