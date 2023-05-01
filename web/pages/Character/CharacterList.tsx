@@ -432,7 +432,7 @@ const Character: Component<{
         <div class="w-full text-right relative px-2 text-2xl text-white text-shadow right-0 md:right-1">
           <span class=" font-black ">{props.char?.name}</span> {((props.char.persona?.attributes?.age) ? props.char?.persona?.attributes?.age[0].split(" ")[0] : '')}
         </div>
-        <div class="px-3 h-16 -mt-5">
+        <div class="px-2 h-12 -mt-2">
           <Show when={props.char.name!=="Aiva"}>
               <div ><Gauge showBar={true} currentXP={props.char.xp} /></div>
           </Show>
@@ -443,7 +443,7 @@ const Character: Component<{
             positioned, then DropMenu breaks because it relies on the nearest
             positioned parent to be the sitewide container */}
         <div
-          class="-mt-[300px] float-right mr-1 flex justify-end"
+          class="-mt-[296px] float-right mr-1 flex justify-end"
           onClick={() => setOpts(true)}
         >
           <div class=" rounded-md bg-[var(--bg-500)] p-[2px]">

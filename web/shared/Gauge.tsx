@@ -38,7 +38,7 @@ const Gauge = (props: Props) => {
   let percentFilled = Math.min((currentXP - levelXP) / xpNeeded, 1) * 100
 
   const [color, setColor] = createSignal('bg-red-500')
-  const xpadjust = (showBar ? 41 : 25)
+  const xpadjust = (showBar ? -15 : 1)
   const highbox = 25-Math.round(percentFilled /4);
   const highboxtop = xpadjust-Math.round(percentFilled /4);
   if(level==0){percentFilled = "0";}
@@ -53,9 +53,9 @@ const Gauge = (props: Props) => {
 
   return(
     <>
-      <div class="inline-block">
+      <div class="inline-block h-7">
         <div class="text-base font-medium"> 
-          <div><Heart class={`absolute inline-block transform ${(showBar ? "mt-4" : "")} `} /><Heart class={`relative transform hearttest fill-red-600 ${(showBar ? "mt-4" : "")} `} viewBox={`0 ${highbox} 24 24`} style={`top: ${(highboxtop)}px`} /></div>
+          <div><Heart class={`relative inline-block transform ${(showBar ? "mt-4" : "")} `} /><Heart class={`relative transform hearttest fill-red-600 ${(showBar ? "mt-4" : "")} `} viewBox={`0 ${highbox} 24 24`} style={`top: ${(highboxtop)}px`} /></div>
         </div>
       </div>
       <Show when={!showBar}>
