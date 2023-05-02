@@ -17,6 +17,13 @@ This website does not offer any real people or real dating. It is a simulation.
 
 Our AI is trained on a 300 billion parameter neural network. We will improve the AI over time when we get enough premium users. We make no money of this project, we reinvest if we do.
 
+### How to register?
+
+[Click here to register](/register)
+
+You need an early access code which you can find on the register page, if that ran out, visit our Discord to get one automaticly.
+We need to use these codes in order to be able to limit registrations. For your privacy, we do not require an email or any PII. 
+
 ### How to use this website?
 
 In order to get matches you have to register for a (free) account. Goto [Likes](/likes/list) to see all available characters.
@@ -62,6 +69,7 @@ Artificial Intelligence Virtual Other
 Our app is based on [AgnAIstic](https://github.com/luminai-companion/agn-ai).
 
 We run our own AI Horde with a custom trained model. Currenly this is a 2.7b model. We will be upgrading to larger models when we have some premium members. We will continue to reinvest in the AI.
+Keep in mind that size does not always matter, we have a custom trained model.
 
 AIVO.CHAT is created by Demandcluster B.V. in the Netherlands, we are a small team of developers and designers.
 `

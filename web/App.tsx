@@ -93,6 +93,7 @@ const App: Component = () => {
                 </Show>
                 <Show when={cfg.config.canAuth}>
                   <Route path="/login" component={LoginPage} />
+                  <Route path="/register" component={LoginPage} />
                 </Show>
                 <Route path="*" component={HomePage} />
               </Routes>

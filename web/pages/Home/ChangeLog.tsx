@@ -40,6 +40,8 @@ _30 Apr 2023_
 _1 May 2023_
 - Fixed XP on matches page (list view only)
 
+_2 May 2023_
+- Improved mobile view
 
 `
 

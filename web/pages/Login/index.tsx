@@ -1,5 +1,5 @@
-import { Component, createMemo, createSignal, Show } from 'solid-js'
-import { useNavigate } from '@solidjs/router'
+import { Component, createMemo, createSignal, createEffect, Show } from 'solid-js'
+import { useNavigate, useLocation } from '@solidjs/router'
 import Alert from '../../shared/Alert'
 import Divider from '../../shared/Divider'
 import PageHeader from '../../shared/PageHeader'
@@ -12,7 +12,9 @@ const LoginPage: Component = () => {
   setComponentPageTitle('Login')
   const store = userStore()
   const [register, setRegister] = createSignal(false)
+  const location = useLocation()
 
+  const pathname = createMemo(() => location.pathname)
   /** Friendly error message passed out of the mutation, if it exists. */
   const loginError = createMemo(() => {
     if (!store.error) return null
@@ -21,6 +23,13 @@ const LoginPage: Component = () => {
     }
 
     return 'Something went wrong.'
+  })
+
+  createEffect(async () => {
+    if (pathname() === '/register') {
+      setRegister(true)
+      setComponentPageTitle('Register')
+    }
   })
 
   return (
@@ -152,8 +161,14 @@ const LoginForm: Component<FormProps> = (props) => {
   return (
     <form onSubmit={login} class="flex flex-col gap-6">
       <div class="flex flex-col gap-2">
-        <TextInput fieldName="username" placeholder="Username" required />
-        <TextInput fieldName="password" placeholder="Password" type="password" required />
+        <TextInput fieldName="username" placeholder="Username" autocomplete="username" required />
+        <TextInput
+          fieldName="password"
+          placeholder="Password"
+          type="password"
+          autocomplete="current-password"
+          required
+        />
       </div>
 
       <Button type="submit" disabled={props.isLoading}>

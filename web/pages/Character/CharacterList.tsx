@@ -330,12 +330,13 @@ const Character: Component<{
           <AvatarIcon avatarUrl={props.char.avatar} class="mr-4" />
           <div class="ellipsis flex w-full flex-col">
             <div class="font-bold">{props.char.name}</div>
-            <div class="">{props.char.description}</div>
+            <div class="ellipsis">{props.char.description}</div>
           </div>
         </A>
         <div>
           <div class="hidden flex-row items-center justify-center gap-2 sm:flex">
             <Gauge showBar={false} currentXP={props.char.xp} />
+
             <Show when={props.char.favorite}>
               <Star
                 class="icon-button fill-[var(--text-900)] text-[var(--text-900)]"
@@ -361,7 +362,8 @@ const Character: Component<{
             <User class="icon-button" onClick={() => nav(`/likes/${props.char._id}/profile`)} />
           </div>
           <div class="flex items-center sm:hidden" onClick={() => setListOpts(true)}>
-            <Menu class="icon-button" />
+            <Gauge showBar={false} currentXP={props.char.xp} />
+            <Menu class="icon-button ml-4" />
           </div>
           <DropMenu
             class="bg-[var(--bg-700)]"
@@ -584,7 +586,7 @@ export const DownloadModal: Component<{
         <div class="flex">
           <Select
             label="Persona Format"
-            helperText="If exporting to Agnaistic format, this does not matter"
+            helperText="If exporting to AIVO format, this does not matter"
             fieldName="format"
             items={opts()}
             value={schema()}
@@ -627,10 +629,6 @@ function charToJson(char: AppSchema.Character, format: string, schema: string) {
 const NoCharacters: Component = () => (
   <div class="mt-16 flex w-full justify-center rounded-full text-xl">
     You have no characters!&nbsp;
-    <A class="text-[var(--hl-500)]" href="/character/create">
-      Create a character
-    </A>
-    &nbsp;to get started!
   </div>
 )
 

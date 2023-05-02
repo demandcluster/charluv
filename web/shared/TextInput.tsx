@@ -15,6 +15,7 @@ const TextInput: Component<{
   required?: boolean
   class?: string
   pattern?: string
+  autocomplete?: string
   onKeyUp?: (
     ev: KeyboardEvent & { target: Element; currentTarget: HTMLInputElement | HTMLTextAreaElement }
   ) => void
@@ -66,6 +67,7 @@ const TextInput: Component<{
             onchange={(ev) => props.onChange?.(ev)}
             disabled={props.disabled}
             pattern={props.pattern}
+            autocomplete={props.autocomplete}
           />
         }
       >

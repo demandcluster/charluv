@@ -40,7 +40,7 @@ const MatchList: Component = () => {
     swipeStore.getSwipe()
     matchStore.getMatches(swipeCount.lastid)
     const next = {
-      view: view()
+      view: view(),
     }
 
     saveListCache(next)
@@ -190,14 +190,14 @@ const MatchList: Component = () => {
       }
     })
   }
-  function endAllSwipes(){
+  function endAllSwipes() {
     setUndo('disabled')
     Object.keys(tmpSwipes).forEach((key) => {
-        if (!tmpSwipes[key].deleted) {
-          totalSwipes[key].restoreBack(5)
-          setCharList({ loaded: true, list: tmpSwipes[key] })
-        }
-        delete tmpSwipes[key]
+      if (!tmpSwipes[key].deleted) {
+        totalSwipes[key].restoreBack(5)
+        setCharList({ loaded: true, list: tmpSwipes[key] })
+      }
+      delete tmpSwipes[key]
     })
   }
   function buttonSwipe(direction) {
@@ -206,90 +206,105 @@ const MatchList: Component = () => {
 
   return (
     <>
-    <div class="overflow-hidden">
-      <PageHeader title="Likes" subtitle="" />
-      <Show when={!charsList().list}>
-        <div>Loading ...{charsList()}</div>
-      </Show>
-      <Show when={charsList().list}>
-        <Button class=" float-right -mt-16" schema="secondary" onClick={() => {setView(getNextView());endAllSwipes();}}>
+      <div class="overflow-hidden">
+        <PageHeader title="Likes" subtitle="" />
+        <Show when={!charsList().list}>
+          <div>Loading ...{charsList()}</div>
+        </Show>
+        <Show when={charsList().list}>
+          <Button
+            class=" float-right -mt-16"
+            schema="secondary"
+            onClick={() => {
+              setView(getNextView())
+              endAllSwipes()
+            }}
+          >
+            <Switch>
+              <Match when={getNextView() == 'list'}>
+                <span>Swipe View</span> <LayoutList />
+              </Match>
+              <Match when={getNextView() == 'likes'}>
+                <span>List View</span> <Image />
+              </Match>
+            </Switch>
+          </Button>
           <Switch>
             <Match when={getNextView() == 'list'}>
-              <span>Swipe View</span> <LayoutList/>
+              <div class="flex w-full flex-col gap-2">
+                <For each={charsList().list}>
+                  {(char) => <MatchLike character={char} match={createMatch} />}
+                </For>
+              </div>
             </Match>
             <Match when={getNextView() == 'likes'}>
-              <span>List View</span> <Image/>
+              <div class="flex w-full flex-col gap-2 ">
+                <For each={charsList().list}>
+                  {(char, i) => (
+                    <DSwipeCard
+                      character={char}
+                      match={createMatch}
+                      totalSwipes={totalSwipes}
+                      swipeAction={swipeAction}
+                      swipeMovement={swipeMovement}
+                      swipeCount={swipeCount}
+                      showZindex={i}
+                    />
+                  )}
+                </For>
+              </div>
+              <Show when={charsList().list && charsList().list.length > 0}>
+                <div class=" m-[26em] mx-auto mb-4 w-96 max-w-5xl pl-6 pb-2 md:w-[26rem] md:pl-1 sm:mt-[36em]">
+                  <button
+                    onclick={() => buttonSwipe('left')}
+                    class={`${
+                      colorSwipeMove().left
+                    } " " mx-3 h-16 w-16 rounded-full border-2 border-solid border-red-500 p-2 font-bold text-white shadow-lg duration-200 md:h-20 md:w-20 md:hover:scale-125`}
+                  >
+                    <X size={40} class={`${colorSwipeMove().left} "  icon-button " inline-block`} />
+                  </button>
+                  <button
+                    onclick={() => showProfile()}
+                    class={`${
+                      colorSwipeMove().up
+                    } " " mx-3 h-14 w-14 rounded-full border-2 border-solid border-cyan-300 p-2 align-bottom font-bold text-white shadow-lg duration-200 disabled:opacity-10 md:h-16 md:w-16 md:hover:scale-125`}
+                  >
+                    <AlignLeft
+                      size={30}
+                      class={`${colorSwipeMove().up} " icon-button inline-block" w-6`}
+                    />
+                  </button>
+                  <button
+                    disabled={undoDisabled()}
+                    onclick={() => SwipeUndo()}
+                    class={`${
+                      colorSwipeMove().down
+                    } " " mx-3 h-14 w-14 rounded-full border-2 border-solid border-orange-300 p-2 align-bottom font-bold text-white shadow-lg duration-200 disabled:opacity-60 disabled:hover:scale-100 md:h-16 md:w-16 md:hover:scale-125`}
+                  >
+                    <Undo2
+                      size={30}
+                      class={`${colorSwipeMove().down} " icon-button inline-block" w-6`}
+                    />
+                  </button>
+                  <button
+                    onclick={() => buttonSwipe('right')}
+                    class={`${
+                      colorSwipeMove().right
+                    } " " mx-3 h-16 w-16 rounded-full border-2 border-solid border-emerald-400 p-2 font-bold text-white shadow-lg duration-200 md:h-20 md:w-20 md:hover:scale-125`}
+                  >
+                    <Heart
+                      size={40}
+                      class={`${
+                        colorSwipeMove().right
+                      }  " icon-button " inline-block fill-emerald-400`}
+                    />
+                  </button>
+                </div>
+              </Show>
             </Match>
           </Switch>
-        </Button> 
-        <Switch>
-        <Match when={getNextView() == 'list'}>
-          <div class="flex w-full flex-col gap-2">
-            <For each={charsList().list}>
-              {(char) => <MatchLike character={char} match={createMatch}/>}
-            </For>
-          </div>
-        </Match>
-        <Match when={getNextView() == 'likes'}>
-          <div class="flex w-full flex-col gap-2 ">
-            <For each={charsList().list}>
-              {(char, i) => (
-                <DSwipeCard
-                  character={char}
-                  match={createMatch}
-                  totalSwipes={totalSwipes}
-                  swipeAction={swipeAction}
-                  swipeMovement={swipeMovement}
-                  swipeCount={swipeCount}
-                  showZindex={i}
-                />
-              )}
-            </For>
-          </div>
-          <Show when={charsList().list && charsList().list.length>0}>
-            <div class=" m-[26em] mx-auto mb-4 w-96 max-w-5xl pl-6 pb-2 md:w-[26rem] md:pl-1 sm:mt-[36em]">
-              <button
-                onclick={() => buttonSwipe('left')}
-                class={`${
-                  colorSwipeMove().left
-                } " " mx-3 h-16 w-16 rounded-full border-2 border-solid border-red-500 p-2 font-bold text-white shadow-lg duration-200 md:h-20 md:w-20 md:hover:scale-125`}
-              >
-                <X size={40} class={`${colorSwipeMove().left} "  icon-button " inline-block`} />
-              </button>
-              <button
-                onclick={() => showProfile()}
-                class={`${
-                  colorSwipeMove().up
-                } " " mx-3 h-14 w-14 rounded-full border-2 border-solid border-cyan-300 p-2 align-bottom font-bold text-white shadow-lg duration-200 disabled:opacity-10 md:h-16 md:w-16 md:hover:scale-125`}
-              >
-                <AlignLeft size={30} class={`${colorSwipeMove().up} " icon-button inline-block" w-6`} />
-              </button>
-              <button
-                disabled={undoDisabled()}
-                onclick={() => SwipeUndo()}
-                class={`${
-                  colorSwipeMove().down
-                } " " mx-3 h-14 w-14 rounded-full border-2 border-solid border-orange-300 p-2 align-bottom font-bold text-white shadow-lg duration-200 disabled:opacity-60 disabled:hover:scale-100 md:h-16 md:w-16 md:hover:scale-125`}
-              >
-                <Undo2 size={30} class={`${colorSwipeMove().down} " icon-button inline-block" w-6`} />
-              </button>
-              <button
-                onclick={() => buttonSwipe('right')}
-                class={`${
-                  colorSwipeMove().right
-                } " " mx-3 h-16 w-16 rounded-full border-2 border-solid border-emerald-400 p-2 font-bold text-white shadow-lg duration-200 md:h-20 md:w-20 md:hover:scale-125`}
-              >
-                <Heart
-                  size={40}
-                  class={`${colorSwipeMove().right}  " icon-button " inline-block fill-emerald-400`}
-                />
-              </button>
-            </div>
-          </Show>
-        </Match>
-        </Switch>
-        {charsList().list?.length === 0 ? <NoMatches /> : null}
-      </Show>
+          {charsList().list?.length === 0 ? <NoMatches /> : null}
+        </Show>
       </div>
     </>
   )
@@ -322,7 +337,7 @@ const DSwipeCard: Component<{ character: AppSchema.Character; match: Any }> = (p
           class="absolute h-full max-h-full w-full max-w-full bg-cover"
           style={{ 'background-image': `url(${getAssetUrl(props.character.avatar)})` }}
         >
-          <div class="size text-shadow-lg shadow-black absolute bottom-6 w-full p-2 text-3xl text-white sm:bottom-10 sm:text-5xl">
+          <div class="size absolute bottom-6 w-full p-2 text-3xl text-white shadow-black text-shadow-lg sm:bottom-10 sm:text-5xl">
             <span class="font-black ">{props.character.name}</span> {age}
           </div>
           <Suspense>
@@ -341,7 +356,10 @@ const DSwipeCard: Component<{ character: AppSchema.Character; match: Any }> = (p
     </div>
   )
 }
-const MatchLike: Component<{ character: AppSchema.Character;match: Any  }> = (props) => {
+
+// [TODO] this should be in a seperate file and breaks the philosophy of solidjs and react
+
+const MatchLike: Component<{ character: AppSchema.Character; match: Any }> = (props) => {
   return (
     <div class="flex w-full gap-2">
       <div class="flex h-12 w-full flex-row items-center gap-4 rounded-xl bg-[var(--bg-800)]">
@@ -352,17 +370,16 @@ const MatchLike: Component<{ character: AppSchema.Character;match: Any  }> = (pr
           <AvatarIcon avatarUrl={props.character.avatar} class="mx-4 h-10 w-10 rounded-md" />
           <div class="text-lg">
             <span class="font-bold">{props.character.name}</span>
-            <span class="ml-2">{props.character.description}</span>
           </div>
         </A>
       </div>
-      <div class="flex flex-row items-center justify-center gap-2 sm:w-3/12" >
-       <Button
-          class="ml-4 flex h-3/4 cursor-pointer items-center rounded-2xl sm:w-9/12" onClick={()=>props.match(props.character._id)} >
-        
+      <div class="flex flex-row items-center justify-center gap-2 sm:w-3/12">
+        <Button
+          class="ml-4 flex h-3/4 cursor-pointer items-center rounded-2xl sm:w-9/12"
+          onClick={() => props.match(props.character._id)}
+        >
           MATCH <Check class="cursor-pointer text-white/25 hover:text-white" />
-        
-         </Button>
+        </Button>
       </div>
     </div>
   )
