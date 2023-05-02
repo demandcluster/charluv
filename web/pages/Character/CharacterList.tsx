@@ -274,7 +274,7 @@ const Characters: Component<{
                   <Show when={showGrouping()}>
                     <h2 class="text-xl font-bold">{group.label}</h2>
                   </Show>
-                  <div class="grid w-full grid-cols-[repeat(auto-fit,minmax(160px,1fr))] flex-row flex-wrap justify-start gap-2 md:gap-4 py-2">
+                  <div class="grid w-full grid-cols-[repeat(auto-fit,minmax(160px,1fr))] flex-row flex-wrap justify-start gap-2 py-2 md:gap-4">
                     <For each={group.list}>
                       {(char) => (
                         <Character
@@ -428,13 +428,18 @@ const Character: Component<{
           </A>
         </Show>
       </div>
-      <div class="w-full text-sm h-18">
-        <div class="w-full text-right relative px-2 text-2xl text-white text-shadow right-0 md:right-1">
-          <span class=" font-black ">{props.char?.name}</span> {((props.char.persona?.attributes?.age) ? props.char?.persona?.attributes?.age[0].split(" ")[0] : '')}
+      <div class="h-18 w-full text-sm">
+        <div class="relative right-0 w-full px-2 text-right text-2xl text-white text-shadow md:right-1">
+          <span class=" font-black ">{props.char?.name}</span>{' '}
+          {props.char.persona?.attributes?.age
+            ? props.char?.persona?.attributes?.age[0].split(' ')[0]
+            : ''}
         </div>
-        <div class="px-2 h-12 -mt-2">
-          <Show when={props.char.name!=="Aiva"}>
-              <div ><Gauge showBar={true} currentXP={props.char.xp} /></div>
+        <div class="-mt-2 h-12 px-2">
+          <Show when={props.char.name !== 'Aiva'}>
+            <div>
+              <Gauge showBar={true} currentXP={props.char.xp} />
+            </div>
           </Show>
         </div>
 
@@ -442,10 +447,7 @@ const Character: Component<{
             absolute positioning because if any of the DropMenu parent is
             positioned, then DropMenu breaks because it relies on the nearest
             positioned parent to be the sitewide container */}
-        <div
-          class="-mt-[296px] float-right mr-1 flex justify-end"
-          onClick={() => setOpts(true)}
-        >
+        <div class="float-right -mt-[296px] mr-1 flex justify-end" onClick={() => setOpts(true)}>
           <div class=" rounded-md bg-[var(--bg-500)] p-[2px]">
             <Menu size={24} class="icon-button" color="var(--bg-100)" />
           </div>
@@ -479,6 +481,9 @@ const Character: Component<{
               </Show>
               <Button alignLeft onClick={props.delete}>
                 <Trash /> Delete
+              </Button>
+              <Button alignLeft onClick={() => nav(`/likes/${props.char._id}/profile`)}>
+                <User /> Profile
               </Button>
             </div>
           </DropMenu>
