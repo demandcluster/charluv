@@ -33,7 +33,7 @@ const ProfileCard: Component<{ character: AppSchema.Character; href: string }> =
               class="min-h-[100px] w-full rounded-t-lg align-middle"
             />
             <div class="shadow-red text-shadow-md relative -bottom-6 right-4 z-10 -mt-20 w-full p-2 text-right text-3xl text-white shadow-teal-900 text-shadow md:-mt-20 sm:text-5xl">
-              {props.character?.name}{' '}
+              <span class="font-black ">{props.character?.name}{' '}</span>
               {props.character.persona?.attributes?.age
                 ? props.character?.persona?.attributes?.age[0].split(' ')[0]
                 : ''}

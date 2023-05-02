@@ -7,39 +7,7 @@ import { A, useNavigate } from '@solidjs/router'
 import AvatarIcon from '../../shared/AvatarIcon'
 import { matchStore, userStore } from '../../store'
 
-const MatchList: Component = () => {
-  const chars = matchStore((s) => s.characters)
-  const [showImport, setImport] = createSignal(false)
-  const [showDelete, setDelete] = createSignal<AppSchema.Character>()
-  const user = userStore()
-  const navigate = useNavigate()
-  createEffect(() => {
-    matchStore.getMatches(user.userId)
-  })
-
-  const createMatch = async (charId: string) => {
-    const char = chars.list.find((c) => c._id === charId)
-    matchStore.createMatch(char).then(() => navigate('/character/list'))
-  }
-
-  return (
-    <>
-      <PageHeader title="Likes" subtitle="" />
-
-      <Show when={!chars.loaded}>
-        <div>Loading...</div>
-      </Show>
-      <Show when={chars.loaded}>
-        <div class="flex w-full flex-col gap-2">
-          <For each={chars.list}>{(char) => <Match character={char} match={createMatch} />}</For>
-        </div>
-        {chars.list.length === 0 ? <NoMatches /> : null}
-      </Show>
-    </>
-  )
-}
-
-const Match: Component<{ character: AppSchema.Character; match: Any }> = (props) => {
+const MatchList: Component<{ character: AppSchema.Character; match: Any }> = (props) => {
   return (
     <div class="flex w-full gap-2">
       <div class="flex h-12 w-full flex-row items-center gap-4 rounded-xl bg-[var(--bg-800)]">
@@ -65,21 +33,4 @@ const Match: Component<{ character: AppSchema.Character; match: Any }> = (props)
   )
 }
 
-function charToJson(char: AppSchema.Character) {
-  const { _id, updatedAt, createdAt, kind, summary, premium, xp, match, avatar, ...json } = char
-  return JSON.stringify(json, null, 2)
-}
-
-const NoMatches: Component = () => (
-  <div class="mt-16 flex w-full justify-center rounded-full text-xl">You have no likes!&nbsp;</div>
-)
-
 export default MatchList
-
-function repeat<T>(list: T[], times = 20) {
-  const next: any[] = []
-  for (let i = 0; i < times; i++) {
-    next.push(...list)
-  }
-  return next
-}
