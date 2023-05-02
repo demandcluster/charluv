@@ -335,8 +335,9 @@ const Character: Component<{
         </A>
         <div>
           <div class="hidden flex-row items-center justify-center gap-2 sm:flex">
-            <Gauge showBar={false} currentXP={props.char.xp} />
-
+            <Show when={props.char.name !== 'Aiva'}>
+              <Gauge showBar={false} currentXP={props.char.xp} />
+            </Show>
             <Show when={props.char.favorite}>
               <Star
                 class="icon-button fill-[var(--text-900)] text-[var(--text-900)]"
@@ -362,7 +363,9 @@ const Character: Component<{
             <User class="icon-button" onClick={() => nav(`/likes/${props.char._id}/profile`)} />
           </div>
           <div class="flex items-center sm:hidden" onClick={() => setListOpts(true)}>
-            <Gauge showBar={false} currentXP={props.char.xp} />
+            <Show when={props.char.name !== 'Aiva'}>
+              <Gauge showBar={false} currentXP={props.char.xp} />
+            </Show>
             <Menu class="icon-button ml-4" />
           </div>
           <DropMenu
