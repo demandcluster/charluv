@@ -68,7 +68,7 @@ const App: Component = () => {
                 <Route path="/chats" component={CharacterChats} />
                 <Route path="/chat" component={ChatDetail} />
                 <Route path="/chat/:id" component={ChatDetail} />
-                <Route path="/" component={CharacterList} />
+                <Route path="/" component={HomePage} />
                 <Route path="/info" component={HomePage} />
                 <Route path="/changelog" component={ChangeLog} />
                 <Route path="/memory/instructions" component={Instructions} />
