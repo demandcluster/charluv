@@ -39,7 +39,7 @@ const createCharacter = handle(async (req) => {
     premium: body.premium.toString() === 'true',
     xp: 0,
     match: false,
-    anime: body.anime.toString() === 'true',
+    anime: body.anime.toString() === 'true' || false,
     sampleChat: body.sampleChat,
     description: body.description,
     scenario: body.scenario,
