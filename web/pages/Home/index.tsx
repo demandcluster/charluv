@@ -97,7 +97,7 @@ const HomePage: Component = () => {
         title={
           <>
             <div class="w-full px-1 pt-2 sm:flex">
-              <img width="200px" src={logo} />
+              <img width="200px" alt="Virtual Dating" src={logo} />
             </div>
           </>
         }
@@ -115,6 +115,9 @@ const HomePage: Component = () => {
         <b>Useful Links</b>
 
         <ul>
+          <li>
+            <A href="/help">Chatbot based helpdesk</A>
+          </li>
           <li>
             <A href="/changelog">Change Log</A>
           </li>

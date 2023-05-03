@@ -21,6 +21,7 @@ const options = [
   { id: 'text', label: 'Plain Text' },
 ]
 
+// [TODO] remove IDs which is just against html standard and stupid
 const premiumoptions = [
   { id: 'true', label: 'Premium' },
   { id: 'false', label: 'Free' },
@@ -28,6 +29,10 @@ const premiumoptions = [
 const matchoptions = [
   { id: 'true', label: 'Matchable' },
   { id: 'false', label: 'Hidden' },
+]
+const animeOptions = [
+  { id: 'true', label: 'Anime' },
+  { id: 'false', label: 'Realistic' },
 ]
 
 const CreateCharacter: Component = () => {
@@ -84,6 +89,7 @@ const CreateCharacter: Component = () => {
       xp: 'number',
       premium: 'string',
       match: 'string',
+      anime: 'sring',
       sampleChat: 'string',
     } as const)
     const attributes = getAttributeMap(ev)
@@ -101,6 +107,7 @@ const CreateCharacter: Component = () => {
       greeting: body.greeting,
       xp: body.xp,
       match: body.match,
+      anime: body.anime,
       premium: body.premium,
       sampleChat: body.sampleChat,
       persona,
@@ -185,7 +192,14 @@ const CreateCharacter: Component = () => {
           name="match"
           horizontal
           options={matchoptions}
-          value={toString(state.edit?.match) || 'false'}
+          value={toString(state.edit?.match) === 'true' ? 'true' : 'false'}
+        />
+        <FormLabel label="Style" />
+        <RadioGroup
+          name="anime"
+          horizontal
+          options={animeOptions}
+          value={toString(state.edit?.anime) || 'false'}
         />
         <TextInput
           fieldName="xp"

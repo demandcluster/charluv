@@ -24,6 +24,7 @@ import Button from './shared/Button'
 import ChangeLog from './pages/Home/ChangeLog'
 import Terms from './pages/Home/terms'
 import Policy from './pages/Home/policy'
+import Help from './pages/Home/help'
 import CharacterList from './pages/Character/CharacterList'
 import Instructions from './pages/Memory/Instructions'
 import HelpPage from './pages/Help'
@@ -73,6 +74,7 @@ const App: Component = () => {
                 <Route path="/changelog" component={ChangeLog} />
                 <Route path="/memory/instructions" component={Instructions} />
                 <Route path="/terms" component={Terms} />
+                <Route path="/help" component={Help} />
                 <Route path="/privacy" component={Policy} />
                 <Route path="/profile" component={ProfilePage} />
                 <Route path="/settings" component={Settings} />
