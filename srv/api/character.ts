@@ -19,7 +19,7 @@ const valid = {
   xp: 'string',
   match: 'string',
   premium: 'string',
-  anime: 'string?',
+  anime: 'string',
   persona: {
     kind: PERSONA_FORMATS,
     attributes: 'any',
