@@ -133,6 +133,8 @@ export function buildPrompt(
     if (!hasStart) pre.push('<START>')
 
     if (parts.sampleChat) pre.push(...parts.sampleChat)
+
+    pre.push('<START>')
   }
 
   // Only use the gaslight if specifically configured to and when it exists.
