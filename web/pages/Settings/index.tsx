@@ -31,7 +31,7 @@ const Settings: Component = () => {
   const [tab, setTab] = createSignal(0)
   const [workers, setWorkers] = createSignal<string[]>(state.user?.hordeWorkers || [])
 
-  const tabs: Tab[] = ['ui', 'voice', 'ai']
+  const tabs: Tab[] = ['ui', 'voice']
   if (state.loggedIn) tabs.push('date')
   if (!state.loggedIn) tabs.push('guest')
 
