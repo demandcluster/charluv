@@ -31,7 +31,7 @@ export const defaultPresets = {
     antiBond: false,
   },
   basic: {
-    service: 'kobold',
+    service: 'horde',
     name: 'Charluv',
     maxTokens: MAX_TOKENS,
     maxContextLength: 1800,
