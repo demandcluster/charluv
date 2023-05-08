@@ -44,6 +44,7 @@ export function toUser(name: string): AppSchema.User {
     hordeKey: '',
     hordeModel: '',
     defaultAdapter: 'horde',
+    defaultPreset: 'basic',
     admin: true,
     hash: '',
     kind: 'user',

@@ -101,10 +101,10 @@ export async function createUser(newUser: NewUser, admin?: boolean) {
     thirdPartyPassword: '',
     luminaiUrl: '',
     oobaUrl: '',
-    hordeModel: 'PygmalionAI/pygmalion-2.7b',
+    hordeModel: 'llygmalion-13B-4bit-128g-cuda',
     hordeKey: '',
     oaiKey: '',
-    defaultPresets: {},
+    defaultPreset: 'basic',
     createdAt: new Date().toISOString(),
   }
 
