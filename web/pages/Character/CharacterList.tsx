@@ -258,7 +258,7 @@ const Characters: Component<{
             </div>
           </Show>
 
-          <Show when={props.type || props.type === 'list'}>
+          <Show when={!props.type || props.type === 'list'}>
             <div class="flex w-full flex-col gap-2 pb-5">
               <For each={groups()}>
                 {(group) => (
@@ -511,26 +511,32 @@ const Character: Component<{
               <Button onClick={createChat} alignLeft size="sm">
                 <MessageCircle /> Chat
               </Button>
-              <Button
-                alignLeft
-                size="sm"
-                onClick={() => {
-                  setOpts(false)
-                  props.download()
-                }}
-              >
-                <Download /> Download
-              </Button>
-              <Button alignLeft onClick={() => nav(`/character/${props.char._id}/edit`)} size="sm">
-                <Edit /> Edit
-              </Button>
-              <Button
-                alignLeft
-                onClick={() => nav(`/character/create/${props.char._id}`)}
-                size="sm"
-              >
-                <Copy /> Duplicate
-              </Button>
+              <Show when={props.user.user.admin}>
+                <Button
+                  alignLeft
+                  size="sm"
+                  onClick={() => {
+                    setOpts(false)
+                    props.download()
+                  }}
+                >
+                  <Download /> Download
+                </Button>
+                <Button
+                  alignLeft
+                  onClick={() => nav(`/character/${props.char._id}/edit`)}
+                  size="sm"
+                >
+                  <Edit /> Edit
+                </Button>
+                <Button
+                  alignLeft
+                  onClick={() => nav(`/character/create/${props.char._id}`)}
+                  size="sm"
+                >
+                  <Copy /> Duplicate
+                </Button>
+              </Show>
               <Button
                 alignLeft
                 size="sm"
