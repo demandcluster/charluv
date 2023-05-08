@@ -15,7 +15,7 @@ const text = `
 
 This website does not offer any real people or real dating. It is a simulation.
 
-Our AI is trained on a large neural network. 
+Our AI is trained on a large neural network. Average response time is around 20 seconds.
 
 ### How to register?
 
@@ -60,17 +60,16 @@ Yes you can. However, you need to goto our Discord to submit the character. All 
 
 In order to survive as a website we need ***€800,--*** before summer 2023. So far we got ***€56,--***. 
 All proceeds will be used to pay for the server and the AI. We will not take any money out of this project.
-We are currently investing in a NVIDIA P40. We keep you posted.
 
 ### About
 
-Artificial Intelligence Virtual Other
+Charluv
 
 Our app is based on [AgnAIstic](https://github.com/luminai-companion/agn-ai).
 
 We run our own AI Horde on a massive 13B model!
 
-AIVO.CHAT is created by Demandcluster B.V. in the Netherlands, we are a small team of developers and designers.
+Charluv is created by Demandcluster B.V. in the Netherlands, we are a small team of developers and designers.
 `
 function toItem(model: HordeModel) {
   return {
@@ -95,14 +94,17 @@ const HomePage: Component = () => {
       <PageHeader
         title={
           <>
-            <div class="w-full px-1 pt-2 sm:flex">
-              <img width="200px" alt="Virtual Dating" src={logo} />
+            <div
+              class="w-full pt-3 pl-4 pb-3 text-2xl text-white sm:flex"
+              style="background:#55b89cff;"
+            >
+              Charluv Virtual Dating
             </div>
           </>
         }
         subtitle={
           <Show when={model.models.length > 0}>
-            <div class="markdown">
+            <div class="markdown px-4 text-gray-400">
               Current wait time:&nbsp;
               {model.models[0].eta}s
             </div>
@@ -110,7 +112,7 @@ const HomePage: Component = () => {
         }
       />
 
-      <div class="markdown">
+      <div class="markdown px-4">
         <b>Useful Links</b>
 
         <ul>
@@ -142,7 +144,7 @@ const HomePage: Component = () => {
         </ul>
       </div>
 
-      <div class="markdown" innerHTML={markdown.makeHtml(text)} />
+      <div class="markdown px-4" innerHTML={markdown.makeHtml(text)} />
     </div>
   )
 }

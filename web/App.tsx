@@ -14,7 +14,6 @@ import Terms from './pages/Home/terms'
 import Policy from './pages/Home/policy'
 
 import CharacterList from './pages/Character/CharacterList'
-import Instructions from './pages/Memory/Instructions'
 
 import PremiumOptions from './pages/Premium/PremiumOptions'
 import ThankYou from './pages/Premium/ThankYou'
@@ -58,12 +57,12 @@ const App: Component = () => {
                 <Route path="/chats" component={lazy(() => import('./pages/Character/ChatList'))} />
                 <Route path="/chat" component={lazy(() => import('./pages/Chat/ChatDetail'))} />
                 <Route path="/chat/:id" component={lazy(() => import('./pages/Chat/ChatDetail'))} />
-                <Route path="/" component={lazy(() => import('./pages/Character/CharacterList'))} />
+                <Route path="/" component={HomePage} />
                 <Route path="/info" component={HomePage} />
                 <Route path="/changelog" component={lazy(() => import('./pages/Home/ChangeLog'))} />
                 <Route
-                  path="/presets/:id"
-                  component={lazy(() => import('./pages/GenerationPresets'))}
+                  path="/memory/instructions"
+                  component={lazy(() => import('./pages/Memory/Instructions'))}
                 />
                 <Route
                   path="/presets"
@@ -89,6 +88,10 @@ const App: Component = () => {
                   />
                   <Show when={state.user?.admin}>
                     <Route
+                      path="/presets/:id"
+                      component={lazy(() => import('./pages/GenerationPresets'))}
+                    />
+                    <Route
                       path="/admin/metrics"
                       component={lazy(() => import('./pages/Admin/Metrics'))}
                     />
@@ -113,7 +116,7 @@ const App: Component = () => {
 
             <Show when={!cfg.init && !cfg.initLoading}>
               <div class="flex flex-col items-center gap-2">
-                <div>AIVO.CHAT failed to load</div>
+                <div>Charluv failed to load</div>
                 <div>
                   <Button onClick={reload}>Try Again</Button>
                 </div>

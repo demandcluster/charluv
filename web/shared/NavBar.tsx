@@ -14,12 +14,12 @@ const NavBar: Component = () => {
         class="flex justify-between gap-4 border-b-2 border-[var(--bg-800)] bg-[var(--bg-900)] px-4 py-5 max-sm:p-3 sm:hidden"
       >
         <span class="flex w-full items-center justify-between gap-2 font-semibold sm:justify-start">
-          <div class="w-8 sm:hidden" onClick={settingStore.menu}>
+          <div class="w-16 sm:hidden" onClick={settingStore.menu}>
             <Menu class="focusable-icon-button cursor-pointer" size={32} />
           </div>
-          <div>
+          <div class="m-4" style="background:#55b89cff;">
             <A href="/">
-              <img width="75px" src={logoDark} />
+              <img width="150px" src={logoDark} alt="Charluv" />
             </A>
           </div>
           <div class="w-8 sm:hidden"></div>

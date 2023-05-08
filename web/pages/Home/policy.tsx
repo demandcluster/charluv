@@ -12,7 +12,7 @@ const Policy: Component = () => {
       <section class="flex flex-shrink flex-col  gap-4">
         <div>
           This Privacy Policy governs the collection, use, and disclosure of personal information by
-          Demandcluster B.V. ("Demandcluster") through its AI chat website aivo.chat (the "Site").{' '}
+          Demandcluster B.V. ("Demandcluster") through its AI chat website Charluv (the "Site").{' '}
         </div>
         <div>
           Demandcluster respects your privacy and is committed to protecting your personal

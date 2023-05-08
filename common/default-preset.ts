@@ -1,7 +1,7 @@
 import { AppSchema } from '../srv/db/schema'
 import { CLAUDE_MODELS, OPENAI_MODELS } from './adapters'
 
-const MAX_TOKENS = 120
+const MAX_TOKENS = 80
 
 export const defaultPresets = {
   horde: {
@@ -32,16 +32,16 @@ export const defaultPresets = {
   },
   basic: {
     service: 'kobold',
-    name: 'Simple',
+    name: 'Charluv',
     maxTokens: MAX_TOKENS,
-    maxContextLength: 2048,
+    maxContextLength: 1800,
     repetitionPenalty: 1.08,
     repetitionPenaltySlope: 0.7,
     repetitionPenaltyRange: 1024,
-    temp: 0.59,
-    topK: 0,
-    topP: 0.97,
-    typicalP: 0.95,
+    temp: 0.7,
+    topK: 40,
+    topP: 0.5,
+    typicalP: 1,
     topA: 1,
     tailFreeSampling: 0.9,
     encoderRepitionPenalty: 1.0,

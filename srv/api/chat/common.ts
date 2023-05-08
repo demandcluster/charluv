@@ -72,5 +72,7 @@ export function joinParts(parts: string[]) {
 
 export function sanitise(generated: string) {
   // If want to support code blocks we need to remove the excess whitespace removal as it breaks indents
+  // remove <START> tags
+  generated = generated.replace(/<START>/g, '')
   return generated.trim()
 }

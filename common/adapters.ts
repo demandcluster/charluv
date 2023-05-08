@@ -119,8 +119,8 @@ export type HordeWorker = {
 }
 
 export const ADAPTER_LABELS: { [key in AIAdapter]: string } = {
-  horde: 'Horde',
-  kobold: 'Kobold',
+  horde: 'Charluv Horde',
+  kobold: 'CharluvAI',
   novel: 'NovelAI',
   ooba: 'TextGen',
   luminai: 'LuminAI',

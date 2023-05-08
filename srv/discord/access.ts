@@ -24,7 +24,7 @@ module.exports = {
         if(!code) await interaction.reply({content:"No codes available", ephemeral: true })
         if(code){
             await interaction.reply({content:"Code sent", ephemeral: true })
-            await member.send(`Your AIVO.CHAT Early Access code is: **${code}**. The code is not exclusive to you and can be used by anyone. Please use it as soon as possible.`)
+            await member.send(`Your Charluv Early Access code is: **${code}**. The code is not exclusive to you and can be used by anyone. Please use it as soon as possible.`)
         }
     },
 };

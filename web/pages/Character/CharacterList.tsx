@@ -643,7 +643,7 @@ export const DownloadModal: Component<{
         <div class="flex">
           <Select
             label="Persona Format"
-            helperText="If exporting to AIVO format, this does not matter"
+            helperText="If exporting to Charluv format, this does not matter"
             fieldName="format"
             items={opts()}
             value={schema()}

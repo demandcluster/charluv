@@ -3,7 +3,7 @@ import { AppSchema } from '../../srv/db/schema'
 import { api } from './api'
 import { createStore } from './create'
 import { toastStore } from './toasts'
-import { loadItem, local } from './data/storage'
+import { loadItem, localApi } from './data/storage'
 
 type CartStore = {
   showPending: boolean
@@ -36,7 +36,7 @@ export const cartStore = createStore<CartStore>('cart', {
   async removeFromCart(cartItems, item: any) {
     const existingItems = cartItems.cartItems?.list || []
     const updatedItems = existingItems.filter((cartItem) => cartItem._id !== item._id)
-    await local.saveCartItem(updatedItems)
+    await localApi.saveCartItem(updatedItems)
     return { cartItems: { list: updatedItems, loaded: true } }
   },
   async checkoutCart(service: string = '') {
@@ -69,7 +69,7 @@ export const cartStore = createStore<CartStore>('cart', {
     }
     const newCart = [...existingItems, newItem]
     console.log('going to save', newCart)
-    await local.saveCartItem(newCart)
+    await localApi.saveCartItem(newCart)
     return { cartItems: { list: newCart, loaded: true } }
   },
 }))

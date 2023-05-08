@@ -9,7 +9,7 @@ const Terms: Component = () => {
       <PageHeader title="Terms of Use Agreement" subtitle="" />
       <section class="flex flex-shrink flex-col  gap-4">
         <div>
-          These Terms of Use ("Agreement") govern your use of AIVO.chat ("Service"). By using the
+          These Terms of Use ("Agreement") govern your use of Charluv ("Service"). By using the
           Service, you agree to be bound by this Agreement, whether or not you register as a member
           of the Service. If you wish to become a member of the Service and make use of the Service,
           please read this Agreement.
