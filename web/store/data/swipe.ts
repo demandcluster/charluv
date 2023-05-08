@@ -7,6 +7,6 @@ export async function getSwipe() {
 }
 
 export async function setSwipe(lastid: string) {
-  local.saveSwipe(lastid)
+  localApi.saveSwipe(lastid)
   return { result: true, error: undefined }
 }
