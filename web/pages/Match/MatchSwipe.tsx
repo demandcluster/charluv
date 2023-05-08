@@ -254,7 +254,7 @@ const MatchList: Component = () => {
                 </For>
               </div>
               <Show when={charsList().list && charsList().list.length > 0}>
-                <div class=" m-[26em] mx-auto mb-4 w-96 max-w-5xl pl-6 pb-2 md:w-[26rem] md:pl-1 sm:mt-[36em]">
+                <div class=" m-[26em] mx-auto mb-4 w-96 max-w-5xl pl-2 pb-2 md:w-[26rem] sm:mt-[36em]">
                   <button
                     onclick={() => buttonSwipe('left')}
                     class={`${
