@@ -1,12 +1,23 @@
-import { Check, Pencil, RefreshCw, Terminal, ThumbsDown, ThumbsUp, Trash, X } from 'lucide-solid'
+import {
+  Check,
+  Megaphone,
+  Pencil,
+  RefreshCw,
+  Terminal,
+  ThumbsDown,
+  ThumbsUp,
+  Trash,
+  X,
+} from 'lucide-solid'
 import { Component, createMemo, createSignal, For, Show } from 'solid-js'
 import { BOT_REPLACE, SELF_REPLACE } from '../../../../common/prompt'
 import { AppSchema } from '../../../../srv/db/schema'
 import AvatarIcon from '../../../shared/AvatarIcon'
 import { getAssetUrl, getRootVariable, hexToRgb } from '../../../shared/util'
-import { chatStore, userStore } from '../../../store'
-import { msgStore } from '../../../store'
+import { chatStore, userStore, msgStore } from '../../../store'
 import { markdown } from '../../../shared/markdown'
+import { avatarSizes, avatarSizesCircle } from '../../../shared/avatar-util'
+import { defaultCulture } from '../../../shared/CultureCodes'
 
 type MessageProps = {
   msg: SplitMessage
@@ -59,6 +70,9 @@ const SingleMessage: Component<
 > = (props) => {
   const user = userStore()
   const state = chatStore()
+  const voiceLoadingState = msgStore((x) => ({
+    status: x.speaking?.messageId == props.msg._id ? x.speaking.status : undefined,
+  }))
 
   const [edit, setEdit] = createSignal(false)
   const isBot = createMemo(() => !!props.msg.characterId)
@@ -113,6 +127,16 @@ const SingleMessage: Component<
     ref?.focus()
   }
 
+  const textToSpeech = async () => {
+    if (!props.char.voice) return
+    msgStore.textToSpeech(
+      props.msg._id,
+      props.msg.msg,
+      props.char.voice,
+      props.char.culture ?? defaultCulture
+    )
+  }
+
   const showPrompt = () => {
     if (!user.user) return
     chatStore.showPrompt(user.user, props.msg)
@@ -124,6 +148,21 @@ const SingleMessage: Component<
     const handle = state.memberIds[props.msg.userId!]?.handle || props.msg.handle || 'You'
     return handle
   }
+
+  const renderMessage = () => {
+    // Address unfortunate Showdown bug where spaces in code blocks are replaced with nbsp, except
+    // it also encodes the ampersand, which results in them actually being rendered as `&amp;nbsp;`
+    // https://github.com/showdownjs/showdown/issues/669
+    const html = markdown
+      .makeHtml(parseMessage(msgText(), props.char!, user.profile!, props.msg.adapter))
+      .replace(/&amp;nbsp;/g, '&nbsp;')
+    return html
+  }
+
+  const messageColumnWidth = () =>
+    format().corners === 'circle'
+      ? avatarSizesCircle[format().size].msg
+      : avatarSizes[format().size].msg
 
   let ref: HTMLDivElement | undefined
 
@@ -152,7 +191,7 @@ const SingleMessage: Component<
         </Show>
       </div>
 
-      <div class="flex w-full select-text flex-col gap-1">
+      <div class={`${messageColumnWidth()} flex w-full select-text flex-col gap-1`}>
         <div class="flex w-full flex-row justify-between">
           <div class="flex flex-col items-start gap-1 sm:flex-row sm:items-end sm:gap-0">
             <b
@@ -180,12 +219,41 @@ const SingleMessage: Component<
               {new Date(props.msg.createdAt).toLocaleString()}
             </span>
           </div>
-          <Show when={!edit() && !props.swipe && user.user?._id === props.chat?.userId}>
+          <Show
+            when={
+              !edit() &&
+              !props.swipe &&
+              user.user?._id === props.chat?.userId &&
+              user.user?.texttospeech?.enabled !== false
+            }
+          >
             <div
               class="mr-4 flex items-center gap-3 text-sm"
               data-bot-editing={isBot()}
               data-user-editing={isUser()}
             >
+              <Show
+                when={
+                  (user.user?.texttospeech?.enabled ?? true) &&
+                  props.msg.msg &&
+                  props.msg.characterId &&
+                  props.char.voice &&
+                  (user.user?._id === props.chat?.userId || voiceLoadingState.status)
+                }
+              >
+                <div
+                  class="icon-button"
+                  onClick={() => (voiceLoadingState.status ? undefined : textToSpeech())}
+                  classList={{
+                    'animate-pulse':
+                      voiceLoadingState.status === 'generating' ||
+                      voiceLoadingState.status == 'loading',
+                    'animate-ping': voiceLoadingState.status === 'playing',
+                  }}
+                >
+                  <Megaphone size={18} />
+                </div>
+              </Show>
               <Show when={props.editing && (!props.msg.split || props.lastSplit)}>
                 <Show when={!!props.msg.characterId && !isImage()}>
                   <div onClick={showPrompt} class="icon-button">
@@ -238,7 +306,7 @@ const SingleMessage: Component<
             </div>
           </Show>
         </div>
-        <div class="break-words">
+        <div class={`w-full break-words`}>
           <Show when={isImage()}>
             <div class="flex justify-start">
               <img
@@ -253,9 +321,7 @@ const SingleMessage: Component<
               class="rendered-markdown pr-1 sm:pr-3"
               data-bot-message={isBot()}
               data-user-message={isUser()}
-              innerHTML={markdown.makeHtml(
-                parseMessage(msgText(), props.char!, user.profile!, props.msg.adapter)
-              )}
+              innerHTML={renderMessage()}
             />
           </Show>
           <Show when={props.msg._id === ''}>

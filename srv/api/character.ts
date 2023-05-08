@@ -1,17 +1,20 @@
 import { Router } from 'express'
-import { assertValid } from 'frisker'
+import { assertValid, Validator } from 'frisker'
 import { store } from '../db'
 
 import { loggedIn } from './auth'
 import { errors, handle, StatusError } from './wrap'
 import { entityUpload, handleForm } from './upload'
 import { PERSONA_FORMATS } from '../../common/adapters'
+import { AppSchema } from '../db/schema'
+import { getVoiceService } from '../voice'
 
 const router = Router()
 
 const valid = {
   name: 'string',
   description: 'string?',
+  culture: 'string?',
   avatar: 'string?',
   scenario: 'string',
   greeting: 'string',
@@ -26,12 +29,14 @@ const valid = {
   },
   originalAvatar: 'string?',
   favorite: 'boolean?',
+  voice: 'string?',
 } as const
 
 const createCharacter = handle(async (req) => {
   const body = await handleForm(req, { ...valid, persona: 'string' })
   const persona = JSON.parse(body.persona)
   assertValid(valid.persona, persona)
+  const voice = parseAndValidateVoice(body.voice)
 
   const char = await store.characters.createCharacter(req.user?.userId!, {
     name: body.name,
@@ -42,10 +47,12 @@ const createCharacter = handle(async (req) => {
     anime: body.anime.toString() === 'true' || false,
     sampleChat: body.sampleChat,
     description: body.description,
+    culture: body.culture,
     scenario: body.scenario,
     greeting: body.greeting,
     avatar: body.originalAvatar,
     favorite: false,
+    voice,
   })
 
   const filename = await entityUpload(
@@ -56,6 +63,7 @@ const createCharacter = handle(async (req) => {
 
   if (filename) {
     await store.characters.updateCharacter(char._id, req.userId, { avatar: filename })
+    char.avatar = filename
   }
 
   return char
@@ -68,8 +76,9 @@ const getCharacters = handle(async ({ userId }) => {
 
 const editCharacter = handle(async (req) => {
   const id = req.params.id
-  const body = await handleForm(req, { ...valid, persona: 'string' })
+  const body = await handleForm(req, { ...valid, persona: 'string', voice: 'string?' })
   const persona = JSON.parse(body.persona)
+  const voice = parseAndValidateVoice(body.voice)
 
   assertValid(valid.persona, persona)
 
@@ -90,9 +99,11 @@ const editCharacter = handle(async (req) => {
     match: body.match.toString() === 'true',
     anime: body.anime.toString() === 'true',
     description: body.description,
+    culture: body.culture,
     greeting: body.greeting,
     scenario: body.scenario,
     sampleChat: body.sampleChat,
+    voice,
   })
 
   return char
@@ -130,6 +141,16 @@ const editCharacterFavorite = handle(async (req) => {
 
   return char
 })
+
+function parseAndValidateVoice(json?: string) {
+  if (!json) return
+  const obj = JSON.parse(json)
+  if (!obj) return
+  if (!obj.service) return { service: undefined }
+  const service = getVoiceService(obj.service)
+  assertValid(service.valid, obj)
+  return obj as unknown as AppSchema.Character['voice']
+}
 
 router.use(loggedIn)
 router.post('/', createCharacter)

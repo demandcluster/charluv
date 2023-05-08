@@ -2,30 +2,27 @@ import { Component, createMemo, createSignal } from 'solid-js'
 import { AlertTriangle, Save } from 'lucide-solid'
 import Button from '../../shared/Button'
 import PageHeader from '../../shared/PageHeader'
-import { getFormEntries, getStrictForm, setComponentPageTitle } from '../../shared/util'
-import { CHAT_ADAPTERS, ChatAdapter, AIAdapter } from '../../../common/adapters'
+import { getStrictForm, setComponentPageTitle } from '../../shared/util'
 import { userStore } from '../../store'
-import { AppSchema } from '../../../srv/db/schema'
 import UISettings from './UISettings'
 import DateSettings from './DateSettings'
 import Tabs from '../../shared/Tabs'
 import AISettings from './AISettings'
 import { Show } from 'solid-js'
 import { ImageSettings } from './Image/ImageSettings'
+import { VoiceSettings } from './Voice/VoiceSettings'
+import { ElevenLabsModel } from '../../../srv/db/texttospeech-schema'
 
 const settingTabs = {
   ai: 'AI Settings',
   ui: 'UI Settings',
   image: 'Image Settings',
+  voice: 'Voice Settings',
   guest: 'Guest Data',
   date: 'Dating Settings',
 }
 
 type Tab = keyof typeof settingTabs
-
-type DefaultAdapter = Exclude<ChatAdapter, 'default'>
-
-const adapterOptions = CHAT_ADAPTERS.filter((adp) => adp !== 'default') as DefaultAdapter[]
 
 const Settings: Component = () => {
   setComponentPageTitle('Settings')
@@ -34,13 +31,15 @@ const Settings: Component = () => {
   const [tab, setTab] = createSignal(0)
   const [workers, setWorkers] = createSignal<string[]>(state.user?.hordeWorkers || [])
 
-  const tabs: Tab[] = ['ui']
+  const tabs: Tab[] = ['ui', 'voice', 'ai']
   if (state.loggedIn) tabs.push('date')
   if (!state.loggedIn) tabs.push('guest')
+
   const currentTab = createMemo(() => tabs[tab()])
 
   const onSubmit = (evt: Event) => {
     const body = getStrictForm(evt, {
+      defaultPreset: 'string?',
       koboldUrl: 'string?',
       thirdPartyFormat: ['kobold', 'openai', 'claude'],
       novelApiKey: 'string?',
@@ -53,7 +52,6 @@ const Settings: Component = () => {
       scaleApiKey: 'string?',
       scaleUrl: 'string?',
       claudeApiKey: 'string?',
-      defaultAdapter: adapterOptions,
       logPromptsToBrowserConsole: 'boolean?',
 
       imageType: ['horde', 'sd', 'novel'],
@@ -70,17 +68,16 @@ const Settings: Component = () => {
 
       sdUrl: 'string',
       sdSampler: 'string',
-    } as const)
 
-    const defaultPresets = getFormEntries(evt)
-      .filter(([name]) => name.startsWith('preset.'))
-      .map(([name, value]) => {
-        return { adapter: name.replace('preset.', '') as AIAdapter, presetId: value }
-      })
-      .reduce((prev, curr) => {
-        prev![curr.adapter] = curr.presetId
-        return prev
-      }, {} as AppSchema.User['defaultPresets'])
+      speechToTextEnabled: 'boolean',
+      speechToTextAutoSubmit: 'boolean',
+      speechToTextAutoRecord: 'boolean',
+
+      textToSpeechEnabled: 'boolean',
+      textToSpeechFilterActions: 'boolean',
+
+      elevenLabsApiKey: 'string?',
+    } as const)
 
     const {
       imageCfg,
@@ -94,13 +91,31 @@ const Settings: Component = () => {
       hordeSampler,
       novelImageModel,
       novelSampler,
+
+      speechToTextEnabled,
+      speechToTextAutoSubmit,
+      speechToTextAutoRecord,
+
+      textToSpeechEnabled,
+      textToSpeechFilterActions,
+
+      elevenLabsApiKey,
+
       ...base
     } = body
 
     userStore.updateConfig({
       ...base,
       hordeWorkers: workers(),
-      defaultPresets,
+      speechtotext: {
+        enabled: speechToTextEnabled,
+        autoSubmit: speechToTextAutoSubmit,
+        autoRecord: speechToTextAutoRecord,
+      },
+      texttospeech: {
+        enabled: textToSpeechEnabled,
+        filterActions: textToSpeechFilterActions,
+      },
       images: {
         type: imageType,
         cfg: imageCfg,
@@ -128,6 +143,7 @@ const Settings: Component = () => {
   return (
     <>
       <PageHeader title="Settings" subtitle="Configuration" noDivider />
+
       <div class="my-2">
         <Tabs tabs={tabs.map((t) => settingTabs[t])} selected={tab} select={setTab} />
       </div>
@@ -146,6 +162,10 @@ const Settings: Component = () => {
           </div>
           <div class={currentTab() === 'date' ? tabClass : 'hidden'}>
             <DateSettings />
+          </div>
+
+          <div class={currentTab() === 'voice' ? tabClass : 'hidden'}>
+            <VoiceSettings />
           </div>
 
           <div class={currentTab() === 'guest' ? tabClass : 'hidden'}>

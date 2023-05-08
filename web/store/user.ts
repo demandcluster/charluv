@@ -3,8 +3,8 @@ import { EVENTS, events } from '../emitter'
 import { FileInputResult } from '../shared/FileInput'
 import { api, clearAuth, getAuth, setAuth } from './api'
 import { createStore } from './create'
-import { data } from './data'
-import { local } from './data/storage'
+import { localApi } from './data/storage'
+import { usersApi } from './data/user'
 import { publish, subscribe } from './socket'
 import { toastStore } from './toasts'
 
@@ -88,7 +88,7 @@ export const userStore = createStore<UserState>(
 
   return {
     async getProfile() {
-      const res = await data.user.getProfile()
+      const res = await usersApi.getProfile()
       if (res.error) return toastStore.error(`Failed to get profile`)
       if (res.result) {
         return { profile: res.result }
@@ -96,7 +96,7 @@ export const userStore = createStore<UserState>(
     },
 
     async getConfig() {
-      const res = await data.user.getConfig()
+      const res = await usersApi.getConfig()
       if (res.error) return toastStore.error(`Failed to get user config`)
       if (res.result) {
         return { user: res.result }
@@ -104,7 +104,7 @@ export const userStore = createStore<UserState>(
     },
 
     async updateProfile(_, profile: { handle: string; avatar?: File }) {
-      const res = await data.user.updateProfile(profile.handle, profile.avatar)
+      const res = await usersApi.updateProfile(profile.handle, profile.avatar)
       if (res.error) toastStore.error(`Failed to update profile: ${res.error}`)
       if (res.result) {
         toastStore.success(`Updated profile`)
@@ -113,7 +113,7 @@ export const userStore = createStore<UserState>(
     },
 
     async updateConfig(_, config: Partial<AppSchema.User>) {
-      const res = await data.user.updateConfig(config)
+      const res = await usersApi.updateConfig(config)
       if (res.error) toastStore.error(`Failed to update config: ${res.error}`)
       if (res.result) {
         toastStore.success(`Updated settings`)
@@ -205,9 +205,9 @@ export const userStore = createStore<UserState>(
 
     async deleteKey(
       { user },
-      kind: 'novel' | 'horde' | 'openai' | 'scale' | 'claude' | 'third-party'
+      kind: 'novel' | 'horde' | 'openai' | 'scale' | 'claude' | 'third-party' | 'elevenlabs'
     ) {
-      const res = await data.user.deleteApiKey(kind)
+      const res = await usersApi.deleteApiKey(kind)
       if (res.error) return toastStore.error(`Failed to update settings: ${res.error}`)
 
       if (!user) return
@@ -222,20 +222,25 @@ export const userStore = createStore<UserState>(
       if (kind === 'claude') {
         return { user: { ...user, claudeApiKey: '', claudeApiKeySet: false } }
       }
+
       if (kind === 'third-party') {
         return { user: { ...user, thirdPartyPassword: '' } }
+      }
+
+      if (kind === 'elevenlabs') {
+        return { user: { ...user, elevenLabsApiKey: '', elevenLabsApiKeySet: false } }
       }
     },
 
     clearGuestState() {
-      const chats = local.loadItem('chats')
+      const chats = localApi.loadItem('chats')
       for (const chat of chats) {
         localStorage.removeItem(`messages-${chat._id}`)
       }
 
-      for (const key in local.KEYS) {
+      for (const key in localApi.KEYS) {
         localStorage.removeItem(key)
-        local.loadItem(key as any)
+        localApi.loadItem(key as any)
       }
 
       toastStore.error(`Guest state successfully reset`)

@@ -19,6 +19,7 @@ import {
   Download,
   Edit,
   Menu,
+  MoreHorizontal,
   Save,
   Trash,
   VenetianMask,
@@ -31,6 +32,7 @@ import {
   LayoutList,
   Image,
   User,
+  MessageCircle,
 } from 'lucide-solid'
 import { A, useNavigate } from '@solidjs/router'
 import AvatarIcon from '../../shared/AvatarIcon'
@@ -45,6 +47,7 @@ import Loading from '../../shared/Loading'
 import Divider from '../../shared/Divider'
 import Gauge from '../../shared/Gauge'
 
+import CreateChatModal from './CreateChat'
 const CACHE_KEY = 'agnai-charlist-cache'
 
 type ViewTypes = 'list' | 'cards'
@@ -75,9 +78,19 @@ const CharacterList: Component = () => {
   const [search, setSearch] = createSignal('')
   const [showImport, setImport] = createSignal(false)
   const user = userStore()
+  const [create, setCreate] = createSignal<AppSchema.Character>()
+  const importQueue: NewCharacter[] = []
 
-  const onImport = (char: NewCharacter) => {
-    characterStore.createCharacter(char, () => setImport(false))
+  const onImport = (chars: NewCharacter[]) => {
+    importQueue.push(...chars)
+    dequeue()
+    setImport(false)
+  }
+
+  const dequeue = () => {
+    const char = importQueue.shift()
+    if (!char) return
+    characterStore.createCharacter(char, dequeue)
   }
 
   const getNextView = () => (view() === 'list' ? 'cards' : 'list')
@@ -182,8 +195,12 @@ const CharacterList: Component = () => {
         filter={search()}
         sortField={sortField()}
         sortDirection={sortDirection()}
+        createChat={setCreate}
       />
       <ImportCharacterModal show={showImport()} close={() => setImport(false)} onSave={onImport} />
+      <Show when={create()}>
+        <CreateChatModal show={!!create()} close={() => setCreate()} char={create()} />
+      </Show>
     </>
   )
 }
@@ -194,6 +211,7 @@ const Characters: Component<{
   user: AppSchema.User
   sortField: SortFieldTypes
   sortDirection: SortDirectionTypes
+  createChat: (char?: AppSchema.Character) => void
 }> = (props) => {
   const state = characterStore((s) => ({ ...s.characters, loading: s.loading }))
 
@@ -240,7 +258,7 @@ const Characters: Component<{
             </div>
           </Show>
 
-          <Show when={props.type === 'list'}>
+          <Show when={props.type || props.type === 'list'}>
             <div class="flex w-full flex-col gap-2 pb-5">
               <For each={groups()}>
                 {(group) => (
@@ -257,6 +275,7 @@ const Characters: Component<{
                           delete={() => setDelete(char)}
                           download={() => setDownload(char)}
                           toggleFavorite={(value) => toggleFavorite(char._id, value)}
+                          createChat={props.createChat}
                         />
                       )}
                     </For>
@@ -284,6 +303,7 @@ const Characters: Component<{
                           delete={() => setDelete(char)}
                           download={() => setDownload(char)}
                           toggleFavorite={(value) => toggleFavorite(char._id, value)}
+                          createChat={props.createChat}
                         />
                       )}
                     </For>
@@ -316,21 +336,29 @@ const Character: Component<{
   delete: () => void
   download: () => void
   toggleFavorite: (value: boolean) => void
+  createChat: (char?: AppSchema.Character) => void
 }> = (props) => {
   const [opts, setOpts] = createSignal(false)
   const [listOpts, setListOpts] = createSignal(false)
   const nav = useNavigate()
+
+  const createChat = () => {
+    props.createChat(props.char)
+    setOpts(false)
+    setListOpts(false)
+  }
+
   if (props.type === 'list') {
     return (
-      <div class="flex w-full flex-row items-center justify-between gap-4 rounded-xl bg-[var(--bg-700)] py-1 px-2">
+      <div class="flex w-full flex-row items-center justify-between gap-4 rounded-xl bg-[var(--bg-800)] py-1 px-2 hover:bg-[var(--bg-700)]">
         <A
-          class="ellipsis flex h-3/4 cursor-pointer items-center"
+          class="ellipsis flex h-3/4 grow cursor-pointer items-center"
           href={`/character/${props.char._id}/chats`}
         >
           <AvatarIcon avatarUrl={props.char.avatar} class="mr-4" />
-          <div class="ellipsis flex w-full flex-col">
-            <div class="font-bold">{props.char.name}</div>
-            <div class="ellipsis">{props.char.description}</div>
+          <div class="flex max-w-full flex-col overflow-hidden">
+            <span class="ellipsis font-bold">{props.char.name}</span>
+            <span class="ellipsis">{props.char.description}</span>
           </div>
         </A>
         <div>
@@ -366,7 +394,8 @@ const Character: Component<{
             <Show when={props.char.name !== 'Aiva'}>
               <Gauge showBar={false} currentXP={props.char.xp} />
             </Show>
-            <Menu class="icon-button ml-4" />
+
+            <MoreHorizontal class="icon-button" />
           </div>
           <DropMenu
             class="bg-[var(--bg-700)]"
@@ -377,7 +406,7 @@ const Character: Component<{
             vert="down"
           >
             <div class="flex flex-col gap-2 p-2 font-bold">
-              <Button onClick={() => props.toggleFavorite(!props.char.favorite)}>
+              <Button onClick={() => props.toggleFavorite(!props.char.favorite)} size="sm">
                 <Show when={props.char.favorite}>
                   <Star class="text-900 fill-[var(--text-900)]" /> Unfavorite
                 </Show>
@@ -385,18 +414,23 @@ const Character: Component<{
                   <Star /> Favorite
                 </Show>
               </Button>
-              <Show when={props.user?.user?.admin}>
-                <Button alignLeft onClick={props.download}>
-                  <Download /> Download
-                </Button>
-                <Button alignLeft onClick={() => nav(`/character/${props.char._id}/edit`)}>
-                  <Edit /> Edit
-                </Button>
-                <Button alignLeft onClick={() => nav(`/character/create/${props.char._id}`)}>
-                  <Copy /> Duplicate
-                </Button>
-              </Show>
-              <Button alignLeft onClick={props.delete}>
+              <Button onClick={createChat} alignLeft size="sm">
+                <MessageCircle /> Chat
+              </Button>
+              <Button alignLeft onClick={props.download} size="sm">
+                <Download /> Download
+              </Button>
+              <Button alignLeft onClick={() => nav(`/character/${props.char._id}/edit`)} size="sm">
+                <Edit /> Edit
+              </Button>
+              <Button
+                alignLeft
+                onClick={() => nav(`/character/create/${props.char._id}`)}
+                size="sm"
+              >
+                <Copy /> Duplicate
+              </Button>
+              <Button alignLeft onClick={props.delete} size="sm">
                 <Trash /> Delete
               </Button>
               <Button alignLeft onClick={() => nav(`/likes/${props.char._id}/profile`)}>
@@ -462,7 +496,11 @@ const Character: Component<{
             customPosition="right-[9px] top-[6px]"
           >
             <div class="flex flex-col gap-2 p-2">
-              <Button onClick={() => props.toggleFavorite(!props.char.favorite)}>
+              <Button
+                onClick={() => props.toggleFavorite(!props.char.favorite)}
+                size="sm"
+                alignLeft
+              >
                 <Show when={props.char.favorite}>
                   <Star class="text-900 fill-[var(--text-900)]" /> Unfavorite
                 </Show>
@@ -470,21 +508,37 @@ const Character: Component<{
                   <Star /> Favorite
                 </Show>
               </Button>
-              <Button alignLeft onClick={() => nav(`/likes/${props.char._id}/profile`)}>
-                <User /> Profile
+              <Button onClick={createChat} alignLeft size="sm">
+                <MessageCircle /> Chat
               </Button>
-              <Show when={props.user?.user?.admin}>
-                <Button alignLeft onClick={props.download}>
-                  <Download /> Download
-                </Button>
-                <Button alignLeft onClick={() => nav(`/character/${props.char._id}/edit`)}>
-                  <Edit /> Edit
-                </Button>
-                <Button alignLeft onClick={() => nav(`/character/create/${props.char._id}`)}>
-                  <Copy /> Duplicate
-                </Button>
-              </Show>
-              <Button alignLeft onClick={props.delete}>
+              <Button
+                alignLeft
+                size="sm"
+                onClick={() => {
+                  setOpts(false)
+                  props.download()
+                }}
+              >
+                <Download /> Download
+              </Button>
+              <Button alignLeft onClick={() => nav(`/character/${props.char._id}/edit`)} size="sm">
+                <Edit /> Edit
+              </Button>
+              <Button
+                alignLeft
+                onClick={() => nav(`/character/create/${props.char._id}`)}
+                size="sm"
+              >
+                <Copy /> Duplicate
+              </Button>
+              <Button
+                alignLeft
+                size="sm"
+                onClick={() => {
+                  setOpts(false)
+                  props.delete()
+                }}
+              >
                 <Trash /> Delete
               </Button>
               <Button alignLeft onClick={() => nav(`/likes/${props.char._id}/profile`)}>

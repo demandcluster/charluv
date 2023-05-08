@@ -42,9 +42,9 @@ const Navigation: Component = () => {
       class={`drawer flex flex-col gap-4 bg-[var(--bg-800)] pt-4 ${hide()} ${fullscreen()}`}
     >
       <div class="drawer__content flex flex-col gap-2 px-4">
-        <div class="ph-1 hidden w-full px-4 pt-2 sm:flex">
+        <div class="ph-1 hidden w-full px-4 pt-2 sm:flex" style="background:#55b89cff;">
           <A href="/">
-            <img width="100px" src={user.ui?.mode === 'light' ? logoDark : logo} />
+            <img width="300px" src={user.ui?.mode === 'light' ? logoDark : logo} />
           </A>
         </div>
         <Show when={user.loggedIn} fallback={<GuestNavigation />}>

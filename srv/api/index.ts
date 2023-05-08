@@ -9,6 +9,7 @@ import horde from './horde'
 import settings from './settings'
 import memory from './memory'
 import selfhost from './json'
+import voice from './voice'
 import { config } from '../config'
 
 import freeCredits from './freecredits'
@@ -28,6 +29,7 @@ router.use('/admin', admin)
 router.use('/horde', horde)
 router.use('/settings', settings)
 router.use('/memory', memory)
+router.use('/voice', voice)
 
 router.use('/freecredits', freeCredits)
 router.use('/scenarios', scenario)

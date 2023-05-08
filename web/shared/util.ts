@@ -60,7 +60,11 @@ export function getForm<T = {}>(evt: Event | HTMLFormElement): T {
 
 type Field = HTMLSelectElement | HTMLInputElement
 
-export function getStrictForm<T extends FormRef>(evt: Event | HTMLFormElement, body: T) {
+export function getStrictForm<T extends FormRef>(
+  evt: Event | HTMLFormElement,
+  body: T,
+  partial?: boolean
+) {
   evt.preventDefault?.()
   const target = evt instanceof HTMLFormElement ? evt : (evt.target as HTMLFormElement)
 
@@ -85,7 +89,7 @@ export function getStrictForm<T extends FormRef>(evt: Event | HTMLFormElement, b
 
   disable()
 
-  assertValid(body, values)
+  assertValid(body, values, partial)
   return values
 }
 
@@ -307,4 +311,17 @@ export function find<T, K extends keyof T>(values: T[], key: K, val: T[K]): T | 
   for (const value of values) {
     if (value[key] === val) return value
   }
+}
+
+/**
+ * This only works for shallow objects
+ */
+export function isDirty<T extends {}>(original: T, compare: T): boolean {
+  const keys = new Set<keyof T>(Object.keys(original).concat(Object.keys(compare)) as any)
+
+  for (const key of Array.from(keys)) {
+    if (original[key] !== compare[key]) return true
+  }
+
+  return false
 }

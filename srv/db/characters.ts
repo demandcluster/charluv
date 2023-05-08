@@ -13,11 +13,13 @@ type CharacterUpdate = Partial<
     | 'greeting'
     | 'scenario'
     | 'description'
+    | 'culture'
     | 'favorite'
     | 'match'
     | 'xp'
     | 'premium'
     | 'anime'
+    | 'voice'
   >
 >
 
@@ -32,11 +34,13 @@ export async function createCharacter(
     | 'greeting'
     | 'scenario'
     | 'description'
+    | 'culture'
     | 'favorite'
     | 'match'
     | 'xp'
     | 'premium'
     | 'anime'
+    | 'voice'
   >
 ) {
   const newChar: AppSchema.Character = {

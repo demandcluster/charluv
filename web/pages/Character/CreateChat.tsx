@@ -7,9 +7,10 @@ import Select from '../../shared/Select'
 import Modal from '../../shared/Modal'
 import PersonaAttributes, { getAttributeMap } from '../../shared/PersonaAttributes'
 import TextInput from '../../shared/TextInput'
-import { getForm, getFormEntries, getStrictForm } from '../../shared/util'
-import { characterStore, chatStore, userStore } from '../../store'
+import { getStrictForm } from '../../shared/util'
+import { characterStore, chatStore, presetStore, userStore } from '../../store'
 import CharacterSelect from '../../shared/CharacterSelect'
+import { getPresetOptions } from '../../shared/adapter'
 
 const options = [
   { value: 'wpp', label: 'W++' },
@@ -26,17 +27,24 @@ const CreateChatModal: Component<{
   let ref: any
 
   const nav = useNavigate()
-  const user = userStore()
+
   const [selectedChar, setChar] = createSignal<AppSchema.Character>()
   const state = characterStore((s) => ({
     chars: s.characters?.list || [],
     loaded: s.characters.loaded,
   }))
 
+  const user = userStore((s) => s.user || { defaultPreset: '' })
+  const presets = presetStore((s) => s.presets)
+
   const char = createMemo(() => {
     const curr = selectedChar() || props.char
     return curr
   })
+
+  const presetOptions = createMemo(() =>
+    getPresetOptions(presets).filter((pre) => pre.value !== 'chat')
+  )
 
   createEffect(() => {
     if (!selectedChar() && !props.char && state.chars.length) {
@@ -62,25 +70,25 @@ const CreateChatModal: Component<{
 
     let attributes = getAttributeMap(ref)
 
-    if (user.admin) {
-      body = getStrictForm(ref, {
-        name: 'string',
-        greeting: 'string',
-        scenario: 'string',
-        sampleChat: 'string',
-        schema: ['wpp', 'boostyle', 'sbf', 'text'],
-      } as const)
-      attributes = getAttributeMap(ref)
-    } else {
-      body = getStrictForm(ref, {
-        name: 'string',
-      } as const)
-      body.scenario = character.scenario
-      body.greeting = character.greeting
-      body.sampleChat = character.sampleChat
-      attributes = character.persona.attributes
-      body.schema = character.persona.kind
-    }
+    // if (user.admin) {
+    //   body = getStrictForm(ref, {
+    //     name: 'string',
+    //     greeting: 'string',
+    //     scenario: 'string',
+    //     sampleChat: 'string',
+    //     schema: ['wpp', 'boostyle', 'sbf', 'text'],
+    //   } as const)
+    //   attributes = getAttributeMap(ref)
+    // } else {
+    body = getStrictForm(ref, {
+      name: 'string',
+    } as const)
+    body.scenario = character.scenario
+    body.greeting = character.greeting
+    body.sampleChat = character.sampleChat
+    attributes = character.persona.attributes
+    body.schema = character.persona.kind
+    //  }
     const characterId = character._id
 
     const payload = { ...body, overrides: { kind: body.schema, attributes } }
@@ -123,7 +131,7 @@ const CreateChatModal: Component<{
             value={char()}
             fieldName="character"
             label="Character"
-            helperText="The conversation's central character"
+            helperText="The conversation's cxentral character"
             onChange={(c) => selectChar(c!)}
           />
         </Show>

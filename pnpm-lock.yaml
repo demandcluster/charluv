@@ -1,4 +1,4 @@
-lockfileVersion: 5.4
+lockfileVersion: 5.3
 
 specifiers:
   '@aws-sdk/client-s3': ^3.309.0
@@ -37,7 +37,6 @@ specifiers:
   express: ^4.18.2
   frisker: 1.6.2
   gpt-3-encoder: ^1.1.4
-  html2canvas: ^1.4.1
   js-cookie: ^3.0.1
   jsonwebtoken: ^9.0.0
   localtunnel: ^2.0.2
@@ -45,6 +44,8 @@ specifiers:
   minimist: ^1.2.8
   mkdirp: ^2.1.4
   mocha: ^10.2.0
+  modern-screenshot: ^4.4.15
+  module-alias: ^2.2.2
   mongodb: ^5.1.0
   multer: ^1.4.5-lts.1
   needle: ^3.2.0
@@ -89,6 +90,8 @@ dependencies:
   jsonwebtoken: 9.0.0
   minimist: 1.2.8
   mkdirp: 2.1.4
+  modern-screenshot: 4.4.20
+  module-alias: 2.2.2
   mongodb: 5.1.0
   multer: 1.4.5-lts.1
   needle: 3.2.0
@@ -121,7 +124,6 @@ devDependencies:
   chai: 4.3.7
   concurrently: 7.6.0
   events: 3.3.0
-  html2canvas: 1.4.1
   js-cookie: 3.0.1
   localtunnel: 2.0.2
   lucide-solid: 0.105.0-alpha.9_solid-js@1.6.9
@@ -138,7 +140,7 @@ devDependencies:
   process: 0.11.10
   showdown: 2.1.0
   solid-js: 1.6.9
-  tailwindcss: 3.2.4_postcss@8.4.21
+  tailwindcss: 3.2.4
   typescript: 5.0.4
   zustand: 4.3.3
 
@@ -1591,7 +1593,7 @@ packages:
       - '@parcel/core'
     dev: true
 
-  /@parcel/config-default/2.8.3_2dqjxujgcancinq7vgq5cpolwy:
+  /@parcel/config-default/2.8.3_d0e09bd126101a24361fa9a1d13dcbb6:
     resolution: {integrity: sha512-o/A/mbrO6X/BfGS65Sib8d6SSG45NYrNooNBkH/o7zbOBSRQxwyTlysleK1/3Wa35YpvFyLOwgfakqCtbGy4fw==}
     peerDependencies:
       '@parcel/core': ^2.8.3
@@ -1601,7 +1603,7 @@ packages:
       '@parcel/core': 2.8.3
       '@parcel/namer-default': 2.8.3_@parcel+core@2.8.3
       '@parcel/optimizer-css': 2.8.3_@parcel+core@2.8.3
-      '@parcel/optimizer-htmlnano': 2.8.3_2dqjxujgcancinq7vgq5cpolwy
+      '@parcel/optimizer-htmlnano': 2.8.3_d0e09bd126101a24361fa9a1d13dcbb6
       '@parcel/optimizer-image': 2.8.3_@parcel+core@2.8.3
       '@parcel/optimizer-svgo': 2.8.3_@parcel+core@2.8.3
       '@parcel/optimizer-terser': 2.8.3_@parcel+core@2.8.3
@@ -1767,7 +1769,7 @@ packages:
       - '@parcel/core'
     dev: true
 
-  /@parcel/optimizer-htmlnano/2.8.3_2dqjxujgcancinq7vgq5cpolwy:
+  /@parcel/optimizer-htmlnano/2.8.3_d0e09bd126101a24361fa9a1d13dcbb6:
     resolution: {integrity: sha512-L8/fHbEy8Id2a2E0fwR5eKGlv9VYDjrH9PwdJE9Za9v1O/vEsfl/0T/79/x129l5O0yB6EFQkFa20MiK3b+vOg==}
     engines: {node: '>= 12.0.0', parcel: ^2.8.3}
     dependencies:
@@ -2616,11 +2618,6 @@ packages:
       safe-buffer: 5.2.1
     dev: true
 
-  /base64-arraybuffer/1.0.2:
-    resolution: {integrity: sha512-I3yl4r9QB5ZRY3XuJVEPfc2XhZO6YweFPI+UovAzn+8/hb3oJ6lnysaFcjVpkCPfVWFUDvoZ8kmVDP7WyRtYtQ==}
-    engines: {node: '>= 0.6.0'}
-    dev: true
-
   /base64-js/1.5.1:
     resolution: {integrity: sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==}
 
@@ -2969,12 +2966,6 @@ packages:
   /crypto-js/4.1.1:
     resolution: {integrity: sha512-o2JlM7ydqd3Qk9CA0L4NL6mTzU2sdx96a+oOfPu8Mkl/PK51vSyoi8/rQ8NknZtk44vq15lmhAj9CIAGwgeWKw==}
     dev: false
-
-  /css-line-break/2.1.0:
-    resolution: {integrity: sha512-FHcKFCZcAha3LwfVBhCQbW2nCNbkZXn7KVUJcsT5/P8YmfsVja0FMPJr0B903j/E69HUphKiV9iQArX8SDYA4w==}
-    dependencies:
-      utrie: 1.0.2
-    dev: true
 
   /css-select/4.3.0:
     resolution: {integrity: sha512-wPpOYtnsVontu2mODhA19JrqWxNsfdatRKd64kmpRbQgh1KtItko5sTnEpPdpSaJszTOhEMlF/RPz28qj4HqhQ==}
@@ -3582,14 +3573,6 @@ packages:
     resolution: {integrity: sha512-DV5Ln36z34NNTDgnz0EWGBLZENelNAtkiFA4kyNOG2tDI6Mz1uSWiq1wAKdyjnJwyDiDO7Fa2SO1CTxPXL8VxA==}
     dev: true
 
-  /html2canvas/1.4.1:
-    resolution: {integrity: sha512-fPU6BHNpsyIhr8yyMpTLLxAbkaK8ArIBcmZIRiBLiDhjeqvXolaEmDGmELFuX9I4xDcaKKcJl+TKZLqruBbmWA==}
-    engines: {node: '>=8.0.0'}
-    dependencies:
-      css-line-break: 2.1.0
-      text-segmentation: 1.0.3
-    dev: true
-
   /htmlnano/2.0.3_postcss@8.4.21+svgo@2.8.0:
     resolution: {integrity: sha512-S4PGGj9RbdgW8LhbILNK7W9JhmYP8zmDY7KDV/8eCiJBQJlbmltp5I0gv8c5ntLljfdxxfmJ+UJVSqyH4mb41A==}
     peerDependencies:
@@ -4107,6 +4090,14 @@ packages:
       yargs-unparser: 2.0.0
     dev: true
 
+  /modern-screenshot/4.4.20:
+    resolution: {integrity: sha512-YoAf81CVnR6R4At6HERuxyq7uDu5uQ2bCGi+aZ3M9VE/q03jLajvnaJ+0wTQp8sfHmzb0J1wY7t71qfBLuD2og==}
+    dev: false
+
+  /module-alias/2.2.2:
+    resolution: {integrity: sha512-A/78XjoX2EmNvppVWEhM2oGk3x4lLxnkEA4jTbaK97QKSDjkIoOsKQlfylt/d3kKKi596Qy3NP5XrXJ6fZIC9Q==}
+    dev: false
+
   /mongodb-connection-string-url/2.6.0:
     resolution: {integrity: sha512-WvTZlI9ab0QYtTYnuMLgobULWhokRjtC7db9LtcVfJ+Hsnyr5eo6ZtNAt3Ly24XZScGMelOcGtm7lSn0332tPQ==}
     dependencies:
@@ -4332,7 +4323,7 @@ packages:
       '@parcel/core':
         optional: true
     dependencies:
-      '@parcel/config-default': 2.8.3_2dqjxujgcancinq7vgq5cpolwy
+      '@parcel/config-default': 2.8.3_d0e09bd126101a24361fa9a1d13dcbb6
       '@parcel/core': 2.8.3
       '@parcel/diagnostic': 2.8.3
       '@parcel/events': 2.8.3
@@ -5102,12 +5093,10 @@ packages:
       stable: 0.1.8
     dev: true
 
-  /tailwindcss/3.2.4_postcss@8.4.21:
+  /tailwindcss/3.2.4:
     resolution: {integrity: sha512-AhwtHCKMtR71JgeYDaswmZXhPcW9iuI9Sp2LvZPo9upDZ7231ZJ7eA9RaURbhpXGVlrjX4cFNlB4ieTetEb7hQ==}
     engines: {node: '>=12.13.0'}
     hasBin: true
-    peerDependencies:
-      postcss: ^8.0.9
     dependencies:
       arg: 5.0.2
       chokidar: 3.5.3
@@ -5150,12 +5139,6 @@ packages:
       acorn: 8.8.1
       commander: 2.20.3
       source-map-support: 0.5.21
-    dev: true
-
-  /text-segmentation/1.0.3:
-    resolution: {integrity: sha512-iOiPUo/BGnZ6+54OsWxZidGCsdU8YbE4PSpdPinp7DeMtUJNJBoJ/ouUSTJjHkh1KntHaltHl/gDs2FC4i5+Nw==}
-    dependencies:
-      utrie: 1.0.2
     dev: true
 
   /thread-stream/2.3.0:
@@ -5300,12 +5283,6 @@ packages:
     resolution: {integrity: sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA==}
     engines: {node: '>= 0.4.0'}
     dev: false
-
-  /utrie/1.0.2:
-    resolution: {integrity: sha512-1MLa5ouZiOmQzUbjbu9VmjLzn1QLXBhwpUa7kdLUQK+KQ5KA9I1vk5U4YHe/X2Ch7PYnJfWuWT+VbuxbGwljhw==}
-    dependencies:
-      base64-arraybuffer: 1.0.2
-    dev: true
 
   /uuid/8.3.2:
     resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}

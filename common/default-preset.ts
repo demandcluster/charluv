@@ -4,34 +4,36 @@ import { CLAUDE_MODELS, OPENAI_MODELS } from './adapters'
 const MAX_TOKENS = 120
 
 export const defaultPresets = {
-  basic: {
-    name: 'Simple',
-    maxTokens: MAX_TOKENS,
-    maxContextLength: 2048,
+  horde: {
+    name: 'Horde',
+    service: 'horde',
+    maxTokens: 80,
+    maxContextLength: 1024,
     repetitionPenalty: 1.08,
     repetitionPenaltySlope: 0.9,
     repetitionPenaltyRange: 1024,
-    temp: 0.59,
-    topK: 0,
-    topP: 0.97,
-    typicalP: 0.95,
+    temp: 0.7,
+    topK: 40,
+    topP: 0.5,
+    typicalP: 1,
     topA: 1,
     tailFreeSampling: 0.9,
     order: [0, 1, 2, 3, 4, 5, 6],
-    frequencyPenalty: 0.7,
+    frequencyPenalty: 1.2,
     presencePenalty: 0.7,
     gaslight: '',
     ultimeJailbreak: '',
     oaiModel: OPENAI_MODELS.Turbo,
     memoryDepth: 50,
-    memoryContextLimit: 500,
+    memoryContextLimit: 256,
     memoryReverseWeight: false,
     useGaslight: false,
     antiBond: false,
   },
-  horde: {
-    name: 'Horde',
-    maxTokens: 120,
+  basic: {
+    service: 'kobold',
+    name: 'Simple',
+    maxTokens: MAX_TOKENS,
     maxContextLength: 2048,
     repetitionPenalty: 1.08,
     repetitionPenaltySlope: 0.7,
@@ -42,7 +44,11 @@ export const defaultPresets = {
     typicalP: 0.95,
     topA: 1,
     tailFreeSampling: 0.9,
-    order: [6, 0, 1, 2, 3, 4, 5],
+    encoderRepitionPenalty: 1.0,
+    penaltyAlpha: 0,
+    addBosToken: false,
+    banEosToken: false,
+    order: [0, 1, 2, 3, 4, 5, 6],
     frequencyPenalty: 0.7,
     presencePenalty: 0.7,
     gaslight: '',
@@ -56,6 +62,7 @@ export const defaultPresets = {
   },
   novel_20BC: {
     name: 'Novel 20BC+',
+    service: 'novel',
     maxTokens: MAX_TOKENS,
     maxContextLength: 2048,
     repetitionPenalty: 1.055,
@@ -70,6 +77,7 @@ export const defaultPresets = {
   },
   novel_blueLighter: {
     name: 'Novel Blue Lighter',
+    service: 'novel',
     maxTokens: MAX_TOKENS,
     maxContextLength: 2048,
     repetitionPenalty: 1.05,
@@ -86,6 +94,7 @@ export const defaultPresets = {
   },
   llama: {
     name: 'Llama (TextGen)',
+    service: 'ooba',
     maxTokens: MAX_TOKENS,
     maxContextLength: 2048,
     repetitionPenalty: 1.2,
@@ -99,6 +108,7 @@ export const defaultPresets = {
   },
   openai: {
     name: 'OpenAI - Turbo',
+    service: 'openai',
     temp: 0.5,
     oaiModel: OPENAI_MODELS.Turbo,
     maxTokens: 300,
@@ -117,6 +127,7 @@ This is how {{char}} should talk
   },
   openaiAlt: {
     name: 'OpenAI - Turbo (#2)',
+    service: 'openai',
     temp: 0.5,
     oaiModel: OPENAI_MODELS.Turbo,
     maxTokens: 300,
@@ -134,6 +145,7 @@ This is how {{char}} should talk
   },
   openaiTurbo: {
     name: 'OpenAI - DaVinci',
+    service: 'openai',
     temp: 0.5,
     oaiModel: OPENAI_MODELS.DaVinci,
     maxTokens: 300,
@@ -150,7 +162,8 @@ This is how {{char}} should talk
 {{example_dialogue}}`,
   },
   scale: {
-    name: 'scale',
+    name: 'Scale',
+    service: 'scale',
     maxTokens: 300,
     maxContextLength: 7600,
     // Not providing a default gaslight intentionally as most users have thier gaslight configured within Scale.
@@ -158,6 +171,7 @@ This is how {{char}} should talk
   },
   claude: {
     name: 'Claude V1',
+    service: 'claude',
     temp: 1,
     claudeModel: CLAUDE_MODELS.ClaudeV1,
     maxTokens: 500,

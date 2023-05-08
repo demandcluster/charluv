@@ -1,17 +1,25 @@
 import { v4 } from 'uuid'
 import { AppSchema } from '../../srv/db/schema'
 import { EVENTS, events } from '../emitter'
-import { getAssetPrefix, getAssetUrl } from '../shared/util'
+import { getAssetUrl } from '../shared/util'
 import { isLoggedIn } from './api'
 import { createStore } from './create'
-import { data } from './data'
 import { getImageData } from './data/chars'
 import { subscribe } from './socket'
 import { toastStore } from './toasts'
-import { GenerateOpts } from './data/messages'
+import { GenerateOpts, msgsApi } from './data/messages'
+import { imageApi } from './data/image'
+import { userStore } from './user'
+import { localApi } from './data/storage'
+import { chatStore } from './chat'
+import { voiceApi } from './data/voice'
+import { VoiceSettings } from '../../srv/db/texttospeech-schema'
+import { speechSynthesisManager } from './voice'
+import { defaultCulture } from '../shared/CultureCodes'
 
 type ChatId = string
 
+export type VoiceState = 'generating' | 'loading' | 'playing'
 export type MsgState = {
   activeChatId: string
   activeCharId: string
@@ -23,6 +31,7 @@ export type MsgState = {
   nextLoading: boolean
   showImage?: AppSchema.ChatMessage
   imagesSaved: boolean
+  speaking: { messageId: string; status: VoiceState } | undefined
 
   /**
    * Ephemeral image messages
@@ -43,6 +52,7 @@ const initState: MsgState = {
   waiting: undefined,
   partial: undefined,
   retrying: undefined,
+  speaking: undefined,
 }
 
 export const msgStore = createStore<MsgState>(
@@ -71,7 +81,7 @@ export const msgStore = createStore<MsgState>(
 
       const before = msg.createdAt
 
-      const res = await data.msg.getMessages(activeChatId, before)
+      const res = await msgsApi.getMessages(activeChatId, before)
       yield { nextLoading: false }
       if (res.result && res.result.messages.length) {
         return { msgs: res.result.messages.concat(msgs) }
@@ -91,7 +101,7 @@ export const msgStore = createStore<MsgState>(
       const prev = msgs.find((m) => m._id === msgId)
       if (!prev) return toastStore.error(`Cannot find message`)
 
-      const res = await data.msg.editMessage(prev, msg)
+      const res = await msgsApi.editMessage(prev, msg)
       if (res.error) {
         toastStore.error(`Failed to update message: ${res.error}`)
       }
@@ -113,7 +123,7 @@ export const msgStore = createStore<MsgState>(
 
       addMsgToRetries(replace)
 
-      const res = await data.msg.generateResponseV2({ kind: 'continue' })
+      const res = await msgsApi.generateResponseV2({ kind: 'continue' })
 
       if (res.error) {
         toastStore.error(`Generation request failed: ${res.error}`)
@@ -124,11 +134,6 @@ export const msgStore = createStore<MsgState>(
     },
 
     async *retry({ msgs }, chatId: string, onSuccess?: () => void) {
-      if (msgs.length < 3) {
-        toastStore.error(`Cannot retry: Not enough messages`)
-        return
-      }
-
       if (!chatId) {
         toastStore.error('Could not send message: No active chat')
         yield { partial: undefined }
@@ -140,7 +145,7 @@ export const msgStore = createStore<MsgState>(
 
       addMsgToRetries(replace)
 
-      const res = await data.msg.generateResponseV2({ kind: 'retry' })
+      const res = await msgsApi.generateResponseV2({ kind: 'retry' })
 
       yield { msgs: msgs.slice(0, -1) }
 
@@ -181,11 +186,11 @@ export const msgStore = createStore<MsgState>(
       switch (mode) {
         case 'self':
         case 'retry':
-          var res = await data.msg.generateResponseV2({ kind: mode })
+          var res = await msgsApi.generateResponseV2({ kind: mode })
           break
 
         case 'send':
-          var res = await data.msg.generateResponseV2({ kind: 'send', text: message })
+          var res = await msgsApi.generateResponseV2({ kind: 'send', text: message })
           break
       }
 
@@ -216,18 +221,52 @@ export const msgStore = createStore<MsgState>(
       }
 
       const deleteIds = msgs.slice(index).map((m) => m._id)
-      const res = await data.msg.deleteMessages(activeChatId, deleteIds)
+      const res = await msgsApi.deleteMessages(activeChatId, deleteIds)
 
       if (res.error) {
         return toastStore.error(`Failed to delete messages: ${res.error}`)
       }
       return { msgs: msgs.slice(0, index) }
     },
+    async *textToSpeech(
+      { activeChatId, speaking },
+      messageId: string,
+      text: string,
+      voice: VoiceSettings,
+      culture: string
+    ) {
+      speechSynthesisManager.stopCurrentVoice()
+
+      if (speaking) {
+        return
+      }
+
+      if (!voice.service) {
+        yield { speaking: undefined }
+      }
+
+      yield { speaking: { messageId, status: 'generating' } }
+
+      if (voice.service === 'webspeechsynthesis') {
+        speechSynthesisManager.playWebSpeechSynthesis(voice, text, culture, messageId)
+      } else {
+        const res = await voiceApi.textToSpeech({
+          chatId: activeChatId,
+          messageId,
+          text,
+          voice,
+          culture,
+        })
+        if (res.error) {
+          toastStore.error(`Failed to request text to speech: ${res.error}`)
+        }
+      }
+    },
     async *createImage({ activeChatId }, messageId?: string) {
       const onDone = (image: string) => handleImage(activeChatId, image)
       yield { waiting: { chatId: activeChatId, mode: 'send' } }
 
-      const res = await data.image.generateImage({ messageId, onDone })
+      const res = await imageApi.generateImage({ messageId, onDone })
       if (res.error) {
         yield { waiting: undefined }
         toastStore.error(`Failed to request image: ${res.error}`)
@@ -289,6 +328,31 @@ async function handleImage(chatId: string, image: string) {
   })
 }
 
+async function receiveTextToSpeech(chatId: string, messageId: string, url: string) {
+  if (userStore.getState().user?.texttospeech?.enabled === false) return
+  if (chatId != msgStore.getState().activeChatId) {
+    msgStore.setState({ speaking: undefined })
+    return
+  }
+  try {
+    const audio = new Audio(url)
+    audio.addEventListener('error', () => {
+      msgStore.setState({ speaking: { messageId, status: 'generating' } })
+    })
+    audio.addEventListener('playing', () => {
+      msgStore.setState({ speaking: { messageId, status: 'playing' } })
+    })
+    audio.addEventListener('ended', () => {
+      msgStore.setState({ speaking: undefined })
+    })
+    msgStore.setState({ speaking: { messageId, status: 'loading' } })
+    audio.play()
+  } catch (e) {
+    console.error(e)
+    msgStore.setState({ speaking: undefined })
+  }
+}
+
 subscribe('message-partial', { partial: 'string', chatId: 'string' }, (body) => {
   const { activeChatId } = msgStore.getState()
   if (body.chatId !== activeChatId) return
@@ -325,6 +389,20 @@ subscribe(
         msgs: msgs.map((msg) => (msg._id === body.messageId ? { ...msg, msg: body.message } : msg)),
       })
     }
+
+    const chat = chatStore.getState().active
+    if (chat?.chat._id !== body.chatId) return
+
+    const voice = chat.char.voice
+    const user = userStore().user
+    if (user && voice && (user.texttospeech?.enabled ?? true) && chat.char.userId === user._id) {
+      msgStore.textToSpeech(
+        body.messageId,
+        body.message,
+        voice,
+        chat.char.culture ?? defaultCulture
+      )
+    }
   }
 )
 
@@ -346,7 +424,7 @@ subscribe('message-created', { msg: 'any', chatId: 'string', generate: 'boolean?
   }
 
   if (!isLoggedIn()) {
-    data.local.saveMessages(body.chatId, nextMsgs)
+    localApi.saveMessages(body.chatId, nextMsgs)
   }
 
   addMsgToRetries(msg)
@@ -359,6 +437,20 @@ subscribe('image-failed', { chatId: 'string', error: 'string' }, (body) => {
 
 subscribe('image-generated', { chatId: 'string', image: 'string' }, (body) => {
   handleImage(body.chatId, body.image)
+})
+
+subscribe('voice-generating', { chatId: 'string', messageId: 'string' }, (body) => {
+  if (msgStore.getState().activeChatId != body.chatId) return
+  msgStore.setState({ speaking: { messageId: body.messageId, status: 'generating' } })
+})
+
+subscribe('voice-failed', { chatId: 'string', error: 'string' }, (body) => {
+  msgStore.setState({ speaking: undefined })
+  toastStore.error(body.error)
+})
+
+subscribe('voice-generated', { chatId: 'string', messageId: 'string', url: 'string' }, (body) => {
+  receiveTextToSpeech(body.chatId, body.messageId, body.url)
 })
 
 subscribe('message-error', { error: 'any', chatId: 'string' }, (body) => {
@@ -427,11 +519,11 @@ subscribe(
 
     const next = msgs.filter((m) => m._id !== retrying?._id).concat(body.msg)
 
-    const chats = data.local.loadItem('chats')
-    data.local.saveChats(
-      data.local.replace(body.chatId, chats, { updatedAt: new Date().toISOString() })
+    const chats = localApi.loadItem('chats')
+    localApi.saveChats(
+      localApi.replace(body.chatId, chats, { updatedAt: new Date().toISOString() })
     )
-    data.local.saveMessages(body.chatId, next)
+    localApi.saveMessages(body.chatId, next)
 
     addMsgToRetries(body.msg)
 
@@ -448,6 +540,8 @@ subscribe(
  * This may consume an annoying amount of memory if a user does not refresh often
  */
 function addMsgToRetries(msg: Pick<AppSchema.ChatMessage, '_id' | 'msg'>) {
+  if (!msg) return
+
   const { retries } = msgStore.getState()
 
   if (!retries[msg._id]) {

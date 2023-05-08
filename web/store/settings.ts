@@ -4,7 +4,7 @@ import { EVENTS, events } from '../emitter'
 import { setAssetPrefix } from '../shared/util'
 import { api } from './api'
 import { createStore } from './create'
-import { data } from './data'
+import { usersApi } from './data/user'
 import { toastStore } from './toasts'
 
 type SettingState = {
@@ -27,6 +27,7 @@ type SettingState = {
 }
 
 const HORDE_URL = `https://horde.aivo.chat/api/v2`
+const IMAGE_URL = `https://stablehorde.net/api/v2`
 
 const initState: SettingState = {
   anonymize: false,
@@ -58,7 +59,7 @@ export const settingStore = createStore<SettingState>(
   return {
     async *init() {
       yield { initLoading: true }
-      const res = await data.user.getInit()
+      const res = await usersApi.getInit()
       yield { initLoading: false }
 
       if (res.result) {
@@ -106,7 +107,7 @@ export const settingStore = createStore<SettingState>(
 
     async getHordeImageWorkers() {
       try {
-        const res = await fetch(`${HORDE_URL}/workers?type=image`)
+        const res = await fetch(`${IMAGE_URL}/workers?type=image`)
         const json = await res.json()
 
         return { imageWorkers: json }
