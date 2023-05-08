@@ -17,7 +17,7 @@ const NavBar: Component = () => {
           <div class="w-16 sm:hidden" onClick={settingStore.menu}>
             <Menu class="focusable-icon-button cursor-pointer" size={32} />
           </div>
-          <div class="m-4" style="background:#55b89cff;">
+          <div class="px-2 py-2" style="background:#55b89cff;">
             <A href="/">
               <img width="150px" src={logoDark} alt="Charluv" />
             </A>
