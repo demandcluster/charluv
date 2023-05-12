@@ -1,4 +1,4 @@
-import { AIAdapter, ChatAdapter, PersonaFormat } from '../../common/adapters'
+import { AIAdapter, ChatAdapter, PersonaFormat, RegisteredAdapter } from '../../common/adapters'
 import { GenerationPreset } from '../../common/presets'
 import { ImageSettings } from './image-schema'
 import { TTSSettings, VoiceSettings } from './texttospeech-schema'
@@ -79,7 +79,7 @@ export namespace AppSchema {
     texttospeech?: TTSSettings
 
     images?: ImageSettings
-    // adapterConfig?: { [key in AIAdapter]?: Record<string, any> }
+    adapterConfig?: { [key in AIAdapter]?: Record<string, any> }
   }
 
   export interface Chat {
@@ -130,6 +130,7 @@ export namespace AppSchema {
     createdAt: string
     updatedAt: string
     first?: boolean
+    ooc?: boolean
   }
 
   /** Description of the character or user */
@@ -277,6 +278,7 @@ export namespace AppSchema {
     presencePenalty?: number
     oaiModel?: string
     claudeModel?: string
+    streamResponse?: boolean
 
     memoryDepth?: number
     memoryContextLimit?: number
@@ -295,6 +297,7 @@ export namespace AppSchema {
     imagesSaved: boolean
     assetPrefix: string
     selfhosting: boolean
+    registered: Array<Omit<RegisteredAdapter, 'contextLimit'>>
   }
 
   export interface MemoryBook {

@@ -1,10 +1,16 @@
 import { Component, Show, createEffect, createSignal } from 'solid-js'
-import { speechSynthesisManager, voiceStore } from '/web/store/voice'
-import { VoiceSettings, TTSService, VoiceSettingForm } from '/srv/db/texttospeech-schema'
+import { voiceStore } from '/web/store/voice'
+import {
+  TTSService,
+  VoiceSettingForm,
+  VoiceWebSynthesisSettings,
+} from '/srv/db/texttospeech-schema'
 import { FormLabel } from '/web/shared/FormLabel'
 import Button from '/web/shared/Button'
 import { Play } from 'lucide-solid'
-import { defaultCulture } from '/web/shared/CultureCodes'
+import { defaultCulture, getSampleText } from '/web/shared/CultureCodes'
+import { AudioReference } from '/web/shared/Audio/AudioReference'
+import { createSpeech } from '/web/shared/Audio/speech'
 
 export const VoicePreviewButton: Component<{
   service: TTSService
@@ -24,22 +30,30 @@ export const VoicePreviewButton: Component<{
     setVoicePreviewUrl(state[props.service]?.find((v) => v.id === props.voiceId)?.previewUrl)
   })
 
-  const playVoicePreview = () => {
+  const playVoicePreview = async () => {
     const service = props.service
     const voiceId = props.voiceId
     const preview = voicePreviewUrl()
     if (!service || !voiceId || !preview) return
 
-    let voice: VoiceSettings
-    if (service == 'webspeechsynthesis') {
-      voice = { service: service, voiceId, ...props.webSpeechSynthesisSettings }
-    } else if (service === 'elevenlabs') {
-      voice = { service: service, voiceId }
-    } else {
-      return
+    let audio: AudioReference | undefined
+    if (service === 'webspeechsynthesis') {
+      const culture = props.culture || defaultCulture
+      const voice: VoiceWebSynthesisSettings = {
+        service: 'webspeechsynthesis',
+        voiceId,
+        ...props.webSpeechSynthesisSettings,
+      }
+      audio = await createSpeech({
+        voice,
+        text: getSampleText(culture),
+        culture,
+        filterAction: false,
+      })
+    } else if (preview) {
+      audio = await createSpeech({ url: preview })
     }
-
-    speechSynthesisManager.playVoicePreview(voice, preview, props.culture || defaultCulture)
+    audio?.play()
   }
 
   return (

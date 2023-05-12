@@ -33,6 +33,7 @@ export const defaultChars = {
     | 'greeting'
     | 'match'
     | 'xp'
+    | 'description'
     | 'premium'
     | 'avatar'
     | 'anime'

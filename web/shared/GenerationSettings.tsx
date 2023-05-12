@@ -110,7 +110,7 @@ const GeneralSettings: Component<Props> = (props) => {
         value={props.inherit?.oaiModel ?? defaultPresets.basic.oaiModel}
         disabled={props.disabled}
         service={props.service}
-        adapters={adapterSettings.oaiModel}
+        aiSetting={'oaiModel'}
       />
 
       <Select
@@ -121,15 +121,15 @@ const GeneralSettings: Component<Props> = (props) => {
         value={props.inherit?.claudeModel ?? defaultPresets.claude.claudeModel}
         disabled={props.disabled}
         service={props.service}
-        adapters={adapterSettings.claudeModel}
+        aiSetting={'claudeModel'}
       />
 
       <RangeInput
         fieldName="maxTokens"
         label="Max New Tokens"
-        helperText="Number of tokens the AI should generate. Higher numbers will take longer to generate."
+        helperText="Number of tokens the AI should generate. Higher numbers will take longer to generate. This value is subtracted from your context limit."
         min={16}
-        max={512}
+        max={1024}
         step={1}
         value={props.inherit?.maxTokens || defaultPresets.basic.maxTokens}
         disabled={props.disabled}
@@ -141,9 +141,9 @@ const GeneralSettings: Component<Props> = (props) => {
         helperText={
           <>
             <p>
-              Maximum context length. Typically 2048 for most models. OpenAI supports up to 4K.
-              Scale and Claude support up to 8K. If you set this too high, you may get unexpected
-              results or errors.
+              Maximum context length. Typically 2048 for most models. OpenAI Turbo and Davinci
+              supports up to 4K. Scale and Claude support up to 8K. OpenAI GPT4-32k supports 32k. If
+              you set this too high, you may get unexpected results or errors.
             </p>
             <p>
               We don't have GPT-4 or Claude tokenizers to correctly count tokens for those services.
@@ -153,10 +153,20 @@ const GeneralSettings: Component<Props> = (props) => {
           </>
         }
         min={16}
-        max={8000}
+        max={32000}
         step={1}
         value={props.inherit?.maxContextLength || defaultPresets.basic.maxContextLength}
         disabled={props.disabled}
+      />
+
+      <Toggle
+        fieldName="streamResponse"
+        label="Stream Response"
+        helperText="Whether to stream the AI's response token-by-token instead of waiting for the entire message."
+        value={props.inherit?.streamResponse ?? false}
+        disabled={props.disabled}
+        service={props.service}
+        aiSetting={'streamResponse'}
       />
     </>
   )
@@ -208,7 +218,7 @@ const PromptSettings: Component<Props> = (props) => {
         value={props.inherit?.useGaslight ?? false}
         disabled={props.disabled}
         service={props.service}
-        adapters={adapterSettings.gaslight}
+        aiSetting={'gaslight'}
       />
 
       <TextInput
@@ -227,7 +237,7 @@ const PromptSettings: Component<Props> = (props) => {
         value={props.inherit?.gaslight ?? defaultPresets.openai.gaslight}
         disabled={props.disabled}
         service={props.service}
-        adapters={adapterSettings.gaslight}
+        aiSetting={'gaslight'}
       />
 
       <Toggle
@@ -243,7 +253,7 @@ const PromptSettings: Component<Props> = (props) => {
         value={props.inherit?.antiBond ?? false}
         disabled={props.disabled}
         service={props.service}
-        adapters={adapterSettings.antiBond}
+        aiSetting={'antiBond'}
       />
 
       <TextInput
@@ -261,7 +271,7 @@ const PromptSettings: Component<Props> = (props) => {
         value={props.inherit?.ultimeJailbreak ?? ''}
         disabled={props.disabled}
         service={props.service}
-        adapters={adapterSettings.ultimeJailbreak}
+        aiSetting={'ultimeJailbreak'}
       />
     </>
   )
@@ -281,7 +291,7 @@ const GenSettings: Component<Props> = (props) => {
         value={props.inherit?.temp || defaultPresets.basic.temp}
         disabled={props.disabled}
         service={props.service}
-        adapters={adapterSettings.temp}
+        aiSetting={'temp'}
       />
 
       <RangeInput
@@ -294,7 +304,7 @@ const GenSettings: Component<Props> = (props) => {
         value={props.inherit?.topP ?? defaultPresets.basic.topP}
         disabled={props.disabled}
         service={props.service}
-        adapters={adapterSettings.topP}
+        aiSetting={'topP'}
       />
       <RangeInput
         fieldName="topK"
@@ -306,7 +316,7 @@ const GenSettings: Component<Props> = (props) => {
         value={props.inherit?.topK ?? defaultPresets.basic.topK}
         disabled={props.disabled}
         service={props.service}
-        adapters={adapterSettings.topK}
+        aiSetting={'topK'}
       />
       <RangeInput
         fieldName="topA"
@@ -318,7 +328,7 @@ const GenSettings: Component<Props> = (props) => {
         value={props.inherit?.topA ?? defaultPresets.basic.topA}
         disabled={props.disabled}
         service={props.service}
-        adapters={adapterSettings.topA}
+        aiSetting={'topA'}
       />
       <RangeInput
         fieldName="tailFreeSampling"
@@ -330,7 +340,7 @@ const GenSettings: Component<Props> = (props) => {
         value={props.inherit?.tailFreeSampling ?? defaultPresets.basic.tailFreeSampling}
         disabled={props.disabled}
         service={props.service}
-        adapters={adapterSettings.tailFreeSampling}
+        aiSetting={'tailFreeSampling'}
       />
       <RangeInput
         fieldName="typicalP"
@@ -342,7 +352,7 @@ const GenSettings: Component<Props> = (props) => {
         value={props.inherit?.typicalP ?? defaultPresets.basic.typicalP}
         disabled={props.disabled}
         service={props.service}
-        adapters={adapterSettings.typicalP}
+        aiSetting={'typicalP'}
       />
       <RangeInput
         fieldName="repetitionPenalty"
@@ -354,7 +364,7 @@ const GenSettings: Component<Props> = (props) => {
         value={props.inherit?.repetitionPenalty ?? defaultPresets.basic.repetitionPenalty}
         disabled={props.disabled}
         service={props.service}
-        adapters={adapterSettings.repetitionPenalty}
+        aiSetting={'repetitionPenalty'}
       />
       <RangeInput
         fieldName="repetitionPenaltyRange"
@@ -366,7 +376,7 @@ const GenSettings: Component<Props> = (props) => {
         value={props.inherit?.repetitionPenaltyRange ?? defaultPresets.basic.repetitionPenaltyRange}
         disabled={props.disabled}
         service={props.service}
-        adapters={adapterSettings.repetitionPenaltyRange}
+        aiSetting={'repetitionPenaltyRange'}
       />
       <RangeInput
         fieldName="repetitionPenaltySlope"
@@ -378,7 +388,7 @@ const GenSettings: Component<Props> = (props) => {
         value={props.inherit?.repetitionPenaltySlope ?? defaultPresets.basic.repetitionPenaltySlope}
         disabled={props.disabled}
         service={props.service}
-        adapters={adapterSettings.repetitionPenaltySlope}
+        aiSetting={'repetitionPenaltySlope'}
       />
       <Show when={!props.service}>
         <Divider />
@@ -394,7 +404,7 @@ const GenSettings: Component<Props> = (props) => {
         value={props.inherit?.frequencyPenalty ?? defaultPresets.openai.frequencyPenalty}
         disabled={props.disabled}
         service={props.service}
-        adapters={adapterSettings.frequencyPenalty}
+        aiSetting={'frequencyPenalty'}
       />
       <RangeInput
         fieldName="presencePenalty"
@@ -406,7 +416,7 @@ const GenSettings: Component<Props> = (props) => {
         value={props.inherit?.presencePenalty ?? defaultPresets.openai.presencePenalty}
         disabled={props.disabled}
         service={props.service}
-        adapters={adapterSettings.presencePenalty}
+        aiSetting={'presencePenalty'}
       />
       <Show when={!props.service}>
         <Divider />
@@ -419,7 +429,7 @@ const GenSettings: Component<Props> = (props) => {
         value={props.inherit?.addBosToken ?? false}
         disabled={props.disabled}
         service={props.service}
-        adapters={adapterSettings.addBosToken}
+        aiSetting={'addBosToken'}
       />
       <Toggle
         fieldName="banEosToken"
@@ -428,7 +438,7 @@ const GenSettings: Component<Props> = (props) => {
         value={props.inherit?.banEosToken ?? false}
         disabled={props.disabled}
         service={props.service}
-        adapters={adapterSettings.banEosToken}
+        aiSetting={'banEosToken'}
       />
       <RangeInput
         fieldName="encoderRepitionPenalty"
@@ -440,7 +450,7 @@ const GenSettings: Component<Props> = (props) => {
         value={props.inherit?.encoderRepitionPenalty ?? defaultPresets.basic.encoderRepitionPenalty}
         disabled={props.disabled}
         service={props.service}
-        adapters={adapterSettings.encoderRepitionPenalty}
+        aiSetting={'encoderRepitionPenalty'}
       />
       <RangeInput
         fieldName="penaltyAlpha"
@@ -452,7 +462,7 @@ const GenSettings: Component<Props> = (props) => {
         value={props.inherit?.penaltyAlpha ?? defaultPresets.basic.penaltyAlpha}
         disabled={props.disabled}
         service={props.service}
-        adapters={adapterSettings.penaltyAlpha}
+        aiSetting={'penaltyAlpha'}
       />
     </>
   )

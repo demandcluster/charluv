@@ -31,6 +31,7 @@ const App: Component = () => {
 
   createEffect(() => {
     settingStore.init()
+    settingStore.getConfig()
   })
 
   const bg = createMemo(() => {

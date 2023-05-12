@@ -7,6 +7,8 @@ import { getStore } from '../create'
 import { userStore } from '../user'
 import { loadItem, localApi } from './storage'
 
+export type PromptEntities = Awaited<ReturnType<typeof getPromptEntities>>
+
 export const msgsApi = {
   editMessage,
   getMessages,
@@ -42,6 +44,7 @@ export type GenerateOpts =
    * A user sending a new message
    */
   | { kind: 'send'; text: string }
+  | { kind: 'ooc'; text: string }
   /**
    * Either:
    * - The last message in the chat is a user message so we are going to generate a new response
@@ -56,6 +59,7 @@ export type GenerateOpts =
    * Generate a message on behalf of the user
    */
   | { kind: 'self' }
+  | { kind: 'summary' }
 
 export async function generateResponseV2(opts: GenerateOpts) {
   const { ui } = userStore()
@@ -80,14 +84,17 @@ export async function generateResponseV2(opts: GenerateOpts) {
   }
 
   const messages = (
-    opts.kind === 'send' || opts.kind === 'continue'
+    opts.kind === 'send' ||
+    opts.kind === 'continue' ||
+    opts.kind === 'ooc' ||
+    opts.kind === 'summary'
       ? entities.messages
       : replacing
       ? entities.messages.slice(0, -1)
       : entities.messages
   ).slice()
 
-  if (opts.kind === 'send') {
+  if (opts.kind === 'send' || opts.kind === 'ooc') {
     messages.push(emptyMsg(entities.chat, { msg: opts.text, userId: entities.user._id }))
   }
 
@@ -123,7 +130,7 @@ export async function generateResponseV2(opts: GenerateOpts) {
     members: entities.members,
     parts: prompt.parts,
     lines: prompt.lines,
-    text: opts.kind === 'send' ? opts.text : undefined,
+    text: opts.kind === 'send' || opts.kind === 'ooc' ? opts.text : undefined,
     settings: entities.settings,
     replacing,
     continuing,
@@ -151,12 +158,12 @@ export async function getPromptEntities() {
   if (isLoggedIn()) {
     const entities = getAuthedPromptEntities()
     if (!entities) throw new Error(`Could not collate data for prompting`)
-    return entities
+    return { ...entities, messages: entities.messages.filter((msg) => msg.ooc !== true) }
   }
 
   const entities = await getGuestEntities()
   if (!entities) throw new Error(`Could not collate data for prompting`)
-  return entities
+  return { ...entities, messages: entities.messages.filter((msg) => msg.ooc !== true) }
 }
 
 async function getGuestEntities() {

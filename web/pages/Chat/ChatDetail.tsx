@@ -16,7 +16,6 @@ import ChatMemoryModal from './components/MemoryModal'
 import Message from './components/Message'
 import PromptModal from './components/PromptModal'
 import DeleteMsgModal from './DeleteMsgModal'
-import './chat-detail.css'
 import { DropMenu } from '../../shared/DropMenu'
 import UISettings from '../Settings/UISettings'
 import { devCycleAvatarSettings, isDevCommand } from './dev-util'
@@ -26,6 +25,8 @@ import { AppSchema } from '../../../srv/db/schema'
 import { ImageModal } from './ImageModal'
 import { getClientPreset } from '../../shared/adapter'
 import ForcePresetModal from './ForcePreset'
+import DeleteChatModal from './components/DeleteChat'
+import './chat-detail.css'
 
 const EDITING_KEY = 'chat-detail-settings'
 
@@ -42,10 +43,12 @@ const ChatDetail: Component = () => {
     loaded: s.loaded,
   }))
   const msgs = msgStore((s) => ({
-    msgs: insertImageMessages(s.msgs, s.images[params.id]),
+    msgs: s.msgs,
+    images: s.images,
     partial: s.partial,
     waiting: s.waiting,
     retries: s.retries,
+    speaking: s.speaking,
   }))
 
   const [screenshotInProgress, setScreenshotInProgress] = createSignal(false)
@@ -66,10 +69,25 @@ const ChatDetail: Component = () => {
   const [showOpts, setShowOpts] = createSignal(false)
   const [modal, setModal] = createSignal<ChatModal>()
   const [editing, setEditing] = createSignal(getEditingState().editing ?? false)
+  const [ooc, setOoc] = createSignal<boolean>()
+  const [showOOCOpts, setShowOOCOpts] = createSignal(chats.members.length > 1)
+  const [hideOOC, setHideOOC] = createSignal(false)
+
+  const toggleHideOocMessages = () => {
+    setHideOOC(!hideOOC())
+  }
+
+  const chatMsgs = createMemo(() => {
+    const hide = hideOOC()
+    return insertImageMessages(msgs.msgs, msgs.images[params.id]).filter((msg) =>
+      hide ? !msg.ooc : true
+    )
+  })
 
   const isOwner = createMemo(() => chats.chat?.userId === user.profile?.userId)
   const headerBg = createMemo(() => getHeaderBg(user.ui.mode))
   const chatWidth = createMemo(() => getChatWidth(user.ui.chatWidth))
+  const tts = createMemo(() => (user.user?.texttospeech?.enabled ?? true) && !!chats.char?.voice)
 
   const isSelfRemoved = createMemo(() => {
     if (!user.profile) return false
@@ -80,6 +98,16 @@ const ChatDetail: Component = () => {
       chats.members.some((mem) => mem.userId === user.profile?.userId)
 
     return !isMember
+  })
+
+  const waitingMsg = createMemo(() => {
+    if (!msgs.waiting) return
+
+    return emptyMsg({
+      charId: msgs.waiting?.mode !== 'self' ? chats.char?._id : undefined,
+      userId: msgs.waiting?.mode === 'self' ? msgs.waiting.userId || user.user?._id : undefined,
+      message: msgs.partial || '',
+    })
   })
 
   function toggleEditing() {
@@ -129,16 +157,19 @@ const ChatDetail: Component = () => {
     chatStore.getChat(params.id)
   })
 
-  const sendMessage = (message: string, onSuccess?: () => void) => {
+  const sendMessage = (message: string, ooc: boolean, onSuccess?: () => void) => {
     if (!isDevCommand(message)) {
-      setSwipe(0)
-      msgStore.send(chats.chat?._id!, message, 'send', onSuccess)
+      if (!ooc) setSwipe(0)
+      msgStore.send(chats.chat?._id!, message, ooc ? 'ooc' : 'send', onSuccess)
       return
     }
 
     switch (message) {
       case '/devCycleAvatarSettings':
         devCycleAvatarSettings(user)
+        return
+      case '/devShowOocToggle':
+        setShowOOCOpts(!showOOCOpts())
         return
     }
   }
@@ -150,6 +181,10 @@ const ChatDetail: Component = () => {
   const confirmSwipe = (msgId: string) => {
     msgStore.confirmSwipe(msgId, swipe(), () => setSwipe(0))
   }
+
+  const indexOfLastRPMessage = createMemo(() => {
+    return msgs.msgs.reduceRight((prev, curr, i) => (prev > -1 ? prev : !curr.ooc ? i : -1), -1)
+  })
 
   const generateFirst = () => {
     msgStore.retry(chats.chat?._id!)
@@ -204,6 +239,8 @@ const ChatDetail: Component = () => {
                     toggleEditing={toggleEditing}
                     screenshotInProgress={screenshotInProgress()}
                     setScreenshotInProgress={setScreenshotInProgress}
+                    toggleOocMessages={showOOCOpts() ? toggleHideOocMessages : undefined}
+                    hideOocMessages={hideOOC()}
                   />
                 </DropMenu>
               </div>
@@ -228,7 +265,10 @@ const ChatDetail: Component = () => {
               swiped={swipe() !== 0}
               send={sendMessage}
               more={moreMessage}
-              culture={chats.char?.culture}
+              char={chats.char}
+              ooc={ooc() ?? chats.members.length > 1}
+              setOoc={setOoc}
+              showOocToggle={showOOCOpts() || chats.members.length > 1}
             />
             <Show when={isOwner()}>
               <SwipeMessage
@@ -246,12 +286,12 @@ const ChatDetail: Component = () => {
             </Show>
             <div class="flex flex-col-reverse gap-4 overflow-y-scroll pr-2 sm:pr-4">
               <div id="chat-messages" class="flex flex-col gap-2">
-                <Show when={chats.loaded && msgs.msgs.length === 0 && !msgs.waiting}>
+                <Show when={chats.loaded && chatMsgs().length === 0 && !msgs.waiting}>
                   <div class="flex justify-center">
                     <Button onClick={generateFirst}>Generate Message</Button>
                   </div>
                 </Show>
-                <For each={msgs.msgs}>
+                <For each={chatMsgs()}>
                   {(msg, i) => (
                     <Message
                       msg={msg}
@@ -259,26 +299,20 @@ const ChatDetail: Component = () => {
                       char={chats.char!}
                       editing={editing()}
                       anonymize={cfg.anonymize}
-                      last={i() >= 1 && i() === msgs.msgs.length - 1}
+                      last={i() >= 1 && i() === indexOfLastRPMessage()}
                       onRemove={() => setRemoveId(msg._id)}
                       swipe={
                         msg._id === retries()?.msgId && swipe() > 0 && retries()?.list[swipe()]
                       }
                       confirmSwipe={() => confirmSwipe(msg._id)}
                       cancelSwipe={cancelSwipe}
+                      tts={tts()}
                     />
                   )}
                 </For>
-                <Show when={msgs.waiting}>
+                <Show when={waitingMsg()}>
                   <Message
-                    msg={emptyMsg({
-                      charId: msgs.waiting?.mode !== 'self' ? chats.char?._id : undefined,
-                      userId:
-                        msgs.waiting?.mode === 'self'
-                          ? msgs.waiting.userId || user.user?._id
-                          : undefined,
-                      message: '',
-                    })}
+                    msg={waitingMsg()!}
                     char={chats.char!}
                     chat={chats.chat!}
                     onRemove={() => {}}
@@ -307,6 +341,10 @@ const ChatDetail: Component = () => {
 
       <Show when={modal() === 'export'}>
         <ChatExport show={true} close={setModal} />
+      </Show>
+
+      <Show when={modal() === 'delete'}>
+        <DeleteChatModal show={true} chat={chats.chat!} redirect={true} close={setModal} />
       </Show>
 
       <Show when={!!removeId()}>

@@ -6,6 +6,12 @@ import { setComponentPageTitle } from '../../shared/util'
 const text = `
 ## Change Log
 
+_10 May 2023_ 
+- Fix issues with Voice playback.
+
+_8 May 2023_
+- Add "out of character" mode for group chats
+
 _7 May 2023_
 - First steps on rebranding to Charluv
 - Implemented 13B model

@@ -1,4 +1,14 @@
-import { Book, Download, MailPlus, Palette, Settings, Sliders, Users, Camera } from 'lucide-solid'
+import {
+  Book,
+  Download,
+  MailPlus,
+  Palette,
+  Settings,
+  Sliders,
+  Trash,
+  Users,
+  Camera,
+} from 'lucide-solid'
 import { Component, Show, createMemo } from 'solid-js'
 import Button from '../../shared/Button'
 import { Toggle } from '../../shared/Toggle'
@@ -6,7 +16,15 @@ import { chatStore, settingStore, toastStore, userStore } from '../../store'
 import { domToPng } from 'modern-screenshot'
 import { getRootRgb, getRootVariable } from '../../shared/util'
 
-export type ChatModal = 'export' | 'settings' | 'invite' | 'memory' | 'gen' | 'ui' | 'members'
+export type ChatModal =
+  | 'export'
+  | 'settings'
+  | 'invite'
+  | 'memory'
+  | 'gen'
+  | 'ui'
+  | 'members'
+  | 'delete'
 
 const ChatOptions: Component<{
   show: (modal: ChatModal) => void
@@ -14,6 +32,8 @@ const ChatOptions: Component<{
   toggleEditing: () => void
   screenshotInProgress: boolean
   setScreenshotInProgress: (inProgress: boolean) => void
+  hideOocMessages: boolean
+  toggleOocMessages?: () => void
 }> = (props) => {
   const chats = chatStore((s) => ({ ...s.active, lastId: s.lastChatId }))
   const user = userStore()
@@ -41,7 +61,7 @@ const ChatOptions: Component<{
         props.setScreenshotInProgress(false)
       })
       .catch((err) => {
-        console.log(err)
+        console.error(err)
         toastStore.error(`Screenshot failed: error logged in console`)
         props.setScreenshotInProgress(false)
       })
@@ -49,6 +69,19 @@ const ChatOptions: Component<{
 
   return (
     <div class="flex w-60 flex-col gap-2 p-2">
+      <Show when={props.toggleOocMessages}>
+        <Option onClick={props.toggleOocMessages!}>
+          <div class="flex w-full items-center justify-between">
+            <div>Hide OOC messages</div>
+            <Toggle
+              class="flex items-center"
+              fieldName="editChat"
+              value={props.hideOocMessages}
+              onChange={props.toggleOocMessages!}
+            />
+          </div>
+        </Option>
+      </Show>
       <Show when={isOwner()}>
         <Option onClick={props.toggleEditing}>
           <div class="flex w-full items-center justify-between">
@@ -112,6 +145,15 @@ const ChatOptions: Component<{
       >
         <Download /> Export Chat
       </Option>
+
+      <Show when={isOwner()}>
+        <Option
+          onClick={() => props.show('delete')}
+          class="flex justify-start gap-2 hover:bg-[var(--bg-700)]"
+        >
+          <Trash /> Delete Chat
+        </Option>
+      </Show>
     </div>
   )
 }

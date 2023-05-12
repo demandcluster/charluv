@@ -1,4 +1,4 @@
-import { HordeModel, HordeWorker } from '../../common/adapters'
+import { HordeModel, HordeWorker, RegisteredAdapter } from '../../common/adapters'
 import { AppSchema } from '../../srv/db/schema'
 import { EVENTS, events } from '../emitter'
 import { setAssetPrefix } from '../shared/util'
@@ -24,6 +24,7 @@ type SettingState = {
     config: AppSchema.AppConfig
     books: AppSchema.MemoryBook[]
   }
+  showImage?: string
 }
 
 const HORDE_URL = `https://horde.aivo.chat/api/v2`
@@ -38,6 +39,7 @@ const initState: SettingState = {
   workers: [],
   imageWorkers: [],
   config: {
+    registered: [],
     adapters: [],
     canAuth: true,
     version: '...',
@@ -119,6 +121,9 @@ export const settingStore = createStore<SettingState>(
 
     toggleAnonymize({ anonymize }) {
       return { anonymize: !anonymize }
+    },
+    showImage(_, image?: string) {
+      return { showImage: image }
     },
   }
 })

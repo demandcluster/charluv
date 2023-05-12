@@ -1,6 +1,7 @@
 import {
   Check,
-  Megaphone,
+  DownloadCloud,
+  PauseCircle,
   Pencil,
   RefreshCw,
   Terminal,
@@ -9,15 +10,14 @@ import {
   Trash,
   X,
 } from 'lucide-solid'
-import { Component, createMemo, createSignal, For, Show } from 'solid-js'
+import { Accessor, Component, createMemo, createSignal, For, Match, Show, Switch } from 'solid-js'
 import { BOT_REPLACE, SELF_REPLACE } from '../../../../common/prompt'
 import { AppSchema } from '../../../../srv/db/schema'
 import AvatarIcon from '../../../shared/AvatarIcon'
 import { getAssetUrl, getRootVariable, hexToRgb } from '../../../shared/util'
-import { chatStore, userStore, msgStore } from '../../../store'
+import { chatStore, userStore, msgStore, settingStore } from '../../../store'
 import { markdown } from '../../../shared/markdown'
 import { avatarSizes, avatarSizesCircle } from '../../../shared/avatar-util'
-import { defaultCulture } from '../../../shared/CultureCodes'
 
 type MessageProps = {
   msg: SplitMessage
@@ -30,18 +30,15 @@ type MessageProps = {
   onRemove: () => void
   editing: boolean
   anonymize?: boolean
+  tts?: boolean
 }
 
 const Message: Component<MessageProps> = (props) => {
   const user = userStore()
 
-  const splits = createMemo(
-    () => {
-      const next = splitMessage(props.char, user.profile!, props.msg)
-      return next
-    },
-    { equals: false }
-  )
+  const splits = createMemo(() => splitMessage(props.char, user.profile!, props.msg), {
+    equals: false,
+  })
 
   return (
     <For each={splits()}>
@@ -70,8 +67,9 @@ const SingleMessage: Component<
 > = (props) => {
   const user = userStore()
   const state = chatStore()
-  const voiceLoadingState = msgStore((x) => ({
-    status: x.speaking?.messageId == props.msg._id ? x.speaking.status : undefined,
+  const voice = msgStore((x) => ({
+    status:
+      props.lastSplit && x.speaking?.messageId === props.msg._id ? x.speaking.status : undefined,
   }))
 
   const [edit, setEdit] = createSignal(false)
@@ -83,7 +81,7 @@ const SingleMessage: Component<
 
   const bgStyles = createMemo(() => {
     user.ui.mode
-    const hex = getRootVariable('bg-800')
+    const hex = getRootVariable(props.msg.ooc ? 'bg-1000' : 'bg-800')
     if (!hex) return {}
 
     const rgb = hexToRgb(hex)
@@ -109,15 +107,7 @@ const SingleMessage: Component<
   }
 
   const cancelEdit = () => setEdit(false)
-  const resendMessage = () => msgStore.resend(props.msg.chatId, props.msg._id)
   const visibilityClass = () => (props.anonymize ? 'invisible' : '')
-  const retryMessage = () => {
-    if (props.original.adapter !== 'image') {
-      msgStore.retry(props.msg.chatId)
-    } else {
-      msgStore.createImage(props.msg._id)
-    }
-  }
 
   const startEdit = () => {
     setEdit(true)
@@ -125,21 +115,6 @@ const SingleMessage: Component<
       ref.innerText = props.original.msg
     }
     ref?.focus()
-  }
-
-  const textToSpeech = async () => {
-    if (!props.char.voice) return
-    msgStore.textToSpeech(
-      props.msg._id,
-      props.msg.msg,
-      props.char.voice,
-      props.char.culture ?? defaultCulture
-    )
-  }
-
-  const showPrompt = () => {
-    if (!user.user) return
-    chatStore.showPrompt(user.user, props.msg)
   }
 
   const handleToShow = () => {
@@ -166,6 +141,8 @@ const SingleMessage: Component<
 
   let ref: HTMLDivElement | undefined
 
+  const opacityClass = props.msg.ooc ? 'opacity-50' : ''
+
   return (
     <div
       class="flex w-full rounded-md py-2 px-2 pr-2 sm:px-4"
@@ -174,37 +151,57 @@ const SingleMessage: Component<
       data-bot={props.msg.characterId ? props.char?.name : ''}
       data-user={props.msg.userId ? state.memberIds[props.msg.userId]?.handle : ''}
     >
-      <div
-        class="flex items-start justify-center pr-4"
-        data-bot-avatar={isBot()}
-        data-user-avatar={isUser()}
-      >
-        <Show when={props.char && !!props.msg.characterId}>
-          <AvatarIcon avatarUrl={props.char?.avatar} bot={true} format={format()} />
-        </Show>
-        <Show when={!props.msg.characterId}>
-          <AvatarIcon
-            avatarUrl={state.memberIds[props.msg.userId!]?.avatar}
-            format={format()}
-            anonymize={props.anonymize}
-          />
-        </Show>
-      </div>
+      <div class={`flex w-full ${opacityClass}`}>
+        <div
+          class="flex items-start justify-center pr-4"
+          data-bot-avatar={isBot()}
+          data-user-avatar={isUser()}
+        >
+          <Switch>
+            <Match when={voice.status === 'generating'}>
+              <div class="animate-pulse cursor-pointer" onClick={msgStore.stopSpeech}>
+                <AvatarIcon bot={true} format={format()} Icon={DownloadCloud} />
+              </div>
+            </Match>
 
-      <div class={`${messageColumnWidth()} flex w-full select-text flex-col gap-1`}>
-        <div class="flex w-full flex-row justify-between">
-          <div class="flex flex-col items-start gap-1 sm:flex-row sm:items-end sm:gap-0">
-            <b
-              class="text-900 text-md mr-2 max-w-[160px] overflow-hidden text-ellipsis whitespace-nowrap sm:max-w-[400px] sm:text-lg"
-              // Necessary to override text-md and text-lg's line height, for proper alignment
-              style="line-height: 1;"
-              data-bot-name={isBot()}
-              data-user-name={isUser()}
+            <Match when={voice.status === 'playing'}>
+              <div class="animate-pulse cursor-pointer" onClick={msgStore.stopSpeech}>
+                <AvatarIcon bot={true} format={format()} Icon={PauseCircle} />
+              </div>
+            </Match>
+
+            <Match when={props.char && !!props.msg.characterId}>
+              <AvatarIcon avatarUrl={props.char?.avatar} bot={true} format={format()} />
+            </Match>
+
+            <Match when={!props.msg.characterId}>
+              <AvatarIcon
+                avatarUrl={state.memberIds[props.msg.userId!]?.avatar}
+                format={format()}
+                anonymize={props.anonymize}
+              />
+            </Match>
+          </Switch>
+        </div>
+
+        <div class={`${messageColumnWidth()} flex w-full select-text flex-col gap-1`}>
+          <div class="flex w-full flex-row justify-between">
+            <div
+              class={`flex flex-col items-start gap-1 sm:flex-row sm:items-end sm:gap-0 ${
+                props.msg.ooc ? 'italic' : ''
+              }`}
             >
-              {props.msg.characterId ? props.char?.name! : handleToShow()}
-            </b>
-            <span
-              class={`
+              <b
+                class="text-900 text-md mr-2 max-w-[160px] overflow-hidden  text-ellipsis whitespace-nowrap sm:max-w-[400px] sm:text-lg"
+                // Necessary to override text-md and text-lg's line height, for proper alignment
+                style="line-height: 1;"
+                data-bot-name={isBot()}
+                data-user-name={isUser()}
+              >
+                {props.msg.characterId ? props.char?.name! : handleToShow()}
+              </b>
+              <span
+                class={`
                 message-date
                 text-600
                 flex
@@ -213,137 +210,90 @@ const SingleMessage: Component<
                 leading-none
                 ${visibilityClass()}
               `}
-              data-bot-time={isBot}
-              data-user-time={isUser()}
-            >
-              {new Date(props.msg.createdAt).toLocaleString()}
-            </span>
-          </div>
-          <Show
-            when={
-              !edit() &&
-              !props.swipe &&
-              user.user?._id === props.chat?.userId &&
-              user.user?.texttospeech?.enabled !== false
-            }
-          >
-            <div
-              class="mr-4 flex items-center gap-3 text-sm"
-              data-bot-editing={isBot()}
-              data-user-editing={isUser()}
-            >
-              <Show
-                when={
-                  (user.user?.texttospeech?.enabled ?? true) &&
-                  props.msg.msg &&
-                  props.msg.characterId &&
-                  props.char.voice &&
-                  (user.user?._id === props.chat?.userId || voiceLoadingState.status)
-                }
+                data-bot-time={isBot}
+                data-user-time={isUser()}
               >
-                <div
-                  class="icon-button"
-                  onClick={() => (voiceLoadingState.status ? undefined : textToSpeech())}
-                  classList={{
-                    'animate-pulse':
-                      voiceLoadingState.status === 'generating' ||
-                      voiceLoadingState.status == 'loading',
-                    'animate-ping': voiceLoadingState.status === 'playing',
-                  }}
-                >
-                  <Megaphone size={18} />
-                </div>
-              </Show>
-              <Show when={props.editing && (!props.msg.split || props.lastSplit)}>
-                <Show when={!!props.msg.characterId && !isImage()}>
-                  <div onClick={showPrompt} class="icon-button">
-                    <Terminal size={16} />
-                  </div>
-                </Show>
-                <Show when={!isImage()}>
-                  <div class="icon-button" onClick={startEdit}>
-                    <Pencil size={18} />
-                  </div>
-                </Show>
-                <div class="icon-button" onClick={props.onRemove}>
-                  <Trash size={18} />
-                </div>
-              </Show>
-              <Show when={props.last && props.msg.characterId}>
-                <div class="icon-button" onClick={retryMessage}>
-                  <RefreshCw size={18} />
-                </div>
-              </Show>
-              <Show when={props.last && !props.msg.characterId}>
-                <div class="cursor-pointer" onClick={resendMessage}>
-                  <RefreshCw size={18} />
-                </div>
-              </Show>
+                {new Date(props.msg.createdAt).toLocaleString()}
+              </span>
             </div>
-          </Show>
-          <Show when={edit()}>
-            <div class="mr-4 flex items-center gap-4 text-sm">
-              <div class="icon-button text-red-500" onClick={cancelEdit}>
-                <X size={22} />
+            <Show when={!edit() && !props.swipe && user.user?._id === props.chat?.userId}>
+              <MessageOptions
+                char={props.char}
+                original={props.original}
+                msg={props.msg}
+                chatEditing={props.editing}
+                edit={edit}
+                startEdit={startEdit}
+                onRemove={props.onRemove}
+                lastSplit={props.lastSplit}
+                last={props.last}
+                tts={!!props.tts}
+              />
+            </Show>
+            <Show when={edit()}>
+              <div class="mr-4 flex items-center gap-4 text-sm">
+                <div class="icon-button text-red-500" onClick={cancelEdit}>
+                  <X size={22} />
+                </div>
+                <div class="icon-button text-green-500" onClick={saveEdit}>
+                  <Check size={22} />
+                </div>
               </div>
-              <div class="icon-button text-green-500" onClick={saveEdit}>
-                <Check size={22} />
+            </Show>
+            <Show when={props.last && props.swipe}>
+              <div class="mr-4 flex items-center gap-4 text-sm">
+                <X
+                  size={22}
+                  class="cursor-pointer text-red-500"
+                  onClick={() => props.cancelSwipe?.()}
+                />
+                <Check
+                  size={22}
+                  class="cursor-pointer text-green-500"
+                  onClick={() => props.confirmSwipe?.()}
+                />
               </div>
-            </div>
-          </Show>
-          <Show when={props.last && props.swipe}>
-            <div class="mr-4 flex items-center gap-4 text-sm">
-              <X
-                size={22}
-                class="cursor-pointer text-red-500"
-                onClick={() => props.cancelSwipe?.()}
+            </Show>
+          </div>
+          <div class="break-words">
+            <Show when={isImage()}>
+              <div class="flex justify-start">
+                <img
+                  class="max-h-32 cursor-pointer rounded-md"
+                  src={getAssetUrl(props.msg.msg)}
+                  onClick={() => settingStore.showImage(props.original.msg)}
+                />
+              </div>
+            </Show>
+            <Show when={!edit() && !isImage()}>
+              <div
+                class="rendered-markdown pr-1 sm:pr-3"
+                data-bot-message={isBot()}
+                data-user-message={isUser()}
+                innerHTML={renderMessage()}
               />
-              <Check
-                size={22}
-                class="cursor-pointer text-green-500"
-                onClick={() => props.confirmSwipe?.()}
-              />
-            </div>
-          </Show>
-        </div>
-        <div class={`w-full break-words`}>
-          <Show when={isImage()}>
-            <div class="flex justify-start">
-              <img
-                class="max-h-32 cursor-pointer rounded-md"
-                src={getAssetUrl(props.msg.msg)}
-                onClick={() => msgStore.showImage(props.original)}
-              />
-            </div>
-          </Show>
-          <Show when={!edit() && !isImage()}>
-            <div
-              class="rendered-markdown pr-1 sm:pr-3"
-              data-bot-message={isBot()}
-              data-user-message={isUser()}
-              innerHTML={renderMessage()}
-            />
-          </Show>
-          <Show when={props.msg._id === ''}>
-            <div class="my-2 ml-4">
-              <div class="dot-flashing bg-[var(--hl-700)]"></div>
-            </div>
-          </Show>
-          <Show when={edit()}>
-            <div
-              ref={ref}
-              contentEditable={true}
-              onKeyUp={(ev) => {
-                if (ev.key === 'Escape') cancelEdit()
-              }}
-            ></div>
-          </Show>
-          <Show when={false}>
-            <div class="text-900 mt-2 flex flex-row items-center gap-2">
-              <ThumbsUp size={14} class="hover:text-600 mt-[-0.15rem] cursor-pointer" />
-              <ThumbsDown size={14} class="hover:text-600 cursor-pointer" />
-            </div>
-          </Show>
+            </Show>
+            <Show when={props.msg._id === ''}>
+              <div class="my-2 ml-4">
+                <div class="dot-flashing bg-[var(--hl-700)]"></div>
+              </div>
+            </Show>
+            <Show when={edit()}>
+              <div
+                ref={ref}
+                contentEditable={true}
+                onKeyUp={(ev) => {
+                  if (ev.key === 'Escape') cancelEdit()
+                }}
+              ></div>
+            </Show>
+            <Show when={false}>
+              <div class="text-900 mt-2 flex flex-row items-center gap-2">
+                <ThumbsUp size={14} class="hover:text-600 mt-[-0.15rem] cursor-pointer" />
+                <ThumbsDown size={14} class="hover:text-600 cursor-pointer" />
+              </div>
+            </Show>
+          </div>
         </div>
       </div>
     </div>
@@ -442,4 +392,62 @@ function getAnonName(members: AppSchema.Profile[], id: string) {
 
 function anonymizeText(text: string, profile: AppSchema.Profile, i: number) {
   return text.replace(new RegExp(profile.handle.trim(), 'gi'), 'User ' + (i + 1))
+}
+
+const MessageOptions: Component<{
+  msg: SplitMessage
+  char: AppSchema.Character
+  original: AppSchema.ChatMessage
+  chatEditing: boolean
+  tts: boolean
+  edit: Accessor<boolean>
+  startEdit: () => void
+  lastSplit: boolean
+  last?: boolean
+  onRemove: () => void
+}> = (props) => {
+  return (
+    <div class="mr-4 flex items-center gap-3 text-sm">
+      <Show when={props.chatEditing && props.msg.characterId && props.msg.adapter !== 'image'}>
+        <div onClick={() => chatStore.showPrompt(props.original)} class="icon-button">
+          <Terminal size={16} />
+        </div>
+      </Show>
+
+      <Show when={props.chatEditing && props.original.adapter !== 'image'}>
+        <div class="icon-button" onClick={props.startEdit}>
+          <Pencil size={18} />
+        </div>
+      </Show>
+
+      <Show when={props.chatEditing}>
+        <div class="icon-button" onClick={props.onRemove}>
+          <Trash size={18} />
+        </div>
+      </Show>
+
+      <Show when={props.last && props.msg.characterId}>
+        <div class="icon-button" onClick={() => retryMessage(props.original, props.msg)}>
+          <RefreshCw size={18} />
+        </div>
+      </Show>
+
+      <Show when={props.last && !props.msg.characterId}>
+        <div
+          class="cursor-pointer"
+          onClick={() => msgStore.resend(props.msg.chatId, props.msg._id)}
+        >
+          <RefreshCw size={18} />
+        </div>
+      </Show>
+    </div>
+  )
+}
+
+function retryMessage(original: AppSchema.ChatMessage, split: SplitMessage) {
+  if (original.adapter !== 'image') {
+    msgStore.retry(split.chatId)
+  } else {
+    msgStore.createImage(split._id)
+  }
 }

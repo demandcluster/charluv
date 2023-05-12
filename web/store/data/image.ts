@@ -1,7 +1,10 @@
 import * as horde from '../../../common/horde-gen'
 import { createImagePrompt } from '../../../common/image-prompt'
 import { api, isLoggedIn } from '../api'
-import { getPromptEntities } from './messages'
+import { getStore } from '../create'
+import { subscribe } from '../socket'
+import { PromptEntities, getPromptEntities, msgsApi } from './messages'
+import { AIAdapter } from '/common/adapters'
 
 type GenerateOpts = {
   chatId?: string
@@ -13,11 +16,12 @@ type GenerateOpts = {
 
 export const imageApi = {
   generateImage,
+  generateImageWithPrompt,
 }
 
 export async function generateImage({ chatId, messageId, onDone, ...opts }: GenerateOpts) {
   const entities = await getPromptEntities()
-  const prompt = opts.prompt ? opts.prompt : await createImagePrompt(entities)
+  const prompt = opts.prompt ? opts.prompt : await createSummarizedImagePrompt(entities)
 
   if (!isLoggedIn()) {
     return { error: "Sorry, members only.. don't worry it is free!" }
@@ -30,4 +34,53 @@ export async function generateImage({ chatId, messageId, onDone, ...opts }: Gene
     ephemeral: opts.ephemeral,
   })
   return res
+}
+
+export async function generateImageWithPrompt(prompt: string, onDone: (image: string) => void) {
+  const user = getStore('user').getState().user
+
+  if (!user) {
+    throw new Error('Could not get user settings')
+  }
+
+  if (!isLoggedIn()) {
+    const image = await horde.generateImage(user, prompt)
+    onDone(image)
+  }
+
+  const res = await api.post<{ success: boolean }>(`/character/image`, {
+    prompt,
+    user,
+    ephemeral: true,
+  })
+  return res
+}
+
+const SUMMARY_BACKENDS: { [key in AIAdapter]?: boolean } = {
+  openai: true,
+}
+
+async function createSummarizedImagePrompt(opts: PromptEntities) {
+  if (opts.settings?.service! in SUMMARY_BACKENDS && opts.user.images?.summariseChat) {
+    console.log('Using', opts.settings?.service, 'to summarise')
+    msgsApi.generateResponseV2({ kind: 'summary' })
+
+    return new Promise<string>((resolve, reject) => {
+      let timer = setTimeout(() => {
+        reject(new Error(`Chat summarisation timed out`))
+      }, 45000)
+      subscribe(
+        'chat-summary',
+        { chatId: 'string', summary: 'string' },
+        (body) => {
+          clearTimeout(timer)
+          resolve(body.summary)
+        },
+        true
+      )
+    })
+  }
+
+  const prompt = await createImagePrompt(opts)
+  return prompt
 }

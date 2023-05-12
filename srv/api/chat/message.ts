@@ -21,7 +21,7 @@ export const generateMessageV2 = handle(async ({ userId, body, socketId, params,
   const chatId = params.id
   assertValid(
     {
-      kind: ['send', 'retry', 'continue', 'self'],
+      kind: ['send', 'ooc', 'retry', 'continue', 'self', 'summary'],
       char: 'any',
       sender: 'any',
       members: ['any'],
@@ -80,9 +80,12 @@ export const generateMessageV2 = handle(async ({ userId, body, socketId, params,
   }
 
   // For authenticated users we will verify parts of the payload
-  if (body.kind === 'send') {
+  if (body.kind === 'send' || body.kind === 'ooc') {
     if (guest) {
-      const newMsg = newMessage(chatId, body.text!, { userId: 'anon' })
+      const newMsg = newMessage(chatId, body.text!, {
+        userId: 'anon',
+        ooc: body.kind === 'ooc',
+      })
       sendGuest(socketId, { type: 'message-created', msg: newMsg, chatId })
     }
 
@@ -91,11 +94,16 @@ export const generateMessageV2 = handle(async ({ userId, body, socketId, params,
         chatId,
         message: body.text!,
         senderId: userId!,
+        ooc: body.kind === 'ooc',
       })
 
       await store.chats.update(chatId, {})
       sendMany(members, { type: 'message-created', msg: userMsg, chatId })
     }
+  }
+
+  if (body.kind === 'ooc') {
+    return { success: true }
   }
 
   /**
@@ -122,16 +130,25 @@ export const generateMessageV2 = handle(async ({ userId, body, socketId, params,
 
   let generated = ''
   let error = false
+
+  const send: <T extends { type: string }>(msg: T) => void = guest
+    ? (msg) => (body.kind !== 'summary' ? sendGuest(guest, msg) : null)
+    : (msg) => (body.kind !== 'summary' ? sendMany(members, msg) : null)
+
   for await (const gen of stream) {
     if (typeof gen === 'string') {
       generated = gen
       continue
     }
 
+    if ('partial' in gen) {
+      send({ type: 'message-partial', partial: gen.partial, adapter, chatId })
+      continue
+    }
+
     if (gen.error) {
       error = true
-      if (!guest) sendMany(members, { type: 'message-error', error: gen.error, adapter, chatId })
-      else sendGuest(guest, { type: 'message-error', error: gen.error, adapter, chatId })
+      send({ type: 'message-error', error: gen.error, adapter, chatId })
       continue
     }
   }
@@ -146,7 +163,8 @@ export const generateMessageV2 = handle(async ({ userId, body, socketId, params,
   if (guest) {
     const characterId = body.kind === 'self' ? undefined : body.char._id
     const senderId = body.kind === 'self' ? userId : undefined
-    const response = newMessage(chatId, responseText, { characterId, userId: senderId })
+    const response = newMessage(chatId, responseText, { characterId, userId: senderId, ooc: false })
+
     sendGuest(socketId, {
       type: 'guest-message-created',
       msg: response,
@@ -165,6 +183,11 @@ export const generateMessageV2 = handle(async ({ userId, body, socketId, params,
   sendOne(userId!, { type: 'credits-updated', credits })
 
   switch (body.kind) {
+    case 'summary': {
+      sendOne(userId, { type: 'chat-summary', chatId, summary: generated })
+      break
+    }
+
     case 'self':
     case 'send': {
       const msg = await store.msgs.createChatMessage({
@@ -173,6 +196,7 @@ export const generateMessageV2 = handle(async ({ userId, body, socketId, params,
         senderId: body.kind === 'self' ? userId : undefined,
         message: generated,
         adapter,
+        ooc: false,
       })
       sendMany(members, { type: 'message-created', msg, chatId, adapter, generate: true })
       break
@@ -195,6 +219,7 @@ export const generateMessageV2 = handle(async ({ userId, body, socketId, params,
           characterId: body.char._id,
           message: generated,
           adapter,
+          ooc: false,
         })
         sendMany(members, { type: 'message-created', msg, chatId, adapter, generate: true })
       }
@@ -221,7 +246,7 @@ export const generateMessageV2 = handle(async ({ userId, body, socketId, params,
 function newMessage(
   chatId: string,
   text: string,
-  props: { userId?: string; characterId?: string }
+  props: { userId?: string; characterId?: string; ooc: boolean }
 ) {
   const userMsg: AppSchema.ChatMessage = {
     _id: v4(),

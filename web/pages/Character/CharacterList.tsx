@@ -34,7 +34,7 @@ import {
   User,
   MessageCircle,
 } from 'lucide-solid'
-import { A, useNavigate } from '@solidjs/router'
+import { A, useNavigate, useSearchParams } from '@solidjs/router'
 import AvatarIcon from '../../shared/AvatarIcon'
 import ImportCharacterModal from '../Character/ImportCharacter'
 import DeleteCharacterModal from '../Character/DeleteCharacter'
@@ -71,6 +71,8 @@ const sortOptions: Option<SortFieldTypes>[] = [
 const CharacterList: Component = () => {
   setComponentPageTitle('Matches')
 
+  const [query, setQuery] = useSearchParams()
+
   const cached = getListCache()
   const [view, setView] = createSignal(cached.view)
   const [sortField, setSortField] = createSignal(cached.sort.field)
@@ -78,6 +80,7 @@ const CharacterList: Component = () => {
   const [search, setSearch] = createSignal('')
   const [showImport, setImport] = createSignal(false)
   const user = userStore()
+  const [importPath, setImportPath] = createSignal<string | undefined>(query.import)
   const [create, setCreate] = createSignal<AppSchema.Character>()
   const importQueue: NewCharacter[] = []
 
@@ -85,6 +88,8 @@ const CharacterList: Component = () => {
     importQueue.push(...chars)
     dequeue()
     setImport(false)
+    setImportPath()
+    setQuery({ import: undefined })
   }
 
   const dequeue = () => {
@@ -197,7 +202,12 @@ const CharacterList: Component = () => {
         sortDirection={sortDirection()}
         createChat={setCreate}
       />
-      <ImportCharacterModal show={showImport()} close={() => setImport(false)} onSave={onImport} />
+      <ImportCharacterModal
+        charhubPath={importPath()}
+        show={showImport() || !!importPath()}
+        close={() => setImport(false)}
+        onSave={onImport}
+      />
       <Show when={create()}>
         <CreateChatModal show={!!create()} close={() => setCreate()} char={create()} />
       </Show>

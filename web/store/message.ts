@@ -13,23 +13,25 @@ import { userStore } from './user'
 import { localApi } from './data/storage'
 import { chatStore } from './chat'
 import { voiceApi } from './data/voice'
-import { VoiceSettings } from '../../srv/db/texttospeech-schema'
-import { speechSynthesisManager } from './voice'
+import { VoiceSettings, VoiceWebSynthesisSettings } from '../../srv/db/texttospeech-schema'
 import { defaultCulture } from '../shared/CultureCodes'
+import { createSpeech, pauseSpeech } from '../shared/Audio/speech'
 
 type ChatId = string
 
-export type VoiceState = 'generating' | 'loading' | 'playing'
+export type VoiceState = 'generating' | 'playing'
+
+type ChatMessageExt = AppSchema.ChatMessage & { voiceUrl?: string }
+
 export type MsgState = {
   activeChatId: string
   activeCharId: string
-  msgs: AppSchema.ChatMessage[]
+  msgs: ChatMessageExt[]
   partial?: string
   retrying?: AppSchema.ChatMessage
   waiting?: { chatId: string; mode?: GenerateOpts['kind']; userId?: string }
   retries: Record<string, string[]>
   nextLoading: boolean
-  showImage?: AppSchema.ChatMessage
   imagesSaved: boolean
   speaking: { messageId: string; status: VoiceState } | undefined
 
@@ -58,7 +60,7 @@ const initState: MsgState = {
 export const msgStore = createStore<MsgState>(
   'messages',
   initState
-)((get, set) => {
+)(() => {
   events.on('logged-out', () => {
     msgStore.setState(initState)
   })
@@ -173,7 +175,7 @@ export const msgStore = createStore<MsgState>(
       { msgs },
       chatId: string,
       message: string,
-      mode: 'send' | 'retry' | 'self',
+      mode: 'send' | 'ooc' | 'retry' | 'self',
       onSuccess?: () => void
     ) {
       if (!chatId) {
@@ -181,7 +183,9 @@ export const msgStore = createStore<MsgState>(
         yield { partial: undefined }
         return
       }
-      yield { partial: '', waiting: { chatId, mode } }
+      if (mode !== 'ooc') {
+        yield { partial: '', waiting: { chatId, mode } }
+      }
 
       switch (mode) {
         case 'self':
@@ -190,7 +194,8 @@ export const msgStore = createStore<MsgState>(
           break
 
         case 'send':
-          var res = await msgsApi.generateResponseV2({ kind: 'send', text: message })
+        case 'ooc':
+          var res = await msgsApi.generateResponseV2({ kind: mode, text: message })
           break
       }
 
@@ -214,52 +219,73 @@ export const msgStore = createStore<MsgState>(
       yield { retries: { ...retries, [msgId]: next } }
       msgStore.editMessage(msgId, replacement, onSuccess)
     },
-    async deleteMessages({ msgs, activeChatId }, fromId: string) {
+    async deleteMessages({ msgs, activeChatId }, fromId: string, deleteOne?: boolean) {
       const index = msgs.findIndex((m) => m._id === fromId)
       if (index === -1) {
         return toastStore.error(`Cannot delete message: Message not found`)
       }
 
-      const deleteIds = msgs.slice(index).map((m) => m._id)
+      const deleteIds = deleteOne ? [fromId] : msgs.slice(index).map((m) => m._id)
       const res = await msgsApi.deleteMessages(activeChatId, deleteIds)
 
       if (res.error) {
         return toastStore.error(`Failed to delete messages: ${res.error}`)
       }
-      return { msgs: msgs.slice(0, index) }
+
+      const removed = new Set(deleteIds)
+      return { msgs: msgs.filter((msg) => !removed.has(msg._id)) }
+    },
+    stopSpeech() {
+      pauseSpeech()
+      return { speaking: undefined }
     },
     async *textToSpeech(
-      { activeChatId, speaking },
+      { activeChatId, msgs },
       messageId: string,
       text: string,
       voice: VoiceSettings,
-      culture: string
+      culture?: string
     ) {
-      speechSynthesisManager.stopCurrentVoice()
-
-      if (speaking) {
-        return
-      }
+      pauseSpeech()
 
       if (!voice.service) {
         yield { speaking: undefined }
+        return
       }
 
       yield { speaking: { messageId, status: 'generating' } }
 
       if (voice.service === 'webspeechsynthesis') {
-        speechSynthesisManager.playWebSpeechSynthesis(voice, text, culture, messageId)
-      } else {
-        const res = await voiceApi.textToSpeech({
-          chatId: activeChatId,
-          messageId,
-          text,
-          voice,
-          culture,
-        })
-        if (res.error) {
-          toastStore.error(`Failed to request text to speech: ${res.error}`)
+        const isSuported = !!window.speechSynthesis
+        if (!isSuported) {
+          toastStore.error(`Speech synthesis not supported on this browser`)
+          return
         }
+
+        try {
+          await playVoiceFromBrowser(voice, text, culture ?? defaultCulture, messageId)
+        } catch (e: any) {
+          toastStore.error(`Failed to play web speech synthesis: ${e.message}`)
+        }
+
+        return
+      }
+
+      const msg = msgs.find((m) => m._id === messageId)
+      if (msg?.voiceUrl) {
+        playVoiceFromUrl(activeChatId, messageId, msg.voiceUrl)
+        return
+      }
+
+      const res = await voiceApi.textToSpeech({
+        chatId: activeChatId,
+        messageId,
+        text,
+        voice,
+        culture,
+      })
+      if (res.error) {
+        toastStore.error(`Failed to request text to speech: ${res.error}`)
       }
     },
     async *createImage({ activeChatId }, messageId?: string) {
@@ -272,9 +298,6 @@ export const msgStore = createStore<MsgState>(
         toastStore.error(`Failed to request image: ${res.error}`)
       }
     },
-    showImage(_, msg?: AppSchema.ChatMessage) {
-      return { showImage: msg }
-    },
   }
 })
 
@@ -284,7 +307,7 @@ export const msgStore = createStore<MsgState>(
  * @param image base64 encoded image or image url
  */
 async function handleImage(chatId: string, image: string) {
-  const { msgs, activeChatId, activeCharId, images, imagesSaved } = msgStore.getState()
+  const { msgs, activeCharId, images, imagesSaved } = msgStore.getState()
 
   const chatImages = images[chatId] || []
 
@@ -328,29 +351,70 @@ async function handleImage(chatId: string, image: string) {
   })
 }
 
-async function receiveTextToSpeech(chatId: string, messageId: string, url: string) {
-  if (userStore.getState().user?.texttospeech?.enabled === false) return
+async function playVoiceFromUrl(chatId: string, messageId: string, url: string) {
+  const user = userStore.getState().user
+  if (user?.texttospeech?.enabled === false) return
   if (chatId != msgStore.getState().activeChatId) {
     msgStore.setState({ speaking: undefined })
     return
   }
   try {
-    const audio = new Audio(url)
-    audio.addEventListener('error', () => {
-      msgStore.setState({ speaking: { messageId, status: 'generating' } })
+    const audio = await createSpeech({ url })
+    audio.addEventListener('error', (e) => {
+      console.error(e)
+      toastStore.error(`Error playing URL: ${e.message}`)
+      const msgs = msgStore.getState().msgs
+      const msg = msgs.find((m) => m._id === messageId)
+      if (!msg) return
+      const nextMsgs = msgs.map((m) => (m._id === msg._id ? { ...m, voiceUrl: undefined } : m))
+      msgStore.setState({
+        speaking: undefined,
+        msgs: nextMsgs,
+      })
     })
     audio.addEventListener('playing', () => {
-      msgStore.setState({ speaking: { messageId, status: 'playing' } })
+      const msgs = msgStore.getState().msgs
+      const msg = msgs.find((m) => m._id === messageId)
+      if (!msg) return
+      const nextMsgs = msgs.map((m) => (m._id === msg._id ? { ...m, voiceUrl: url } : m))
+      msgStore.setState({
+        speaking: { messageId, status: 'playing' },
+        msgs: nextMsgs,
+      })
     })
     audio.addEventListener('ended', () => {
       msgStore.setState({ speaking: undefined })
     })
-    msgStore.setState({ speaking: { messageId, status: 'loading' } })
+    msgStore.setState({ speaking: { messageId, status: 'generating' } })
     audio.play()
-  } catch (e) {
-    console.error(e)
+  } catch (e: any) {
+    toastStore.error(`Error playing URL: ${e.message}`)
     msgStore.setState({ speaking: undefined })
   }
+}
+
+async function playVoiceFromBrowser(
+  voice: VoiceWebSynthesisSettings,
+  text: string,
+  culture: string,
+  messageId: string
+) {
+  const user = userStore.getState().user
+  if (!user || user?.texttospeech?.enabled === false) return
+  const filterAction = user.texttospeech?.filterActions ?? true
+  const audio = await createSpeech({ voice, text, culture, filterAction })
+
+  audio.addEventListener('error', (e) => {
+    toastStore.error(`Error playing web speech: ${e.message}`)
+    msgStore.setState({ speaking: undefined })
+  })
+
+  audio.addEventListener('playing', () =>
+    msgStore.setState({ speaking: { messageId, status: 'playing' } })
+  )
+  audio.addEventListener('ended', () => msgStore.setState({ speaking: undefined }))
+
+  audio.play()
 }
 
 subscribe('message-partial', { partial: 'string', chatId: 'string' }, (body) => {
@@ -362,7 +426,13 @@ subscribe('message-partial', { partial: 'string', chatId: 'string' }, (body) => 
 
 subscribe(
   'message-retry',
-  { messageId: 'string', chatId: 'string', message: 'string', continue: 'boolean?' },
+  {
+    messageId: 'string',
+    chatId: 'string',
+    message: 'string',
+    continue: 'boolean?',
+    adapter: 'string',
+  },
   async (body) => {
     const { retrying, msgs, activeChatId } = msgStore.getState()
     if (activeChatId !== body.chatId) return
@@ -394,8 +464,10 @@ subscribe(
     if (chat?.chat._id !== body.chatId) return
 
     const voice = chat.char.voice
-    const user = userStore().user
-    if (user && voice && (user.texttospeech?.enabled ?? true) && chat.char.userId === user._id) {
+    const { user } = userStore.getState()
+
+    if (body.adapter === 'image' || !voice || !user) return
+    if ((user?.texttospeech?.enabled ?? true) && chat.char.userId === user._id) {
       msgStore.textToSpeech(
         body.messageId,
         body.message,
@@ -406,29 +478,59 @@ subscribe(
   }
 )
 
-subscribe('message-created', { msg: 'any', chatId: 'string', generate: 'boolean?' }, (body) => {
-  const { msgs, activeChatId } = msgStore.getState()
-  if (activeChatId !== body.chatId) return
-  const msg = body.msg as AppSchema.ChatMessage
+subscribe(
+  'message-created',
+  {
+    msg: 'any',
+    chatId: 'string',
+    generate: 'boolean?',
+  },
+  (body) => {
+    const { msgs, activeChatId } = msgStore.getState()
+    if (activeChatId !== body.chatId) return
+    const msg = body.msg as AppSchema.ChatMessage
+    const user = userStore().user
 
-  // If the message is from a user don't clear the "waiting for response" flags
-  const nextMsgs = msgs.concat(msg)
-  if (msg.userId && !body.generate) {
-    msgStore.setState({ msgs: nextMsgs })
-  } else {
-    msgStore.setState({
-      msgs: nextMsgs,
-      partial: undefined,
-      waiting: undefined,
-    })
+    const speech = getMessageSpeechInfo(msg, user)
+    const nextMsgs = msgs.concat(msg)
+    // If the message is from a user don't clear the "waiting for response" flags
+    if (msg.userId && !body.generate) {
+      msgStore.setState({ msgs: nextMsgs, speaking: speech?.speaking })
+    } else {
+      msgStore.setState({
+        msgs: nextMsgs,
+        partial: undefined,
+        waiting: undefined,
+        speaking: speech?.speaking,
+      })
+    }
+
+    if (!isLoggedIn()) {
+      localApi.saveMessages(body.chatId, nextMsgs)
+    }
+
+    addMsgToRetries(msg)
+
+    if (msg.userId && msg.userId != user?._id) {
+      chatStore.getMemberProfile(body.chatId, msg.userId)
+    }
+
+    if (body.msg.adapter === 'image') return
+    if (speech) msgStore.textToSpeech(msg._id, msg.msg, speech.voice, speech?.culture)
   }
+)
 
-  if (!isLoggedIn()) {
-    localApi.saveMessages(body.chatId, nextMsgs)
+function getMessageSpeechInfo(msg: AppSchema.ChatMessage, user: AppSchema.User | undefined) {
+  if (msg.adapter === 'image' || !msg.characterId) return
+  const char = chatStore.getState().active?.char
+  if (!char || char._id !== msg.characterId || !char.voice) return
+  if (!user?.texttospeech?.enabled) return
+  return {
+    voice: char.voice,
+    culture: char.culture,
+    speaking: char.voice ? ({ messageId: msg._id, status: 'generating' } as const) : undefined,
   }
-
-  addMsgToRetries(msg)
-})
+}
 
 subscribe('image-failed', { chatId: 'string', error: 'string' }, (body) => {
   msgStore.setState({ waiting: undefined })
@@ -450,7 +552,8 @@ subscribe('voice-failed', { chatId: 'string', error: 'string' }, (body) => {
 })
 
 subscribe('voice-generated', { chatId: 'string', messageId: 'string', url: 'string' }, (body) => {
-  receiveTextToSpeech(body.chatId, body.messageId, body.url)
+  if (msgStore.getState().speaking?.messageId != body.messageId) return
+  playVoiceFromUrl(body.chatId, body.messageId, body.url)
 })
 
 subscribe('message-error', { error: 'any', chatId: 'string' }, (body) => {
@@ -517,7 +620,9 @@ subscribe(
       body.msg._id = retrying._id
     }
 
-    const next = msgs.filter((m) => m._id !== retrying?._id).concat(body.msg)
+    const msg = body.msg as AppSchema.ChatMessage
+    const next = msgs.filter((m) => m._id !== retrying?._id).concat(msg)
+    const speech = getMessageSpeechInfo(msg, userStore().user)
 
     const chats = localApi.loadItem('chats')
     localApi.saveChats(
@@ -525,14 +630,17 @@ subscribe(
     )
     localApi.saveMessages(body.chatId, next)
 
-    addMsgToRetries(body.msg)
+    addMsgToRetries(msg)
 
     msgStore.setState({
       msgs: next,
       retrying: undefined,
       partial: undefined,
       waiting: undefined,
+      speaking: speech?.speaking,
     })
+
+    if (speech) msgStore.textToSpeech(msg._id, msg.msg, speech.voice, speech?.culture)
   }
 )
 

@@ -2,7 +2,12 @@ import { Component, createMemo, createSignal } from 'solid-js'
 import { AlertTriangle, Save } from 'lucide-solid'
 import Button from '../../shared/Button'
 import PageHeader from '../../shared/PageHeader'
-import { getStrictForm, setComponentPageTitle } from '../../shared/util'
+import {
+  applyDotProperty,
+  getFormEntries,
+  getStrictForm,
+  setComponentPageTitle,
+} from '../../shared/util'
 import { userStore } from '../../store'
 import UISettings from './UISettings'
 import DateSettings from './DateSettings'
@@ -38,46 +43,8 @@ const Settings: Component = () => {
   const currentTab = createMemo(() => tabs[tab()])
 
   const onSubmit = (evt: Event) => {
-    const body = getStrictForm(evt, {
-      defaultPreset: 'string?',
-      koboldUrl: 'string?',
-      thirdPartyFormat: ['kobold', 'openai', 'claude'],
-      novelApiKey: 'string?',
-      novelModel: 'string?',
-      hordeUseTrusted: 'boolean?',
-      hordeKey: 'string?',
-      hordeModel: 'string?',
-      luminaiUrl: 'string?',
-      oaiKey: 'string?',
-      scaleApiKey: 'string?',
-      scaleUrl: 'string?',
-      claudeApiKey: 'string?',
-      logPromptsToBrowserConsole: 'boolean?',
-
-      imageType: ['horde', 'sd', 'novel'],
-      imageSteps: 'number',
-      imageCfg: 'number',
-      imageWidth: 'number',
-      imageHeight: 'number',
-
-      novelImageModel: 'string',
-      novelSampler: 'string',
-
-      hordeSampler: 'string',
-      hordeImageModel: 'string',
-
-      sdUrl: 'string',
-      sdSampler: 'string',
-
-      speechToTextEnabled: 'boolean',
-      speechToTextAutoSubmit: 'boolean',
-      speechToTextAutoRecord: 'boolean',
-
-      textToSpeechEnabled: 'boolean',
-      textToSpeechFilterActions: 'boolean',
-
-      elevenLabsApiKey: 'string?',
-    } as const)
+    const adapterConfig = getAdapterConfig(getFormEntries(evt))
+    const body = getStrictForm(evt, settingsForm)
 
     const {
       imageCfg,
@@ -100,18 +67,22 @@ const Settings: Component = () => {
       textToSpeechFilterActions,
 
       elevenLabsApiKey,
+      summariseChat,
+      summaryPrompt,
 
       ...base
     } = body
 
     userStore.updateConfig({
       ...base,
+      adapterConfig,
       hordeWorkers: workers(),
       speechtotext: {
         enabled: speechToTextEnabled,
         autoSubmit: speechToTextAutoSubmit,
         autoRecord: speechToTextAutoRecord,
       },
+      elevenLabsApiKey,
       texttospeech: {
         enabled: textToSpeechEnabled,
         filterActions: textToSpeechFilterActions,
@@ -122,6 +93,8 @@ const Settings: Component = () => {
         height: imageHeight,
         width: imageWidth,
         steps: imageSteps,
+        summariseChat,
+        summaryPrompt,
         horde: {
           sampler: hordeSampler,
           model: hordeImageModel,
@@ -192,3 +165,61 @@ const Settings: Component = () => {
 }
 
 export default Settings
+
+const settingsForm = {
+  defaultPreset: 'string?',
+  koboldUrl: 'string?',
+  thirdPartyFormat: ['kobold', 'openai', 'claude'],
+  oobaUrl: 'string?',
+  thirdPartyPassword: 'string?',
+  novelApiKey: 'string?',
+  novelModel: 'string?',
+  hordeUseTrusted: 'boolean?',
+  hordeKey: 'string?',
+  hordeModel: 'string?',
+  luminaiUrl: 'string?',
+  oaiKey: 'string?',
+  scaleApiKey: 'string?',
+  scaleUrl: 'string?',
+  claudeApiKey: 'string?',
+  logPromptsToBrowserConsole: 'boolean?',
+
+  summariseChat: 'boolean?',
+  summaryPrompt: 'string?',
+  imageType: ['horde', 'sd', 'novel'],
+  imageSteps: 'number',
+  imageCfg: 'number',
+  imageWidth: 'number',
+  imageHeight: 'number',
+
+  novelImageModel: 'string',
+  novelSampler: 'string',
+
+  hordeSampler: 'string',
+  hordeImageModel: 'string',
+
+  sdUrl: 'string',
+  sdSampler: 'string',
+
+  speechToTextEnabled: 'boolean',
+  speechToTextAutoSubmit: 'boolean',
+  speechToTextAutoRecord: 'boolean',
+
+  textToSpeechEnabled: 'boolean',
+  textToSpeechFilterActions: 'boolean',
+
+  elevenLabsApiKey: 'string?',
+} as const
+
+function getAdapterConfig(entries: Array<[string, any]>) {
+  let obj: any = {}
+
+  for (const [prop, value] of entries) {
+    if (!prop.startsWith('adapterConfig.')) continue
+    applyDotProperty(obj, prop.replace('adapterConfig.', ''), value)
+    // const name = prop.replace('adapterConfig.', '')
+    // obj[name] = value
+  }
+
+  return obj
+}

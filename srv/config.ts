@@ -45,6 +45,7 @@ if (!process.env.JWT_SECRET) {
 
 export const config = {
   jwtSecret: env('JWT_SECRET'),
+  jwtExpiry: env('JWT_EXPIRY', '7d'),
   port: +env('PORT', '3001'),
   assetFolder: env('ASSET_FOLDER', resolve(__dirname, '..', 'dist', 'assets')),
   db: {
@@ -79,7 +80,7 @@ export const config = {
   discordId: env('DISCORD_ID', ''),
   hordeKeyPremium: env('HORDE_KEY_PREMIUM', ''),
   hordeKeyImages: env('HORDE_KEY_IMAGES', ''),
-  adapters: env('ADAPTERS', 'novel,horde,kobold,luminai,openai,scale,claude,ooba')
+  adapters: env('ADAPTERS', 'novel,horde,kobold,luminai,openai,scale,claude,ooba,goose')
     .split(',')
     .filter((i) => !!i && i in ADAPTER_LABELS) as AIAdapter[],
   storage: {

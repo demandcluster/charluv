@@ -33,6 +33,7 @@ export const chatGenSettings = {
   gaslight: 'string',
   oaiModel: 'string',
   claudeModel: 'string',
+  streamResponse: 'boolean?',
   useGaslight: 'boolean?',
   ultimeJailbreak: 'string?',
   antiBond: 'boolean?',
@@ -195,6 +196,7 @@ export const serviceGenMap: Record<Exclude<ChatAdapter, 'default'>, GenMap> = {
     presencePenalty: 'presence_penalty',
     gaslight: 'gaslight',
     oaiModel: 'oaiModel',
+    streamResponse: 'stream',
   },
   claude: {
     maxTokens: 'max_tokens_to_sample',
@@ -227,6 +229,23 @@ export const serviceGenMap: Record<Exclude<ChatAdapter, 'default'>, GenMap> = {
     gaslight: '',
     oaiModel: '',
   },
+  goose: {
+    maxTokens: 'max_tokens',
+    repetitionPenalty: 'repetition_penalty',
+    repetitionPenaltyRange: 'repetition_penalty_slope',
+    repetitionPenaltySlope: 'repetition_penalty_range',
+    tailFreeSampling: 'tfs',
+    temp: 'temperature',
+    topK: 'top_k',
+    topP: 'top_p',
+    typicalP: 'typical_p',
+    topA: 'top_a',
+    order: '',
+    frequencyPenalty: 'frequency_penalty',
+    presencePenalty: 'presence_penalty',
+    gaslight: '',
+    oaiModel: '',
+  },
 }
 
 export function isDefaultPreset(value?: string): value is GenerationPreset {
@@ -234,7 +253,7 @@ export function isDefaultPreset(value?: string): value is GenerationPreset {
   return value in defaultPresets
 }
 
-export function getFallbackPreset(adapter: AIAdapter) {
+export function getFallbackPreset(adapter: AIAdapter): Partial<AppSchema.GenSettings> {
   switch (adapter) {
     case 'horde':
       return defaultPresets.horde
@@ -256,7 +275,7 @@ export function getFallbackPreset(adapter: AIAdapter) {
     case 'claude':
       return defaultPresets.claude
 
-    default:
-      throw new Error(`Unknown adapter: ${adapter}`)
+    case 'goose':
+      return { ...defaultPresets.basic, service: 'goose' }
   }
 }

@@ -1,4 +1,14 @@
-import { Component, createEffect, createMemo, createSignal, on, onMount, Show } from 'solid-js'
+import {
+  Component,
+  createEffect,
+  createMemo,
+  createSignal,
+  Match,
+  on,
+  onMount,
+  Show,
+  Switch,
+} from 'solid-js'
 import { Save, X } from 'lucide-solid'
 import Button from '../../shared/Button'
 import PageHeader from '../../shared/PageHeader'
@@ -7,8 +17,8 @@ import { FormLabel } from '../../shared/FormLabel'
 import RadioGroup from '../../shared/RadioGroup'
 import { getStrictForm, setComponentPageTitle } from '../../shared/util'
 import FileInput, { FileInputResult } from '../../shared/FileInput'
-import { characterStore } from '../../store'
-import { useNavigate, useParams } from '@solidjs/router'
+import { characterStore, NewCharacter, settingStore, toastStore } from '../../store'
+import { useNavigate, useParams, useSearchParams } from '@solidjs/router'
 import PersonaAttributes, { getAttributeMap } from '../../shared/PersonaAttributes'
 import AvatarIcon from '../../shared/AvatarIcon'
 import { PERSONA_FORMATS } from '../../../common/adapters'
@@ -18,6 +28,10 @@ import { CultureCodes, defaultCulture } from '../../shared/CultureCodes'
 import VoicePicker from './components/VoicePicker'
 import { VoiceSettings } from '../../../srv/db/texttospeech-schema'
 import { AppSchema } from '../../../srv/db/schema'
+import { downloadCharacterHub } from './ImportCharacter'
+import { createAppearancePrompt } from '/common/image-prompt'
+import { ImageModal } from '../Chat/ImageModal'
+import Loading from '/web/shared/Loading'
 
 const options = [
   { id: 'boostyle', label: 'Boostyle' },
@@ -41,27 +55,45 @@ const animeOptions = [
 ]
 
 const CreateCharacter: Component = () => {
+  let ref: any
   const params = useParams<{ editId?: string; duplicateId?: string }>()
+  const [query, setQuery] = useSearchParams()
   setComponentPageTitle(
     params.editId ? 'Edit character' : params.duplicateId ? 'Copy character' : 'Create character'
   )
   const [image, setImage] = createSignal<string | undefined>()
+  const [downloaded, setDownloaded] = createSignal<NewCharacter>()
 
   const srcId = params.editId || params.duplicateId || ''
   const state = characterStore((s) => {
     const edit = s.characters.list.find((ch) => ch._id === srcId)
     setImage(edit?.avatar)
     return {
+      avatar: s.generate,
       creating: s.creating,
       edit,
     }
   })
 
-  onMount(() => {
+  onMount(async () => {
+    characterStore.clearGeneratedAvatar()
     characterStore.getCharacters()
+
+    if (!query.import) return
+    try {
+      const { file, json } = await downloadCharacterHub(query.import)
+      const imageData = await getImageData(file)
+      setDownloaded(json)
+      setImage(imageData)
+      setAvatar(() => file)
+      setSchema('text')
+      toastStore.success(`Successfully downloaded from Character Hub`)
+    } catch (ex: any) {
+      toastStore.error(`Character Hub download failed: ${ex.message}`)
+    }
   })
 
-  const [schema, setSchema] = createSignal<AppSchema.Persona['kind']>()
+  const [schema, setSchema] = createSignal<AppSchema.Persona['kind'] | undefined>()
   const [avatar, setAvatar] = createSignal<File>()
   const [voice, setVoice] = createSignal<VoiceSettings>({ service: undefined })
   const [culture, setCulture] = createSignal(defaultCulture)
@@ -87,7 +119,18 @@ const CreateCharacter: Component = () => {
     const file = files[0].file
     setAvatar(() => file)
     const data = await getImageData(file)
+
     setImage(data)
+  }
+
+  const generateAvatar = () => {
+    const attributes = getAttributeMap(ref)
+    const persona: AppSchema.Persona = {
+      kind: 'boostyle',
+      attributes,
+    }
+    const prompt = createAppearancePrompt(persona)
+    characterStore.generateAvatar(prompt)
   }
 
   const onSubmit = (ev: Event) => {
@@ -116,7 +159,7 @@ const CreateCharacter: Component = () => {
       description: body.description,
       culture: body.culture,
       scenario: body.scenario,
-      avatar: avatar(),
+      avatar: state.avatar.blob || avatar(),
       greeting: body.greeting,
       xp: body.xp,
       match: body.match,
@@ -155,14 +198,14 @@ const CreateCharacter: Component = () => {
         }
       />
 
-      <form class="flex flex-col gap-4" onSubmit={onSubmit}>
+      <form class="flex flex-col gap-4" onSubmit={onSubmit} ref={ref}>
         <TextInput
           fieldName="name"
           required
           label="Character Name"
           helperText="The name of your character."
           placeholder=""
-          value={state.edit?.name}
+          value={downloaded()?.name || state.edit?.name}
         />
 
         <TextInput
@@ -170,23 +213,42 @@ const CreateCharacter: Component = () => {
           label="Description"
           helperText="A description or label for your character. This is will not influence your character in any way."
           placeholder=""
-          value={state.edit?.description}
+          value={downloaded()?.description || state.edit?.description}
         />
 
         <div class="flex w-full gap-2">
-          <Show when={state.edit}>
-            <div class="flex items-center">
-              <AvatarIcon format={{ corners: 'md', size: '3xl' }} avatarUrl={image()} />
-            </div>
-          </Show>
-          <FileInput
-            class="w-full"
-            fieldName="avatar"
-            label="Avatar"
-            accept="image/png,image/jpeg"
-            onUpdate={updateFile}
-          />
-          <div class="flex items-end">{/* <Button>Generate</Button> */}</div>
+          <Switch>
+            <Match when={!state.avatar.loading}>
+              <div
+                class="flex items-center"
+                style={{ cursor: state.avatar.image || image() ? 'pointer' : 'unset' }}
+                onClick={() => settingStore.showImage(state.avatar.image || image())}
+              >
+                <AvatarIcon
+                  format={{ corners: 'md', size: '2xl' }}
+                  avatarUrl={state.avatar.image || image()}
+                />
+              </div>
+            </Match>
+            <Match when={state.avatar.loading}>
+              <div class="flex w-[80px] items-center justify-center">
+                <Loading />
+              </div>
+            </Match>
+          </Switch>
+          <div class="flex w-full flex-col gap-2">
+            <FileInput
+              class="w-full"
+              fieldName="avatar"
+              label="Avatar"
+              helperText='Use the "appearance" attribute in your persona to influence the generated images'
+              accept="image/png,image/jpeg"
+              onUpdate={updateFile}
+            />
+            <Button class="w-fit" onClick={generateAvatar}>
+              Generate
+            </Button>
+          </div>
         </div>
 
         <RadioGroup
@@ -241,7 +303,7 @@ const CreateCharacter: Component = () => {
           label="Scenario"
           helperText="The current circumstances and context of the conversation and the characters."
           placeholder="E.g. {{char}} is in their office working. {{user}} opens the door and walks in."
-          value={state.edit?.scenario}
+          value={downloaded()?.scenario || state.edit?.scenario}
           isMultiline
         />
 
@@ -253,7 +315,7 @@ const CreateCharacter: Component = () => {
           placeholder={
             "E.g. *I smile as you walk into the room* Hello, {{user}}! I can't believe it's lunch time already! Where are we going?"
           }
-          value={state.edit?.greeting}
+          value={downloaded()?.greeting || state.edit?.greeting}
         />
 
         <div>
@@ -274,18 +336,21 @@ const CreateCharacter: Component = () => {
             name="kind"
             horizontal
             options={options}
-            value={state.edit?.persona.kind || 'boostyle'}
+            value={state.edit?.persona.kind || schema() || 'boostyle'}
             onChange={(kind) => setSchema(kind as any)}
           />
         </div>
 
         <Show when={!params.editId && !params.duplicateId}>
-          <PersonaAttributes plainText={schema() === 'text'} />
+          <PersonaAttributes
+            value={downloaded()?.persona.attributes}
+            plainText={schema() === 'text'}
+          />
         </Show>
 
         <Show when={(params.editId || params.duplicateId) && state.edit}>
           <PersonaAttributes
-            value={state.edit?.persona.attributes}
+            value={downloaded()?.persona.attributes || state.edit?.persona.attributes}
             plainText={schema() === 'text'}
           />
         </Show>
@@ -301,7 +366,7 @@ const CreateCharacter: Component = () => {
             </span>
           }
           placeholder="{{user}}: Hello! *waves excitedly* \n{{char}}: *smiles and waves back* Hello! I'm so happy you're here!"
-          value={state.edit?.sampleChat}
+          value={downloaded()?.sampleChat || state.edit?.sampleChat}
         />
 
         <h4 class="text-md font-bold">Character Voice</h4>
@@ -318,6 +383,7 @@ const CreateCharacter: Component = () => {
           </Button>
         </div>
       </form>
+      <ImageModal />
     </div>
   )
 }
