@@ -271,7 +271,7 @@ export function formatCharacter(
   switch (kind || persona.kind) {
     case 'wpp': {
       const attrs = Object.entries(persona.attributes)
-        .map(([key, values]) => `${key}(${values.map(quote).join(' + ')})`)
+        .map(([key, values]) => `${key}(${values?.map(quote).join(' + ') || ''})`)
         .join('\n')
 
       return [`[character("${name}") {`, attrs, '}]'].join('\n')
