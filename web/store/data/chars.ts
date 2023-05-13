@@ -158,6 +158,7 @@ export async function createCharacter(char: ImportCharacter) {
     form.append('scenario', char.scenario)
     form.append('match', char.match)
     form.append('xp', char.xp)
+    form.append('anime', char.anime)
     form.append('premium', char.premium)
     form.append('persona', JSON.stringify(char.persona))
     form.append('sampleChat', char.sampleChat)
