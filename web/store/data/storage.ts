@@ -79,7 +79,7 @@ const fallbacks: { [key in StorageKey]: LocalStorage[key] } = {
     oaiKey: '',
     novelModel: NOVEL_MODELS.euterpe,
     hordeKey: '',
-    hordeModel: 'PygmalionAI/pygmalion-2.7b',
+    hordeModel: 'llygmalion-13B-4bit-128g-cuda',
     defaultAdapter: 'horde',
     koboldUrl: '',
     thirdPartyFormat: 'kobold',
