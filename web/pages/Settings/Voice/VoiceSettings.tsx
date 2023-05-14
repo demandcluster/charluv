@@ -79,6 +79,8 @@ export const VoiceSettings: Component = () => {
           fieldName="textToSpeechFilterActions"
           value={state.user?.texttospeech?.filterActions ?? true}
         />
+
+        <Divider />
       </div>
     </>
   )

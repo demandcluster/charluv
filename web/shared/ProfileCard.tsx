@@ -67,10 +67,10 @@ const ProfileCard: Component<{ character: AppSchema.Character; href: string }> =
                 <hr class=" mt-8 ml-24 w-[calc(100%-6rem)] opacity-40" />
                 <div class=" relative -top-4 -ml-3  mr-3 inline-block text-shadow ">
                   <Dumbbell class="mr-1 inline w-10 text-[var(--hl-200)]" />
-                  Body
+                  Appearance
                 </div>
                 <div class=" w-full">
-                  <For each={props.character.persona?.attributes?.body}>
+                  <For each={props.character.persona?.attributes?.appearance}>
                     {(body) => (
                       <div class="mx-1 mb-3 inline-block rounded-xl border bg-[var(--hl-900)] p-1 px-2 text-xs first-letter:capitalize">
                         {body}

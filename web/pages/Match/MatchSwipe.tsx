@@ -1,7 +1,7 @@
 import { Component, createEffect, createSignal, For, Show } from 'solid-js'
 import Button from '../../shared/Button'
 import PageHeader from '../../shared/PageHeader'
-import { Check, Delete, Heart, Undo2, X, AlignLeft, LayoutList, Image } from 'lucide-solid'
+import { Check, Delete, Heart, Undo2, X, AlignLeft, LayoutList, Image, Star } from 'lucide-solid'
 import { AppSchema } from '../../../srv/db/schema'
 import { A, useNavigate } from '@solidjs/router'
 import AvatarIcon from '../../shared/AvatarIcon'
@@ -371,6 +371,9 @@ const MatchLike: Component<{ character: AppSchema.Character; match: Any }> = (pr
           <div class="text-lg">
             <span class="font-bold">{props.character.name}</span>
           </div>
+          <Show when={props.character.premium === true}>
+            &nbsp; <Star class="text-yellow-400" />
+          </Show>
         </A>
       </div>
       <div class="flex flex-row items-center justify-center gap-2 sm:w-3/12">

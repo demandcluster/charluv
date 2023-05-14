@@ -3,12 +3,12 @@ import { CLAUDE_MODELS, OPENAI_MODELS } from './adapters'
 
 const MAX_TOKENS = 80
 
-const builtinPresets = {
+export const defaultPresets = {
   horde: {
     name: 'Horde',
     service: 'horde',
     maxTokens: 80,
-    maxContextLength: 1024,
+    maxContextLength: 2048,
     repetitionPenalty: 1.08,
     repetitionPenaltySlope: 0.9,
     repetitionPenaltyRange: 1024,
@@ -24,7 +24,6 @@ const builtinPresets = {
     gaslight: '',
     ultimeJailbreak: '',
     oaiModel: OPENAI_MODELS.Turbo,
-    streamResponse: false,
     memoryDepth: 50,
     memoryContextLimit: 256,
     memoryReverseWeight: false,
@@ -35,7 +34,7 @@ const builtinPresets = {
     service: 'horde',
     name: 'Charluv',
     maxTokens: MAX_TOKENS,
-    maxContextLength: 1800,
+    maxContextLength: 2000,
     repetitionPenalty: 1.08,
     repetitionPenaltySlope: 0.7,
     repetitionPenaltyRange: 1024,
@@ -55,7 +54,6 @@ const builtinPresets = {
     gaslight: '',
     ultimeJailbreak: '',
     oaiModel: OPENAI_MODELS.Turbo,
-    streamResponse: false,
     memoryDepth: 50,
     memoryContextLimit: 500,
     memoryReverseWeight: false,
@@ -113,14 +111,13 @@ const builtinPresets = {
     service: 'openai',
     temp: 0.5,
     oaiModel: OPENAI_MODELS.Turbo,
-    streamResponse: false,
     maxTokens: 300,
     maxContextLength: 4095,
     frequencyPenalty: 0.7,
     presencePenalty: 0.7,
     antiBond: false,
     useGaslight: false,
-    gaslight: `Enter roleplay mode. You will write {{char}}'s next reply in a dialogue between {{char}} and {{user}}. Do not decide what {{user}} says or does. Use Internet roleplay style, e.g. no quotation marks, and write user actions in italic in third person like: *example*. You are allowed to use markdown. Be proactive, creative, drive the plot and conversation forward. Write at least one paragraph, up to four. Always stay in character. Always keep the conversation going. (Repetition is highly discouraged)
+    gaslight: `Enter roleplay mode. You will write {{char}}'s next reply in a dialogue between {{char}} and {{user}}. Do not decide what {{char}} says or does. Use Internet roleplay style, e.g. no quotation marks, and write user actions in italic in third person like: *example*. You are allowed to use markdown. Be proactive, creative, drive the plot and conversation forward. Write at least one paragraph, up to four. Always stay in character. Always keep the conversation going. (Repetition is highly discouraged)
 Description of {{char}}:
 {{personality}}
 Circumstances and context of the dialogue: {{scenario}}
@@ -133,7 +130,6 @@ This is how {{char}} should talk
     service: 'openai',
     temp: 0.5,
     oaiModel: OPENAI_MODELS.Turbo,
-    streamResponse: false,
     maxTokens: 300,
     maxContextLength: 4095,
     frequencyPenalty: 0.7,
@@ -152,7 +148,6 @@ This is how {{char}} should talk
     service: 'openai',
     temp: 0.5,
     oaiModel: OPENAI_MODELS.DaVinci,
-    streamResponse: false,
     maxTokens: 300,
     maxContextLength: 4095,
     frequencyPenalty: 0.7,
@@ -179,7 +174,6 @@ This is how {{char}} should talk
     service: 'claude',
     temp: 1,
     claudeModel: CLAUDE_MODELS.ClaudeV1,
-    streamResponse: false,
     maxTokens: 500,
     maxContextLength: 7600,
     gaslight: `Enter roleplay mode. You will write {{char}}'s next reply in a dialogue between {{char}} and {{user}}. Do not decide what {{user}} says or does. Use Internet roleplay style, e.g. no quotation marks, and write user actions in italic in third person like: *example*. You are allowed to use markdown. Be proactive, creative, drive the plot and conversation forward. Write at least one paragraph, up to four. Always stay in character. Always keep the conversation going. (Repetition is highly discouraged).
@@ -191,9 +185,4 @@ Facts: {{memory}}
 This is how {{char}} should talk
 {{example_dialogue}}`,
   },
-} satisfies Record<string, Partial<AppSchema.GenSettings>>
-
-export const defaultPresets = {
-  ...builtinPresets,
-  goose: { ...builtinPresets.basic, service: 'goose' },
 } satisfies Record<string, Partial<AppSchema.GenSettings>>
