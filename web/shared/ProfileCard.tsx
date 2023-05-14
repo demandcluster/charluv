@@ -63,7 +63,7 @@ const ProfileCard: Component<{ character: AppSchema.Character; href: string }> =
                 </For>
               </div>
 
-              <Show when={props.character.persona?.attributes?.body}>
+              <Show when={props.character.persona?.attributes?.appearance}>
                 <hr class=" mt-8 ml-24 w-[calc(100%-6rem)] opacity-40" />
                 <div class=" relative -top-4 -ml-3  mr-3 inline-block text-shadow ">
                   <Dumbbell class="mr-1 inline w-10 text-[var(--hl-200)]" />
