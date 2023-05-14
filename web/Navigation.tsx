@@ -59,13 +59,13 @@ const Navigation: Component = () => {
         <Item href="/privacy-policy">Privacy Policy</Item>
       </div> */}
       <div class="flex h-16 w-full flex-col items-center justify-between border-t-2 border-[var(--bg-700)] px-4">
-        <div class="mt-2 flex w-full items-center justify-between">
-          <div class="flex items-center gap-4">
+        <div class="ellipsis my-auto flex w-full items-center justify-between">
+          <div class="flex max-w-[calc(100%-32px)] items-center gap-4">
             <AvatarIcon
               avatarUrl={user.profile?.avatar}
               format={{ corners: 'circle', size: 'md' }}
             />
-            <div class={user.user?.premium ? 'font-bold text-yellow-500' : 'font-bold'}>
+            <div class={user.user?.premium ? 'ellipsis font-bold text-yellow-500' : 'font-bold'}>
               {user.profile?.handle}
             </div>
             <div id="credits" class="text-bold pr-2">

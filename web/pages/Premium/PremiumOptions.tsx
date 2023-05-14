@@ -92,7 +92,8 @@ const PremiumOptions: Component = () => {
       <PageHeader title="Shop" subtitle="Premium & Credit Options" />
       <section>
         <h4 class="text-bold mt-4 pb-4">
-          None of our store options are reoccurring. Please renew yourself when you want to.
+          None of our store options are reoccurring. Please renew yourself when you want to, they
+          are not subscriptions.
         </h4>
 
         <Show when={!orderId()}>
@@ -168,10 +169,10 @@ const Item: Component<{
 
   return (
     <div
-      class={`group rounded-md bg-teal-500 p-4 ${
+      class={`group rounded-md  p-4 ${
         isItemInCart()
           ? 'cursor-not-allowed bg-yellow-500 text-gray-500 opacity-90'
-          : 'cursor-pointer'
+          : 'cursor-pointer bg-teal-500'
       }`}
       onClick={() => {
         if (!isItemInCart()) {

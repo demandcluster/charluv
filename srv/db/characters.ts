@@ -70,9 +70,12 @@ export async function getPublicCharacter(name: string) {
   return char
 }
 
-export async function getCharacter(userId: string, id: string) {
+export async function getCharacter(
+  userId: string,
+  id: string
+): Promise<AppSchema.Character | undefined> {
   const char = await db('character').findOne({ kind: 'character', _id: id, userId })
-  return char
+  return char || undefined
 }
 
 export async function getCharacters(userId: string) {

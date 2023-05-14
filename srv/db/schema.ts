@@ -89,6 +89,7 @@ export namespace AppSchema {
     memoryId?: string
 
     memberIds: string[]
+    characters?: Record<string, boolean>
 
     name: string
     characterId: string

@@ -1,7 +1,6 @@
-import { useNavigate } from '@solidjs/router'
+import { useNavigate, useParams } from '@solidjs/router'
 import { Check, X } from 'lucide-solid'
 import { Component, createEffect, createMemo, createSignal, For, Show } from 'solid-js'
-import { AppSchema } from '../../../srv/db/schema'
 import Button from '../../shared/Button'
 import Select from '../../shared/Select'
 import Modal from '../../shared/Modal'
@@ -21,49 +20,40 @@ const options = [
 const CreateChatModal: Component<{
   show: boolean
   close: () => void
-  id?: string
-  char?: AppSchema.Character
+  charId?: string
 }> = (props) => {
   let ref: any
 
   const nav = useNavigate()
-
-  const [selectedChar, setChar] = createSignal<AppSchema.Character>()
   const state = characterStore((s) => ({
     chars: s.characters?.list || [],
     loaded: s.characters.loaded,
   }))
 
+  const [selectedId, setSelected] = createSignal<string>()
+
+  const char = createMemo(() =>
+    state.chars.find((ch) => ch._id === selectedId() || ch._id === props.charId)
+  )
+
+  createEffect(() => {
+    if (props.charId) return
+    const curr = selectedId()
+    if (curr) return
+
+    if (!state.chars.length) return
+    setSelected(state.chars[0]._id)
+  })
+
   const user = userStore((s) => s.user || { defaultPreset: '' })
   const presets = presetStore((s) => s.presets)
-
-  const char = createMemo(() => {
-    const curr = selectedChar() || props.char
-    return curr
-  })
 
   const presetOptions = createMemo(() =>
     getPresetOptions(presets).filter((pre) => pre.value !== 'chat')
   )
 
-  createEffect(() => {
-    if (!selectedChar() && !props.char && state.chars.length) {
-      if (props.id) {
-        const char = state.chars.find((ch) => ch._id === props.id)
-        if (char) setChar(char)
-        return
-      }
-
-      setChar(state.chars[0])
-    }
-  })
-
-  const selectChar = (chr: AppSchema.Character | undefined) => {
-    setChar(chr)
-  }
-
   const onCreate = () => {
-    const character = selectedChar() || props.char
+    const character = char()
     if (!character) return
 
     let body
@@ -125,14 +115,15 @@ const CreateChatModal: Component<{
         <div class="mb-4 text-sm">
           The information provided here is only applied to the newly created conversation.
         </div>
-        <Show when={!props.char}>
+        <Show when={!props.charId}>
           <CharacterSelect
+            class="w-48"
             items={state.chars}
             value={char()}
             fieldName="character"
             label="Character"
-            helperText="The conversation's cxentral character"
-            onChange={(c) => selectChar(c!)}
+            helperText="The conversation's central character"
+            onChange={(c) => setSelected(c?._id)}
           />
         </Show>
 

@@ -62,7 +62,9 @@ export const VoiceSettings: Component = () => {
 
         <p class="text-lg font-bold">Text to Speech (Character Voice)</p>
 
-        <p class="italic">You need to configure a voice on the character's edit page.</p>
+        <p class="italic">
+          Only for characters that have a voice <em>(premium only)</em>
+        </p>
 
         <Toggle
           label="Enabled"

@@ -5,11 +5,11 @@ import PageHeader from '../../shared/PageHeader'
 import { Edit, Import, Plus, SortAsc, SortDesc, Trash } from 'lucide-solid'
 import CreateChatModal from './CreateChat'
 import ImportChatModal from './ImportChat'
-import { find, setComponentPageTitle, toDuration, toMap } from '../../shared/util'
+import { find, setComponentPageTitle, toDuration } from '../../shared/util'
 import { ConfirmModal } from '../../shared/Modal'
 import AvatarIcon from '../../shared/AvatarIcon'
 import { AppSchema } from '../../../srv/db/schema'
-import Select, { Option } from '../../shared/Select'
+import Select from '../../shared/Select'
 import Divider from '../../shared/Divider'
 import TextInput from '../../shared/TextInput'
 import Button from '../../shared/Button'
@@ -43,21 +43,21 @@ const sortOptions = [
 const CharacterChats: Component = () => {
   const params = useParams()
   const cache = getListCache()
+  const state = chatStore((s) => ({ list: s.all?.chats || [], chars: s.all?.chars || {} }))
   const chars = characterStore((s) => ({
-    map: toMap(s.characters.list),
     list: s.characters.list,
     loaded: s.characters.loaded,
   }))
 
   const nav = useNavigate()
   const [search, setSearch] = createSignal('')
-  const [char, setChar] = createSignal<AppSchema.Character | undefined>(
-    params.id ? ({ _id: params.id, name: 'Loading' } as AppSchema.Character) : undefined
-  )
+  const [charId, setCharId] = createSignal(params.id)
   const [showCreate, setCreate] = createSignal(false)
   const [showImport, setImport] = createSignal(false)
   const [sortField, setSortField] = createSignal(cache.sort.field)
   const [sortDirection, setSortDirection] = createSignal(cache.sort.direction)
+
+  const character = createMemo(() => chars.list.find((ch) => ch._id === charId()))
 
   createEffect(() => {
     if (!params.id) {
@@ -65,9 +65,8 @@ const CharacterChats: Component = () => {
       return
     }
 
-    const char = chars.map[params.id]
+    const char = state.chars[params.id]
     setComponentPageTitle(char ? `${char.name} chats` : 'Chats')
-    if (char) setChar(char)
   })
 
   createEffect(() => {
@@ -82,22 +81,17 @@ const CharacterChats: Component = () => {
   })
 
   createEffect(() => {
-    if (!char()) return
+    if (!charId()) return
     if (sortField() === 'character-name' || sortField() === 'character-created') {
       setSortField('chat-updated')
     }
   })
 
-  const state = chatStore((s) => {
-    const list = s.all?.chats || []
-
-    return { list }
-  })
-
   const chats = createMemo(() => {
-    const id = char()?._id
+    const id = charId()
+
     return state.list.filter((chat) => {
-      const char = chars.map[chat.characterId]
+      const char = state.chars[chat.characterId]
       const trimmed = search().trim().toLowerCase()
       return (
         (chat.characterId === id || !id) &&
@@ -158,18 +152,19 @@ const CharacterChats: Component = () => {
           </div>
 
           <CharacterSelect
+            class="w-48"
             fieldName="char"
             items={chars.list}
             emptyLabel="All Characters"
-            value={char()}
-            onChange={setChar}
+            value={charId()}
+            onChange={setCharId}
           />
 
           <div class="flex flex-wrap">
             <Select
               class="m-1 bg-[var(--bg-600)]"
               fieldName="sortBy"
-              items={sortOptions.filter((opt) => (char() ? opt.kind === 'chat' : true))}
+              items={sortOptions.filter((opt) => (charId() ? opt.kind === 'chat' : true))}
               value={sortField()}
               onChange={(next) => setSortField(next.value as SortType)}
             />
@@ -190,23 +185,22 @@ const CharacterChats: Component = () => {
         </div>
       </div>
 
-      {chats().length === 0 && <NoChats character={chars.map[params.id]?.name} />}
+      {chats().length === 0 && <NoChats character={state.chars[params.id]?.name} />}
       <Show when={chats().length}>
         <Chats
           chats={chats()}
-          chars={chars.map}
+          chars={state.chars}
           sortField={sortField()}
           sortDirection={sortDirection()}
-          char={char()}
+          charId={charId()}
         />
       </Show>
-      <CreateChatModal
-        show={showCreate()}
-        close={() => setCreate(false)}
-        char={char()}
-        id={params.id}
+      <CreateChatModal show={showCreate()} close={() => setCreate(false)} charId={charId()} />
+      <ImportChatModal
+        show={showImport()}
+        close={() => setImport(false)}
+        char={state.chars[charId()]}
       />
-      <ImportChatModal show={showImport()} close={() => setImport(false)} char={char()} />
     </div>
   )
 }
@@ -216,15 +210,17 @@ const Chats: Component<{
   chars: Record<string, AppSchema.Character>
   sortField: SortType
   sortDirection: SortDirection
-  char?: AppSchema.Character
+  charId?: string
 }> = (props) => {
   const [showDelete, setDelete] = createSignal('')
 
   const groups = createMemo(() => {
     let chars = Object.values(props.chars)
-    if (props.char) {
-      chars = [props.char]
+
+    if (props.charId) {
+      chars = [props.chars[props.charId]]
     }
+
     return groupAndSort(chars, props.chats, props.sortField, props.sortDirection)
   })
 

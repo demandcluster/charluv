@@ -1,10 +1,11 @@
 import * as horde from '../../../common/horde-gen'
-import { createImagePrompt } from '../../../common/image-prompt'
+import { createImagePrompt, getMaxImageContext } from '../../../common/image-prompt'
 import { api, isLoggedIn } from '../api'
 import { getStore } from '../create'
 import { subscribe } from '../socket'
 import { PromptEntities, getPromptEntities, msgsApi } from './messages'
 import { AIAdapter } from '/common/adapters'
+import { decode, encode } from '/common/tokenize'
 
 type GenerateOpts = {
   chatId?: string
@@ -23,12 +24,17 @@ export async function generateImage({ chatId, messageId, onDone, ...opts }: Gene
   const entities = await getPromptEntities()
   const prompt = opts.prompt ? opts.prompt : await createSummarizedImagePrompt(entities)
 
+  const max = getMaxImageContext(entities.user)
+  const trimmed = await encode(prompt)
+    .then((tokens) => tokens.slice(0, max))
+    .then(decode)
+
   if (!isLoggedIn()) {
     return { error: "Sorry, members only.. don't worry it is free!" }
   }
 
   const res = await api.post<{ success: boolean }>(`/chat/${chatId || entities.chat._id}/image`, {
-    prompt,
+    prompt: trimmed,
     user: entities.user,
     messageId,
     ephemeral: opts.ephemeral,

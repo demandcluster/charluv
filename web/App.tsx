@@ -1,5 +1,5 @@
 import { Component, createEffect, createMemo, JSX, Show, lazy } from 'solid-js'
-import { Route, Routes } from '@solidjs/router'
+import { Outlet, Route, Router, Routes } from '@solidjs/router'
 import NavBar from './shared/NavBar'
 import Toasts from './Toasts'
 import CharacterRoutes from './pages/Character'
@@ -10,8 +10,6 @@ import HomePage from './pages/Home'
 import Navigation from './Navigation'
 import Loading from './shared/Loading'
 import Button from './shared/Button'
-import Terms from './pages/Home/terms'
-import Policy from './pages/Home/policy'
 
 import CharacterList from './pages/Character/CharacterList'
 
@@ -22,6 +20,78 @@ import MatchRoutes from './pages/Match'
 import './dots.css'
 
 const App: Component = () => {
+  const state = userStore()
+  const cfg = settingStore()
+
+  return (
+    <Router>
+      <Routes>
+        <Route path="" component={Layout}>
+          <CharacterRoutes />
+          <Route path="/chats" component={lazy(() => import('./pages/Character/ChatList'))} />
+          <Route path="/chat" component={lazy(() => import('./pages/Chat/ChatDetail'))} />
+          <Route path="/chat/:id" component={lazy(() => import('./pages/Chat/ChatDetail'))} />
+          <Route path="/" component={lazy(() => import('./pages/Home'))} />
+          <Route path="/info" component={HomePage} />
+          <Route path="/changelog" component={lazy(() => import('./pages/Home/ChangeLog'))} />
+
+          <Route path="/privacy" component={lazy(() => import('./pages/Home/policy'))} />
+          <Route path="/help" component={lazy(() => import('./pages/Home/Help'))} />
+          <Route path="/terms" component={lazy(() => import('./pages/Home/terms'))} />
+
+          <Route path="/profile" component={lazy(() => import('./pages/Profile'))} />
+          <Route path="/settings" component={lazy(() => import('./pages/Settings'))} />
+          <Route path="/memory" component={lazy(() => import('./pages/Memory'))} />
+          <Route
+            path="/memory/:id"
+            component={lazy(() => import('./pages/Memory/EditMemoryPage'))}
+          />
+          <Route
+            path="/memory/instructions"
+            component={lazy(() => import('./pages/Memory/Instructions'))}
+          />
+          <MatchRoutes />
+          <Route path="/shop" component={PremiumOptions} />
+          <Route path="/thankyou" component={ThankYou} />
+          <Route path="/shop/error" component={Error} />
+          <Route
+            path="/terms-of-service"
+            component={lazy(() => import('./pages/TermsOfService'))}
+          />
+          <Route path="/privacy-policy" component={lazy(() => import('./pages/PrivacyPolicy'))} />
+          <Show when={state.loggedIn}>
+            <Route path="/invites" component={lazy(() => import('./pages/Invite/InvitesPage'))} />
+            <Show when={state.user?.admin}>
+              <Route
+                path="/presets/:id"
+                component={lazy(() => import('./pages/GenerationPresets'))}
+              />
+              <Route
+                path="/presets"
+                component={lazy(() => import('./pages/GenerationPresets/PresetList'))}
+              />
+
+              <Route
+                path="/admin/metrics"
+                component={lazy(() => import('./pages/Admin/Metrics'))}
+              />
+              <Route
+                path="/admin/users"
+                component={lazy(() => import('./pages/Admin/UsersPage'))}
+              />
+            </Show>
+          </Show>
+          <Show when={cfg.config.canAuth}>
+            <Route path="/login" component={LoginPage} />
+          </Show>
+          <Route path="*" component={HomePage} />
+        </Route>
+      </Routes>
+    </Router>
+  )
+}
+
+const Layout: Component = () => {
   const state = userStore()
   const cfg = settingStore()
 
@@ -53,61 +123,7 @@ const App: Component = () => {
         <div class="w-full overflow-y-auto" data-background style={bg()}>
           <div class={`mx-auto h-full w-full max-w-5xl px-2 pt-2 sm:px-3 sm:pt-4`}>
             <Show when={cfg.init}>
-              <Routes>
-                <CharacterRoutes />
-                <Route path="/chats" component={lazy(() => import('./pages/Character/ChatList'))} />
-                <Route path="/chat" component={lazy(() => import('./pages/Chat/ChatDetail'))} />
-                <Route path="/chat/:id" component={lazy(() => import('./pages/Chat/ChatDetail'))} />
-                <Route path="/" component={HomePage} />
-                <Route path="/info" component={HomePage} />
-                <Route path="/changelog" component={lazy(() => import('./pages/Home/ChangeLog'))} />
-                <Route
-                  path="/memory/instructions"
-                  component={lazy(() => import('./pages/Memory/Instructions'))}
-                />
-                <Route
-                  path="/presets"
-                  component={lazy(() => import('./pages/GenerationPresets/PresetList'))}
-                />
-                <Route path="/profile" component={lazy(() => import('./pages/Profile'))} />
-                <Route path="/settings" component={lazy(() => import('./pages/Settings'))} />
-                <Route path="/memory" component={lazy(() => import('./pages/Memory'))} />
-                <Route path="/help" component={lazy(() => import('./pages/Home/Help'))} />
-                <Route
-                  path="/memory/:id"
-                  component={lazy(() => import('./pages/Memory/EditMemoryPage'))}
-                />
-                <MatchRoutes />
-                <Route path="/shop" component={PremiumOptions} />
-                <Route path="/thankyou" component={ThankYou} />
-                <Route path="/shop/error" component={Error} />
-
-                <Show when={state.loggedIn}>
-                  <Route
-                    path="/invites"
-                    component={lazy(() => import('./pages/Invite/InvitesPage'))}
-                  />
-                  <Show when={state.user?.admin}>
-                    <Route
-                      path="/presets/:id"
-                      component={lazy(() => import('./pages/GenerationPresets'))}
-                    />
-                    <Route
-                      path="/admin/metrics"
-                      component={lazy(() => import('./pages/Admin/Metrics'))}
-                    />
-                    <Route
-                      path="/admin/users"
-                      component={lazy(() => import('./pages/Admin/UsersPage'))}
-                    />
-                  </Show>
-                </Show>
-                <Show when={cfg.config.canAuth}>
-                  <Route path="/login" component={LoginPage} />
-                  <Route path="/register" component={LoginPage} />
-                </Show>
-                <Route path="*" component={HomePage} />
-              </Routes>
+              <Outlet />
             </Show>
             <Show when={!cfg.init && cfg.initLoading}>
               <div class="flex h-[80vh] items-center justify-center">
