@@ -123,7 +123,7 @@ const CharacterList: Component = () => {
           <div class="flex w-full justify-between">
             <div>Matches</div>
             <div class="flex text-base">
-              <Show when={user.user.admin}>
+              <Show when={user.user?.admin}>
                 <div class="px-1">
                   <Button onClick={() => setImport(true)}>
                     <Import />
