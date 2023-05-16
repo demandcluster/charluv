@@ -108,7 +108,13 @@ export const generateMessageV2 = handle(async (req, res) => {
     chat.userId,
     body.replyAs._id || body.char._id
   )
-
+  // dirty anti cheat prevent
+  if (replyAs && !replyAs.parent && replyAs.name !== 'Aiva' && user?.admin === false) {
+    const credits = await store.credits.updateCredits(userId!, -200)
+    console.log('[[[CHEATER CAUGHT]]]')
+    sendOne(userId!, { type: 'credits-updated', credits })
+    throw errors.Forbidden
+  }
   if (chat.userId !== userId) {
     const isAllowed = await store.chats.canViewChat(userId, chat)
     if (!isAllowed) throw errors.Forbidden

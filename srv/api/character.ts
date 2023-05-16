@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { assertValid } from 'frisker'
 import { store } from '../db'
 
-import { loggedIn } from './auth'
+import { loggedIn, isAdmin } from './auth'
 import { errors, handle, StatusError } from './wrap'
 import { entityUpload, handleForm } from './upload'
 import { PERSONA_FORMATS } from '../../common/adapters'
@@ -175,10 +175,10 @@ export const createImage = handle(async ({ body, userId, socketId, log }) => {
 })
 
 router.use(loggedIn)
-router.post('/', createCharacter)
+router.post('/', isAdmin, createCharacter)
 router.get('/', getCharacters)
-router.post('/image', createImage)
-router.post('/:id', editCharacter)
+router.post('/image', isAdmin, createImage)
+router.post('/:id', isAdmin, editCharacter)
 router.get('/:id', getCharacter)
 router.delete('/:id', deleteCharacter)
 router.post('/:id/favorite', editCharacterFavorite)

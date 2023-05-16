@@ -23,7 +23,7 @@ export function handle(handler: Handler): express.RequestHandler {
       ...req,
       ip: ip,
     }
-
+console.log('ip',ip)
     try {
       const result = await handler(req as any, res, wrappedNext)
       if (!res.headersSent && !nextCalled && !!result) {
