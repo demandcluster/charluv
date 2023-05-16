@@ -10,9 +10,7 @@ export async function updateCredits(userId: string, amount: number, nextCredits:
     throw errors.NotFound
   }
   const credits = user.credits + amount
-  if (credits < 0) {
-    throw errors.BadRequest
-  }
+
   const nc = nextCredits > 0 ? nextCredits : user.nextCredits
   await db('user')
     .updateOne({ kind: 'user', _id: userId }, { $set: { credits, nextCredits: nc } })

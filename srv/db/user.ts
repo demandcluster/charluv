@@ -78,7 +78,7 @@ export async function createUser(newUser: NewUser, admin?: boolean) {
   const existing = await db('user').findOne({ kind: 'user', username })
 
   if (existing) {
-    throw new StatusError('User already exists', 409)
+    next()
   }
 
   const hash = await encryptPassword(newUser.password)
