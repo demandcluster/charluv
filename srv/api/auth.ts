@@ -9,7 +9,7 @@ export const authMiddleware: any = (req: AppRequest, _res: Response, next: NextF
 
   const header = req.get('authorization')
   if (!header) {
-    return next()
+    return next(errors.Unauthorized)
   }
 
   if (!header.startsWith('Bearer ')) {
