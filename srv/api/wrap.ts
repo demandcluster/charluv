@@ -16,12 +16,11 @@ export function handle(handler: Handler): express.RequestHandler {
         res.json(result)
       }
     } catch (ex) {
-        req.log.error({ err: ex }, 'Error occurred handling request')
-        if (!res.headersSent) next(ex)
-
-      }
+      req.log.error({ err: ex }, 'Error occurred handling request')
+      if (!res.headersSent) next(ex)
     }
   }
+
   return wrapped as any as express.RequestHandler
 }
 
