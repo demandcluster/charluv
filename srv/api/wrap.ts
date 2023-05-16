@@ -16,15 +16,9 @@ export function handle(handler: Handler): express.RequestHandler {
         res.json(result)
       }
     } catch (ex) {
-      console.log('I am catching this stuff..')
-      if (ex instanceof StatusError) {
-        // Handle StatusError explicitly
-        if (!res.headersSent) {
-          res.status(ex.status).json({ error: ex.msg })
-        }
-      } else {
-        // Handle other errors
+        req.log.error({ err: ex }, 'Error occurred handling request')
         if (!res.headersSent) next(ex)
+
       }
     }
   }

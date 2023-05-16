@@ -6,7 +6,7 @@ import { AppSchema } from './schema'
 import { config } from '../config'
 import { NOVEL_MODELS } from '../../common/adapters'
 import { logger } from '../logger'
-import { errors } from '../api/wrap'
+import { errors, handle, StatusError } from '../api/wrap'
 import { encryptPassword, now, STARTER_CHARACTER } from './util'
 
 export type NewUser = {
@@ -78,7 +78,7 @@ export async function createUser(newUser: NewUser, admin?: boolean) {
   const existing = await db('user').findOne({ kind: 'user', username })
 
   if (existing) {
-    return { error: 'Already exists' } // throw errors.BadRequest
+    throw new StatusError('Username already exists', 400)
   }
 
   const hash = await encryptPassword(newUser.password)
