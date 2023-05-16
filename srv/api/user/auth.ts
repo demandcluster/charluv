@@ -10,6 +10,7 @@ export const register = handle(async (req) => {
   const valid = await store.invitecode.checkInviteCode(req.body.invitecode)
   if (!valid) {
     throw new StatusError('Invalid invite code', 401)
+    return
   }
   const { profile, token, user } = await store.users.createUser(req.body)
   await store.invitecode.takeInviteCode(req.body.invitecode)
