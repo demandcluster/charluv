@@ -9,7 +9,7 @@ export const authMiddleware: any = (req: AppRequest, _res: Response, next: NextF
 
   const header = req.get('authorization')
   if (!header) {
-    return next(errors.Unauthorized)
+    return next()
   }
 
   if (!header.startsWith('Bearer ')) {
@@ -21,6 +21,7 @@ export const authMiddleware: any = (req: AppRequest, _res: Response, next: NextF
     const payload = jwt.verify(token, config.jwtSecret)
     req.user = payload as any
     req.userId = (payload as any).userId
+   
     req.log.setBindings({ user: (payload as any)?.username || 'anonymous' })
     return next()
   } catch (ex) {
