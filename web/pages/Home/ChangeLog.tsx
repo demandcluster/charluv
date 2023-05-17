@@ -4,9 +4,17 @@ import { markdown } from '../../shared/markdown'
 import { setComponentPageTitle } from '../../shared/util'
 
 const text = `
-## Change Log
+_15 May 2023_
+- Add 'avatar wrap-around'. Enable this in the UI settings will allow text to wrap around avatars in messages.
+- Fix 'failing to send a message' after editing the chat.
 
-_10 May 2023_ 
+_13 May 2023_
+- Introduce "multiple character" capability. Add characters to your chats using the 'Participants' option.
+  - Multi-user + Multi-character is supported.
+- Add 'OOC toggle' adjacent to message input for multi-user rooms
+
+_10 May 2023_
+- Add experimental chat summarisation for image prompts. Enable it in IMAGE SETTINGS. Only works if your preset uses OpenAI.
 - Fix issues with Voice playback.
 
 _8 May 2023_

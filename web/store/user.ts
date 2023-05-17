@@ -17,6 +17,7 @@ export type UISettings = {
   avatarSize: AvatarSize
   avatarCorners: AvatarCornerRadius
   font: FontSetting
+  imageWrap: boolean
 
   /** 0 -> 1. 0 = transparent. 1 = opaque */
   msgOpacity: number
@@ -40,6 +41,7 @@ const defaultUIsettings: UISettings = {
   charFemale: true,
   charTrans: true,
   charOther: true,
+  imageWrap: false,
 }
 
 const fontFaces: { [key in FontSetting]: string } = {

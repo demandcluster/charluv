@@ -193,12 +193,7 @@ const CreateCharacter: Component = () => {
     <div>
       <PageHeader
         title={`${params.editId ? 'Edit' : params.duplicateId ? 'Copy' : 'Create'} a Character`}
-        subtitle={
-          <span>
-           Only admins can create characters.
-           
-          </span>
-        }
+        subtitle={<span>Only admins can create characters.</span>}
       />
       <Show when={user.admin === true}>
         <form class="flex flex-col gap-4" onSubmit={onSubmit} ref={ref}>
