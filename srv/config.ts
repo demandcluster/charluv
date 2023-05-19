@@ -80,6 +80,7 @@ export const config = {
   discordId: env('DISCORD_ID', ''),
   hordeKeyPremium: env('HORDE_KEY_PREMIUM', ''),
   hordeKeyImages: env('HORDE_KEY_IMAGES', ''),
+  elevenLabsPremium: env('ELEVENLABS_PREMIUM', ''),
   adapters: env('ADAPTERS', 'novel,horde,kobold,luminai,openai,scale,claude,ooba,goose')
     .split(',')
     .filter((i) => !!i && i in ADAPTER_LABELS) as AIAdapter[],

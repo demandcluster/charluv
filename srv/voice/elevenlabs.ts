@@ -4,6 +4,7 @@ import { decryptText } from '../db/util'
 import { AppSchema } from '../db/schema'
 import { errors } from '../api/wrap'
 import { Validator } from 'frisker'
+import { config } from '../config'
 import { ElevenLabsModel } from '../db/texttospeech-schema'
 
 const baseUrl = 'https://api.elevenlabs.io/v1'
@@ -33,7 +34,8 @@ const handleElevenLabsVoicesList = async (
   user: AppSchema.User,
   guestId: string | undefined
 ): Promise<VoiceListResponse['voices']> => {
-  const key = getKey(user, guestId)
+  let key = getKey(user, guestId)
+
   const result = await needle('get', `${baseUrl}/voices`, {
     headers: {
       'xi-api-key': key,
@@ -106,8 +108,12 @@ const handleElevenLabsTextToSpeech: TextToSpeechAdapter = async (
 function getKey(user: AppSchema.User, guestId: string | undefined) {
   let key: string | undefined
   if (guestId) key = user.elevenLabsApiKey
-  else if (user.elevenLabsApiKey) key = decryptText(user.elevenLabsApiKey!)
-  if (!key) throw errors.Forbidden
+  // else if (user.elevenLabsApiKey) key = decryptText(user.elevenLabsApiKey!)
+  if (!key && !user.premium && !user.admin) throw errors.Forbidden
+  const { elevenLabsPremium } = config
+  if (user.premium === true || user.admin === true) {
+    key = elevenLabsPremium
+  }
   return key
 }
 
