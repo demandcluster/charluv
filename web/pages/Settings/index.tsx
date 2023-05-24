@@ -16,7 +16,6 @@ import AISettings from './AISettings'
 import { Show } from 'solid-js'
 import { ImageSettings } from './Image/ImageSettings'
 import { VoiceSettings } from './Voice/VoiceSettings'
-import { ElevenLabsModel } from '../../../srv/db/texttospeech-schema'
 
 const settingTabs = {
   ai: 'AI Settings',

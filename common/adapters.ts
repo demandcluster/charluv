@@ -92,6 +92,7 @@ export const CLAUDE_MODELS = {
 export const NOVEL_MODELS = {
   euterpe: 'euterpe-v2',
   krake: 'krake-v2',
+  clio_v1: 'clio-v1',
 } satisfies { [key: string]: string }
 
 export type HordeModel = {
@@ -180,9 +181,9 @@ export const adapterSettings: {
   claudeModel: ['claude', 'kobold'],
 
   oaiModel: ['openai', 'kobold'],
-  frequencyPenalty: ['openai', 'kobold'],
-  presencePenalty: ['openai', 'kobold'],
-  streamResponse: ['openai', 'kobold'],
+  frequencyPenalty: ['openai', 'kobold', 'novel'],
+  presencePenalty: ['openai', 'kobold', 'novel'],
+  streamResponse: ['openai', 'kobold', 'novel'],
 
   addBosToken: ['ooba'],
   banEosToken: ['ooba'],

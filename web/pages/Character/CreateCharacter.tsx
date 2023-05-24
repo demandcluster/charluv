@@ -56,7 +56,7 @@ const animeOptions = [
 const CreateCharacter: Component = () => {
   let ref: any
   const params = useParams<{ editId?: string; duplicateId?: string }>()
-  const [query, setQuery] = useSearchParams()
+  const [query] = useSearchParams()
   setComponentPageTitle(
     params.editId ? 'Edit character' : params.duplicateId ? 'Copy character' : 'Create character'
   )
@@ -124,6 +124,7 @@ const CreateCharacter: Component = () => {
   }
 
   const generateAvatar = async () => {
+    const { imagePrompt } = getStrictForm(ref, { imagePrompt: 'string' })
     if (!user) {
       toastStore.error(`Image generation settings missing`)
       return
@@ -136,7 +137,7 @@ const CreateCharacter: Component = () => {
     }
 
     try {
-      characterStore.generateAvatar(user, persona)
+      characterStore.generateAvatar(user, imagePrompt || persona)
     } catch (ex: any) {
       toastStore.error(ex.message)
     }
@@ -196,52 +197,58 @@ const CreateCharacter: Component = () => {
         subtitle={<span>Only admins can create characters.</span>}
       />
       <Show when={user.admin === true}>
-        <form class="flex flex-col gap-4" onSubmit={onSubmit} ref={ref}>
-          <TextInput
-            fieldName="name"
-            required
-            label="Character Name"
-            helperText="The name of your character."
-            placeholder=""
-            value={downloaded()?.name || state.edit?.name}
-          />
+        
+      <form class="flex flex-col gap-4" onSubmit={onSubmit} ref={ref}>
+        <TextInput
+          fieldName="name"
+          required
+          label="Character Name"
+          helperText="The name of your character."
+          placeholder=""
+          value={downloaded()?.name || state.edit?.name}
+        />
 
-          <TextInput
-            fieldName="description"
-            label="Description"
-            helperText="A description or label for your character. This is will not influence your character in any way."
-            placeholder=""
-            value={downloaded()?.description || state.edit?.description}
-          />
+        <TextInput
+          fieldName="description"
+          label="Description"
+          helperText="A description or label for your character. This is will not influence your character in any way."
+          placeholder=""
+          value={downloaded()?.description || state.edit?.description}
+        />
 
-          <div class="flex w-full gap-2">
-            <Switch>
-              <Match when={!state.avatar.loading}>
-                <div
-                  class="flex items-center"
-                  style={{ cursor: state.avatar.image || image() ? 'pointer' : 'unset' }}
-                  onClick={() => settingStore.showImage(state.avatar.image || image())}
-                >
-                  <AvatarIcon
-                    format={{ corners: 'md', size: '2xl' }}
-                    avatarUrl={state.avatar.image || image()}
-                  />
-                </div>
-              </Match>
-              <Match when={state.avatar.loading}>
-                <div class="flex w-[80px] items-center justify-center">
-                  <Loading />
-                </div>
-              </Match>
-            </Switch>
-            <div class="flex w-full flex-col gap-2">
-              <FileInput
-                class="w-full"
-                fieldName="avatar"
-                label="Avatar"
-                helperText='Use the "appearance" attribute in your persona to influence the generated images'
-                accept="image/png,image/jpeg"
-                onUpdate={updateFile}
+        <div class="flex w-full gap-2">
+          <Switch>
+            <Match when={!state.avatar.loading}>
+              <div
+                class="flex items-center"
+                style={{ cursor: state.avatar.image || image() ? 'pointer' : 'unset' }}
+                onClick={() => settingStore.showImage(state.avatar.image || image())}
+              >
+                <AvatarIcon
+                  format={{ corners: 'md', size: '2xl' }}
+                  avatarUrl={state.avatar.image || image()}
+                />
+              </div>
+            </Match>
+            <Match when={state.avatar.loading}>
+              <div class="flex w-[80px] items-center justify-center">
+                <Loading />
+              </div>
+            </Match>
+          </Switch>
+          <div class="flex w-full flex-col gap-2">
+            <FileInput
+              class="w-full"
+              fieldName="avatar"
+              label="Avatar"
+              helperText='Use the "appearance" attribute in your persona to influence the generated images'
+              accept="image/png,image/jpeg"
+              onUpdate={updateFile}
+            />
+            <div class="flex gap-2">
+              <TextInput
+                fieldName="imagePrompt"
+                placeholder='Image prompt: Leave empty to use "looks / "appearance"'
               />
               <Button class="w-fit" onClick={generateAvatar}>
                 Generate
