@@ -238,7 +238,7 @@ const MatchList: Component = () => {
               </div>
             </Match>
             <Match when={getNextView() == 'likes'}>
-              <div class="flex w-full flex-col gap-2 ">
+              <div class="h-96 max-h-[90%] sm:h-[550px] sm:max-h-[550px] flex w-full flex-col gap-2 ">
                 <For each={charsList().list}>
                   {(char, i) => (
                     <DSwipeCard
@@ -254,7 +254,7 @@ const MatchList: Component = () => {
                 </For>
               </div>
               <Show when={charsList().list && charsList().list.length > 0}>
-                <div class=" m-[26em] mx-auto mb-4 text-center pb-2 md:w-[26rem] sm:mt-[36em]">
+                <div class=" mx-auto text-center md:w-[26rem] mt-3 sm:mt-6 mb-3 sm:mb-6">
                   <button
                     onclick={() => buttonSwipe('left')}
                     class={`${
@@ -340,7 +340,6 @@ const DSwipeCard: Component<{ character: AppSchema.Character; match: Any }> = (p
           <div class=" absolute size  bottom-6 w-full p-2 text-3xl text-white shadow-black text-shadow-lg sm:bottom-10 sm:text-5xl">
             <span class="font-black ">{props.character.name}</span> {age}
           </div>
-          <Suspense>
             <div class=" absolute bottom-1 h-8 overflow-hidden sm:h-10">
               <For each={props.character.persona.attributes.likes}>
                 {(attr) => (
@@ -350,7 +349,6 @@ const DSwipeCard: Component<{ character: AppSchema.Character; match: Any }> = (p
                 )}
               </For>
             </div>
-          </Suspense>
         </div>
       </SwipeCard>
     </div>
