@@ -24,6 +24,7 @@ export const _createSwipeCard = (initialProps: ParentProps<_SwipeCardProps>) => 
     let isDragging = false;
     let rotation = 0;
     let speed: _Speed = { x: 0, y: 0 };
+    const speedTotal = { x: 0, y: 0 };
     let lastPosition: _TemporalCoordinate = {
         x: 0,
         y: 0,
@@ -49,7 +50,15 @@ export const _createSwipeCard = (initialProps: ParentProps<_SwipeCardProps>) => 
         });
 
         lastPosition = finalPosition;
-        props.onMove(_calcDirection(speed));
+        
+        speedTotal.x += speed.x;
+        speedTotal.y += speed.y;
+        if(speedTotal.x > 2500 || speedTotal.x < -2500 || speedTotal.y > 2500 || speedTotal.y < -2500){
+            // console.log("speedTotal4", speedTotal);
+            props.onMove(_calcDirection(speedTotal));
+            speedTotal.x = 0;
+            speedTotal.y = 0;
+        } 
     };
 
 
