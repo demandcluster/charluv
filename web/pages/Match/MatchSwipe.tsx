@@ -254,24 +254,24 @@ const MatchList: Component = () => {
                 </For>
               </div>
               <Show when={charsList().list && charsList().list.length > 0}>
-                <div class=" m-[26em] mx-auto mb-4 w-96 max-w-5xl pl-2 pb-2 md:w-[26rem] sm:mt-[36em]">
+                <div class=" m-[26em] mx-auto mb-4 text-center pb-2 md:w-[26rem] sm:mt-[36em]">
                   <button
                     onclick={() => buttonSwipe('left')}
                     class={`${
                       colorSwipeMove().left
-                    } " " mx-3 h-16 w-16 rounded-full border-2 border-solid border-red-500 p-2 font-bold text-white shadow-lg duration-200 md:h-20 md:w-20 md:hover:scale-125`}
+                    }  mx-3 h-16 w-16 rounded-full border-2 border-solid border-red-500 p-2 font-bold text-white shadow-lg duration-200 md:h-20 md:w-20 md:hover:scale-125`}
                   >
-                    <X size={40} class={`${colorSwipeMove().left} "  icon-button " inline-block`} />
+                    <X size={40} class={`${colorSwipeMove().left} icon-button inline-block`} />
                   </button>
                   <button
                     onclick={() => showProfile()}
                     class={`${
                       colorSwipeMove().up
-                    } " " mx-3 h-14 w-14 rounded-full border-2 border-solid border-cyan-300 p-2 align-bottom font-bold text-white shadow-lg duration-200 disabled:opacity-10 md:h-16 md:w-16 md:hover:scale-125`}
+                    } mx-3 h-14 w-14 rounded-full border-2 border-solid border-cyan-300 p-2 align-bottom font-bold text-white shadow-lg duration-200 disabled:opacity-10 md:h-16 md:w-16 md:hover:scale-125`}
                   >
                     <AlignLeft
                       size={30}
-                      class={`${colorSwipeMove().up} " icon-button inline-block" w-6`}
+                      class={`${colorSwipeMove().up}  icon-button inline-block w-6`}
                     />
                   </button>
                   <button
@@ -279,7 +279,7 @@ const MatchList: Component = () => {
                     onclick={() => SwipeUndo()}
                     class={`${
                       colorSwipeMove().down
-                    } " " mx-3 h-14 w-14 rounded-full border-2 border-solid border-orange-300 p-2 align-bottom font-bold text-white shadow-lg duration-200 disabled:opacity-60 disabled:hover:scale-100 md:h-16 md:w-16 md:hover:scale-125`}
+                    }  mx-3 h-14 w-14 rounded-full border-2 border-solid border-orange-300 p-2 align-bottom font-bold text-white shadow-lg duration-200 disabled:opacity-60 disabled:hover:scale-100 md:h-16 md:w-16 md:hover:scale-125`}
                   >
                     <Undo2
                       size={30}
@@ -290,13 +290,13 @@ const MatchList: Component = () => {
                     onclick={() => buttonSwipe('right')}
                     class={`${
                       colorSwipeMove().right
-                    } " " mx-3 h-16 w-16 rounded-full border-2 border-solid border-emerald-400 p-2 font-bold text-white shadow-lg duration-200 md:h-20 md:w-20 md:hover:scale-125`}
+                    }  mx-3 h-16 w-16 rounded-full border-2 border-solid border-emerald-400 p-2 font-bold text-white shadow-lg duration-200 md:h-20 md:w-20 md:hover:scale-125`}
                   >
                     <Heart
                       size={40}
                       class={`${
                         colorSwipeMove().right
-                      }  " icon-button " inline-block fill-emerald-400`}
+                      }  icon-button  inline-block fill-emerald-400`}
                     />
                   </button>
                 </div>
@@ -319,7 +319,7 @@ const DSwipeCard: Component<{ character: AppSchema.Character; match: Any }> = (p
     ? props.character.persona.attributes.age[0].split(' ')[0]
     : ''
   return (
-    <div class="absolute w-full max-w-5xl">
+    <div class=" w-full max-w-5xl">
       <SwipeCard
         zindex="5"
         class="fixed right-[5%] left-[5%] m-auto h-96 max-h-[90%] w-96 max-w-[90%] rounded-lg border-[10px] border-solid border-[var(--bg-800)] bg-[var(--bg-800)] shadow-lg  md:right-[10%] md:left-[10%] md:border-[20px] sm:h-3/4  sm:max-h-[550px] sm:w-9/12 sm:max-w-[550px] lg:right-[calc(14%-18.5rem)]"
@@ -334,14 +334,14 @@ const DSwipeCard: Component<{ character: AppSchema.Character; match: Any }> = (p
         onMove={props.swipeMovement}
       >
         <div
-          class="absolute h-full max-h-full w-full max-w-full bg-cover"
+          class=" h-full max-h-full w-full max-w-full bg-cover"
           style={{ 'background-image': `url(${getAssetUrl(props.character.avatar)})` }}
         >
-          <div class="size absolute bottom-6 w-full p-2 text-3xl text-white shadow-black text-shadow-lg sm:bottom-10 sm:text-5xl">
+          <div class=" absolute size  bottom-6 w-full p-2 text-3xl text-white shadow-black text-shadow-lg sm:bottom-10 sm:text-5xl">
             <span class="font-black ">{props.character.name}</span> {age}
           </div>
           <Suspense>
-            <div class="absolute bottom-1 h-8 overflow-hidden sm:h-10">
+            <div class=" absolute bottom-1 h-8 overflow-hidden sm:h-10">
               <For each={props.character.persona.attributes.likes}>
                 {(attr) => (
                   <div class=" float-left m-1 rounded-md border bg-[var(--hl-900)] bg-opacity-80 px-2 py-[5px] text-[8px] capitalize sm:py-2 sm:text-[12px]">
