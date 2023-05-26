@@ -319,7 +319,7 @@ const DSwipeCard: Component<{ character: AppSchema.Character; match: Any }> = (p
     ? props.character.persona.attributes.age[0].split(' ')[0]
     : ''
   return (
-    <div class=" w-full max-w-5xl">
+    <div class="absolute w-full max-w-5xl">
       <SwipeCard
         zindex="5"
         class="fixed right-[5%] left-[5%] m-auto h-96 max-h-[90%] w-96 max-w-[90%] rounded-lg border-[10px] border-solid border-[var(--bg-800)] bg-[var(--bg-800)] shadow-lg  md:right-[10%] md:left-[10%] md:border-[20px] sm:h-3/4  sm:max-h-[550px] sm:w-9/12 sm:max-w-[550px] lg:right-[calc(14%-18.5rem)]"
@@ -334,7 +334,7 @@ const DSwipeCard: Component<{ character: AppSchema.Character; match: Any }> = (p
         onMove={props.swipeMovement}
       >
         <div
-          class=" h-full max-h-full w-full max-w-full bg-cover"
+          class="absolute h-full max-h-full w-full max-w-full bg-cover"
           style={{ 'background-image': `url(${getAssetUrl(props.character.avatar)})` }}
         >
           <div class=" absolute size  bottom-6 w-full p-2 text-3xl text-white shadow-black text-shadow-lg sm:bottom-10 sm:text-5xl">
