@@ -9,7 +9,7 @@ import { ElevenLabsModel } from '../db/texttospeech-schema'
 
 const baseUrl = 'https://api.elevenlabs.io/v1'
 
-const valid: Validator = {
+const validator: Validator = {
   service: 'string',
   voiceId: 'string',
   model: 'string',
@@ -118,7 +118,7 @@ function getKey(user: AppSchema.User, guestId: string | undefined) {
 }
 
 export const elevenlabsHandler = {
-  valid,
+  validator,
   getVoices: handleElevenLabsVoicesList,
   generateVoice: handleElevenLabsTextToSpeech,
 }

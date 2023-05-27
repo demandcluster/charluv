@@ -6,6 +6,7 @@ import {
   Github,
   Heart,
   Home,
+  HeartHandshake,
   Info,
   LogIn,
   LogOut,
@@ -84,6 +85,7 @@ const Navigation: Component = () => {
 
 const UserNavigation: Component = () => {
   const user = userStore()
+  const cfg = settingStore()
 
   return (
     <>
@@ -101,12 +103,15 @@ const UserNavigation: Component = () => {
       <Item href="/chats">
         <MessageCircle /> Chats
       </Item>
+
       <Item href="/memory">
         <Book /> Memory
       </Item>
+
       <Item href="/invites">
         <MailPlus /> Invites <InviteBadge />
       </Item>
+
       <Item href="/settings">
         <Settings /> Settings
       </Item>
@@ -196,3 +201,13 @@ const InviteBadge: Component = () => {
 }
 
 export default Navigation
+
+const ExternalLink: Component<{ href: string; newtab?: boolean; children?: any }> = (props) => (
+  <a
+    class="flex h-12 items-center justify-start gap-4 rounded-xl px-2 hover:bg-[var(--bg-700)]"
+    href={props.href}
+    target={props.newtab ? '_blank' : ''}
+  >
+    {props.children}
+  </a>
+)

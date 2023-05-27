@@ -169,7 +169,7 @@ export const msgStore = createStore<MsgState>(
         return
       }
 
-      const [_, replace] = msgs.slice(-2)
+      const replace = { ...msgs[msgs.length - 1], voiceUrl: undefined }
       yield {
         partial: '',
         waiting: { chatId, mode: 'retry', characterId: replace.characterId! },
@@ -242,7 +242,9 @@ export const msgStore = createStore<MsgState>(
       if (res.error) {
         toastStore.error(`(Send) Generation request failed: ${res?.error ?? 'Unknown error'}`)
         yield { partial: undefined, waiting: undefined }
-      } else if (res.result) {
+      }
+
+      if (res.result) {
         onSuccess?.()
       }
     },
@@ -317,7 +319,7 @@ export const msgStore = createStore<MsgState>(
         return
       }
 
-      const res = await voiceApi.textToSpeech({
+      const res = await voiceApi.chatTextToSpeech({
         chatId: activeChatId,
         messageId,
         text,
@@ -600,8 +602,15 @@ subscribe('voice-generated', { chatId: 'string', messageId: 'string', url: 'stri
 })
 
 subscribe('message-error', { error: 'any', chatId: 'string' }, (body) => {
+  const { retrying, msgs } = msgStore.getState()
   toastStore.error(`Failed to generate response: ${body.error}`)
-  msgStore.setState({ partial: undefined, waiting: undefined })
+
+  let nextMsgs = msgs
+  if (retrying) {
+    nextMsgs = msgs.concat(retrying)
+  }
+
+  msgStore.setState({ partial: undefined, waiting: undefined, msgs: nextMsgs, retrying: undefined })
 })
 
 subscribe('messages-deleted', { ids: ['string'] }, (body) => {

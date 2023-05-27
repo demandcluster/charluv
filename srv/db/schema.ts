@@ -151,6 +151,7 @@ export namespace AppSchema {
     name: string
     description?: string
     culture?: string
+    tags?: string[]
     persona: Persona
     greeting: string
     scenario: string
@@ -279,6 +280,7 @@ export namespace AppSchema {
     frequencyPenalty?: number
     presencePenalty?: number
     oaiModel?: string
+    novelModel?: string
     claudeModel?: string
     streamResponse?: boolean
 
@@ -300,6 +302,8 @@ export namespace AppSchema {
     assetPrefix: string
     selfhosting: boolean
     registered: Array<Omit<RegisteredAdapter, 'contextLimit'>>
+    maintenance?: string
+    patreon?: boolean
   }
 
   export interface MemoryBook {

@@ -66,6 +66,7 @@ const Settings: Component = () => {
       textToSpeechFilterActions,
 
       elevenLabsApiKey,
+
       summariseChat,
       summaryPrompt,
 

@@ -7,17 +7,30 @@ import { errors, handle, StatusError } from './wrap'
 import { entityUpload, handleForm } from './upload'
 import { PERSONA_FORMATS } from '../../common/adapters'
 import { AppSchema } from '../db/schema'
+import { CharacterUpdate } from '../db/characters'
 import { getVoiceService } from '../voice'
 import { generateImage } from '../image'
 import { v4 } from 'uuid'
 
 const router = Router()
 
-const valid = {
-  name: 'string',
+const characterValidator = {
+  name: 'string?',
   description: 'string?',
   culture: 'string?',
   avatar: 'string?',
+  scenario: 'string?',
+  greeting: 'string?',
+  sampleChat: 'string?',
+  persona: 'string?',
+  favorite: 'boolean?',
+  voice: 'string?',
+  tags: 'string?',
+} as const
+
+const newCharacterValidator = {
+  ...characterValidator,
+  name: 'string',
   scenario: 'string',
   greeting: 'string',
   sampleChat: 'string',
@@ -25,20 +38,21 @@ const valid = {
   match: 'string',
   premium: 'string',
   anime: 'string',
-  persona: {
-    kind: PERSONA_FORMATS,
-    attributes: 'any',
-  },
+  persona: 'string',
   originalAvatar: 'string?',
-  favorite: 'boolean?',
-  voice: 'string?',
+} as const
+
+const personaValidator = {
+  kind: PERSONA_FORMATS,
+  attributes: 'any',
 } as const
 
 const createCharacter = handle(async (req) => {
-  const body = handleForm(req, { ...valid, persona: 'string' })
-  const persona = JSON.parse(body.persona)
-  assertValid(valid.persona, persona)
+  const body = handleForm(req, newCharacterValidator)
+  const persona = JSON.parse(body.persona) as AppSchema.Persona
+  assertValid(personaValidator, persona)
   const voice = parseAndValidateVoice(body.voice)
+  const tags = toArray(body.tags)
 
   const char = await store.characters.createCharacter(req.user?.userId!, {
     name: body.name,
@@ -55,6 +69,7 @@ const createCharacter = handle(async (req) => {
     avatar: body.originalAvatar,
     favorite: false,
     voice,
+    tags,
   })
 
   const filename = await entityUpload(
@@ -78,35 +93,41 @@ const getCharacters = handle(async ({ userId }) => {
 
 const editCharacter = handle(async (req) => {
   const id = req.params.id
-  const body = await handleForm(req, { ...valid, persona: 'string', voice: 'string?' })
-  const persona = JSON.parse(body.persona)
-  const voice = parseAndValidateVoice(body.voice)
+  const body = handleForm(req, characterValidator)
 
-  assertValid(valid.persona, persona)
+  const update: CharacterUpdate = {
+    name: body.name,
+    description: body.description,
+    culture: body.culture,
+    greeting: body.greeting,
+    scenario: body.scenario,
+    sampleChat: body.sampleChat,
+  }
+
+  if (body.persona) {
+    const persona = JSON.parse(body.persona) as AppSchema.Persona
+    assertValid(personaValidator, persona)
+    update.persona = persona
+  }
+
+  if (body.voice) {
+    update.voice = parseAndValidateVoice(body.voice)
+  }
+
+  if (body.tags) {
+    update.tags = toArray(body.tags)
+  }
 
   const filename = await entityUpload(
     'char',
     id,
     body.attachments.find((a) => a.field === 'avatar')
   )
+  if (filename) {
+    update.avatar = filename + `?v=${v4().slice(0, 4)}`
+  }
 
-  const avatar = filename ? filename + `?v=${v4().slice(0, 4)}` : undefined
-
-  const char = await store.characters.updateCharacter(id, req.userId!, {
-    name: body.name,
-    persona,
-    avatar,
-    xp: Number(body.xp),
-    premium: body.premium.toString() === 'true',
-    match: body.match.toString() === 'true',
-    anime: body.anime.toString() === 'true',
-    description: body.description,
-    culture: body.culture,
-    greeting: body.greeting,
-    scenario: body.scenario,
-    sampleChat: body.sampleChat,
-    voice,
-  })
+  const char = await store.characters.updateCharacter(id, req.userId!, update)
 
   return char
 })
@@ -153,7 +174,7 @@ function parseAndValidateVoice(json?: string) {
 
   if (!service) return
 
-  assertValid(service.valid, obj)
+  assertValid(service.validator, obj)
   return obj as unknown as AppSchema.Character['voice']
 }
 
@@ -185,3 +206,19 @@ router.post('/:id/favorite', editCharacterFavorite)
 router.delete('/:id/avatar', removeAvatar)
 
 export default router
+
+function toArray(value?: string) {
+  const parsed = tryParse(value)
+  if (!parsed) return
+
+  assertValid({ parsed: ['string'] }, { parsed })
+  return parsed
+}
+
+function tryParse(value?: any) {
+  if (!value) return
+  try {
+    const obj = JSON.parse(value)
+    return obj
+  } catch (ex) {}
+}

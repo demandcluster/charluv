@@ -1,6 +1,7 @@
 import type { GenerateRequestV2 } from '../srv/adapter/type'
 import type { AppSchema } from '../srv/db/schema'
-import { AIAdapter, OPENAI_MODELS } from './adapters'
+import { AIAdapter, NOVEL_MODELS, OPENAI_MODELS } from './adapters'
+import { IMAGE_SUMMARY_PROMPT } from './image'
 import { buildMemoryPrompt, MEMORY_PREFIX } from './memory'
 import { defaultPresets, getFallbackPreset, isDefaultPreset } from './presets'
 import { Encoder } from './tokenize'
@@ -31,6 +32,7 @@ export type PromptConfig = {
 }
 
 export type PromptOpts = {
+  kind?: GenerateRequestV2['kind']
   chat: AppSchema.Chat
   char: AppSchema.Character
   user: AppSchema.User
@@ -150,9 +152,8 @@ export function buildPrompt(
     pre.push(parts.gaslight)
   }
 
-  const post = [
-    opts.replyAs ? opts.replyAs.name : opts.kind === 'self' ? `${sender}:` : `${char.name}:`,
-  ]
+  const post = createPostPrompt(opts)
+
   if (opts.continue) {
     post.unshift(`${char.name}: ${opts.continue}`)
   }
@@ -189,7 +190,7 @@ export function buildPrompt(
 export function getPromptParts(
   opts: Pick<
     PromptOpts,
-    'chat' | 'char' | 'members' | 'continue' | 'settings' | 'user' | 'book' | 'replyAs'
+    'kind' | 'chat' | 'char' | 'members' | 'continue' | 'settings' | 'user' | 'book' | 'replyAs'
   >,
   lines: string[],
   encoder: Encoder
@@ -223,7 +224,8 @@ export function getPromptParts(
     parts.greeting = replace(chat.greeting)
   }
 
-  const post = [`${replyAs.name}:`]
+  const post = createPostPrompt(opts)
+
   if (opts.continue) {
     post.unshift(`${char.name}: ${opts.continue}`)
   }
@@ -273,6 +275,24 @@ export function getPromptParts(
   parts.post = post.map(replace)
 
   return parts
+}
+
+function createPostPrompt(
+  opts: Pick<
+    PromptOpts,
+    'kind' | 'chat' | 'char' | 'members' | 'continue' | 'settings' | 'user' | 'book' | 'replyAs'
+  >
+) {
+  const post = []
+  if (opts.kind === 'summary') {
+    let text = opts.user.images?.summaryPrompt || IMAGE_SUMMARY_PROMPT.other
+    if (!text.startsWith('(')) text = '(' + text
+    if (!text.endsWith(')')) text += ')'
+    post.push(`System: ${text}\nSummary:`)
+  } else {
+    post.push(`${opts.replyAs.name}:`)
+  }
+  return post
 }
 
 function placeholderReplace(value: string, charName: string, senderName: string) {
@@ -537,7 +557,11 @@ function getContextLimit(
     case 'ooba':
       return configuredMax - genAmount
 
-    case 'novel':
+    case 'novel': {
+      if (model === NOVEL_MODELS.clio_v1) return 8000 - genAmount
+      return configuredMax - genAmount
+    }
+
     case 'horde':
 
     case 'openai': {

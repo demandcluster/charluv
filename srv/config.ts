@@ -94,6 +94,11 @@ export const config = {
   },
   jsonStorage: !!env('JSON_STORAGE', ''),
   jsonFolder: env('JSON_FOLDER', resolve(__dirname, '..', 'db')),
+
+  ui: {
+    maintenance: env('MAINTENANCE', ''),
+    patreon: !!env('PATREON', ''),
+  },
 }
 
 function env(key: string, fallback?: string): string {

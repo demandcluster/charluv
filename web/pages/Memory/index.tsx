@@ -134,7 +134,7 @@ const ImportMemoryModal: Component<ImportProps> = (props) => {
         fieldName="json"
         label="JSON File"
         accept="text/json,application/json"
-        helperText="Only Agnaistic exported memory books are currently supported."
+        helperText="Only Charluv exported memory books are currently supported."
         required
         onUpdate={updateJson}
       />

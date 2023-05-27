@@ -10,6 +10,7 @@ import {
   onMount,
 } from 'solid-js'
 import { NewCharacter, characterStore, userStore } from '../../store'
+import { tagStore } from '../../store'
 import PageHeader from '../../shared/PageHeader'
 import Select, { Option } from '../../shared/Select'
 import TextInput from '../../shared/TextInput'
@@ -48,6 +49,7 @@ import Divider from '../../shared/Divider'
 import Gauge from '../../shared/Gauge'
 
 import CreateChatModal from './CreateChat'
+import TagSelect from '../../shared/TagSelect'
 const CACHE_KEY = 'agnai-charlist-cache'
 
 type ViewTypes = 'list' | 'cards'
@@ -72,6 +74,8 @@ const CharacterList: Component = () => {
   setComponentPageTitle('Matches')
 
   const [query, setQuery] = useSearchParams()
+
+  const state = characterStore((s) => ({ ...s.characters, loading: s.loading }))
 
   const cached = getListCache()
   const [view, setView] = createSignal(cached.view)
@@ -102,6 +106,10 @@ const CharacterList: Component = () => {
 
   onMount(() => {
     characterStore.getCharacters()
+  })
+
+  createEffect(() => {
+    tagStore.updateTags(state.list)
   })
 
   createEffect(() => {
@@ -163,7 +171,7 @@ const CharacterList: Component = () => {
               onChange={(next) => setSortField(next.value as SortFieldTypes)}
             />
 
-            <div class="py-1">
+            <div class="mr-1 py-1">
               <Button
                 schema="secondary"
                 class="rounded-xl"
@@ -176,6 +184,8 @@ const CharacterList: Component = () => {
               </Button>
             </div>
           </div>
+
+          <TagSelect class="m-1" />
         </div>
 
         <div class="flex flex-wrap">
@@ -195,6 +205,9 @@ const CharacterList: Component = () => {
       </div>
 
       <Characters
+        characters={state.list}
+        loading={state.loading || false}
+        loaded={state.loaded}
         type={view()}
         user={user}
         filter={search()}
@@ -216,6 +229,9 @@ const CharacterList: Component = () => {
 }
 
 const Characters: Component<{
+  characters: AppSchema.Character[]
+  loading: boolean
+  loaded: boolean
   type: ViewTypes
   filter: string
   user: AppSchema.User
@@ -223,13 +239,14 @@ const Characters: Component<{
   sortDirection: SortDirectionTypes
   createChat: (char?: AppSchema.Character) => void
 }> = (props) => {
-  const state = characterStore((s) => ({ ...s.characters, loading: s.loading }))
-
+  const tags = tagStore((s) => ({ filter: s.filter, hidden: s.hidden }))
   const [showGrouping, setShowGrouping] = createSignal(false)
   const groups = createMemo(() => {
-    const list = state.list
+    const list = props.characters
       .slice()
       .filter((ch) => ch.name.toLowerCase().includes(props.filter.toLowerCase()))
+      .filter((ch) => tags.filter.length === 0 || ch.tags?.some((t) => tags.filter.includes(t)))
+      .filter((ch) => !ch.tags || !ch.tags.some((t) => tags.hidden.includes(t)))
       .sort(getSortFunction(props.sortField, props.sortDirection))
 
     const groups = [
@@ -253,15 +270,15 @@ const Characters: Component<{
   return (
     <>
       <Switch fallback={<div>Failed to load characters. Refresh to try again.</div>}>
-        <Match when={state.loading}>
+        <Match when={props.loading}>
           <div class="flex justify-center">
             <Loading />
           </div>
         </Match>
-        <Match when={state.list.length === 0 && state.loaded}>
+        <Match when={props.characters.length === 0 && props.loaded}>
           <NoCharacters />
         </Match>
-        <Match when={state.loaded}>
+        <Match when={props.loaded}>
           <Show when={props.user.user._id === 'anon'}>
             <div class="gap-2 p-4 text-lg font-bold">
               You are not <a href="/login">registered</a>. You can only chat with the helpdesk bot.
@@ -650,7 +667,7 @@ export const DownloadModal: Component<{
           fieldName="app"
           value={format()}
           items={[
-            { value: 'native', label: 'Agnaistic' },
+            { value: 'native', label: 'Charluv' },
             { value: 'tavern', label: 'TavernAI' },
             { value: 'ooba', label: 'Textgen' },
           ]}

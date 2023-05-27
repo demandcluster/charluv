@@ -1,5 +1,5 @@
-import { Component, createEffect, createMemo, JSX, Show, lazy } from 'solid-js'
-import { Outlet, Route, Router, Routes } from '@solidjs/router'
+import { Component, createEffect, createMemo, JSX, Show, lazy, createSignal } from 'solid-js'
+import { Outlet, Route, Router, Routes, useLocation } from '@solidjs/router'
 import NavBar from './shared/NavBar'
 import Toasts from './Toasts'
 import CharacterRoutes from './pages/Character'
@@ -17,7 +17,9 @@ import PremiumOptions from './pages/Premium/PremiumOptions'
 import ThankYou from './pages/Premium/ThankYou'
 import Error from './pages/Premium/Error'
 import MatchRoutes from './pages/Match'
+import './app.css'
 import './dots.css'
+import Modal from './shared/Modal'
 
 const App: Component = () => {
   const state = userStore()
@@ -95,6 +97,7 @@ const App: Component = () => {
 const Layout: Component = () => {
   const state = userStore()
   const cfg = settingStore()
+  const location = useLocation()
 
   const reload = () => {
     settingStore.init()
@@ -105,6 +108,10 @@ const Layout: Component = () => {
     settingStore.getConfig()
   })
 
+  const isChat = createMemo(() => {
+    return location.pathname.startsWith('/chat/')
+  })
+
   const bg = createMemo(() => {
     const styles: JSX.CSSProperties = {
       'background-image':
@@ -112,6 +119,7 @@ const Layout: Component = () => {
       'background-repeat': 'no-repeat',
       'background-size': 'cover',
       'background-position': 'center',
+      'background-color': isChat() ? undefined : '',
     }
     return styles
   })
@@ -122,9 +130,13 @@ const Layout: Component = () => {
       <div class="flex w-full grow flex-row overflow-y-hidden">
         <Navigation />
         <div class="w-full overflow-y-auto" data-background style={bg()}>
-          <div class={`mx-auto h-full w-full max-w-5xl px-2 pt-2 sm:px-3 sm:pt-4`}>
+          <div
+            class={`mx-auto h-full w-full max-w-5xl px-2 sm:px-3`}
+            classList={{ 'content-background': !isChat() }}
+          >
             <Show when={cfg.init}>
               <Outlet />
+              <Maintenance />
             </Show>
             <Show when={!cfg.init && cfg.initLoading}>
               <div class="flex h-[80vh] items-center justify-center">
@@ -149,3 +161,20 @@ const Layout: Component = () => {
 }
 
 export default App
+
+const Maintenance: Component = () => {
+  const state = settingStore((s) => ({ init: s.init, loading: s.initLoading }))
+  const [show, setShow] = createSignal(!!state.init?.config.maintenance)
+
+  return (
+    <Modal show={show()} close={() => setShow(false)} title="Maintenance Mode">
+      <div class="flex flex-col gap-4">
+        <div>Charluv is currently down for maintenance</div>
+
+        <div>You can continue to use the site as a guest.</div>
+
+        <div>Reason: {state.init?.config.maintenance}</div>
+      </div>
+    </Modal>
+  )
+}
