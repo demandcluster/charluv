@@ -3,7 +3,7 @@ import { AppSchema } from '/srv/db/schema'
 
 export type Tag = string
 
-const TAG_CACHE_KEY = 'agnai-tag-cache'
+const TAG_CACHE_KEY = 'charluv-tag-cache'
 
 type TagOption = {
   tag: Tag
