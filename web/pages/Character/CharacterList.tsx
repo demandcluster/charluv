@@ -184,7 +184,7 @@ const CharacterList: Component = () => {
               </Button>
             </div>
           </div>
-          <Show when={props.user.user.admin}>
+          <Show when={user.user?.admin}>
             <TagSelect class="m-1" />
           </Show>
         </div>
