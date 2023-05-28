@@ -135,7 +135,7 @@ const PremiumOptions: Component = () => {
         </section>
         <Divider />
       </Show>
-      <Show when={cartSignal()?.list?.length > 0}>
+      <Show when={cartSignal()?.list?.length > 0 && !orderId()}>
         <div class="flex flex-row">
           <button
             class="rounded-md bg-teal-600 px-4 py-2 font-bold text-white"
