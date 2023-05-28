@@ -146,7 +146,7 @@ const PremiumOptions: Component = () => {
         </div>
       </Show>
       <Divider />
-      {orderId() && (
+      {cartSignal()?.list?.length > 0 && (
         <section>
           <h2 class="mb-4 text-xl text-gray-400">Checkout</h2>
 
