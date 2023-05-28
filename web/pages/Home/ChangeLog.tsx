@@ -18,7 +18,6 @@ _13 May 2023_
 - Add 'OOC toggle' adjacent to message input for multi-user rooms
 
 _10 May 2023_
-- Add experimental chat summarisation for image prompts. Enable it in IMAGE SETTINGS. Only works if your preset uses OpenAI.
 - Fix issues with Voice playback.
 
 _8 May 2023_
