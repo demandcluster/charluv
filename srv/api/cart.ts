@@ -92,7 +92,7 @@ const createPaypalOrder = async (
         custom_id: orderId,
         items: items.map((item) => {
           return {
-            name: 'AIVO.CHAT',
+            name: 'CHRLV',
             description: item.name,
             unit_amount: {
               currency_code: 'EUR',
@@ -212,7 +212,7 @@ const checkOut = handle(async ({ body, userId, user, ip }) => {
   newOrder.paymentId = orderData?.id || null
 
   await store.shop.addShopOrder(newOrder)
-
+  console.log('orderData', orderData)
   return { orderId: orderData?.id || undefined }
 })
 

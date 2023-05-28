@@ -4,6 +4,10 @@ import { markdown } from '../../shared/markdown'
 import { setComponentPageTitle } from '../../shared/util'
 
 const text = `
+_28 May 2023_
+- Fixed shop checkout, it was impossible to purchase anything from the shop
+- Started implementing tags to replace the dating filter in settings
+
 _19 May 2023_
 - Image retry uses previous prompt (only applies to new images)
 - Clicking an avatar in chat opens the avatar in the image viewer modal
