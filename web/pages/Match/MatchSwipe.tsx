@@ -1,4 +1,5 @@
-import { Component, createEffect, createSignal, For, Show } from 'solid-js'
+import { Component, createEffect,
+  createMemo, createSignal, For, Show } from 'solid-js'
 import Button from '../../shared/Button'
 import PageHeader from '../../shared/PageHeader'
 import { Check, Delete, Heart, Undo2, X, AlignLeft, LayoutList, Image, 
@@ -13,6 +14,7 @@ import { A, useNavigate } from '@solidjs/router'
 import AvatarIcon from '../../shared/AvatarIcon'
 import { matchStore, userStore, swipeStore } from '../../store'
 
+import { tagStore } from '../../store'
 import TagSelect from '../../shared/TagSelect'
 import Select, { Option } from '../../shared/Select'
 import TextInput from '../../shared/TextInput'
@@ -53,9 +55,22 @@ const MatchList: Component = () => {
   let tmpSwipes = []
 
   createEffect(() => {
-    if (sortField() === 'character-name' || sortField() === 'character-created') {
-      setSortField('chat-updated')
+    const next = {
+      view: view(),
+      sort: {
+        field: sortField(),
+        direction: sortDirection(),
+      },
     }
+
+    saveListCache(next)
+  })
+  createEffect(() => {
+    if(charsList().list){
+      tagStore.updateTags(charsList().list)
+    }
+  })
+  createEffect(() => {
     curApiref = ''
     swipeStore.getSwipe()
     matchStore.getMatches(swipeCount.lastid)
@@ -66,6 +81,8 @@ const MatchList: Component = () => {
     saveListCache(next)
   })
 
+  const tags = tagStore((s) => ({ filter: s.filter, hidden: s.hidden }))
+  const [showGrouping, setShowGrouping] = createSignal(false)
   const cached = getListCache()
   const [view, setView] = createSignal(cached.view)
   const [sortField, setSortField] = createSignal(cached.sort.field)
@@ -138,6 +155,26 @@ const MatchList: Component = () => {
     }
   }
 
+  function getSortableValue(char: AppSchema.Character, field: SortFieldTypes) {
+    switch (field) {
+      case 'name':
+        return char.name.toLowerCase()
+      case 'created':
+        return char.createdAt
+      case 'modified':
+        return char.updatedAt
+      default:
+        return 0
+    }
+  }
+  function getSortFunction(field: SortFieldTypes, direction: SortDirectionTypes) {
+    return (left: AppSchema.Character, right: AppSchema.Character) => {
+      const mod = direction === 'asc' ? 1 : -1
+      const l = getSortableValue(left, field)
+      const r = getSortableValue(right, field)
+      return l > r ? mod : l === r ? 0 : -mod
+    }
+  }
   function swipeMovement(a) {
     switch (a) {
       case 'left':
@@ -227,6 +264,31 @@ const MatchList: Component = () => {
     totalSwipes[charsIds().list[charsIds().list.length - 1]._id].swipe(direction)
   }
 
+  const groups = createMemo(() => {
+    console.log(charsList().list);
+    if(!charsList().list) return []
+
+    
+    console.log(  charsList().list.slice().filter((ch) => console.log(ch)));
+
+    const list = charsList().list
+      .slice()
+      .filter((ch) => ch.name.toLowerCase().includes(search().toLowerCase()))
+      .filter((ch) => tags.filter.length === 0 || ch.tags?.some((t) => tags.filter.includes(t)))
+      .filter((ch) => !ch.tags || !ch.tags.some((t) => tags.hidden.includes(t)))
+      .sort(getSortFunction(sortField(), sortDirection()))
+
+    const groups = [
+      { label: 'Favorites', list: list.filter((c) => c.favorite) },
+      { label: '', list: list.filter((c) => !c.favorite) },
+    ]
+    if (groups[0].list.length === 0) {
+      setShowGrouping(false)
+      return [groups[1]]
+    }
+    setShowGrouping(true)
+    return groups
+  })
   return (
     <>
       <div class="overflow-hidden">
@@ -293,7 +355,7 @@ const MatchList: Component = () => {
           <Switch>
             <Match when={getNextView() == 'list'}>
               <div class="flex w-full flex-col gap-2">
-                <For each={charsList().list}>
+                <For each={groups().list}>
                   {(char) => <MatchLike character={char} match={createMatch} />}
                 </For>
               </div>
