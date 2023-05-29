@@ -264,12 +264,8 @@ const MatchList: Component = () => {
     totalSwipes[charsIds().list[charsIds().list.length - 1]._id].swipe(direction)
   }
 
-  const groups = createMemo(() => {
-    console.log(charsList().list);
+  const groupslist = createMemo(() => {
     if(!charsList().list) return []
-
-    
-    console.log(  charsList().list.slice().filter((ch) => console.log(ch)));
 
     const list = charsList().list
       .slice()
@@ -284,14 +280,14 @@ const MatchList: Component = () => {
     ]
     if (groups[0].list.length === 0) {
       setShowGrouping(false)
-      return [groups[1]]
+      return groups[1].list
     }
     setShowGrouping(true)
     return groups
   })
   return (
     <>
-      <div class="overflow-hidden">
+      <div class="overflow-hidden min-h-[455px]">
         <PageHeader title="Likes" subtitle="" />
         <Show when={!charsList().list}>
           <div>Loading ...{charsList()}</div>
@@ -314,55 +310,56 @@ const MatchList: Component = () => {
               </Match>
             </Switch>
           </Button>
-          
-      <div class="mb-2 flex justify-between">
-        <div class="flex flex-wrap w-full">
-          <div class="m-1 ml-0 mr-1 min-w-[200px] w-[calc(100%-400px)]">
-            <TextInput
-              fieldName="search"
-              placeholder="Search by name..."
-              onKeyUp={(ev) => setSearch(ev.currentTarget.value)}
-            />
-          </div>
+          <Show when={getNextView() == 'list'}>
+            <div class="mb-2 flex justify-between">
+              <div class="flex flex-wrap w-full">
+                <div class="m-1 ml-0 mr-1 min-w-[200px]">
+                  <TextInput
+                    fieldName="search"
+                    placeholder="Search by name..."
+                    onKeyUp={(ev) => setSearch(ev.currentTarget.value)}
+                  />
+                </div>
 
-          <div class="flex flex-wrap">
-            <Select
-              class="m-1 ml-0 bg-[var(--bg-600)]"
-              fieldName="sortBy"
-              items={sortOptions}
-              value={sortField()}
-              onChange={(next) => setSortField(next.value as SortFieldTypes)}
-            />
+                <div class="flex flex-wrap">
+                  <Select
+                    class="m-1 ml-0 bg-[var(--bg-600)]"
+                    fieldName="sortBy"
+                    items={sortOptions}
+                    value={sortField()}
+                    onChange={(next) => setSortField(next.value as SortFieldTypes)}
+                  />
 
-            <div class="mr-1 py-1">
-              <Button
-                schema="secondary"
-                class="rounded-xl"
-                onClick={() => {
-                  const next = sortDirection() === 'asc' ? 'desc' : 'asc'
-                  setSortDirection(next)
-                }}
-              >
-                {sortDirection() === 'asc' ? <SortAsc /> : <SortDesc />}
-              </Button>
+                  <div class="mr-1 py-1">
+                    <Button
+                      schema="secondary"
+                      class="rounded-xl"
+                      onClick={() => {
+                        const next = sortDirection() === 'asc' ? 'desc' : 'asc'
+                        setSortDirection(next)
+                      }}
+                    >
+                      {sortDirection() === 'asc' ? <SortAsc /> : <SortDesc />}
+                    </Button>
+                  </div>
+                </div>
+                <Show when={user.user?.admin}>
+                  <TagSelect class="m-1" />
+                </Show>
+              </div>
             </div>
-          </div>
-          <Show when={user.user?.admin}>
-            <TagSelect class="m-1" />
           </Show>
-        </div>
-      </div>
           <Switch>
             <Match when={getNextView() == 'list'}>
               <div class="flex w-full flex-col gap-2">
-                <For each={groups().list}>
+                <For each={groupslist()}>
                   {(char) => <MatchLike character={char} match={createMatch} />}
                 </For>
               </div>
             </Match>
             <Match when={getNextView() == 'likes'}>
               <div class="h-96 max-h-[90%] sm:h-[550px] sm:max-h-[550px] flex w-full flex-col gap-2 ">
-                <For each={charsList().list}>
+                <For each={groupslist()}>
                   {(char, i) => (
                     <DSwipeCard
                       character={char}
@@ -481,6 +478,7 @@ const DSwipeCard: Component<{ character: AppSchema.Character; match: Any }> = (p
 // [TODO] this should be in a seperate file and breaks the philosophy of solidjs and react
 
 const MatchLike: Component<{ character: AppSchema.Character; match: Any }> = (props) => {
+  console.log(props);
   return (
     <div class="flex w-full gap-2">
       <div class="flex h-12 w-full flex-row items-center gap-4 rounded-xl bg-[var(--bg-800)]">
