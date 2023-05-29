@@ -9,6 +9,21 @@ export function handle(handler: Handler): express.RequestHandler {
       nextCalled = true
       next(err)
     }
+    let ip = ''
+    if (req.headers && req.headers['CF-Connecting-IP']) {
+      if (typeof req.headers['CF-Connecting-IP'] === 'string') {
+        ip = req.headers['CF-Connecting-IP']
+      } else {
+        ip = req.headers['CF-Connecting-IP'][0]
+      }
+    } else if (req.connection.remoteAddress) {
+      ip = req.connection.remoteAddress
+    }
+    console.log('ip', ip)
+    const reqWithIp: AppRequest = {
+      ...req,
+      ip: ip,
+    }
 
     try {
       const result = await handler(req as any, res, wrappedNext)
