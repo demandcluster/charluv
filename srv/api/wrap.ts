@@ -10,16 +10,16 @@ export function handle(handler: Handler): express.RequestHandler {
       next(err)
     }
     let ip = ''
-    if (req.headers && req.headers['CF-Connecting-IP']) {
-      if (typeof req.headers['CF-Connecting-IP'] === 'string') {
-        ip = req.headers['CF-Connecting-IP']
+    if (req.headers && req.headers['x-forwarded-for']) {
+      if (typeof req.headers['x-forwarded-for'] === 'string') {
+        ip = req.headers['x-forwarded-for']
       } else {
-        ip = req.headers['CF-Connecting-IP'][0]
+        ip = req.headers['x-forwarded-for'][0]
       }
     } else if (req.connection.remoteAddress) {
       ip = req.connection.remoteAddress
     }
-    console.log('ip', ip)
+    console.log('IP:', ip)
     const reqWithIp: AppRequest = {
       ...req,
       ip: ip,
