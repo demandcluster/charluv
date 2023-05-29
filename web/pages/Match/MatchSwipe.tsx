@@ -1,12 +1,21 @@
 import { Component, createEffect, createSignal, For, Show } from 'solid-js'
 import Button from '../../shared/Button'
 import PageHeader from '../../shared/PageHeader'
-import { Check, Delete, Heart, Undo2, X, AlignLeft, LayoutList, Image, Star } from 'lucide-solid'
+import { Check, Delete, Heart, Undo2, X, AlignLeft, LayoutList, Image, 
+  Star,
+  SortAsc,
+  SortDesc,
+  User
+} from 'lucide-solid' 
+
 import { AppSchema } from '../../../srv/db/schema'
 import { A, useNavigate } from '@solidjs/router'
 import AvatarIcon from '../../shared/AvatarIcon'
 import { matchStore, userStore, swipeStore } from '../../store'
 
+import TagSelect from '../../shared/TagSelect'
+import Select, { Option } from '../../shared/Select'
+import TextInput from '../../shared/TextInput'
 import { SwipeCard } from '../../shared/Swipe'
 import type { SwipeCardRef } from '../../shared/Swipe'
 import { setComponentPageTitle } from '../../shared/util'
@@ -14,9 +23,17 @@ import { getAssetUrl } from '../../shared/util'
 
 const CACHE_KEY = 'charluv-likes-cache'
 
+type ViewTypes = 'list' | 'cards'
+type SortFieldTypes = 'modified' | 'created' | 'name'
+type SortDirectionTypes = 'asc' | 'desc'
+const sortOptions: Option<SortFieldTypes>[] = [
+  { value: 'modified', label: 'Last Modified' },
+  { value: 'created', label: 'Created' },
+  { value: 'name', label: 'Name' },
+]
 function getListCache(): ListCache {
-  const existing = localStorage.getItem(CACHE_KEY)
-  const defaultCache: ListCache = { view: 'likes' }
+  const existing = localStorage.getItem(CACHE_KEY)  
+  const defaultCache: ListCache = { view: 'likes', sort: { field: 'chat-updated', direction: 'desc' } }
 
   if (!existing) {
     return defaultCache
@@ -36,6 +53,9 @@ const MatchList: Component = () => {
   let tmpSwipes = []
 
   createEffect(() => {
+    if (sortField() === 'character-name' || sortField() === 'character-created') {
+      setSortField('chat-updated')
+    }
     curApiref = ''
     swipeStore.getSwipe()
     matchStore.getMatches(swipeCount.lastid)
@@ -48,6 +68,9 @@ const MatchList: Component = () => {
 
   const cached = getListCache()
   const [view, setView] = createSignal(cached.view)
+  const [sortField, setSortField] = createSignal(cached.sort.field)
+  const [sortDirection, setSortDirection] = createSignal(cached.sort.direction)
+  const [search, setSearch] = createSignal('')
   const getNextView = () => (view() === 'likes' ? 'list' : 'likes')
   const matchItems = matchStore((s) => s.characters)
   const [charsList, setCharList] = createSignal(matchItems)
@@ -229,6 +252,44 @@ const MatchList: Component = () => {
               </Match>
             </Switch>
           </Button>
+          
+      <div class="mb-2 flex justify-between">
+        <div class="flex flex-wrap w-full">
+          <div class="m-1 ml-0 mr-1 min-w-[200px] w-[calc(100%-400px)]">
+            <TextInput
+              fieldName="search"
+              placeholder="Search by name..."
+              onKeyUp={(ev) => setSearch(ev.currentTarget.value)}
+            />
+          </div>
+
+          <div class="flex flex-wrap">
+            <Select
+              class="m-1 ml-0 bg-[var(--bg-600)]"
+              fieldName="sortBy"
+              items={sortOptions}
+              value={sortField()}
+              onChange={(next) => setSortField(next.value as SortFieldTypes)}
+            />
+
+            <div class="mr-1 py-1">
+              <Button
+                schema="secondary"
+                class="rounded-xl"
+                onClick={() => {
+                  const next = sortDirection() === 'asc' ? 'desc' : 'asc'
+                  setSortDirection(next)
+                }}
+              >
+                {sortDirection() === 'asc' ? <SortAsc /> : <SortDesc />}
+              </Button>
+            </div>
+          </div>
+          <Show when={user.user?.admin}>
+            <TagSelect class="m-1" />
+          </Show>
+        </div>
+      </div>
           <Switch>
             <Match when={getNextView() == 'list'}>
               <div class="flex w-full flex-col gap-2">
