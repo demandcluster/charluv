@@ -411,9 +411,11 @@ const Character: Component<{
               <A href={`/character/${props.char._id}/edit`}>
                 <Edit class="icon-button" />
               </A>
+
               <A href={`/character/create/${props.char._id}`}>
                 <Copy class="icon-button" />
               </A>
+
             </Show>
             <Trash class="icon-button" onClick={props.delete} />
             <User class="icon-button" onClick={() => nav(`/likes/${props.char._id}/profile`)} />
@@ -445,6 +447,7 @@ const Character: Component<{
               <Button onClick={createChat} alignLeft size="sm">
                 <MessageCircle /> Chat
               </Button>
+              <Show when={props.user.user.admin}>
               <Button alignLeft onClick={props.download} size="sm">
                 <Download /> Download
               </Button>
@@ -458,6 +461,7 @@ const Character: Component<{
               >
                 <Copy /> Duplicate
               </Button>
+              </Show>
               <Button alignLeft onClick={props.delete} size="sm">
                 <Trash /> Delete
               </Button>
