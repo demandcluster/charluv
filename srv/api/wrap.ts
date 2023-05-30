@@ -19,14 +19,14 @@ export function handle(handler: Handler): express.RequestHandler {
     } else if (req.connection.remoteAddress) {
       ip = req.connection.remoteAddress
     }
-    console.log('IP:', ip)
+
     const reqWithIp: AppRequest = {
       ...req,
       ip: ip,
     }
 
     try {
-      const result = await handler(req as any, res, wrappedNext)
+      const result = await handler(reqWithIp as any, res, wrappedNext)
       if (!res.headersSent && !nextCalled && !!result) {
         res.json(result)
       }

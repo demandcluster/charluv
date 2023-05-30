@@ -28,6 +28,7 @@ export namespace AppSchema {
     hash: string
 
     admin: boolean
+    lastIp?: string
 
     novelApiKey: string
     novelModel: string

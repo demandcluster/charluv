@@ -58,6 +58,16 @@ export async function updateProfile(userId: string, props: Partial<AppSchema.Pro
   return getProfile(userId)
 }
 
+export async function updateIp(userId: string, ip: string) {
+  await db('user').updateOne({ _id: userId, kind: 'user' }, { $set: { lastIp: ip } })
+}
+export async function checkIp(ip: string) {
+  const usersCursor = await db('user').find({ lastIp: ip, kind: 'user' })
+  const usersCount = await usersCursor.count()
+  if (usersCount === 0) return false
+  return true
+}
+
 export async function authenticate(username: string, password: string) {
   const user = await db('user').findOne({ kind: 'user', username: username.toLowerCase() })
   if (!user) return

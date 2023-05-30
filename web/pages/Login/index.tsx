@@ -102,6 +102,7 @@ type FormProps = { isLoading: boolean }
 
 const RegisterForm: Component<FormProps> = (props) => {
   const navigate = useNavigate()
+  const ecu = userStore.getECU()
   const register = (evt: Event) => {
     const { username, password, confirm, handle, invitecode } = getStrictForm(evt, {
       handle: 'string',
@@ -121,31 +122,49 @@ const RegisterForm: Component<FormProps> = (props) => {
   }
 
   return (
-    <form onSubmit={register} class="flex flex-col gap-6">
-      <div class="flex flex-col gap-2">
-        <TextInput label="Display Name" fieldName="handle" placeholder="Display name" required />
-        <TextInput label="Username" fieldName="username" placeholder="Username" required />
-        <TextInput
-          label="Password"
-          fieldName="password"
-          placeholder="Password"
-          type="password"
-          required
-        />
-        <TextInput fieldName="confirm" placeholder="Confirm Password" type="password" required />
-        <TextInput
-          label="Invite code"
-          fieldName="invitecode"
-          placeholder="Check below for a code!"
-          required
-        />
-        <div></div>
-      </div>
+    <>
+      <Show when={!ecu}>
+        <form onSubmit={register} class="flex flex-col gap-6">
+          <div class="flex flex-col gap-2">
+            <TextInput
+              label="Display Name"
+              fieldName="handle"
+              placeholder="Display name"
+              required
+            />
+            <TextInput label="Username" fieldName="username" placeholder="Username" required />
+            <TextInput
+              label="Password"
+              fieldName="password"
+              placeholder="Password"
+              type="password"
+              required
+            />
+            <TextInput
+              fieldName="confirm"
+              placeholder="Confirm Password"
+              type="password"
+              required
+            />
+            <TextInput
+              label="Invite code"
+              fieldName="invitecode"
+              placeholder="Check below for a code!"
+              required
+            />
+            <div></div>
+          </div>
 
-      <Button type="submit" disabled={props.isLoading}>
-        {props.isLoading ? 'Registering...' : 'Register'}
-      </Button>
-    </form>
+          <Button type="submit" disabled={props.isLoading}>
+            {props.isLoading ? 'Registering...' : 'Register'}
+          </Button>
+        </form>
+      </Show>
+      <Show when={ecu}>
+        <h1 class="text-center text-xl text-red-500">Sorry, only 1 account per device/IP.</h1>
+        <h2 class="text-center text-xs">Contact us on Discord if you have lost your password.</h2>
+      </Show>
+    </>
   )
 }
 

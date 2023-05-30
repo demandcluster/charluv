@@ -15,7 +15,7 @@ type FormRef = {
     | 'boolean?'
 }
 
-const PREFIX_CACHE_KEY = 'aivo-asset-prefix'
+const PREFIX_CACHE_KEY = 'charluv-asset-prefix'
 
 let assetPrefix = 'https://cdn.aivo.chat' //: string = localStorage.getItem(PREFIX_CACHE_KEY) || ''
 

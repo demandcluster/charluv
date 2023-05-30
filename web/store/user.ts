@@ -115,6 +115,11 @@ export const userStore = createStore<UserState>(
       }
     },
 
+    async getECU() {
+      const res = await localStorage.getItem('ecu')
+      return res === true ? true : false
+    },
+
     async updateProfile(_, profile: { handle: string; avatar?: File }) {
       const res = await usersApi.updateProfile(profile.handle, profile.avatar)
       if (res.error) toastStore.error(`Failed to update profile: ${res.error}`)
@@ -176,7 +181,7 @@ export const userStore = createStore<UserState>(
       const res = await api.post('/user/register', newUser)
       yield { loading: false }
       if (res.error) {
-        return toastStore.error(`Failed to register`)
+        return toastStore.error(`Failed to register:\n\r${res.error || ''}`)
       }
 
       setAuth(res.result.token)
@@ -298,7 +303,7 @@ function init(): UserState {
       metadata: {},
     }
   }
-
+  localStorage.setItem('ecu', true)
   return {
     loggedIn: true,
     loading: false,

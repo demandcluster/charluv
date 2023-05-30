@@ -9,9 +9,15 @@ export const register = handle(async (req) => {
   )
   const valid = await store.invitecode.checkInviteCode(req.body.invitecode)
   if (!valid) {
-    throw new StatusError('Invalid invite code', 401)
+    throw new StatusError('Invalid invite code', 403)
     return
   }
+  const alreadyRegisterd = await store.users.checkIp(req.ip)
+
+  if (alreadyRegisterd) {
+    throw new StatusError('Only 1 account per IP', 403)
+  }
+
   const { profile, token, user } = await store.users.createUser(req.body)
   await store.invitecode.takeInviteCode(req.body.invitecode)
 
@@ -26,6 +32,7 @@ export const login = handle(async (req) => {
   if (!result) {
     throw new StatusError('Unauthorized', 401)
   }
+  const storeIp = await store.users.updateIp(result.user._id, req.ip)
 
   return result
 })
