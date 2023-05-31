@@ -122,9 +122,7 @@ const RegisterForm: Component<FormProps> = (props) => {
   }
 
   return (
-    <>
-      <Show when={!ecu}>
-        <form onSubmit={register} class="flex flex-col gap-6">
+          <form onSubmit={register} class="flex flex-col gap-6">
           <div class="flex flex-col gap-2">
             <TextInput
               label="Display Name"
@@ -159,12 +157,7 @@ const RegisterForm: Component<FormProps> = (props) => {
             {props.isLoading ? 'Registering...' : 'Register'}
           </Button>
         </form>
-      </Show>
-      <Show when={ecu}>
-        <h1 class="text-center text-xl text-red-500">Sorry, only 1 account per device/IP.</h1>
-        <h2 class="text-center text-xs">Contact us on Discord if you have lost your password.</h2>
-      </Show>
-    </>
+      
   )
 }
 
