@@ -447,7 +447,7 @@ const CreateCharacter: Component = () => {
           />
         </Show>
 
-        <div> 
+        
           <FormLabel
             label="Matchable Status"
             helperText={

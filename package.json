@@ -1,6 +1,6 @@
 {
-  "name": "charluv", 
-  "version": "1.0.1", 
+  "name": "charluv",
+  "version": "1.0.1",
   "description": "Charluv/AIVO based on Agnaistic",
   "keywords": [],
   "license": "AGPL-3.0",
@@ -82,6 +82,7 @@
     "discord.js": "^14.9.0",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
+    "frisker": "^1.7.0",
     "gpt-3-encoder": "^1.1.4",
     "jsonwebtoken": "^9.0.0",
     "minimist": "^1.2.8",
