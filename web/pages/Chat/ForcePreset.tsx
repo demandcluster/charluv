@@ -1,13 +1,14 @@
 import { Component, Show, createMemo, createSignal } from 'solid-js'
 import { AppSchema } from '../../../srv/db/schema'
 import Modal from '../../shared/Modal'
-import { getPresetOptions } from '../../shared/adapter'
+import { AutoPreset, getPresetOptions } from '../../shared/adapter'
 import { chatStore, presetStore, settingStore, toastStore } from '../../store'
 import Select from '../../shared/Select'
 import Button from '../../shared/Button'
 import { ADAPTER_LABELS } from '../../../common/adapters'
-import { isDefaultPreset } from '../../../common/presets'
+import { defaultPresets, isDefaultPreset } from '../../../common/presets'
 import { A } from '@solidjs/router'
+import ServiceWarning from '/web/shared/ServiceWarning'
 
 const ForcePresetModal: Component<{ chat: AppSchema.Chat; show: boolean; close: () => void }> = (
   props
@@ -15,13 +16,16 @@ const ForcePresetModal: Component<{ chat: AppSchema.Chat; show: boolean; close: 
   let ref: any
   const presets = presetStore((s) => s.presets)
   const adapters = settingStore((s) => s.config.adapters)
-  const options = createMemo(() =>
-    getPresetOptions(presets, { builtin: true }).filter((pre) => pre.value !== 'chat')
-  )
+
+  const options = createMemo(() => {
+    const opts = getPresetOptions(presets, { builtin: true }).filter((pre) => pre.value !== 'chat')
+    return [{ label: 'System Built-in Preset (Horde)', value: AutoPreset.service }].concat(opts)
+  })
 
   const [presetId, setPresetId] = createSignal(props.chat.genPreset || options()[0].value)
   const [preset, setPreset] = createSignal<AppSchema.UserGenPreset>()
   const [service, setService] = createSignal<string>()
+  const [actual, setActual] = createSignal<AppSchema.GenSettings>()
 
   const services = createMemo(() => {
     const list = adapters.map((adp) => ({ value: adp, label: ADAPTER_LABELS[adp] }))
@@ -50,8 +54,15 @@ const ForcePresetModal: Component<{ chat: AppSchema.Chat; show: boolean; close: 
     setPresetId(id)
     console.log('id', id)
     const userPreset = presets.find((p) => p._id === id)
+    const actualPreset = userPreset
+      ? userPreset
+      : isDefaultPreset(id)
+      ? defaultPresets[id]
+      : undefined
+
+    setActual(actualPreset as any)
     setService(userPreset?.service || '')
-    setPreset(userPreset)
+    setPreset(userPreset as any)
   }
   savePreset()
   const Footer = (
@@ -61,7 +72,62 @@ const ForcePresetModal: Component<{ chat: AppSchema.Chat; show: boolean; close: 
       </Button>
     </>
   )
-  return <></>
+  return (
+    <Modal
+      show={props.show}
+      title="Select Chat Preset"
+      close={props.close}
+      footer={Footer}
+      dismissable={false}
+    >
+      <form ref={ref}>
+        <Select
+          items={options()}
+          label="Choose a Preset"
+          helperText={
+            <div class="flex flex-col gap-1">
+              <div class="font-bold">Chats are now required to have a preset assigned.</div>
+              <div>
+                Unsure what to do? Use the <code>System Built-In Preset</code> You can change this
+                at any time in your <b>Chat Generation Settings</b>.
+              </div>
+              <div>
+                Alternatively, you can set a <code>Default Preset</code> in your{' '}
+                <A href="/settings" class="link">
+                  Settings
+                </A>{' '}
+                page.
+              </div>
+            </div>
+          }
+          fieldName="presetId"
+          value={presetId()}
+          onChange={(val) => onPresetChange(val.value)}
+        />
+
+        <div class="text-sm">
+          <ServiceWarning service={actual()?.service} />
+        </div>
+
+        <Show when={preset() && !preset()?.service}>
+          <Select
+            fieldName="service"
+            items={services()}
+            label="AI Service"
+            onChange={(val) => setService(val.value)}
+            helperText={
+              <>
+                <div>
+                  User Presets now require an AI service. Select an AI service for your preset.
+                </div>
+              </>
+            }
+          />
+        </Show>
+      </form>
+      {/** TODO: Edit the preset if the user picks a preset that doesn't have a service configured */}
+    </Modal>
+  )
 }
 
 export default ForcePresetModal

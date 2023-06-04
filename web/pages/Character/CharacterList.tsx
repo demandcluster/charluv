@@ -82,7 +82,7 @@ const CharacterList: Component = () => {
   const state = characterStore((s) => ({ ...s.characters, loading: s.loading }))
 
   const cached = getListCache()
-  const [view, setView] = createSignal(cached.view)
+  const [view, setView] = createSignal(cached.view || 'list')
   const [sortField, setSortField] = createSignal(cached.sort.field)
   const [sortDirection, setSortDirection] = createSignal(cached.sort.direction)
   const [search, setSearch] = createSignal('')
@@ -465,8 +465,7 @@ const Character: Component<{
               >
                 <Copy /> Duplicate
               </Button>
-              </Show>
-              <Button alignLeft onClick={props.delete} size="sm">
+              <Button alignLeft schema="red" onClick={props.delete} size="sm">
                 <Trash /> Delete
               </Button>
               <Button alignLeft onClick={() => nav(`/likes/${props.char._id}/profile`)}>
@@ -576,6 +575,7 @@ const Character: Component<{
               <Button
                 alignLeft
                 size="sm"
+                schema="red"
                 onClick={() => {
                   setOpts(false)
                   props.delete()

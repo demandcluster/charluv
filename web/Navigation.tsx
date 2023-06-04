@@ -14,6 +14,7 @@ import {
   MessageCircle,
   ShoppingCart,
   Settings,
+  ShoppingBag,
   Sliders,
   User,
   Users,
@@ -116,6 +117,12 @@ const UserNavigation: Component = () => {
           <Heart /> Matches
         </Item>
       </Show>
+      <Show when={cfg.flags.chub}>
+        <Item href="/chub">
+          <ShoppingBag />
+          CHUB
+        </Item>
+      </Show>
       <Item href="/chats">
         <MessageCircle /> Chats
       </Item>
@@ -157,6 +164,7 @@ const GuestNavigation: Component = () => {
     showMenu: s.showMenu,
     config: s.config,
     guest: s.guestAccessAllowed,
+    flags: s.flags,
   }))
 
   return (
@@ -175,6 +183,13 @@ const GuestNavigation: Component = () => {
       <Item href="/character/list">
         <Bot /> Matches
       </Item>
+
+        <Show when={menu.flags.chub}>
+          <Item href="/chub">
+            <ShoppingBag />
+            CHUB
+          </Item>
+        </Show>
 
         <Item href="/chats">
           <MessageCircle /> Chats
