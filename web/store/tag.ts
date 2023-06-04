@@ -1,3 +1,4 @@
+import { safeLocalStorage } from '../shared/util'
 import { createStore } from './create'
 import { AppSchema } from '/srv/db/schema'
 
@@ -62,7 +63,7 @@ export const tagStore = createStore<TagsState>(
       if (!restoredFromCache) {
         restoredFromCache = true
         try {
-          const cache = localStorage.getItem(TAG_CACHE_KEY)
+          const cache = safeLocalStorage.getItem(TAG_CACHE_KEY)
           if (cache) {
             const { filter: f, hidden: h } = JSON.parse(cache)
             filter = f
@@ -78,7 +79,7 @@ export const tagStore = createStore<TagsState>(
     setDefault() {
       const next = { filter: [], hidden: defaultHidden }
       try {
-        localStorage.setItem(TAG_CACHE_KEY, JSON.stringify(next))
+        safeLocalStorage.setItem(TAG_CACHE_KEY, JSON.stringify(next))
       } catch (e) {
         console.warn('Failed to save tags in local storage', e)
       }
@@ -94,7 +95,7 @@ export const tagStore = createStore<TagsState>(
         next = { filter: prev.filter.concat(tag), hidden: prev.hidden }
       }
       try {
-        localStorage.setItem(TAG_CACHE_KEY, JSON.stringify(next))
+        safeLocalStorage.setItem(TAG_CACHE_KEY, JSON.stringify(next))
       } catch (e) {
         console.warn('Failed to save tags in local storage', e)
       }

@@ -6,10 +6,13 @@ import { subscribe } from './socket'
 import { toastStore } from './toasts'
 import { charsApi } from './data/chars'
 import { imageApi } from './data/image'
-import { getAssetUrl } from '../shared/util'
+import { getAssetUrl, safeLocalStorage } from '../shared/util'
+
+const IMPERSONATE_KEY = 'agnai-impersonate'
 
 type CharacterState = {
   loading?: boolean
+  impersonating?: AppSchema.Character
   characters: {
     loaded: boolean
     list: AppSchema.Character[]
@@ -25,7 +28,18 @@ type CharacterState = {
 export type NewCharacter = UpdateCharacter &
   Pick<
     AppSchema.Character,
-    'name' | 'greeting' | 'scenario' | 'anime' | 'sampleChat' | 'persona'
+    | 'name'
+    | 'greeting'
+    | 'scenario'
+    | 'sampleChat'
+    | 'persona'
+    | 'alternateGreetings'
+    | 'characterBook'
+    | 'extensions'
+    | 'systemPrompt'
+    | 'postHistoryInstructions'
+    | 'creator'
+    | 'characterVersion'
   > & {
     originalAvatar: any
   }
@@ -55,8 +69,20 @@ export const characterStore = createStore<CharacterState>(
   })
 
   events.on(EVENTS.init, (init) => {
-    if (!init.characters) return
+    if (!init.characters) {
+      characterStore.getCharacters()
+      return
+    }
+
     characterStore.setState({ characters: { list: init.characters, loaded: true } })
+
+    const impersonateId = safeLocalStorage.getItem(IMPERSONATE_KEY)
+    if (!impersonateId) return
+
+    const impersonating = init.characters?.find(
+      (ch: AppSchema.Character) => ch._id === impersonateId
+    )
+    characterStore.setState({ impersonating })
   })
 
   return {
@@ -71,10 +97,22 @@ export const characterStore = createStore<CharacterState>(
         return toastStore.error('Failed to retrieve characters')
       }
 
-      if (res.result) {
+      if (res.result && state.impersonating) {
         return { characters: { list: res.result.characters, loaded: true } }
       }
+
+      if (res.result && !state.impersonating) {
+        const id = safeLocalStorage.getItem(IMPERSONATE_KEY)
+        const impersonating = res.result.characters.find((ch: AppSchema.Character) => ch._id === id)
+        return { characters: { list: res.result.characters, loaded: true }, impersonating }
+      }
     },
+
+    impersonate(_, char?: AppSchema.Character) {
+      safeLocalStorage.setItem(IMPERSONATE_KEY, char?._id || '')
+      return { impersonating: char || undefined }
+    },
+
     async *createCharacter(
       { creating, characters: { list } },
       char: NewCharacter,

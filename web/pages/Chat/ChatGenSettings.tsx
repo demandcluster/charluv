@@ -16,12 +16,9 @@ import { chatStore, toastStore, userStore } from '../../store'
 import { presetStore } from '../../store'
 import { getAdapter } from '../../../common/prompt'
 import { AIAdapter, AI_ADAPTERS } from '../../../common/adapters'
-import { AutoPreset, BasePresetOptions } from '../../shared/adapter'
-
-const presetList = Object.entries(defaultPresets).map(([key, preset]) => ({
-  label: preset.name,
-  value: key,
-}))
+import { AutoPreset, getPresetOptions } from '../../shared/adapter'
+import { A } from '@solidjs/router'
+import ServiceWarning from '/web/shared/ServiceWarning'
 
 export const ChatGenSettingsModal: Component<{
   chat: AppSchema.Chat
@@ -34,6 +31,10 @@ export const ChatGenSettingsModal: Component<{
     presets,
     options: presets.map((pre) => ({ label: pre.name, value: pre._id })),
   }))
+
+  const presetOptions = createMemo(() =>
+    getPresetOptions(state.presets, { builtin: true, base: true })
+  )
 
   const presets = createMemo(() => {
     const all: Partial<AppSchema.UserGenPreset>[] = state.presets
@@ -137,10 +138,26 @@ export const ChatGenSettingsModal: Component<{
         <form ref={ref} class="flex flex-col gap-2">
           <Select
             fieldName="preset"
-            items={BasePresetOptions.concat(state.options).concat(presetList)}
+            items={presetOptions()}
             value={selected()}
             onChange={(item) => setSelected(item.value)}
           />
+
+          <ServiceWarning service={servicePreset()?.preset.service} />
+
+          <Show when={isDefaultPreset(selected())}>
+            <span class="text-[var(--hl-100)]">
+              You are using a built-in preset which cannot be modified. Head to the{' '}
+              <A href="/presets" class="link">
+                Presets
+              </A>{' '}
+              page to create a preset or{' '}
+              <A href={`/presets/new?preset=${selected()}`} class="link">
+                Duplicate
+              </A>{' '}
+              this one.
+            </span>
+          </Show>
 
           <Switch>
             <Match when={selected() === AutoPreset.service && servicePreset()}>

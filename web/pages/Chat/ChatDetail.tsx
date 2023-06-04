@@ -26,8 +26,8 @@ import { ImageModal } from './ImageModal'
 import { getClientPreset } from '../../shared/adapter'
 import ForcePresetModal from './ForcePreset'
 import DeleteChatModal from './components/DeleteChat'
-import './chat-detail.css'
 import AvatarIcon from '/web/shared/AvatarIcon'
+import './chat-detail.css'
 
 const ChatDetail: Component = () => {
   const { updateTitle } = setComponentPageTitle('Chat')
@@ -36,13 +36,14 @@ const ChatDetail: Component = () => {
   const user = userStore()
   const cfg = settingStore()
   const chats = chatStore((s) => ({
-    ...s.active,
+    ...(s.active?.chat._id === params.id ? s.active : undefined),
     lastId: s.lastChatId,
     members: s.chatProfiles,
     loaded: s.loaded,
     opts: s.opts,
     chatBots: s.chatBots,
     botMap: s.chatBotMap,
+    activeBots: Object.values(s.active?.chat.characters || {}).filter((bot) => !!bot).length,
   }))
   const msgs = msgStore((s) => ({
     msgs: s.msgs,
@@ -51,11 +52,12 @@ const ChatDetail: Component = () => {
     waiting: s.waiting,
     retries: s.retries,
     speaking: s.speaking,
+    retrying: s.retrying,
   }))
 
-  createEffect(() => {
-    const charName = chats.char?.name
-    updateTitle(charName ? `Chat with ${charName}` : 'Chat')
+  const isGroupChat = createMemo(() => {
+    if (!chats.participantIds?.length) return false
+    return true
   })
 
   const retries = createMemo(() => {
@@ -69,7 +71,6 @@ const ChatDetail: Component = () => {
   const [removeId, setRemoveId] = createSignal('')
   const [showOpts, setShowOpts] = createSignal(false)
   const [ooc, setOoc] = createSignal<boolean>()
-  const [showOOCOpts, setShowOOCOpts] = createSignal(chats.members.length > 1)
 
   const chatMsgs = createMemo(() => {
     return insertImageMessages(msgs.msgs, msgs.images[params.id]).filter((msg) =>
@@ -95,8 +96,10 @@ const ChatDetail: Component = () => {
 
   const waitingMsg = createMemo(() => {
     if (!msgs.waiting) return
+    if (msgs.retrying) return
 
     return emptyMsg({
+      id: 'partial',
       charId: msgs.waiting?.mode !== 'self' ? msgs.waiting.characterId : undefined,
       userId: msgs.waiting?.mode === 'self' ? msgs.waiting.userId || user.user?._id : undefined,
       message: msgs.partial || '',
@@ -141,12 +144,17 @@ const ChatDetail: Component = () => {
   })
 
   createEffect(() => {
+    const charName = chats.char?.name
+    updateTitle(charName ? `Chat with ${charName}` : 'Chat')
+
     if (!params.id) {
       if (!chats.lastId) return nav('/character/list')
       return nav(`/chat/${chats.lastId}`)
     }
 
-    chatStore.getChat(params.id)
+    if (params.id !== chats.chat?._id) {
+      chatStore.getChat(params.id)
+    }
   })
 
   const sendMessage = (message: string, ooc: boolean, onSuccess?: () => void) => {
@@ -154,11 +162,6 @@ const ChatDetail: Component = () => {
       switch (message) {
         case '/devCycleAvatarSettings':
           devCycleAvatarSettings(user)
-          onSuccess?.()
-          return
-
-        case '/devShowOocToggle':
-          setShowOOCOpts(!showOOCOpts())
           onSuccess?.()
           return
       }
@@ -186,7 +189,10 @@ const ChatDetail: Component = () => {
   }
 
   const indexOfLastRPMessage = createMemo(() => {
-    return msgs.msgs.reduceRight((prev, curr, i) => (prev > -1 ? prev : !curr.ooc ? i : -1), -1)
+    return msgs.msgs.reduceRight(
+      (prev, curr, i) => (prev > -1 ? prev : !curr.ooc && curr.adapter !== 'image' ? i : -1),
+      -1
+    )
   })
 
   const generateFirst = () => {
@@ -223,9 +229,9 @@ const ChatDetail: Component = () => {
                   <span class="overflow-hidden text-ellipsis whitespace-nowrap leading-5">
                     {chats.char?.name}
                   </span>
-                  <Show when={chats.chat?.name}>
+                  <Show when={chats.chat!.name}>
                     <span class="flex-row items-center gap-4 overflow-hidden text-ellipsis whitespace-nowrap text-sm">
-                      {chats.chat?.name}
+                      {chats.chat!.name}
                     </span>
                   </Show>
                 </div>
@@ -272,13 +278,13 @@ const ChatDetail: Component = () => {
               send={sendMessage}
               more={moreMessage}
               char={chats.char}
-              ooc={ooc() ?? chats.members.length > 1}
+              ooc={ooc() ?? isGroupChat()}
               setOoc={setOoc}
-              showOocToggle={showOOCOpts() || chats.members.length > 1}
+              showOocToggle={isGroupChat()}
               request={requestMessage}
               bots={chats.chatBots}
             />
-            <Show when={isOwner() && chats.chatBots.length > 1}>
+            <Show when={isOwner() && chats.activeBots >= 1}>
               <div
                 class={`flex justify-center gap-2 py-1 ${
                   msgs.waiting ? 'opacity-70 saturate-0' : ''
@@ -301,7 +307,7 @@ const ChatDetail: Component = () => {
                 You have been removed from the conversation
               </div>
             </Show>
-            <div class="flex flex-col-reverse gap-4 overflow-y-scroll pr-2 sm:pr-4">
+            <div class="flex flex-col-reverse gap-4 overflow-y-scroll sm:pr-2">
               <div id="chat-messages" class="flex flex-col gap-2">
                 <Show when={chats.loaded && chatMsgs().length === 0 && !msgs.waiting}>
                   <div class="flex justify-center">
@@ -316,7 +322,7 @@ const ChatDetail: Component = () => {
                       char={chats.char!}
                       editing={chats.opts.editing}
                       anonymize={cfg.anonymize}
-                      last={i() >= 1 && i() === indexOfLastRPMessage()}
+                      last={i() === indexOfLastRPMessage()}
                       onRemove={() => setRemoveId(msg._id)}
                       swipe={
                         msg._id === retries()?.msgId && swipe() > 0 && retries()?.list[swipe()]
@@ -324,6 +330,9 @@ const ChatDetail: Component = () => {
                       confirmSwipe={() => confirmSwipe(msg._id)}
                       cancelSwipe={cancelSwipe}
                       tts={tts()}
+                      retrying={msgs.retrying}
+                      partial={msgs.partial}
+                      sendMessage={sendMessage}
                     >
                       {isOwner() &&
                         retries()?.list?.length! > 1 &&
@@ -348,6 +357,7 @@ const ChatDetail: Component = () => {
                     onRemove={() => {}}
                     editing={chats.opts.editing}
                     anonymize={cfg.anonymize}
+                    sendMessage={sendMessage}
                   />
                 </Show>
               </div>
@@ -517,13 +527,14 @@ function getHeaderBg(mode: UI['mode']) {
   return styles
 }
 function emptyMsg(opts: {
+  id?: string
   charId?: string
   userId?: string
   message: string
 }): AppSchema.ChatMessage {
   return {
     kind: 'chat-message',
-    _id: '',
+    _id: opts.id || '',
     chatId: '',
     characterId: opts.charId,
     userId: opts.userId,

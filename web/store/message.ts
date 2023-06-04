@@ -157,7 +157,12 @@ export const msgStore = createStore<MsgState>(
       if (res.result) onSuccess?.()
     },
 
-    async *retry({ msgs, activeCharId }, chatId: string, onSuccess?: () => void) {
+    async *retry(
+      { msgs, activeCharId },
+      chatId: string,
+      messageId?: string,
+      onSuccess?: () => void
+    ) {
       if (!chatId) {
         toastStore.error('Could not send message: No active chat')
         yield { partial: undefined }
@@ -169,7 +174,8 @@ export const msgStore = createStore<MsgState>(
         return
       }
 
-      const replace = { ...msgs[msgs.length - 1], voiceUrl: undefined }
+      const msg = messageId ? msgs.find((msg) => msg._id === messageId)! : msgs[msgs.length - 1]
+      const replace = { ...msg, voiceUrl: undefined }
       yield {
         partial: '',
         waiting: { chatId, mode: 'retry', characterId: replace.characterId! },
@@ -178,9 +184,7 @@ export const msgStore = createStore<MsgState>(
 
       addMsgToRetries(replace)
 
-      const res = await msgsApi.generateResponseV2({ kind: 'retry' })
-
-      yield { msgs: msgs.slice(0, -1) }
+      const res = await msgsApi.generateResponseV2({ kind: 'retry', messageId })
 
       if (res.error) {
         toastStore.error(`(Retry) Generation request failed: ${res.error}`)
@@ -395,8 +399,6 @@ async function handleImage(chatId: string, image: string) {
 }
 
 async function playVoiceFromUrl(chatId: string, messageId: string, url: string) {
-  const user = userStore.getState().user
-  if (user?.texttospeech?.enabled === false) return
   if (chatId != msgStore.getState().activeChatId) {
     msgStore.setState({ speaking: undefined })
     return
@@ -475,32 +477,39 @@ subscribe(
     message: 'string',
     continue: 'boolean?',
     adapter: 'string',
+    actions: [{ emote: 'string', action: 'string' }, '?'],
   },
   async (body) => {
     const { retrying, msgs, activeChatId } = msgStore.getState()
     if (activeChatId !== body.chatId) return
 
     const prev = msgs.find((msg) => msg._id === body.messageId)
-    const next = msgs.filter((msg) => msg._id !== body.messageId)
 
     msgStore.setState({
       partial: undefined,
       retrying: undefined,
       waiting: undefined,
-      msgs: next,
     })
 
     await Promise.resolve()
 
     addMsgToRetries({ _id: body.messageId, msg: body.message })
 
-    if (retrying) {
-      msgStore.setState({ msgs: next.concat({ ...retrying, msg: body.message }) })
+    if (retrying?._id === body.messageId) {
+      msgStore.setState({
+        msgs: msgs.map((msg) =>
+          msg._id === body.messageId
+            ? { ...msg, msg: body.message, actions: body.actions, voiceUrl: undefined }
+            : msg
+        ),
+      })
     } else {
       if (activeChatId !== body.chatId || !prev) return
       msgStore.setState({
         msgs: msgs.map((msg) =>
-          msg._id === body.messageId ? { ...msg, msg: body.message, voiceUrl: undefined } : msg
+          msg._id === body.messageId
+            ? { ...msg, msg: body.message, actions: body.actions, voiceUrl: undefined }
+            : msg
         ),
       })
     }
@@ -529,10 +538,12 @@ subscribe(
     msg: 'any',
     chatId: 'string',
     generate: 'boolean?',
-  },
+    actions: [{ emote: 'string', action: 'string' }, '?'],
+  } as const,
   (body) => {
     const { msgs, activeChatId } = msgStore.getState()
     if (activeChatId !== body.chatId) return
+
     const msg = body.msg as AppSchema.ChatMessage
     const user = userStore().user
 
@@ -587,11 +598,16 @@ subscribe('image-generated', { chatId: 'string', image: 'string' }, (body) => {
 })
 
 subscribe('voice-generating', { chatId: 'string', messageId: 'string' }, (body) => {
-  if (msgStore.getState().activeChatId != body.chatId) return
+  const activeChatId = msgStore.getState().activeChatId
+  if (activeChatId != body.chatId) return
+  const user = userStore.getState().user
+  if (user?.texttospeech?.enabled === false) return
   msgStore.setState({ speaking: { messageId: body.messageId, status: 'generating' } })
 })
 
 subscribe('voice-failed', { chatId: 'string', error: 'string' }, (body) => {
+  const activeChatId = msgStore.getState().activeChatId
+  if (activeChatId != body.chatId) return
   msgStore.setState({ speaking: undefined })
   toastStore.error(body.error)
 })
@@ -602,13 +618,10 @@ subscribe('voice-generated', { chatId: 'string', messageId: 'string', url: 'stri
 })
 
 subscribe('message-error', { error: 'any', chatId: 'string' }, (body) => {
-  const { retrying, msgs } = msgStore.getState()
+  const { msgs } = msgStore.getState()
   toastStore.error(`Failed to generate response: ${body.error}`)
 
   let nextMsgs = msgs
-  if (retrying) {
-    nextMsgs = msgs.concat(retrying)
-  }
 
   msgStore.setState({ partial: undefined, waiting: undefined, msgs: nextMsgs, retrying: undefined })
 })
@@ -631,14 +644,13 @@ subscribe('message-edited', { messageId: 'string', message: 'string' }, (body) =
 subscribe('message-retrying', { chatId: 'string', messageId: 'string' }, (body) => {
   const { msgs, activeChatId, retrying } = msgStore.getState()
 
-  const [_message, replace] = msgs.slice(-2)
+  const replace = msgs.find((msg) => msg._id === body.messageId)
 
   if (activeChatId !== body.chatId) return
   if (retrying) return
-  if (replace._id !== body.messageId) return
+  if (!replace) return
 
   msgStore.setState({
-    msgs: msgs.slice(0, -1),
     partial: '',
     retrying: replace,
     waiting: { chatId: body.chatId, mode: 'retry', characterId: '' },

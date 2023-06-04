@@ -1,4 +1,4 @@
-import { Component, createEffect, Show } from 'solid-js'
+import { Component, createEffect, Show } from 'solid-js' 
 import PageHeader from '../../shared/PageHeader'
 import { adaptersToOptions, setComponentPageTitle } from '../../shared/util'
 import { settingStore } from '../../store'
@@ -9,6 +9,8 @@ import Button from '../../shared/Button'
 import logoDark from '../../assets/logoDark.png'
 import logo from '../../assets/logo.png'
 import discordLogo from '../../assets/discord-logo-blue.svg'
+import { AlertTriangle } from 'lucide-solid'
+
 const text = `
 
 ### This website is a simulation
@@ -42,19 +44,7 @@ You can perform an action by placing the action in between asterisks \*action\*.
 
 If you don't like a reply, you can just reroll it and get another reply. You can even edit the reply to be exactly as you like. This will take away the fun for a large part, so in order to access the edit feaetures, you first have to toggle the switch on top of the chat window to activate them.
 
-When you do not want to answer the character but just want them to continue, press \`Generate more\` on the chat options (right of chat input). This can be helpful if the character is telling you a story.
-
-You can use the same chat options button to get the \`Generate image\` option. This will generate an image based on the current chat history. 
-
-### How to get premium?
-
-[Click here for our shop.](/shop)
-
-Upgrade to our premium service and enjoy the benefits of skipping message queues, as well as having your credits recharge twice as fast. Plus, premium users receive a bonus credit recharge of up to 1,000, compared to the standard 200. Don't miss out on these exclusive perks - become a premium user today!
-
-### Can I create my own characters?
-
-Yes you can. However, you need to goto our Discord to submit the character. All characters are evaluated for quality and age. We do not allow any character under the age of 18.
+You can provide your API key and choose between Euterpe and Krake in the settings page. Visit the [instructions page](https://github.com/agnaistic/agnai/blob/dev/instructions/novel.md) to learn how to retrieve your API key.
 
 ### Survival Goals
 
@@ -79,16 +69,11 @@ function toItem(model: HordeModel) {
 }
 const HomePage: Component = () => {
   setComponentPageTitle('Information')
-  const cfg = settingStore((cfg) => ({ adapters: adaptersToOptions(cfg.config.adapters) }))
-  const model = settingStore()
-  const refreshHorde = () => {
-    settingStore.getHordeModels()
-    settingStore.getHordeWorkers()
-  }
-  createEffect(() => {
-    refreshHorde()
-  })
-
+  const cfg = settingStore((cfg) => ({
+    adapters: adaptersToOptions(cfg.config.adapters),
+    guest: cfg.guestAccessAllowed,
+    config: cfg.config,
+  }))
   return (
     <div>
       <PageHeader
@@ -112,14 +97,24 @@ const HomePage: Component = () => {
         }
       />
 
-      <div class="markdown px-4">
+      <Show when={!cfg.guest}>
+        <div class="flex text-orange-500">
+          <AlertTriangle class="mr-2 mb-2" />
+          Your browser does not support local storage. You will need to login/register to use
+          Charluv.
+        </div>
+      </Show>
+
+      <div class="markdown" innerHTML={markdown.makeHtml(text)} />
+
+      <div class="markdown"> 
         <b>Useful Links</b>
 
         <ul>
           <li>
             <A href="/help">Chatbot based helpdesk</A>
           </li>
-          <li>
+          <li> 
             <A href="/changelog">Change Log</A>
           </li>
           <li>
@@ -141,10 +136,22 @@ const HomePage: Component = () => {
               </a>
             </Button>
           </li>
+          <Show when={cfg.config.policies}>
+            <li>
+              <A class="link" href="/terms-of-service">
+                Terms of Service
+              </A>{' '}
+              and{' '}
+              <A class="link" href="/privacy-policy">
+                Privacy Policy
+              </A>
+              .
+            </li>
+          </Show>
         </ul>
       </div>
 
-      <div class="markdown px-4" innerHTML={markdown.makeHtml(text)} />
+     
     </div>
   )
 }

@@ -21,7 +21,9 @@ const TextInput: Component<{
   onKeyUp?: (
     ev: KeyboardEvent & { target: Element; currentTarget: HTMLInputElement | HTMLTextAreaElement }
   ) => void
-  onChange?: (ev: Event & { target: Element; currentTarget: HTMLInputElement }) => void
+  onChange?: (
+    ev: Event & { target: Element; currentTarget: HTMLInputElement | HTMLTextAreaElement }
+  ) => void
 
   service?: AIAdapter
   aiSetting?: keyof PresetAISettings
@@ -50,16 +52,18 @@ const TextInput: Component<{
 
   return (
     <div class={`w-full ${hide()}`}>
-      <Show when={!!props.label}>
+      <Show when={!!props.label || !!props.helperText}>
         <label for={props.fieldName}>
-          <div class={props.helperText ? '' : 'pb-1'}>
-            {props.label}
-            <Show when={props.isMultiline}>
-              <IsVisible onEnter={resize} />
-            </Show>
-          </div>
+          <Show when={!!props.label}>
+            <div class={props.helperText ? '' : 'pb-1'}>
+              {props.label}
+              <Show when={props.isMultiline}>
+                <IsVisible onEnter={resize} />
+              </Show>
+            </div>
+          </Show>
           <Show when={!!props.helperText}>
-            <p class="mt-[-0.125rem] pb-1 text-sm text-[var(--text-700)]">{props.helperText}</p>
+            <p class="mt-[-0.125rem] pb-2 text-sm text-[var(--text-700)]">{props.helperText}</p>
           </Show>
         </label>
       </Show>
@@ -75,7 +79,7 @@ const TextInput: Component<{
             value={value()}
             class={'form-field focusable-field w-full rounded-xl px-4 py-2 ' + props.class}
             onkeyup={(ev) => props.onKeyUp?.(ev)}
-            onchange={(ev) => props.onChange?.(ev)}
+            onChange={(ev) => props.onChange?.(ev)}
             disabled={props.disabled}
             pattern={props.pattern}
             autocomplete={props.autocomplete}
@@ -95,6 +99,7 @@ const TextInput: Component<{
           }
           disabled={props.disabled}
           onKeyUp={(ev) => props.onKeyUp?.(ev)}
+          onchange={(ev) => props.onChange?.(ev)}
           onInput={resize}
         />
       </Show>

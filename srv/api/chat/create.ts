@@ -1,4 +1,4 @@
-import { assertValid } from 'frisker'
+import { assertValid } from '/common/valid'
 import { PERSONA_FORMATS } from '../../../common/adapters'
 import { store } from '../../db'
 import { NewMessage } from '../../db/messages'
@@ -10,6 +10,7 @@ export const createChat = handle(async ({ body, user }) => {
       genPreset: 'string?',
       characterId: 'string',
       name: 'string',
+      mode: ['standard', 'adventure', null],
       greeting: 'string',
       scenario: 'string',
       sampleChat: 'string',

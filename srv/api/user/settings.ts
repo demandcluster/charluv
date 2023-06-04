@@ -1,4 +1,4 @@
-import { assertValid } from 'frisker'
+import { assertValid } from '/common/valid'
 import needle from 'needle'
 import { NOVEL_BASEURL } from '../../adapter/novel'
 import { store } from '../../db'
@@ -14,6 +14,7 @@ import { v4 } from 'uuid'
 import { getRegisteredAdapters } from '/srv/adapter/register'
 import { AIAdapter } from '/common/adapters'
 import { config } from '/srv/config'
+import { toArray } from '/common/util'
 
 export const getInitialLoad = handle(async ({ userId }) => {
   const [profile, user, presets, config, books] = await Promise.all([
@@ -109,6 +110,7 @@ export const updateConfig = handle(async ({ userId, body }) => {
       hordeApiKey: 'string?',
       hordeKey: 'string?',
       hordeModel: 'string?',
+      hordeModels: ['string?'],
       luminaiUrl: 'string?',
       hordeWorkers: ['string'],
       oaiKey: 'string?',
@@ -185,8 +187,8 @@ export const updateConfig = handle(async ({ userId, body }) => {
     update.texttospeech = body.texttospeech
   }
 
-  if (body.hordeModel) {
-    update.hordeModel = body.hordeModel!
+  if (body.hordeModels) {
+    update.hordeModel = toArray(body.hordeModels)
   }
 
   if (body.novelModel) {

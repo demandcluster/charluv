@@ -9,6 +9,7 @@ import { toDropdownItems } from '../../shared/util'
 import { AVATAR_CORNERS, AVATAR_SIZES, UI_THEME, userStore } from '../../store'
 import Message from '../Chat/components/Message'
 import { Toggle } from '../../shared/Toggle'
+import ColorPicker from '/web/shared/ColorPicker'
 
 const themeOptions = UI_THEME.map((color) => ({ label: color, value: color }))
 
@@ -79,6 +80,59 @@ const UISettings: Component = () => {
         />
       </div>
 
+      <ColorPicker
+        label="Message Background Color"
+        fieldName="messageColor"
+        helperText={
+          <span class="link" onClick={() => userStore.updateUI({ msgBackground: '' })}>
+            Reset to Default
+          </span>
+        }
+        onChange={(color) => userStore.updateUI({ msgBackground: color })}
+        value={state.ui.msgBackground}
+      />
+
+      <ColorPicker
+        label="Bot Message Background Color"
+        fieldName="botMessageColor"
+        helperText={
+          <>
+            <span>
+              This will override the <b>Message Background</b>.{' '}
+            </span>
+            <span class="link" onClick={() => userStore.updateUI({ botBackground: '' })}>
+              Reset to Default
+            </span>
+          </>
+        }
+        onChange={(color) => userStore.updateUI({ botBackground: color })}
+        value={state.ui.botBackground}
+      />
+
+      <ColorPicker
+        label="Chat Text Color"
+        fieldName="chatTextColor"
+        helperText={
+          <span class="link" onClick={() => userStore.updateUI({ chatTextColor: '' })}>
+            Reset to Default
+          </span>
+        }
+        onChange={(color) => userStore.updateUI({ chatTextColor: color })}
+        value={state.ui.chatTextColor}
+      />
+
+      <ColorPicker
+        label="Chat Emphasis Color"
+        fieldName="chatEmphasisColor"
+        helperText={
+          <span class="link" onClick={() => userStore.updateUI({ chatEmphasisColor: '' })}>
+            Reset to Default
+          </span>
+        }
+        onChange={(color) => userStore.updateUI({ chatEmphasisColor: color })}
+        value={state.ui.chatEmphasisColor}
+      />
+
       <FileInput fieldName="background" label="Background Image" onUpdate={onBackground} />
       <div class="my-2 w-full justify-center">
         <Button onClick={() => userStore.setBackground(null)}>Remove Background</Button>
@@ -130,6 +184,7 @@ const UISettings: Component = () => {
           editing={false}
           msg={toBotMsg(bot, '*I wave excitedly* Hello world!\nHow are you today?', { _id: '1' })}
           onRemove={noop}
+          sendMessage={() => {}}
         />
 
         <Show when={state.profile}>
@@ -141,6 +196,7 @@ const UISettings: Component = () => {
               _id: '2',
             })}
             onRemove={noop}
+            sendMessage={() => {}}
           />
         </Show>
       </div>

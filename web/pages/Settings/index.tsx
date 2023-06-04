@@ -16,6 +16,7 @@ import AISettings from './AISettings'
 import { Show } from 'solid-js'
 import { ImageSettings } from './Image/ImageSettings'
 import { VoiceSettings } from './Voice/VoiceSettings'
+import { toArray } from '/common/util'
 
 const settingTabs = {
   ai: 'AI Settings',
@@ -33,7 +34,8 @@ const Settings: Component = () => {
   const state = userStore()
 
   const [tab, setTab] = createSignal(0)
-  const [workers, setWorkers] = createSignal<string[]>(state.user?.hordeWorkers || [])
+  const [workers, setWorkers] = createSignal<string[]>(toArray(state.user?.hordeWorkers))
+  const [models, setModels] = createSignal<string[]>(toArray(state.user?.hordeModel))
 
   const tabs: Tab[] = ['ui', 'voice']
   if (state.loggedIn) tabs.push('date')
@@ -77,6 +79,7 @@ const Settings: Component = () => {
       ...base,
       adapterConfig,
       hordeWorkers: workers(),
+      hordeModels: models(),
       speechtotext: {
         enabled: speechToTextEnabled,
         autoSubmit: speechToTextAutoSubmit,
@@ -123,7 +126,7 @@ const Settings: Component = () => {
       <form onSubmit={onSubmit} autocomplete="off">
         <div class="flex flex-col gap-4">
           <div class={currentTab() === 'ai' ? tabClass : 'hidden'}>
-            <AISettings onHordeWorkersChange={setWorkers} />
+            <AISettings onHordeWorkersChange={setWorkers} onHordeModelsChange={setModels} />
           </div>
 
           <div class={currentTab() === 'ui' ? tabClass : 'hidden'}>

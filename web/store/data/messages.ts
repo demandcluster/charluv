@@ -56,7 +56,7 @@ export type GenerateOpts =
    * - The last message in the chat is a user message so we are going to generate a new response
    * - The last message in the chat is a bot message so we are going to re-generate a response and update the 'replacingId' chat message
    */
-  | { kind: 'retry' }
+  | { kind: 'retry'; messageId?: string }
   /**
    * The last message in the chat is a bot message and we want to generate more text for this message.
    */
@@ -101,37 +101,31 @@ export async function generateResponseV2(opts: GenerateOpts) {
       messages: props.messages,
       replyAs: props.replyAs,
       characters: entities.characters,
+      impersonate: props.impersonate,
     },
     encoder
   )
   if (ui?.logPromptsToBrowserConsole) {
     console.log(`=== Sending the following prompt: ===`)
-    console.log(`${prompt.parts.gaslight}\n${prompt.lines.join('\n')}\n${prompt.post}`)
-  }
-
-  const { avatar: _, ...sender } = entities.profile
-  const { avatar: __, ...char } = entities.char
-
-  // Prevent sending the avatar due to guests have avatars base64 encoded
-  for (const charId in entities.characters) {
-    entities.characters[charId] = { ...entities.characters[charId], avatar: '' }
+    console.log(`${prompt.template}`)
   }
 
   const request: GenerateRequestV2 = {
     kind: opts.kind,
     chat: entities.chat,
     user: entities.user,
-    char,
-    sender,
-    members: entities.members,
+    char: removeAvatar(entities.char),
+    sender: removeAvatar(entities.profile),
+    members: entities.members.map(removeAvatar),
     parts: prompt.parts,
-    lines: prompt.lines,
     text: opts.kind === 'send' ? opts.text : undefined,
+    lines: prompt.lines,
     settings: entities.settings,
     replacing: props.replacing,
     continuing: props.continuing,
     replyAs: props.replyAs,
-    characters: entities.characters,
+    impersonate: props.impersonate,
+    characters: removeAvatars(entities.characters),
   }
 
   const res = await api.post(`/chat/${entities.chat._id}/generate`, request)
@@ -147,6 +141,7 @@ type GenerateProps = {
   replyAs: AppSchema.Character
   messages: AppSchema.ChatMessage[]
   continue?: string
+  impersonate?: AppSchema.Character
 }
 
 async function getGenerateProps(
@@ -160,19 +155,32 @@ async function getGenerateProps(
     entities,
     replyAs: entities.char,
     messages: entities.messages.slice(),
+    impersonate: entities.impersonating,
   }
 
   const getBot = (id: string) => entities.chatBots.find((ch) => ch._id === id)!
 
   switch (opts.kind) {
     case 'retry': {
-      if (!lastMessage) throw new Error(`No message to retry`)
-      if (lastMessage.characterId) {
+      if (opts.messageId) {
+        // Case: When regenerating a response that isn't last. Typically when image messages follow the last text message
+        const index = entities.messages.findIndex((msg) => msg._id === opts.messageId)
+        const replacing = entities.messages[index]
+        props.replyAs = getBot(replacing.characterId || active.char._id)
+        props.replacing = replacing
+        props.messages = entities.messages.slice(0, index)
+      } else if (!lastMessage && message.characterId) {
+        // Case: Replacing the first message (i.e. the greeting)
+        props.replyAs = getBot(active.replyAs || active.char._id)
+        props.replacing = message
+      } else if (lastMessage?.characterId) {
+        // Case: When the user clicked on their own message. Probably after deleting a bot response
         props.retry = message
         props.replacing = lastMessage
         props.replyAs = getBot(lastMessage.characterId)
         props.messages = entities.messages.slice(0, -1)
       } else {
+        // Case: Clicked on a bot response to regenerate
         props.retry = lastMessage
         props.replyAs = getBot(active.replyAs || active.char._id)
       }
@@ -191,10 +199,12 @@ async function getGenerateProps(
     case 'send': {
       // If the chat is a single-user chat, it is always in 'auto-reply' mode
       // Ensure the autoReplyAs parameter is set for single-bot chats
-      const isMulti = Object.keys(entities.characters).length > 1
+      const isMulti =
+        Object.values(entities.chat.characters || {}).filter((val) => !!val).length >= 1
       if (!isMulti) entities.autoReplyAs = entities.char._id
 
       if (!entities.autoReplyAs) throw new Error(`No character selected to reply with`)
+      props.impersonate = entities.impersonating
       props.replyAs = getBot(entities.autoReplyAs)
       props.messages.push(emptyMsg(entities.chat, { msg: opts.text, userId: entities.user._id }))
       break
@@ -222,7 +232,9 @@ async function getGenerateProps(
  * Create a user message that does not generate a bot response
  */
 async function createMessage(chatId: string, opts: { kind: 'ooc' | 'send-noreply'; text: string }) {
-  return api.post(`/chat/${chatId}/send`, { text: opts.text, kind: opts.kind })
+  const { impersonating } = getStore('character').getState()
+  const impersonate = opts.kind === 'send-noreply' ? impersonating : undefined
+  return api.post(`/chat/${chatId}/send`, { text: opts.text, kind: opts.kind, impersonate })
 }
 
 export async function deleteMessages(chatId: string, msgIds: string[]) {
@@ -271,6 +283,8 @@ async function getGuestEntities() {
   const user = loadItem('config')
   const settings = getGuestPreset(user, chat)
 
+  const { impersonating } = getStore('character').getState()
+
   return {
     chat,
     char,
@@ -283,6 +297,7 @@ async function getGuestEntities() {
     chatBots,
     autoReplyAs: active.replyAs,
     characters: chatBotMap,
+    impersonating,
   }
 }
 
@@ -303,6 +318,8 @@ function getAuthedPromptEntities() {
   const messages = getStore('messages').getState().msgs
   const settings = getAuthGenSettings(chat, user)
 
+  const { impersonating } = getStore('character').getState()
+
   return {
     chat,
     char,
@@ -315,6 +332,7 @@ function getAuthedPromptEntities() {
     chatBots,
     autoReplyAs: active.replyAs,
     characters: chatBotMap,
+    impersonating,
   }
 }
 
@@ -346,4 +364,18 @@ function emptyMsg(
     msg: '',
     ...props,
   }
+}
+
+function removeAvatar<T extends AppSchema.Character | AppSchema.Profile>(char: T): T {
+  return { ...char, avatar: undefined }
+}
+
+function removeAvatars(chars: Record<string, AppSchema.Character>) {
+  const next: Record<string, AppSchema.Character> = {}
+
+  for (const id in chars) {
+    next[id] = { ...chars[id], avatar: undefined }
+  }
+
+  return next
 }

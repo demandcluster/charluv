@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { assertValid } from 'frisker'
+import { assertValid } from '/common/valid'
 import { store } from '../../db'
 import { loggedIn } from '../auth'
 import { handle } from '../wrap'
@@ -17,7 +17,7 @@ const validEntry = {
   keywords: ['string'],
 } as const
 
-const validBook = {
+export const validBook = {
   name: 'string',
   description: 'string?',
   entries: [validEntry],

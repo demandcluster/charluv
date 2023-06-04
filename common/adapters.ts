@@ -70,6 +70,15 @@ export const OPENAI_MODELS = {
   GPT4_32k_0314: 'gpt-4-32k-0314',
 } as const
 
+export const OPENAI_CHAT_MODELS: Record<string, boolean> = {
+  [OPENAI_MODELS.Turbo]: true,
+  [OPENAI_MODELS.Turbo0301]: true,
+  [OPENAI_MODELS.GPT4]: true,
+  [OPENAI_MODELS.GPT4_0314]: true,
+  [OPENAI_MODELS.GPT4_32k]: true,
+  [OPENAI_MODELS.GPT4_32k_0314]: true,
+}
+
 /** Note: claude-v1 and claude-instant-v1 not included as they may point
  * to different models in the future. New models may be less appropriate
  * for roleplaying so they should be updated to manually
@@ -165,7 +174,7 @@ export const adapterSettings: {
   temp: ['kobold', 'novel', 'ooba', 'horde', 'luminai', 'openai', 'scale', 'claude'],
   maxTokens: AI_ADAPTERS.slice(),
   maxContextLength: AI_ADAPTERS.slice(),
-  gaslight: ['openai', 'scale', 'kobold', 'claude', 'ooba'],
+  gaslight: ['openai', 'novel', 'scale', 'kobold', 'claude', 'ooba', 'goose'],
   antiBond: ['openai', 'claude', 'scale'],
   ultimeJailbreak: ['openai', 'claude', 'kobold'],
   topP: ['horde', 'kobold', 'claude', 'ooba', 'openai', 'novel', 'luminai'],

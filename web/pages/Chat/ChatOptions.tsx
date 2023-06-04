@@ -20,7 +20,6 @@ export type ChatModal =
 const ChatOptions: Component<{ setModal: (modal: ChatModal) => void }> = (props) => {
   const chats = chatStore((s) => ({
     ...s.active,
-    lastId: s.lastChatId,
     opts: s.opts,
     members: s.chatProfiles,
   }))
@@ -50,9 +49,7 @@ const ChatOptions: Component<{ setModal: (modal: ChatModal) => void }> = (props)
     }
     toggleScreenshot(true)
     const bgRgb = getRootRgb('bg-900')
-    domToPng(ele, {
-      backgroundColor: `rgb(${bgRgb.r}, ${bgRgb.g}, ${bgRgb.b})`,
-    })
+    domToPng(ele, { backgroundColor: `rgb(${bgRgb.r}, ${bgRgb.g}, ${bgRgb.b})` })
       .then((dataUrl) => {
         const link = document.createElement('a')
         link.download = 'agnai_chat_screenshot.png'

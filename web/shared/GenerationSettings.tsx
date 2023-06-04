@@ -15,6 +15,7 @@ import Divider from './Divider'
 import { Toggle } from './Toggle'
 import { Check, X } from 'lucide-solid'
 import { settingStore } from '../store'
+// import PromptEditor from './PromptEditor'
 
 type Props = {
   inherit?: Partial<AppSchema.GenSettings>
@@ -102,6 +103,8 @@ const GeneralSettings: Component<Props> = (props) => {
     <>
       <div class="text-xl font-bold">General Settings</div>
 
+      {/* <PromptEditor preset={props.inherit} /> */}
+
       <Select
         fieldName="oaiModel"
         label="OpenAI Model"
@@ -116,7 +119,10 @@ const GeneralSettings: Component<Props> = (props) => {
       <Select
         fieldName="novelModel"
         label="NovelAI Model"
-        items={[...modelsToItems(NOVEL_MODELS), { value: '', label: 'Use service default' }]}
+        items={[
+          ...modelsToItems(NOVEL_MODELS).map(({ value }) => ({ label: value, value })),
+          { value: '', label: 'Use service default' },
+        ]}
         helperText="Which NovelAI model to use"
         value={props.inherit?.novelModel || ''}
         disabled={props.disabled}
@@ -222,12 +228,12 @@ const PromptSettings: Component<Props> = (props) => {
         label="Use Gaslight"
         helperText={
           <>
+            If this option is enabled, the Gaslight text will be included in the prompt sent to the
+            AI service.
             <p class="font-bold">
               CAUTION: By using the gaslight, you assume full control of the prompt "pre-amble". If
               you do not include the placeholders, they will not be included in the prompt at all.
             </p>
-            If this option is enabled, the Gaslight text will be included in the prompt sent to the
-            AI service. Particularly useful for Scale.
           </>
         }
         value={props.inherit?.useGaslight ?? false}
@@ -238,13 +244,11 @@ const PromptSettings: Component<Props> = (props) => {
 
       <TextInput
         fieldName="gaslight"
-        label="Gaslight Prompt (OpenAI, Scale, Alpaca, LLaMa, Claude)"
         helperText={
           <>
-            How the character definitions are sent to OpenAI. Placeholders:{' '}
-            <code>{'{{char}}'}</code> <code>{'{{user}}'}</code> <code>{'{{personality}}'}</code>{' '}
-            <code>{'{{memory}}'}</code> <code>{'{{scenario}}'}</code>{' '}
-            <code>{'{{example_dialogue}}'}</code>
+            Placeholders: <code>{'{{char}}'}</code> <code>{'{{user}}'}</code>{' '}
+            <code>{'{{personality}}'}</code> <code>{'{{memory}}'}</code>{' '}
+            <code>{'{{scenario}}'}</code> <code>{'{{example_dialogue}}'}</code>
           </>
         }
         placeholder="Be sure to include the placeholders above"

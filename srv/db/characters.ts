@@ -21,6 +21,13 @@ export type CharacterUpdate = Partial<
     | 'premium'
     | 'anime'
     | 'voice'
+    | 'alternateGreetings'
+    | 'characterBook'
+    | 'extensions'
+    | 'systemPrompt'
+    | 'postHistoryInstructions'
+    | 'creator'
+    | 'characterVersion'
   >
 >
 
@@ -43,6 +50,13 @@ export async function createCharacter(
     | 'premium'
     | 'anime'
     | 'voice'
+    | 'alternateGreetings'
+    | 'characterBook'
+    | 'extensions'
+    | 'systemPrompt'
+    | 'postHistoryInstructions'
+    | 'creator'
+    | 'characterVersion'
   >
 ) {
   const newChar: AppSchema.Character = {

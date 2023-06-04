@@ -7,7 +7,7 @@ import {
 } from '../../common/presets'
 import { store } from '../db'
 import { AppSchema } from '../db/schema'
-import { AppLog } from '../logger'
+import { AppLog, logger } from '../logger'
 import { errors, StatusError } from '../api/wrap'
 import { handleHorde } from './horde'
 import { handleKobold } from './kobold'
@@ -29,11 +29,15 @@ import { handleGooseAI } from './goose'
 configure(async (opts) => {
   const res = await needle(opts.method, opts.url, opts.payload, {
     json: true,
-    headers: { 'Content-Type': 'application/json', apikey: opts.key || HORDE_GUEST_KEY },
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: opts.key || HORDE_GUEST_KEY,
+      'User-Agent': 'Agnaistic',
+    },
   })
 
   return { body: res.body, statusCode: res.statusCode, statusMessage: res.statusMessage }
-})
+}, logger)
 
 const handlers: { [key in AIAdapter]: ModelAdapter } = {
   novel: handleNovel,
@@ -45,6 +49,37 @@ const handlers: { [key in AIAdapter]: ModelAdapter } = {
   scale: handleScale,
   claude: handleClaude,
   goose: handleGooseAI,
+}
+
+type PlainRequest = {
+  prompt: string
+  settings: Partial<AppSchema.GenSettings>
+  guest?: string
+  user: AppSchema.User
+  log: AppLog
+}
+
+export async function createPlainStream(opts: PlainRequest) {
+  const handler = handlers[opts.settings.service!]
+  const stream = handler({
+    kind: 'request',
+    char: {} as any,
+    chat: {} as any,
+    gen: opts.settings,
+    log: opts.log,
+    lines: [],
+    members: [],
+    guest: opts.guest,
+    user: opts.user,
+    replyAs: {} as any,
+    parts: {} as any,
+    prompt: opts.prompt,
+    sender: {} as any,
+    settings: mapPresetsToAdapter(opts.settings, opts.settings.service!),
+    impersonate: undefined,
+  })
+
+  return { stream }
 }
 
 export async function createTextStreamV2(
@@ -72,6 +107,7 @@ export async function createTextStreamV2(
         chat: opts.chat,
         members: opts.members,
         replyAs: opts.replyAs,
+        impersonate: opts.impersonate,
       },
       [...opts.lines].reverse(),
       encoder
@@ -112,7 +148,8 @@ export async function createTextStreamV2(
     lines: opts.lines,
     isThirdParty,
     replyAs: opts.replyAs,
-    characters: opts.characters,
+    characters: Object.assign(opts.characters, { impersonated: opts.impersonate }),
+    impersonate: opts.impersonate,
   })
 
   return { stream, adapter }

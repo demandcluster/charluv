@@ -63,26 +63,33 @@ export const defaultPresets = {
     antiBond: false,
   },
   novel_clio: {
-    name: 'Novel Clio - Talker C',
+    name: 'Clio - Talker C',
     service: 'novel',
     novelModel: NOVEL_MODELS.clio_v1,
     maxTokens: 300,
     maxContextLength: 8000,
     repetitionPenalty: 1.5,
     repetitionPenaltyRange: 8000,
+    repetitionPenaltySlope: 0.09,
     frequencyPenalty: 0.03,
     presencePenalty: 0.005,
     temp: 1.05,
-    tailFreeSampling: 0.989,
-    topK: 79,
-    topP: 0.96,
+    tailFreeSampling: 0.967,
+    topK: 80,
+    topP: 0.95,
     topA: 0.075,
     order: [1, 3, 4, 0, 2],
-    useGaslight: false,
     streamResponse: false,
+    useGaslight: true,
+    gaslight: `{{char}} Memory: {{memory}}
+Description of {{char}}: {{personality}}
+[ Title: Dialogue between {{char}} and {{user}}; Tags: conversation; Genre: online roleplay ]
+This is how the character speaks:{{example_dialogue}}
+***
+Summary: {{scenario}}`,
   },
   novel_20BC: {
-    name: 'Novel 20BC+',
+    name: '20BC+',
     service: 'novel',
     maxTokens: MAX_TOKENS,
     maxContextLength: 2048,
@@ -97,7 +104,7 @@ export const defaultPresets = {
     useGaslight: false,
   },
   novel_blueLighter: {
-    name: 'Novel Blue Lighter',
+    name: 'Blue Lighter',
     service: 'novel',
     maxTokens: MAX_TOKENS,
     maxContextLength: 2048,
@@ -128,7 +135,7 @@ export const defaultPresets = {
     useGaslight: false,
   },
   openai: {
-    name: 'OpenAI - Turbo',
+    name: 'Turbo',
     service: 'openai',
     temp: 0.5,
     oaiModel: OPENAI_MODELS.Turbo,
@@ -144,11 +151,10 @@ Description of {{char}}:
 {{personality}}
 Circumstances and context of the dialogue: {{scenario}}
 Facts: {{memory}}
-This is how {{char}} should talk
-{{example_dialogue}}`,
+This is how {{char}} should talk: {{example_dialogue}}`,
   },
   openaiAlt: {
-    name: 'OpenAI - Turbo (#2)',
+    name: 'Turbo (#2)',
     service: 'openai',
     temp: 0.5,
     oaiModel: OPENAI_MODELS.Turbo,
@@ -163,11 +169,10 @@ Description of {{char}}:
 {{personality}}
 Circumstances and context of the dialogue: {{scenario}}
 Facts: {{memory}}
-This is how {{char}} should talk
-{{example_dialogue}}`,
+This is how {{char}} should talk: {{example_dialogue}}`,
   },
   openaiTurbo: {
-    name: 'OpenAI - DaVinci',
+    name: 'DaVinci',
     service: 'openai',
     temp: 0.5,
     oaiModel: OPENAI_MODELS.DaVinci,
@@ -182,8 +187,7 @@ Description of {{char}}:
 {{personality}}
 Circumstances and context of the dialogue: {{scenario}}
 Facts: {{memory}}
-This is how {{char}} should talk
-{{example_dialogue}}`,
+This is how {{char}} should talk: {{example_dialogue}}`,
   },
   scale: {
     name: 'Scale',
@@ -207,7 +211,38 @@ Description of {{char}}:
 {{personality}}
 Circumstances and context of the dialogue: {{scenario}}
 Facts: {{memory}}
-This is how {{char}} should talk
-{{example_dialogue}}`,
+This is how {{char}} should talk: {{example_dialogue}}`,
   },
 } satisfies Record<string, Partial<AppSchema.GenSettings>>
+
+export const defaultPresets = {
+  ...builtinPresets,
+  goose: { ...builtinPresets.basic, service: 'goose' },
+} satisfies Record<string, Partial<AppSchema.GenSettings>>
+
+export const defaultTemplate = `{{char}}'s Persona: {{personality}}
+Scenario: {{scenario}}
+Facts:{{memory}}
+Example of {{char}}'s dialogue: {{example_dialogue}}
+
+<START>
+{{history}}
+{{ujb}}
+{{post}}`
+
+export const adventureAmble = `[System note: In addition provide 3 possible consistent responses that {{user}} could give to {{char}}'s response that drive the story forward. Respond in this strict format:
+{{char}}: {{{char}}'s response. Provide at least two paragraphs}
+{Emotion of {{user}}'s response 1} -> {Possible response 1}
+{Emotion of {{user}}'s response 2} -> {Possible response 2}
+{Emotion of {{user}}'s response 3} -> {Possible response 3}]`
+
+export const adventureTemplate = `{{char}}'s Persona: {{personality}}
+Scenario: {{scenario}}
+Facts:{{memory}}
+Example of {{char}}'s dialogue:{{example_dialogue}}
+
+<START>
+{{history}}
+{{ujb}}
+${adventureAmble}
+{{post}}`

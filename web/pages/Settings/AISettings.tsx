@@ -16,6 +16,7 @@ import RegisteredSettings from './components/RegisteredSettings'
 
 const AISettings: Component<{
   onHordeWorkersChange: (workers: string[]) => void
+  onHordeModelsChange: (models: string[]) => void
 }> = (props) => {
   const state = userStore()
   const cfg = settingStore()
@@ -24,9 +25,7 @@ const AISettings: Component<{
   createEffect(() => {
     setTabs(cfg.config.adapters.map((a) => ADAPTER_LABELS[a] || a))
     if (!ready() && cfg.config.adapters?.length) {
-      var defaultTab = (cfg.config.adapters as (string | undefined)[]).indexOf(
-        state.user?.defaultAdapter
-      )
+      const defaultTab = cfg.config.adapters.indexOf(state.user?.defaultAdapter!)
       setTab(defaultTab === -1 ? 0 : defaultTab)
       setReady(true)
     }
@@ -39,7 +38,7 @@ const AISettings: Component<{
   const currentTab = createMemo(() => cfg.config.adapters[tab()])
   const presetOptions = createMemo(() =>
     [{ label: 'None', value: '' }].concat(
-      getPresetOptions(presets).filter(
+      getPresetOptions(presets, { builtin: true }).filter(
         (pre) => pre.value !== AutoPreset.chat && pre.value !== AutoPreset.service
       )
     )
@@ -68,7 +67,10 @@ const AISettings: Component<{
       </Show>
 
       <div class={currentTab() === 'horde' ? tabClass : 'hidden'}>
-        <HordeAISettings onHordeWorkersChange={props.onHordeWorkersChange} />
+        <HordeAISettings
+          onHordeWorkersChange={props.onHordeWorkersChange}
+          onHordeModelsChange={props.onHordeModelsChange}
+        />
       </div>
 
       <div class={currentTab() === 'kobold' ? tabClass : 'hidden'}>

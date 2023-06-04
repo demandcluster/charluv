@@ -3,7 +3,21 @@ import { GenerationPreset } from '../../common/presets'
 import { ImageSettings } from './image-schema'
 import { TTSSettings, VoiceSettings } from './texttospeech-schema'
 
+export type AllDoc =
+  | AppSchema.Chat
+  | AppSchema.ChatMessage
+  | AppSchema.Character
+  | AppSchema.User
+  | AppSchema.Profile
+  | AppSchema.ChatLock
+  | AppSchema.ChatMember
+  | AppSchema.ChatInvite
+  | AppSchema.UserGenPreset
+  | AppSchema.MemoryBook
+
 export namespace AppSchema {
+  export type ChatMode = 'standard' | 'adventure'
+
   export interface Token {
     userId: string
     username: string
@@ -50,7 +64,7 @@ export namespace AppSchema {
     oaiKeySet?: boolean
 
     hordeKey: string
-    hordeModel: string
+    hordeModel: string | string[]
     hordeName?: string
     hordeUseTrusted?: boolean
     hordeWorkers?: string[]
@@ -86,6 +100,7 @@ export namespace AppSchema {
   export interface Chat {
     _id: string
     kind: 'chat'
+    mode?: 'standard' | 'adventure'
     userId: string
     memoryId?: string
 
@@ -117,6 +132,8 @@ export namespace AppSchema {
     createdAt: string
   }
 
+  export type ChatAction = { emote: string; action: string }
+
   export interface ChatMessage {
     _id: string
     kind: 'chat-message'
@@ -129,6 +146,7 @@ export namespace AppSchema {
     rating?: 'y' | 'n' | 'none'
     adapter?: string
     imagePrompt?: string
+    actions?: ChatAction[]
 
     createdAt: string
     updatedAt: string
@@ -171,6 +189,15 @@ export namespace AppSchema {
     favorite?: boolean
 
     voice?: VoiceSettings
+
+    // v2 stuff
+    alternateGreetings?: string[]
+    characterBook?: MemoryBook
+    extensions?: Record<string, any>
+    systemPrompt?: string
+    postHistoryInstructions?: string
+    creator?: string
+    characterVersion?: string
   }
 
   export interface ChatInvite {
@@ -305,6 +332,7 @@ export namespace AppSchema {
     registered: Array<Omit<RegisteredAdapter, 'contextLimit'>>
     maintenance?: string
     patreon?: boolean
+    policies?: boolean
   }
 
   export interface MemoryBook {
@@ -314,6 +342,12 @@ export namespace AppSchema {
     description?: string
     userId: string
     entries: MemoryEntry[]
+
+    // currently unsupported V2 fields which are here so that we don't destroy them
+    scanDepth?: number
+    tokenBudget?: number
+    recursiveScanning?: boolean
+    extensions?: Record<string, any>
   }
 
   export interface MemoryEntry {
@@ -332,6 +366,14 @@ export namespace AppSchema {
     weight: number
 
     enabled: boolean
+
+    // currently unsupported V2 fields which are here so that we don't destroy them
+    id?: number
+    comment?: string
+    selective?: boolean
+    secondaryKeys?: Array<string>
+    constant?: boolean
+    position?: 'before_char' | 'after_char'
   }
 
   export interface VoiceDefinition {
@@ -342,23 +384,6 @@ export namespace AppSchema {
 }
 
 export type Doc<T extends AllDoc['kind'] = AllDoc['kind']> = Extract<AllDoc, { kind: T }>
-
-export type AllDoc =
-  | AppSchema.Chat
-  | AppSchema.ChatMessage
-  | AppSchema.Character
-  | AppSchema.User
-  | AppSchema.Profile
-  | AppSchema.ChatLock
-  | AppSchema.ChatMember
-  | AppSchema.ChatInvite
-  | AppSchema.UserGenPreset
-  | AppSchema.MemoryBook
-  | AppSchema.ShopItem
-  | AppSchema.ShopOrder
-  | AppSchema.OrderCount
-  | AppSchema.Scenario
-  | AppSchema.InviteCode
 
 export const defaultGenPresets: AppSchema.GenSettings[] = []
 

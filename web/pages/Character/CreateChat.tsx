@@ -9,7 +9,9 @@ import TextInput from '../../shared/TextInput'
 import { getStrictForm } from '../../shared/util'
 import { characterStore, chatStore, presetStore, userStore } from '../../store'
 import CharacterSelect from '../../shared/CharacterSelect'
-import { getPresetOptions } from '../../shared/adapter'
+import { AutoPreset, getPresetOptions } from '../../shared/adapter'
+import { defaultPresets, isDefaultPreset } from '/common/presets'
+import ServiceWarning from '/web/shared/ServiceWarning'
 
 const options = [
   { value: 'wpp', label: 'W++' },
@@ -31,6 +33,7 @@ const CreateChatModal: Component<{
   }))
 
   const [selectedId, setSelected] = createSignal<string>()
+  const [presetId, setPresetId] = createSignal('')
 
   const char = createMemo(() =>
     state.chars.find((ch) => ch._id === selectedId() || ch._id === props.charId)
@@ -45,12 +48,21 @@ const CreateChatModal: Component<{
     setSelected(state.chars[0]._id)
   })
 
-  const user = userStore((s) => s.user || { defaultPreset: '' })
+  const user = userStore((s) => ({ ...s.user }))
   const presets = presetStore((s) => s.presets)
 
-  const presetOptions = createMemo(() =>
-    getPresetOptions(presets).filter((pre) => pre.value !== 'chat')
-  )
+  const presetOptions = createMemo(() => {
+    const opts = getPresetOptions(presets, { builtin: true }).filter((pre) => pre.value !== 'chat')
+    return [{ label: 'System Built-in Preset (Horde)', value: AutoPreset.service }].concat(opts)
+  })
+
+  const selectedPreset = createMemo(() => {
+    const id = presetId()
+    console.log('pre', id)
+    if (!id) return defaultPresets.horde
+    if (isDefaultPreset(id)) return defaultPresets[id]
+    return presets.find((pre) => pre._id === id)
+  })
 
   const onCreate = () => {
     const character = char()
@@ -72,6 +84,11 @@ const CreateChatModal: Component<{
     // } else {
     body = getStrictForm(ref, {
       name: 'string',
+      greeting: 'string',
+      scenario: 'string',
+      sampleChat: 'string',
+      schema: ['wpp', 'boostyle', 'sbf', 'text'],
+      mode: ['standard', 'adventure', null],
     } as const)
     body.scenario = character.scenario
     body.greeting = character.greeting
@@ -127,6 +144,32 @@ const CreateChatModal: Component<{
           />
         </Show>
 
+        <Select
+          fieldName="genPreset"
+          label="Preset"
+          items={presetOptions()}
+          value={user.defaultPreset || ''}
+          helperText={
+            <>
+              <ServiceWarning service={selectedPreset()?.service} />
+            </>
+          }
+          onChange={(ev) => setPresetId(ev.value)}
+        />
+
+        <Show when={selectedPreset()?.service === 'openai'}>
+          <Select
+            fieldName="mode"
+            label="Chat Mode"
+            helperText="EXPERIMENTAL: This is only supported on OpenAI Turbo at the moment. This feature may not work "
+            items={[
+              { label: 'Conversation', value: 'standard' },
+              { label: 'Adventure (Experimental)', value: 'adventure' },
+            ]}
+            value={'standard'}
+          />
+        </Show>
+
         <TextInput
           class="text-sm"
           fieldName="name"
@@ -138,6 +181,72 @@ const CreateChatModal: Component<{
           }
           placeholder="Untitled"
         />
+        <TextInput
+          isMultiline
+          fieldName="greeting"
+          label="Greeting"
+          value={char()?.greeting}
+          class="text-xs"
+        ></TextInput>
+
+        <TextInput
+          isMultiline
+          fieldName="scenario"
+          label="Scenario"
+          value={char()?.scenario}
+          class="text-xs"
+        ></TextInput>
+
+        <TextInput
+          isMultiline
+          fieldName="sampleChat"
+          label="Sample Chat"
+          value={char()?.sampleChat}
+          class="text-xs"
+        ></TextInput>
+
+        <Show when={char()?.persona.kind !== 'text'}>
+          <Select
+            class="mb-2 text-sm"
+            fieldName="schema"
+            label="Persona"
+            items={options}
+            value={char()?.persona.kind || 'wpp'}
+          />
+        </Show>
+
+        <Show when={char()?.persona.kind === 'text'}>
+          <Select
+            class="mb-2 text-sm"
+            fieldName="schema"
+            label="Persona"
+            items={[{ label: 'Plain text', value: 'text' }]}
+            value={'text'}
+          />
+        </Show>
+
+        <div class="w-full text-sm">
+          <Show when={char()}>
+            <PersonaAttributes
+              value={char()!.persona.attributes}
+              hideLabel
+              plainText={char()?.persona?.kind === 'text'}
+            />
+          </Show>
+          <Show when={!char()}>
+            <For each={state.chars}>
+              {(item) => (
+                <Show when={char()?._id === item._id}>
+                  <PersonaAttributes
+                    value={item.persona.attributes}
+                    hideLabel
+                    plainText={item.persona.kind === 'text'}
+                  />
+                </Show>
+              )}
+            </For>
+          </Show>
+        </div>
       </form>
     </Modal>
   )

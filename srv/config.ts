@@ -1,5 +1,5 @@
 import dotenv from 'dotenv'
-import { assertValid } from 'frisker'
+import { assertValid } from '/common/valid'
 import { readFileSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 import { v4 } from 'uuid'
@@ -63,7 +63,6 @@ export const config = {
     upload: +env('IMAGE_SIZE_LIMIT', '2'),
     payload: +env('JSON_SIZE_LIMIT', '2'),
   },
-  noRequestLogs: env('DISABLE_REQUEST_LOGGING', 'false') === 'true',
   horde: {
     maxWaitSecs: +env('HORDE_WAIT_SECS', '120'),
     imageWaitSecs: +env('HORDE_IMAGE_WAIT_SECS', '320'),
@@ -98,7 +97,22 @@ export const config = {
   ui: {
     maintenance: env('MAINTENANCE', ''),
     patreon: !!env('PATREON', ''),
+    policies: !!env('SHOW_POLICIES', ''),
+    inject: env('INJECT', ''),
   },
+}
+
+if (config.ui.inject) {
+  const tags = ['<meta inject="">', '<meta inject>']
+
+  for (const tag of tags) {
+    const indexFile = resolve(__dirname, '../dist/index.html')
+    const index = readFileSync(indexFile).toString()
+    if (index.includes(tag)) {
+      writeFileSync(indexFile, index.replace(tag, config.ui.inject))
+      break
+    }
+  }
 }
 
 function env(key: string, fallback?: string): string {

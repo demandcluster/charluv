@@ -4,13 +4,21 @@ import { sanitiseAndTrim } from '../api/chat/common'
 import { ModelAdapter } from './type'
 import { decryptText } from '../db/util'
 import { defaultPresets } from '../../common/presets'
-import { BOT_REPLACE, SELF_REPLACE } from '../../common/prompt'
-import { OPENAI_MODELS } from '../../common/adapters'
+import {
+  BOT_REPLACE,
+  SELF_REPLACE,
+  ensureValidTemplate,
+  injectPlaceholders,
+} from '../../common/prompt'
+import { OPENAI_CHAT_MODELS, OPENAI_MODELS } from '../../common/adapters'
 import { StatusError } from '../api/wrap'
 import { AppSchema } from '../db/schema'
 import { getEncoder } from '../tokenize'
 import { IMAGE_SUMMARY_PROMPT } from '/common/image'
 import { needleToSSE } from './stream'
+import { AdapterProps } from './type'
+import { adventureAmble } from '/common/default-preset'
+import { Encoder } from '/common/tokenize'
 
 const baseUrl = `https://api.openai.com`
 
@@ -52,15 +60,6 @@ type CompletionGenerator = (
   FullCompletion | undefined
 >
 
-const CHAT_MODELS: Record<string, boolean> = {
-  [OPENAI_MODELS.Turbo]: true,
-  [OPENAI_MODELS.Turbo0301]: true,
-  [OPENAI_MODELS.GPT4]: true,
-  [OPENAI_MODELS.GPT4_0314]: true,
-  [OPENAI_MODELS.GPT4_32k]: true,
-  [OPENAI_MODELS.GPT4_32k_0314]: true,
-}
-
 export const handleOAI: ModelAdapter = async function* (opts) {
   const {
     char,
@@ -84,23 +83,34 @@ export const handleOAI: ModelAdapter = async function* (opts) {
   }
   const oaiModel = settings.oaiModel ?? defaultPresets.openai.oaiModel
 
+  const maxResponseLength =
+    opts.chat.mode === 'adventure' ? 400 : gen.maxTokens ?? defaultPresets.openai.maxTokens
+
   const body: any = {
     model: oaiModel,
     stream: (gen.streamResponse && kind !== 'summary') ?? defaultPresets.openai.streamResponse,
     temperature: gen.temp ?? defaultPresets.openai.temp,
-    max_tokens: gen.maxTokens ?? defaultPresets.openai.maxTokens,
+    max_tokens: maxResponseLength,
     presence_penalty: gen.presencePenalty ?? defaultPresets.openai.presencePenalty,
     frequency_penalty: gen.frequencyPenalty ?? defaultPresets.openai.frequencyPenalty,
     top_p: gen.topP ?? 1,
   }
 
-  const useChat = !!CHAT_MODELS[oaiModel]
+  const useChat = !!OPENAI_CHAT_MODELS[oaiModel]
 
   if (useChat) {
     const encoder = getEncoder('openai', OPENAI_MODELS.Turbo)
-    const handle = sender.handle || 'You'
+    const handle = opts.impersonate?.name || sender.handle || 'You'
 
-    const messages: OpenAIMessagePropType[] = [{ role: 'system', content: parts.gaslight }]
+    const gaslight = injectPlaceholders(
+      ensureValidTemplate(parts.gaslight, opts.parts, ['history', 'post']),
+      {
+        opts,
+        parts: opts.parts,
+        encoder,
+      }
+    )
+    const messages: OpenAIMessagePropType[] = [{ role: 'system', content: gaslight }]
     const history: OpenAIMessagePropType[] = []
 
     const all = []
@@ -108,7 +118,7 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     let maxBudget =
       (gen.maxContextLength || defaultPresets.openai.maxContextLength) - body.max_tokens
 
-    let tokens = encoder(parts.gaslight)
+    let tokens = encoder(gaslight)
 
     if (lines) {
       all.push(...lines)
@@ -152,7 +162,7 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     }
 
     if (kind !== 'continue' && kind !== 'summary') {
-      const content = `Respond as ${opts.replyAs.name}`
+      const content = getInstruction(opts, encoder)
       tokens += encoder(content)
       history.push({ role: 'system', content })
     }
@@ -237,6 +247,7 @@ export const handleOAI: ModelAdapter = async function* (opts) {
       yield { error: `OpenAI request failed: Received empty response. Try again.` }
       return
     }
+
     yield sanitiseAndTrim(text, prompt, opts.replyAs, opts.characters, members)
   } catch (ex: any) {
     log.error({ err: ex }, 'OpenAI failed to parse')
@@ -398,4 +409,14 @@ function getCharLooks(char: AppSchema.Character) {
 
   if (!visuals.length) return
   return `${char.name}'s appearance: ${visuals.join(', ')}`
+}
+
+function getInstruction(opts: AdapterProps, encoder: Encoder) {
+  if (opts.chat.mode !== 'adventure') {
+    return `Respond as ${opts.replyAs.name}`
+  }
+
+  // This is experimental and probably needs to be workshopped to get better responses
+  const content = injectPlaceholders(adventureAmble, { opts, parts: opts.parts, encoder })
+  return content
 }

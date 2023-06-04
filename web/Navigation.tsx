@@ -17,16 +17,18 @@ import {
   Sliders,
   User,
   Users,
+  VenetianMask
 } from 'lucide-solid'
 import { Component, createMemo, JSX, Show } from 'solid-js'
 import AvatarIcon from './shared/AvatarIcon'
-import { inviteStore, settingStore, userStore } from './store'
+import { characterStore, inviteStore, settingStore, userStore } from './store'
 import logo from './assets/logo.png'
 import logoDark from './assets/logoDark.png'
 
 const Navigation: Component = () => {
   const state = settingStore()
   const user = userStore()
+  const chars = characterStore()
   const nav = useNavigate()
 
   const logout = () => {
@@ -38,48 +40,62 @@ const Navigation: Component = () => {
   const fullscreen = createMemo(() => (state.fullscreen ? 'hidden' : ''))
 
   return (
-    <div
-      data-menu=""
-      class={`drawer flex flex-col gap-4 bg-[var(--bg-800)] pt-4 ${hide()} ${fullscreen()}`}
-    >
-      <div class="drawer__content flex flex-col gap-2 px-4">
-        <div
-          class="hidden w-full py-4 px-4 sm:flex"
-          style={user.ui?.mode === 'light' ? 'background:#55b89cff;' : 'background:#1f4439ff;'}
-        >
+    <>
+      <div
+        data-menu=""
+        class={`drawer flex flex-col gap-4 bg-[var(--bg-800)] pt-4 ${hide()} ${fullscreen()}`}
+      >
+        <div class="drawer__content flex flex-col gap-2 px-4">
+          <div class="hidden w-full items-center justify-center sm:flex">
           <A href="/">
             <img width="200px" alt="Charluv" src={user.ui?.mode === 'light' ? logoDark : logo} />
           </A>
+          </div>
+          <Show when={user.loggedIn} fallback={<GuestNavigation />}>
+            <UserNavigation />
+          </Show>
         </div>
-        <Show when={user.loggedIn} fallback={<GuestNavigation />}>
-          <UserNavigation />
-        </Show>
-      </div>
-      {/* <div class="flex flex-row justify-around text-xs">
+        {/* <div class="flex flex-row justify-around text-xs">
         <Item href="/terms-of-service">Terms</Item>
         <Item href="/privacy-policy">Privacy Policy</Item>
       </div> */}
-      <div class="flex h-16 w-full flex-col items-center justify-between border-t-2 border-[var(--bg-700)] px-4">
-        <div class="ellipsis my-auto flex w-full items-center justify-between">
-          <div class="flex max-w-[calc(100%-32px)] items-center gap-4">
-            <AvatarIcon
-              avatarUrl={user.profile?.avatar}
-              format={{ corners: 'circle', size: 'md' }}
-            />
-            <div class={user.user?.premium ? 'ellipsis font-bold text-yellow-500' : 'font-bold'}>
-              {user.profile?.handle}
+        <div class="flex h-16 w-full flex-col items-center justify-between border-t-2 border-[var(--bg-700)] px-4">
+          <div class="ellipsis my-auto flex w-full items-center justify-between">
+            <div 
+              class="flex max-w-[calc(100%-32px)] items-center gap-2"
+              onClick={() => {
+                settingStore.toggleImpersonate(true)
+                settingStore.closeMenu()
+              }}
+            >
+              <AvatarIcon
+                avatarUrl={chars.impersonating?.avatar || user.profile?.avatar}
+                format={{ corners: 'circle', size: 'md' }}
+              />
+      
+              <div class="ellipsis flex cursor-pointer items-center justify-end rounded-lg bg-[var(--bg-700)] px-2 py-1">
+                <div class="ellipsis flex flex-col">
+                  <span>
+                    {chars.impersonating?.name || user.profile?.handle}
+                    {state.flags.charv2 ? ' (v2)' : ''}
+                  </span>
+                </div>
+                <Show when={!!chars.impersonating}>
+                  <VenetianMask size={16} class="ml-2" />
+                </Show>
+              </div>
+              <div id="credits" class="text-bold pr-2">
+                {user.user?.credits}
+              </div>
             </div>
-            <div id="credits" class="text-bold pr-2">
-              {user.user?.credits}
+            <div onClick={logout} class="icon-button cursor-pointer ">
+              <LogOut />
             </div>
           </div>
-          <div onClick={logout} class="icon-button cursor-pointer ">
-            <LogOut />
-          </div>
+          <div class="text-500 mb-1 text-[0.6rem] italic">{state.config.version}</div>
         </div>
-        <div class="text-500 mb-1 text-[0.6rem] italic">{state.config.version}</div>
       </div>
-    </div>
+    </>
   )
 }
 
@@ -137,7 +153,11 @@ const UserNavigation: Component = () => {
 }
 
 const GuestNavigation: Component = () => {
-  const menu = settingStore((s) => ({ showMenu: s.showMenu, config: s.config }))
+  const menu = settingStore((s) => ({
+    showMenu: s.showMenu,
+    config: s.config,
+    guest: s.guestAccessAllowed,
+  }))
 
   return (
     <>
@@ -147,21 +167,22 @@ const GuestNavigation: Component = () => {
         </Item>
       </Show>
 
-      <Item href="/profile">
-        <User /> Profile
-      </Item>
+      <Show when={menu.guest}>
+        <Item href="/profile">
+          <User /> Profile
+        </Item>
 
       <Item href="/character/list">
         <Bot /> Matches
       </Item>
 
-      <Item href="/chats">
-        <MessageCircle /> Chats
-      </Item>
+        <Item href="/chats">
+          <MessageCircle /> Chats
+        </Item>
 
-      <Item href="/memory">
-        <Book /> Memory
-      </Item>
+        <Item href="/memory">
+          <Book /> Memory
+        </Item>
 
       <Item href="/settings">
         <Settings /> Settings

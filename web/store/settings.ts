@@ -7,10 +7,13 @@ import { createStore } from './create'
 import { usersApi } from './data/user'
 import { toastStore } from './toasts'
 import { subscribe } from './socket'
+import { FeatureFlags, defaultFlags } from './flags'
 
 type SettingState = {
+  guestAccessAllowed: boolean
   initLoading: boolean
   showMenu: boolean
+  showImpersonate: boolean
   fullscreen: boolean
   config: AppSchema.AppConfig
   models: HordeModel[]
@@ -26,15 +29,20 @@ type SettingState = {
     books: AppSchema.MemoryBook[]
   }
   showImage?: string
+  flags: FeatureFlags
 }
 
 const HORDE_URL = `https://horde.aivo.chat/api/v2`
 const IMAGE_URL = `https://stablehorde.net/api/v2`
 
+const FLAG_KEY = 'agnai-flags'
+
 const initState: SettingState = {
   anonymize: false,
+  guestAccessAllowed: canUseStorage(),
   initLoading: true,
   showMenu: false,
+  showImpersonate: false,
   fullscreen: false,
   models: [],
   workers: [],
@@ -48,6 +56,7 @@ const initState: SettingState = {
     selfhosting: false,
     imagesSaved: false,
   },
+  flags: getFlags(),
 }
 
 export const settingStore = createStore<SettingState>(
@@ -83,8 +92,7 @@ export const settingStore = createStore<SettingState>(
 
       if (res.error) {
         if (res.status === 500) {
-          toastStore.error(`Could not get settings from server. Logging out to use guest mode...`)
-          events.emit(EVENTS.sessionExpired)
+          toastStore.error(`Could not get settings from server.`)
           return
         }
         setTimeout(() => settingStore.init(), 2500)
@@ -95,6 +103,9 @@ export const settingStore = createStore<SettingState>(
     },
     closeMenu: () => {
       return { showMenu: false }
+    },
+    toggleImpersonate: ({ showImpersonate }, show?: boolean) => {
+      return { showImpersonate: show ?? !showImpersonate }
     },
     fullscreen(_, next: boolean) {
       return { fullscreen: next }
@@ -141,6 +152,11 @@ export const settingStore = createStore<SettingState>(
     showImage(_, image?: string) {
       return { showImage: image }
     },
+    flag({ flags }, flag: keyof FeatureFlags, value: boolean) {
+      const nextFlags = { ...flags, [flag]: value }
+      saveFlags(nextFlags)
+      return { flags: nextFlags }
+    },
   }
 })
 
@@ -150,3 +166,74 @@ subscribe('connected', { uid: 'string' }, (body) => {
 
   settingStore.init()
 })
+
+window.flag = (flag: keyof FeatureFlags, value) => {
+  if (!flag) {
+    console.log('Available flags:')
+    for (const key in defaultFlags) console.log(key)
+    return
+  }
+
+  if (value === undefined) {
+    const { flags } = settingStore.getState()
+    value = !flags[flag]
+  }
+
+  console.log(`Toggled ${flag} --> ${value}`)
+  settingStore.flag(flag as any, value)
+}
+
+type FlagCache = { user: FeatureFlags; default: FeatureFlags }
+
+function getFlags(): FeatureFlags {
+  try {
+    const cache = localStorage.getItem(FLAG_KEY)
+    if (!cache) return defaultFlags
+
+    const parsed = JSON.parse(cache) as FlagCache
+
+    const flags: any = parsed.user
+    const pastDefaults: any = parsed.default
+
+    for (const [key, value] of Object.entries(defaultFlags)) {
+      // If the user does not have the key, set it no matter what
+      if (key in flags === false) {
+        flags[key] = value
+        continue
+      }
+
+      // If the 'default' value for the flag has changed, change it for the user
+      const prev = pastDefaults[key]
+      if (prev !== value) {
+        flags[key] = value
+        continue
+      }
+    }
+
+    saveFlags(flags)
+    return flags
+  } catch (ex) {
+    return defaultFlags
+  }
+}
+
+function saveFlags(flags: {}) {
+  try {
+    const cache: FlagCache = { user: flags as any, default: defaultFlags }
+    localStorage.setItem(FLAG_KEY, JSON.stringify(cache))
+  } catch (ex) {}
+}
+
+function canUseStorage(noThrow?: boolean) {
+  const TEST_KEY = '___TEST'
+  localStorage.setItem(TEST_KEY, 'ok')
+  const value = localStorage.getItem(TEST_KEY)
+  localStorage.removeItem(TEST_KEY)
+
+  if (value !== 'ok') {
+    if (!noThrow) throw new Error('Failed to retreive set local storage item')
+    return false
+  }
+
+  return true
+}

@@ -26,6 +26,7 @@ import AvatarIcon from '../../../shared/AvatarIcon'
 import { getAssetUrl, getRootVariable, hexToRgb } from '../../../shared/util'
 import { chatStore, userStore, msgStore, settingStore } from '../../../store'
 import { markdown } from '../../../shared/markdown'
+import Button from '/web/shared/Button'
 
 type MessageProps = {
   msg: SplitMessage
@@ -40,6 +41,10 @@ type MessageProps = {
   anonymize?: boolean
   tts?: boolean
   children?: any
+  retrying?: AppSchema.ChatMessage
+  partial?: string
+  actions?: AppSchema.ChatMessage['actions']
+  sendMessage: (msg: string, ooc: boolean) => void
 }
 
 const Message: Component<MessageProps> = (props) => {
@@ -66,6 +71,9 @@ const Message: Component<MessageProps> = (props) => {
             editing={props.editing}
             anonymize={props.anonymize}
             children={props.children}
+            retrying={props.retrying}
+            partial={props.partial}
+            sendMessage={props.sendMessage}
           />
         )}
       </For>
@@ -102,8 +110,13 @@ const SingleMessage: Component<
   const format = createMemo(() => ({ size: user.ui.avatarSize, corners: user.ui.avatarCorners }))
 
   const bgStyles = createMemo(() => {
-    user.ui.mode
-    const hex = getRootVariable(props.msg.ooc ? 'bg-1000' : 'bg-800')
+    user.ui.mode // This causes this memoized value to re-evaluated as it becomes a subscriber of ui.mode
+
+    const hex =
+      props.msg.characterId && props.msg.adapter
+        ? user.ui.botBackground
+        : user.ui.msgBackground || getRootVariable(props.msg.ooc ? 'bg-1000' : 'bg-800')
+
     if (!hex) return {}
 
     const rgb = hexToRgb(hex)
@@ -111,6 +124,7 @@ const SingleMessage: Component<
 
     return {
       background: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${user.ui.msgOpacity.toString()})`,
+      'backdrop-filter': 'blur(5px)',
     }
   })
 
@@ -145,16 +159,6 @@ const SingleMessage: Component<
 
     const handle = state.memberIds[props.msg.userId!]?.handle || props.msg.handle || 'You'
     return handle
-  }
-
-  const renderMessage = () => {
-    // Address unfortunate Showdown bug where spaces in code blocks are replaced with nbsp, except
-    // it also encodes the ampersand, which results in them actually being rendered as `&amp;nbsp;`
-    // https://github.com/showdownjs/showdown/issues/669
-    const html = markdown
-      .makeHtml(parseMessage(msgText(), props.char!, user.profile!, props.msg.adapter))
-      .replace(/&amp;nbsp;/g, '&nbsp;')
-    return html
   }
 
   let ref: HTMLDivElement | undefined
@@ -258,6 +262,7 @@ const SingleMessage: Component<
                     lastSplit={props.lastSplit}
                     last={props.last}
                     tts={!!props.tts}
+                    partial={props.partial}
                   />
                 </Match>
 
@@ -296,9 +301,33 @@ const SingleMessage: Component<
                   onClick={() => settingStore.showImage(props.original.msg)}
                 />
               </Match>
-              <Match when={props.msg._id === '' && !props.msg.msg.length}>
+              <Match when={props.retrying?._id === props.original._id && props.partial}>
+                <p
+                  class="rendered-markdown px-1"
+                  data-bot-message={isBot()}
+                  data-user-message={isUser()}
+                  innerHTML={renderMessage(
+                    props.chat,
+                    props.char!,
+                    user.profile!,
+                    props.partial!,
+                    props.msg.adapter
+                  )}
+                />
+              </Match>
+              <Match
+                when={
+                  props.retrying?._id == props.original._id ||
+                  (props.msg._id === 'partial' && !props.msg.msg.length)
+                }
+              >
                 <div class="flex h-8 w-12 items-center justify-center">
-                  <div class="dot-flashing bg-[var(--hl-700)]"></div>
+                  <Show
+                    when={props.partial}
+                    fallback={<div class="dot-flashing bg-[var(--hl-700)]"></div>}
+                  >
+                    {props.partial}
+                  </Show>
                 </div>
               </Match>
               <Match when={!edit() && !isImage()}>
@@ -306,8 +335,37 @@ const SingleMessage: Component<
                   class="rendered-markdown px-1"
                   data-bot-message={isBot()}
                   data-user-message={isUser()}
-                  innerHTML={renderMessage()}
+                  innerHTML={renderMessage(
+                    props.chat,
+                    props.char!,
+                    user.profile!,
+                    msgText(),
+                    props.msg.adapter
+                  )}
                 />
+                <Show
+                  when={
+                    !props.partial &&
+                    props.original.actions &&
+                    props.last &&
+                    props.lastSplit &&
+                    props.chat.mode === 'adventure'
+                  }
+                >
+                  <div class="flex items-center justify-center gap-2">
+                    <For each={props.original.actions}>
+                      {(item) => (
+                        <Button
+                          size="sm"
+                          schema="gray"
+                          onClick={() => sendAction(props.sendMessage, item)}
+                        >
+                          {item.emote}
+                        </Button>
+                      )}
+                    </For>
+                  </div>
+                </Show>
               </Match>
               <Match when={edit()}>
                 <div
@@ -328,23 +386,6 @@ const SingleMessage: Component<
 }
 
 export default Message
-
-function parseMessage(
-  msg: string,
-  char: AppSchema.Character,
-  profile: AppSchema.Profile,
-  adapter?: string
-) {
-  if (adapter === 'image') {
-    return msg.replace(BOT_REPLACE, char.name).replace(SELF_REPLACE, profile?.handle || 'You')
-  }
-
-  return msg
-    .replace(BOT_REPLACE, char.name)
-    .replace(SELF_REPLACE, profile?.handle || 'You')
-    .replace(/(<)/g, '‹')
-    .replace(/(>)/g, '›')
-}
 
 export type SplitMessage = AppSchema.ChatMessage & { split?: boolean; handle?: string }
 
@@ -431,12 +472,17 @@ const MessageOptions: Component<{
   startEdit: () => void
   lastSplit: boolean
   last?: boolean
+  partial?: string
   onRemove: () => void
 }> = (props) => {
   return (
     <div class="flex items-center gap-3 text-sm">
       <Show when={props.chatEditing && props.msg.characterId && props.msg.adapter !== 'image'}>
-        <div onClick={() => chatStore.showPrompt(props.original)} class="icon-button">
+        <div
+          onClick={() => !props.partial && chatStore.showPrompt(props.original)}
+          class="icon-button"
+          classList={{ disabled: !!props.partial }}
+        >
           <Terminal size={16} />
         </div>
       </Show>
@@ -453,16 +499,24 @@ const MessageOptions: Component<{
         </div>
       </Show>
 
-      <Show when={props.last && props.msg.characterId}>
-        <div class="icon-button" onClick={() => retryMessage(props.original, props.msg)}>
+      <Show
+        when={
+          (props.last || (props.msg.adapter === 'image' && props.msg.imagePrompt)) &&
+          props.msg.characterId
+        }
+      >
+        <div
+          class="icon-button"
+          onClick={() => !props.partial && retryMessage(props.original, props.msg)}
+        >
           <RefreshCw size={18} />
         </div>
       </Show>
 
       <Show when={props.last && !props.msg.characterId}>
         <div
-          class="cursor-pointer"
-          onClick={() => msgStore.resend(props.msg.chatId, props.msg._id)}
+          class="icon-button"
+          onClick={() => !props.partial && msgStore.resend(props.msg.chatId, props.msg._id)}
         >
           <RefreshCw size={18} />
         </div>
@@ -473,8 +527,56 @@ const MessageOptions: Component<{
 
 function retryMessage(original: AppSchema.ChatMessage, split: SplitMessage) {
   if (original.adapter !== 'image') {
-    msgStore.retry(split.chatId)
+    msgStore.retry(split.chatId, original._id)
   } else {
     msgStore.createImage(split._id)
   }
+}
+
+function renderMessage(
+  chat: AppSchema.Chat,
+  char: AppSchema.Character,
+  profile: AppSchema.Profile,
+  text: string,
+  adapter?: string
+) {
+  // Address unfortunate Showdown bug where spaces in code blocks are replaced with nbsp, except
+  // it also encodes the ampersand, which results in them actually being rendered as `&amp;nbsp;`
+  // https://github.com/showdownjs/showdown/issues/669
+  const html = markdown
+    .makeHtml(parseMessage(chat, text, char, profile!, adapter))
+    .replace(/&amp;nbsp;/g, '&nbsp;')
+  return html
+}
+
+function sendAction(send: MessageProps['sendMessage'], { emote, action }: AppSchema.ChatAction) {
+  send(`*${emote}* ${action}`, false)
+}
+
+function parseMessage(
+  chat: AppSchema.Chat,
+  msg: string,
+  char: AppSchema.Character,
+  profile: AppSchema.Profile,
+  adapter?: string
+) {
+  if (adapter === 'image') {
+    return msg.replace(BOT_REPLACE, char.name).replace(SELF_REPLACE, profile?.handle || 'You')
+  }
+
+  if (chat.mode === 'adventure') {
+    const nonActions: string[] = []
+    const splits = msg.split('\n')
+    for (const split of splits) {
+      if (!split.startsWith('{') && !split.includes('->')) nonActions.push(split)
+    }
+
+    msg = nonActions.join('\n')
+  }
+
+  return msg
+    .replace(BOT_REPLACE, char.name)
+    .replace(SELF_REPLACE, profile?.handle || 'You')
+    .replace(/(<)/g, '‹')
+    .replace(/(>)/g, '›')
 }

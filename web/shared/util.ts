@@ -1,18 +1,85 @@
-import { UnwrapBody, assertValid } from 'frisker'
+import { UnwrapBody, Validator, assertValid } from '/common/valid'
 import { ADAPTER_LABELS, AIAdapter, PresetAISettings, adapterSettings } from '../../common/adapters'
 import type { Option } from './Select'
 import { createEffect, onCleanup } from 'solid-js'
 import { settingStore } from '../store'
 
-type FormRef = {
-  [key: string]:
-    | 'string'
-    | 'string?'
-    | readonly string[]
-    | 'boolean'
-    | 'number'
-    | 'number?'
-    | 'boolean?'
+export const safeLocalStorage = {
+  getItem,
+  key,
+  setItem,
+  setItemUnsafe,
+  removeItem,
+  removeItemUnsafe,
+  clear,
+  clearUnsafe,
+  test,
+}
+
+function getItem(key: string) {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+function key(index: number) {
+  try {
+    return localStorage.key(index)
+  } catch {
+    return null
+  }
+}
+
+function setItem(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value)
+  } catch (e: any) {
+    console.warn('Failed to set local storage item', key, value, e)
+  }
+}
+
+function setItemUnsafe(key: string, value: string) {
+  localStorage.setItem(key, value)
+}
+
+function removeItem(key: string) {
+  try {
+    localStorage.removeItem(key)
+  } catch (e: any) {
+    console.warn('Failed to remove local storage item', key, e)
+  }
+}
+
+function removeItemUnsafe(key: string) {
+  localStorage.removeItem(key)
+}
+
+function clear() {
+  try {
+    localStorage.clear()
+  } catch (e: any) {
+    console.warn('Failed to clear local storage item', e)
+  }
+}
+
+function clearUnsafe() {
+  localStorage.clear()
+}
+
+function test(noThrow?: boolean) {
+  const TEST_KEY = '___TEST'
+  localStorage.setItem(TEST_KEY, 'ok')
+  const value = localStorage.getItem(TEST_KEY)
+  localStorage.removeItem(TEST_KEY)
+
+  if (value !== 'ok') {
+    if (!noThrow) throw new Error('Failed to retreive set local storage item')
+    return false
+  }
+
+  return true
 }
 
 const PREFIX_CACHE_KEY = 'charluv-asset-prefix'
@@ -44,7 +111,7 @@ export function getAssetUrl(filename: string) {
 }
 
 export function setAssetPrefix(prefix: string) {
-  localStorage.setItem(PREFIX_CACHE_KEY, prefix)
+  safeLocalStorage.setItem(PREFIX_CACHE_KEY, prefix)
   assetPrefix = prefix
 }
 
@@ -67,7 +134,7 @@ export function getForm<T = {}>(evt: Event | HTMLFormElement): T {
 
 type Field = HTMLSelectElement | HTMLInputElement
 
-export function getStrictForm<T extends FormRef>(
+export function getStrictForm<T extends Validator>(
   evt: Event | HTMLFormElement,
   body: T,
   partial?: boolean
@@ -225,15 +292,30 @@ export function toDropdownItems(values: string[] | readonly string[]): Option[] 
   return values.map((value) => ({ label: capitalize(value), value }))
 }
 
-export function debounce<T extends Function>(fn: T, secs = 2): T {
-  let timer: any
-
-  const wrapped = (...args: any[]) => {
-    clearTimeout(timer)
-    timer = setTimeout(() => fn.apply(null, args), secs * 1000)
-  }
-
-  return wrapped as any
+export function createDebounce<T extends (...args: any[]) => void>(
+  fn: T,
+  ms: number
+): [fn: (...args: Parameters<T>) => void, dispose: () => void] {
+  let timeoutId: NodeJS.Timeout | null = null
+  let callback: () => void
+  return [
+    (...args: Parameters<T>) => {
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+      callback = () => {
+        fn.apply(null, args)
+        timeoutId = null
+      }
+      timeoutId = setTimeout(callback, ms)
+    },
+    () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+        callback()
+      }
+    },
+  ]
 }
 
 /**
@@ -243,6 +325,11 @@ export function getRootVariable(name: string) {
   const root = document.documentElement
   const value = getComputedStyle(root).getPropertyValue(`--${name}`)
   return value
+}
+
+export function setRootVariable(name: string, value: string) {
+  const root = document.documentElement
+  root.style.setProperty(`--${name}`, value)
 }
 
 export function hexToRgb(hex: string) {
@@ -383,6 +470,21 @@ export function appendFormOptional(
   stringify?: (v: any) => string
 ) {
   if (!value) return
+  if (stringify) form.append(key, stringify(value))
+  else form.append(key, value as string | File)
+}
+
+/**
+ * Like `appendFormOptional`, but does append the value if it is an empty string.
+ * This might be what we want `appendFormOptional` to be, but I'm scared of breaking things.
+ */
+export function appendFormOptional_<T>(
+  form: FormData,
+  key: string,
+  value: T,
+  stringify?: (v: T) => string
+) {
+  if (value === null || value === undefined) return
   if (stringify) form.append(key, stringify(value))
   else form.append(key, value as string | File)
 }

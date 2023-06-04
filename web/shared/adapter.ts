@@ -11,7 +11,6 @@ export const AutoPreset = {
 }
 
 export const BasePresetOptions: Option[] = [
-  { label: 'Chat Settings', value: AutoPreset.chat },
   { label: 'System Built-in Preset (Horde)', value: AutoPreset.service },
 ]
 
@@ -34,27 +33,36 @@ export function getClientPreset(chat?: AppSchema.Chat) {
   return { preset, adapter, model, isThirdParty, contextLimit, presetLabel, name }
 }
 
-export function getPresetOptions(userPresets: AppSchema.UserGenPreset[]) {
+export function getPresetOptions(
+  userPresets: AppSchema.UserGenPreset[],
+  includes: { builtin?: boolean; base?: boolean }
+) {
   const user = userStore((u) => u.user || { defaultPreset: '' })
-  const presets = userPresets.map((preset) => ({
-    label: `${user.defaultPreset === preset._id ? 'Your Default - ' : ''}${
-      preset.name
-    } ${getServiceName(preset.service)}`,
+  const presets = userPresets.slice().map((preset) => ({
+    label: `[${getServiceName(preset.service)}, Custom] ${preset.name} ${
+      user.defaultPreset === preset._id ? '(*) ' : ''
+    }`,
     value: preset._id,
   }))
 
   const defaults = Object.entries(defaultPresets).map(([_id, preset]) => ({
     ...preset,
     _id,
-    name: `Default - ${preset.name} ${getServiceName(preset.service)}`,
+    name: preset.name,
   }))
 
-  const defaultsOptions = defaults.map((preset) => ({
-    label: preset.name,
-    value: preset._id,
-  }))
+  if (includes.builtin) {
+    const builtinOptions = defaults.map((preset) => ({
+      label: `[${getServiceName(preset.service)}, Built-in] ${preset.name}`,
+      value: preset._id,
+    }))
 
-  return BasePresetOptions.concat(presets).concat(defaultsOptions)
+    presets.push(...builtinOptions)
+  }
+
+  if (includes.base) presets.unshift(...BasePresetOptions)
+
+  return presets.sort(sortByLabel)
 }
 
 export function getInitialPresetValue(chat?: AppSchema.Chat) {
@@ -64,7 +72,15 @@ export function getInitialPresetValue(chat?: AppSchema.Chat) {
   return chat.genPreset || AutoPreset.service
 }
 
-function getServiceName(service?: AIAdapter) {
-  if (!service) return ''
-  return `(${ADAPTER_LABELS[service]})`
+export function getServiceName(service?: AIAdapter) {
+  if (!service) return 'Unset'
+  return `${ADAPTER_LABELS[service]}`
+}
+
+export function sortByName(left: { name: string }, right: { name: string }) {
+  return left.name.localeCompare(right.name)
+}
+
+export function sortByLabel(left: { label: string }, right: { label: string }) {
+  return left.label.localeCompare(right.label)
 }

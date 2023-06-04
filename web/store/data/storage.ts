@@ -4,6 +4,7 @@ import { defaultChars } from '../../../common/characters'
 import { AppSchema } from '../../../srv/db/schema'
 import { api } from '../api'
 import { toastStore } from '../toasts'
+import { safeLocalStorage } from '/web/shared/util'
 
 type StorageKey = keyof typeof KEYS
 
@@ -164,7 +165,7 @@ export function saveMessages(chatId: string, messages: AppSchema.ChatMessage[]) 
     api.post(`/json/messages/${chatId}`, messages)
   } else {
     const key = `messages-${chatId}`
-    localStorage.setItem(key, JSON.stringify(messages))
+    safeLocalStorage.setItem(key, JSON.stringify(messages))
   }
 }
 
@@ -181,7 +182,7 @@ export async function getMessages(
     }
   }
 
-  const messages = localStorage.getItem(`messages-${chatId}`)
+  const messages = safeLocalStorage.getItem(`messages-${chatId}`)
   if (!messages) return []
 
   return JSON.parse(messages) as AppSchema.ChatMessage[]
@@ -212,7 +213,7 @@ export function saveBooks(state: AppSchema.MemoryBook[]) {
 }
 
 export function deleteChatMessages(chatId: string) {
-  localStorage.removeItem(`messages-${chatId}`)
+  safeLocalStorage.removeItem(`messages-${chatId}`)
 }
 
 export function loadCartItems<TKey extends keyof typeof KEYS>(key: TKey): LocalStorage[TKey] {
@@ -230,7 +231,7 @@ function saveItem<TKey extends keyof typeof KEYS>(key: TKey, value: LocalStorage
     api.post('/json', { [key]: value })
   } else {
     localStore.set(key, value)
-    localStorage.setItem(KEYS[key], JSON.stringify(value))
+    safeLocalStorage.setItem(KEYS[key], JSON.stringify(value))
   }
 }
 
@@ -239,7 +240,7 @@ export function loadItem<TKey extends keyof typeof KEYS>(
   local?: boolean
 ): LocalStorage[TKey] {
   if (local || !selfHosting()) {
-    const item = localStorage.getItem(KEYS[key])
+    const item = safeLocalStorage.getItem(KEYS[key])
     if (item) {
       const parsed = JSON.parse(item)
       localStore.set(key, parsed)
@@ -247,7 +248,7 @@ export function loadItem<TKey extends keyof typeof KEYS>(
     }
 
     const fallback = fallbacks[key]
-    localStorage.setItem(key, JSON.stringify(fallback))
+    safeLocalStorage.setItem(key, JSON.stringify(fallback))
 
     return fallback
   }

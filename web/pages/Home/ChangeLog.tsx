@@ -4,7 +4,17 @@ import { markdown } from '../../shared/markdown'
 import { setComponentPageTitle } from '../../shared/util'
 
 const text = `
-_28 May 2023_
+_3 June 2023_ 
+- Add "message background color", "chat text color", and "chat emphasis color" to UI settings
+
+_1 June 2023_
+- Character impersonation! You can now speak as characters that you create. Click on your avatar/name in the menu.
+
+_31 May 2023_
+- Migrate to "prompt templates" - More to come on this functionality soon
+
+_20-28 May 2023_
+- Remember chat input "drafts"
 - Fixed shop checkout, it was impossible to purchase anything from the shop
 - Started implementing tags to replace the dating filter in settings
 
