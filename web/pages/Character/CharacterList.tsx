@@ -419,7 +419,6 @@ const Character: Component<{
               <A href={`/character/create/${props.char._id}`}>
                 <Copy class="icon-button" />
               </A>
-
             </Show>
             <Trash class="icon-button" onClick={props.delete} />
             <User class="icon-button" onClick={() => nav(`/likes/${props.char._id}/profile`)} />
@@ -452,19 +451,24 @@ const Character: Component<{
                 <MessageCircle /> Chat
               </Button>
               <Show when={props.user.user.admin}>
-              <Button alignLeft onClick={props.download} size="sm">
-                <Download /> Download
-              </Button>
-              <Button alignLeft onClick={() => nav(`/character/${props.char._id}/edit`)} size="sm">
-                <Edit /> Edit
-              </Button>
-              <Button
-                alignLeft
-                onClick={() => nav(`/character/create/${props.char._id}`)}
-                size="sm"
-              >
-                <Copy /> Duplicate
-              </Button>
+                <Button alignLeft onClick={props.download} size="sm">
+                  <Download /> Download
+                </Button>
+                <Button
+                  alignLeft
+                  onClick={() => nav(`/character/${props.char._id}/edit`)}
+                  size="sm"
+                >
+                  <Edit /> Edit
+                </Button>
+                <Button
+                  alignLeft
+                  onClick={() => nav(`/character/create/${props.char._id}`)}
+                  size="sm"
+                >
+                  <Copy /> Duplicate
+                </Button>
+              </Show>
               <Button alignLeft schema="red" onClick={props.delete} size="sm">
                 <Trash /> Delete
               </Button>
@@ -683,7 +687,7 @@ export const DownloadModal: Component<{
             label="Output Format"
             fieldName="app"
             value={format()}
-            items={[ 
+            items={[
               { value: 'tavern', label: 'TavernAI' },
               // TODO: We don't need to support exporting in Agnaistic format
               // once we fully support Chara Card V2. We just need to put

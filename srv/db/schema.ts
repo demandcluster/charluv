@@ -14,6 +14,11 @@ export type AllDoc =
   | AppSchema.ChatInvite
   | AppSchema.UserGenPreset
   | AppSchema.MemoryBook
+  | AppSchema.ShopOrder
+  | AppSchema.Scenario
+  | AppSchema.OrderCount
+  | AppSchema.InviteCode
+  | AppSchema.ShopItem
 
 export namespace AppSchema {
   export interface AppConfig {

@@ -194,7 +194,7 @@ const CreateCharacter: Component = () => {
 
     const attributes = getAttributeMap(ev)
 
-    const persona = { 
+    const persona = {
       kind: body.kind,
       attributes,
     }
@@ -215,60 +215,6 @@ const CreateCharacter: Component = () => {
       persona,
       originalAvatar: state.edit?.avatar,
       voice: voice(),
-    }
-
-    if (params.editId) {
-      characterStore.editCharacter(params.editId, payload, () =>
-        nav(`/character/${params.editId}/chats`)
-      )
-    } else {
-      characterStore.createCharacter(payload, (result) => nav(`/character/${result._id}/chats`))
-    }
-  }
-
-  const onSubmitV2 = (ev: Event) => {
-    const body = getStrictForm(ev, {
-      kind: PERSONA_FORMATS,
-      name: 'string',
-      description: 'string?',
-      culture: 'string',
-      greeting: 'string',
-      scenario: 'string',
-      sampleChat: 'string',
-      systemPrompt: 'string',
-      postHistoryInstructions: 'string',
-      creator: 'string',
-      characterVersion: 'string',
-    } as const)
-
-    const attributes = getAttributeMap(ev)
-
-    const persona = {
-      kind: body.kind,
-      attributes,
-    }
-
-    const payload = {
-      name: body.name,
-      description: body.description,
-      culture: body.culture,
-      tags: tags(),
-      scenario: body.scenario,
-      avatar: state.avatar.blob || avatar(),
-      greeting: body.greeting,
-      sampleChat: body.sampleChat,
-      persona,
-      originalAvatar: state.edit?.avatar,
-      voice: voice(),
-
-      // New fields start here
-      systemPrompt: body.systemPrompt ?? '',
-      postHistoryInstructions: body.postHistoryInstructions ?? '',
-      alternateGreetings: alternateGreetings() ?? '',
-      characterBook: characterBook(),
-      creator: body.creator ?? '',
-      extensions: extensions(),
-      characterVersion: body.characterVersion ?? '',
     }
 
     if (params.editId) {
@@ -447,37 +393,36 @@ const CreateCharacter: Component = () => {
           />
         </Show>
 
-        
-          <FormLabel
-            label="Matchable Status"
-            helperText={
-              <>
-                <p>Setting this to true will allow this character to be matched with users.</p>
-              </>
-            }
-          />
-          <RadioGroup
-            name="match"
-            horizontal
-            options={matchoptions}
-            value={toString(state.edit?.match) === 'true' ? 'true' : 'false'}
-          />
-          <FormLabel label="Style" />
-          <RadioGroup
-            name="anime"
-            horizontal
-            options={options}
-            value={state.edit?.persona.kind || schema() || 'text'}
-            onChange={(kind) => setSchema(kind as any)}
-          />
+        <FormLabel
+          label="Matchable Status"
+          helperText={
+            <>
+              <p>Setting this to true will allow this character to be matched with users.</p>
+            </>
+          }
+        />
+        <RadioGroup
+          name="match"
+          horizontal
+          options={matchoptions}
+          value={toString(state.edit?.match) === 'true' ? 'true' : 'false'}
+        />
+        <FormLabel label="Style" />
+        <RadioGroup
+          name="anime"
+          horizontal
+          options={options}
+          value={state.edit?.persona.kind || schema() || 'text'}
+          onChange={(kind) => setSchema(kind as any)}
+        />
 
         <Show when={!params.editId && !params.duplicateId}>
           <PersonaAttributes
-            value={downloaded()?.persona.attributes} 
+            value={downloaded()?.persona.attributes}
             plainText={schema() === 'text' || schema() === undefined}
           />
 
-          <TextInput 
+          <TextInput
             isMultiline
             fieldName="greeting"
             label="Greeting"
@@ -508,7 +453,7 @@ const CreateCharacter: Component = () => {
         <Show when={flags.charv2}>
           <h2 class="mt-3 text-lg font-bold">Advanced options</h2>
           <TextInput
-            isMultiline 
+            isMultiline
             fieldName="systemPrompt"
             label="Character System Prompt (optional)"
             helperText={

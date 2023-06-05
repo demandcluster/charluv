@@ -18,7 +18,7 @@ import {
   Sliders,
   User,
   Users,
-  VenetianMask
+  VenetianMask,
 } from 'lucide-solid'
 import { Component, createMemo, JSX, Show } from 'solid-js'
 import AvatarIcon from './shared/AvatarIcon'
@@ -48,9 +48,9 @@ const Navigation: Component = () => {
       >
         <div class="drawer__content flex flex-col gap-2 px-4">
           <div class="hidden w-full items-center justify-center sm:flex">
-          <A href="/">
-            <img width="200px" alt="Charluv" src={user.ui?.mode === 'light' ? logoDark : logo} />
-          </A>
+            <A href="/">
+              <img width="200px" alt="Charluv" src={user.ui?.mode === 'light' ? logoDark : logo} />
+            </A>
           </div>
           <Show when={user.loggedIn} fallback={<GuestNavigation />}>
             <UserNavigation />
@@ -62,7 +62,7 @@ const Navigation: Component = () => {
       </div> */}
         <div class="flex h-16 w-full flex-col items-center justify-between border-t-2 border-[var(--bg-700)] px-4">
           <div class="ellipsis my-auto flex w-full items-center justify-between">
-            <div 
+            <div
               class="flex max-w-[calc(100%-32px)] items-center gap-2"
               onClick={() => {
                 settingStore.toggleImpersonate(true)
@@ -73,7 +73,7 @@ const Navigation: Component = () => {
                 avatarUrl={chars.impersonating?.avatar || user.profile?.avatar}
                 format={{ corners: 'circle', size: 'md' }}
               />
-      
+
               <div class="ellipsis flex cursor-pointer items-center justify-end rounded-lg bg-[var(--bg-700)] px-2 py-1">
                 <div class="ellipsis flex flex-col">
                   <span>
@@ -180,9 +180,9 @@ const GuestNavigation: Component = () => {
           <User /> Profile
         </Item>
 
-      <Item href="/character/list">
-        <Bot /> Matches
-      </Item>
+        <Item href="/character/list">
+          <Bot /> Matches
+        </Item>
 
         <Show when={menu.flags.chub}>
           <Item href="/chub">
@@ -199,9 +199,10 @@ const GuestNavigation: Component = () => {
           <Book /> Memory
         </Item>
 
-      <Item href="/settings">
-        <Settings /> Settings
-      </Item>
+        <Item href="/settings">
+          <Settings /> Settings
+        </Item>
+      </Show>
       <Item href="/info">
         <Info />
         Information
