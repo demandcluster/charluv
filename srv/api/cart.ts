@@ -223,9 +223,9 @@ const getItems = handle(async () => {
 
 const webHook = handle(async ({ headers, body, res }) => {
   // Extract the header properties
-  const transmissionId = headers['paypal-transmission-id'] || ''
-  const timeStamp = headers['paypal-transmission-time'] || ''
-  const crc32 = headers['paypal-transmission-sig'] || ''
+  const transmissionId = headers['PAYPAL-TRANSMISSION-ID'] || ''
+  const timeStamp = headers['PAYPAL-TRANSMISSION-TIME'] || ''
+  const crc32 = headers['PAYPAL-TRANSMISSION-SIG'] || ''
   const webhookId = paypalWebhook
   // Validate the CRC32 checksum
   const payload = [transmissionId, timeStamp, webhookId, crc32].map(String).join('|')

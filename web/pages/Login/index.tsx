@@ -69,11 +69,11 @@ const LoginPage: Component = () => {
       <Show when={cfg.config.policies}>
         <div class="mt-2">
           By logging in or registering, you agree that are 18 years or older and agree to the{' '}
-          <A class="link" href="/terms-of-service">
+          <A class="link" href="/terms">
             Terms
           </A>{' '}
           and{' '}
-          <A class="link" href="/privacy-policy">
+          <A class="link" href="/privacy">
             Privacy Policy
           </A>
           .
@@ -138,42 +138,31 @@ const RegisterForm: Component<FormProps> = (props) => {
   }
 
   return (
-          <form onSubmit={register} class="flex flex-col gap-6">
-          <div class="flex flex-col gap-2">
-            <TextInput
-              label="Display Name"
-              fieldName="handle"
-              placeholder="Display name"
-              required
-            />
-            <TextInput label="Username" fieldName="username" placeholder="Username" required />
-            <TextInput
-              label="Password"
-              fieldName="password"
-              placeholder="Password"
-              type="password"
-              required
-            />
-            <TextInput
-              fieldName="confirm"
-              placeholder="Confirm Password"
-              type="password"
-              required
-            />
-            <TextInput
-              label="Invite code"
-              fieldName="invitecode"
-              placeholder="Check below for a code!"
-              required
-            />
-            <div></div>
-          </div>
+    <form onSubmit={register} class="flex flex-col gap-6">
+      <div class="flex flex-col gap-2">
+        <TextInput label="Display Name" fieldName="handle" placeholder="Display name" required />
+        <TextInput label="Username" fieldName="username" placeholder="Username" required />
+        <TextInput
+          label="Password"
+          fieldName="password"
+          placeholder="Password"
+          type="password"
+          required
+        />
+        <TextInput fieldName="confirm" placeholder="Confirm Password" type="password" required />
+        <TextInput
+          label="Invite code"
+          fieldName="invitecode"
+          placeholder="Check below for a code!"
+          required
+        />
+        <div></div>
+      </div>
 
-          <Button type="submit" disabled={props.isLoading}>
-            {props.isLoading ? 'Registering...' : 'Register'}
-          </Button>
-        </form>
-      
+      <Button type="submit" disabled={props.isLoading}>
+        {props.isLoading ? 'Registering...' : 'Register'}
+      </Button>
+    </form>
   )
 }
 

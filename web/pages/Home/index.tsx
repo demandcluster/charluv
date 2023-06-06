@@ -1,4 +1,4 @@
-import { Component, createEffect, Show } from 'solid-js' 
+import { Component, createEffect, Show } from 'solid-js'
 import PageHeader from '../../shared/PageHeader'
 import { adaptersToOptions, setComponentPageTitle } from '../../shared/util'
 import { settingStore } from '../../store'
@@ -48,7 +48,7 @@ You can provide your API key and choose between Euterpe and Krake in the setting
 
 ### Survival Goals
 
-In order to survive as a website we need ***€800,--*** before summer 2023. So far we got ***€56,--***. 
+In order to survive as a website we need ***€800,--*** before summer 2023. So far we got ***€78,--***. 
 All proceeds will be used to pay for the server and the AI. We will not take any money out of this project.
 
 ### About
@@ -68,7 +68,7 @@ function toItem(model: HordeModel) {
   }
 }
 const HomePage: Component = () => {
-  setComponentPageTitle('Information')
+  setComponentPageTitle('Virtual Date an AI')
   const cfg = settingStore((cfg) => ({
     adapters: adaptersToOptions(cfg.config.adapters),
     guest: cfg.guestAccessAllowed,
@@ -87,14 +87,6 @@ const HomePage: Component = () => {
             </div>
           </>
         }
-        subtitle={
-          <Show when={model.models.length > 0}>
-            <div class="markdown px-4 text-gray-400">
-              Current wait time:&nbsp;
-              {model.models[0].eta}s
-            </div>
-          </Show>
-        }
       />
 
       <Show when={!cfg.guest}>
@@ -105,16 +97,14 @@ const HomePage: Component = () => {
         </div>
       </Show>
 
-      <div class="markdown" innerHTML={markdown.makeHtml(text)} />
-
-      <div class="markdown"> 
+      <div class="markdown">
         <b>Useful Links</b>
 
         <ul>
           <li>
             <A href="/help">Chatbot based helpdesk</A>
           </li>
-          <li> 
+          <li>
             <A href="/changelog">Change Log</A>
           </li>
           <li>
@@ -136,22 +126,9 @@ const HomePage: Component = () => {
               </a>
             </Button>
           </li>
-          <Show when={cfg.config.policies}>
-            <li>
-              <A class="link" href="/terms-of-service">
-                Terms of Service
-              </A>{' '}
-              and{' '}
-              <A class="link" href="/privacy-policy">
-                Privacy Policy
-              </A>
-              .
-            </li>
-          </Show>
         </ul>
       </div>
-
-     
+      <div class="markdown" innerHTML={markdown.makeHtml(text)} />
     </div>
   )
 }

@@ -84,11 +84,6 @@ const CreateChatModal: Component<{
     // } else {
     body = getStrictForm(ref, {
       name: 'string',
-      greeting: 'string',
-      scenario: 'string',
-      sampleChat: 'string',
-      schema: ['wpp', 'boostyle', 'sbf', 'text'],
-      mode: ['standard', 'adventure', null],
     } as const)
     body.scenario = character.scenario
     body.greeting = character.greeting
@@ -143,31 +138,32 @@ const CreateChatModal: Component<{
             onChange={(c) => setSelected(c?._id)}
           />
         </Show>
-
-        <Select
-          fieldName="genPreset"
-          label="Preset"
-          items={presetOptions()}
-          value={user.defaultPreset || ''}
-          helperText={
-            <>
-              <ServiceWarning service={selectedPreset()?.service} />
-            </>
-          }
-          onChange={(ev) => setPresetId(ev.value)}
-        />
-
-        <Show when={selectedPreset()?.service === 'openai'}>
+        <Show when={user?.admin}>
           <Select
-            fieldName="mode"
-            label="Chat Mode"
-            helperText="EXPERIMENTAL: This is only supported on OpenAI Turbo at the moment. This feature may not work "
-            items={[
-              { label: 'Conversation', value: 'standard' },
-              { label: 'Adventure (Experimental)', value: 'adventure' },
-            ]}
-            value={'standard'}
+            fieldName="genPreset"
+            label="Preset"
+            items={presetOptions()}
+            value={user.defaultPreset || ''}
+            helperText={
+              <>
+                <ServiceWarning service={selectedPreset()?.service} />
+              </>
+            }
+            onChange={(ev) => setPresetId(ev.value)}
           />
+
+          <Show when={selectedPreset()?.service === 'openai'}>
+            <Select
+              fieldName="mode"
+              label="Chat Mode"
+              helperText="EXPERIMENTAL: This is only supported on OpenAI Turbo at the moment. This feature may not work "
+              items={[
+                { label: 'Conversation', value: 'standard' },
+                { label: 'Adventure (Experimental)', value: 'adventure' },
+              ]}
+              value={'standard'}
+            />
+          </Show>
         </Show>
 
         <TextInput
@@ -181,72 +177,6 @@ const CreateChatModal: Component<{
           }
           placeholder="Untitled"
         />
-        <TextInput
-          isMultiline
-          fieldName="greeting"
-          label="Greeting"
-          value={char()?.greeting}
-          class="text-xs"
-        ></TextInput>
-
-        <TextInput
-          isMultiline
-          fieldName="scenario"
-          label="Scenario"
-          value={char()?.scenario}
-          class="text-xs"
-        ></TextInput>
-
-        <TextInput
-          isMultiline
-          fieldName="sampleChat"
-          label="Sample Chat"
-          value={char()?.sampleChat}
-          class="text-xs"
-        ></TextInput>
-
-        <Show when={char()?.persona.kind !== 'text'}>
-          <Select
-            class="mb-2 text-sm"
-            fieldName="schema"
-            label="Persona"
-            items={options}
-            value={char()?.persona.kind || 'wpp'}
-          />
-        </Show>
-
-        <Show when={char()?.persona.kind === 'text'}>
-          <Select
-            class="mb-2 text-sm"
-            fieldName="schema"
-            label="Persona"
-            items={[{ label: 'Plain text', value: 'text' }]}
-            value={'text'}
-          />
-        </Show>
-
-        <div class="w-full text-sm">
-          <Show when={char()}>
-            <PersonaAttributes
-              value={char()!.persona.attributes}
-              hideLabel
-              plainText={char()?.persona?.kind === 'text'}
-            />
-          </Show>
-          <Show when={!char()}>
-            <For each={state.chars}>
-              {(item) => (
-                <Show when={char()?._id === item._id}>
-                  <PersonaAttributes
-                    value={item.persona.attributes}
-                    hideLabel
-                    plainText={item.persona.kind === 'text'}
-                  />
-                </Show>
-              )}
-            </For>
-          </Show>
-        </div>
       </form>
     </Modal>
   )

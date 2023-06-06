@@ -26,7 +26,7 @@ export async function getFreeCredits() {
   const now = new Date().getTime()
   const nextTime: number = Number(now) + 60000
 
-  // anit cheat
+  // evil anti cheat
   // check users that have more than one account on the same ip and give them credits accordingly
 
   const duplicateIPUsers = await db('user')

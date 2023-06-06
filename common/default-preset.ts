@@ -1,13 +1,13 @@
 import { AppSchema } from '../srv/db/schema'
 import { CLAUDE_MODELS, NOVEL_MODELS, OPENAI_MODELS } from './adapters'
 
-const MAX_TOKENS = 80
+const MAX_TOKENS = 120
 
 const builtinPresets = {
   horde: {
     name: 'Private Horde',
     service: 'horde',
-    maxTokens: 80,
+    maxTokens: 120,
     maxContextLength: 2000,
     repetitionPenalty: 1.08,
     repetitionPenaltySlope: 0.9,

@@ -4,6 +4,6 @@ export type FeatureFlags = typeof defaultFlags
 
 export const defaultFlags = {
   charv2: false,
-  cyoa: true,
+  cyoa: false,
   chub: false,
 } satisfies { [key: string]: boolean }

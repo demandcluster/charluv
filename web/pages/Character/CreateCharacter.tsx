@@ -185,10 +185,9 @@ const CreateCharacter: Component = () => {
       culture: 'string',
       greeting: 'string',
       scenario: 'string',
-      xp: 'number',
+      xp: 'number?',
       premium: 'string',
       match: 'string',
-      anime: 'sring',
       sampleChat: 'string',
     } as const)
 
@@ -207,7 +206,7 @@ const CreateCharacter: Component = () => {
       scenario: body.scenario,
       avatar: state.avatar.blob || avatar(),
       greeting: body.greeting,
-      xp: body.xp,
+      xp: body.xp || 0,
       match: body.match,
       anime: body.anime,
       premium: body.premium,
@@ -407,33 +406,55 @@ const CreateCharacter: Component = () => {
           options={matchoptions}
           value={toString(state.edit?.match) === 'true' ? 'true' : 'false'}
         />
-        <FormLabel label="Style" />
+        <FormLabel
+          label="Premium"
+          helperText={
+            <>
+              <p>Setting this to true will make the character premium.</p>
+            </>
+          }
+        />
         <RadioGroup
-          name="anime"
+          name="premium"
           horizontal
-          options={options}
-          value={state.edit?.persona.kind || schema() || 'text'}
-          onChange={(kind) => setSchema(kind as any)}
+          options={premiumoptions}
+          value={toString(state.edit?.premium) === 'true' ? 'true' : 'false'}
         />
 
+        <div>
+          <FormLabel
+            label="Persona Schema"
+            helperText={
+              <>
+                <p>If you do not know what this mean, you can leave this as-is.</p>
+                <p class="font-bold">
+                  WARNING: "Plain Text" and "Non-Plain Text" schemas are not compatible. Changing
+                  between them will cause data loss.
+                </p>
+                <p>Format to use for the character's format</p>
+              </>
+            }
+          />
+          <RadioGroup
+            name="kind"
+            horizontal
+            options={options}
+            value={state.edit?.persona.kind || schema() || 'text'}
+            onChange={(kind) => setSchema(kind as any)}
+          />
+        </div>
         <Show when={!params.editId && !params.duplicateId}>
           <PersonaAttributes
             value={downloaded()?.persona.attributes}
             plainText={schema() === 'text' || schema() === undefined}
           />
-
-          <TextInput
-            isMultiline
-            fieldName="greeting"
-            label="Greeting"
-            helperText="The first message from your character. It is recommended to provide a lengthy first message to encourage the character to give longer responses."
-            placeholder={
-              "E.g. *I smile as you walk into the room* Hello, {{user}}! I can't believe it's lunch time already! Where are we going?"
-            }
-            value={downloaded()?.greeting || state.edit?.greeting}
+        </Show>
+        <Show when={(params.editId || params.duplicateId) && state.edit}>
+          <PersonaAttributes
+            value={downloaded()?.persona.attributes || state.edit?.persona.attributes}
+            plainText={schema() === 'text'}
           />
         </Show>
-
         <TextInput
           isMultiline
           fieldName="sampleChat"

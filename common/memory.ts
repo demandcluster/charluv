@@ -3,7 +3,7 @@ import { defaultPresets } from './presets'
 import { BOT_REPLACE, SELF_REPLACE } from './prompt'
 import { Encoder } from './tokenize'
 
-export const BUNDLED_CHARACTER_BOOK_ID = '__bundled__characterbook__'
+export const BUNDLED_CHARACTER_BOOK_ID = 'a5b0ae95-0fe6-45e9-86ba-7de2c179664d'
 
 export type MemoryOpts = {
   user: AppSchema.User
