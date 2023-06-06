@@ -34,7 +34,7 @@ const App: Component = () => {
           <CharacterRoutes />
           <Route
             path="/discord"
-            component={() => <Redirect external="https://discord.gg/luminai" />}
+            component={() => <Redirect external="https://discord.gg/8E6FRdsvhg" />}
           />
           <ChubRoutes />
           <Route path="/chats" component={lazy(() => import('./pages/Character/ChatList'))} />
