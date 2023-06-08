@@ -17,7 +17,7 @@ const router = Router()
 const { paypalID, paypalSecret, paypalWebhook } = config
 
 paypal.configure({
-  mode: 'sandbox', //sandbox or live
+  mode: 'live', //sandbox or live
   client_id: paypalID,
   client_secret: paypalSecret,
 })
@@ -27,7 +27,7 @@ interface PaypalItem {
   description: string
   price: number
   quantity: number
-  category?: 'DIGITAL_GOODS' | 'PHYSICAL_GOODS'
+  category?: 'DIGITAL_GOODS'
 }
 const paypalLogin = () => {
   return new Promise((resolve, reject) => {
@@ -221,12 +221,16 @@ const getItems = handle(async () => {
   return items
 })
 
-const webHook = handle(async ({ headers, body, res }) => {
+const webHook = handle(async (req, res) => {
   // Extract the header properties
-  const transmissionId = headers['PAYPAL-TRANSMISSION-ID'] || ''
-  const timeStamp = headers['PAYPAL-TRANSMISSION-TIME'] || ''
-  const crc32 = headers['PAYPAL-TRANSMISSION-SIG'] || ''
+  const headers: any = req.rawHeaders || []
+  const body = req.body || {}
+
+  const transmissionId: any = headers['paypal-transmission-id'] || ''
+  const timeStamp: string = headers['paypal-transmission-time'] || ''
+  const crc32: string = headers['paypal-transmission-sig'] || ''
   const webhookId = paypalWebhook
+
   // Validate the CRC32 checksum
   const payload = [transmissionId, timeStamp, webhookId, crc32].map(String).join('|')
 

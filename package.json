@@ -69,7 +69,7 @@
     "api": "tsc -p api.tsconfig.json --watch"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.309.0",
+    "@aws-sdk/client-s3": "^3.348.0",
     "@dqbd/tiktoken": "^1.0.2",
     "@paypal/paypal-js": "^5.1.6",
     "@types/crypto-js": "^4.1.1",
@@ -92,6 +92,7 @@
     "mongodb": "^5.1.0",
     "multer": "^1.4.5-lts.1",
     "needle": "^3.2.0",
+    "node:18.13.0": "link:@types/node:18.13.0",
     "paypal-rest-sdk": "^1.8.1",
     "pino": "^8.10.0",
     "pino-pretty": "^9.2.0",
@@ -114,7 +115,6 @@
     "@types/mocha": "^10.0.1",
     "@types/multer": "^1.4.7",
     "@types/needle": "^3.2.0",
-    "@types/node": "^18.13.0",
     "@types/showdown": "^2.0.0",
     "@types/uuid": "^9.0.0",
     "@types/ws": "^8.5.4",

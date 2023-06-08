@@ -1,5 +1,5 @@
 import dotenv from 'dotenv'
-//import { assertValid } from '/common/valid'
+import { assertValid } from '../common/valid'
 import { readFileSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 import { v4 } from 'uuid'
@@ -15,7 +15,7 @@ const settingsValid = {
 
 export const customSettings = tryGetSettings()
 
-//assertValid(settingsValid, customSettings)
+assertValid(settingsValid, customSettings)
 
 dotenv.config({ path: '.env' })
 

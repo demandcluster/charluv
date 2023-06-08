@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken'
-import { assertValid } from '/common/valid'
+import { assertValid } from '../../../common/valid'
 import { AppSocket } from './types'
 import { config } from '../../config'
 
