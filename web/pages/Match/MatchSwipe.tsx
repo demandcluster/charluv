@@ -1,12 +1,23 @@
-import { Component, createEffect, createSignal, For, Show } from 'solid-js'
+import { Component, createEffect,
+  createMemo, createSignal, For, Show } from 'solid-js'
 import Button from '../../shared/Button'
 import PageHeader from '../../shared/PageHeader'
-import { Check, Delete, Heart, Undo2, X, AlignLeft, LayoutList, Image, Star } from 'lucide-solid'
+import { Check, Delete, Heart, Undo2, X, AlignLeft, LayoutList, Image, 
+  Star,
+  SortAsc,
+  SortDesc,
+  User
+} from 'lucide-solid' 
+
 import { AppSchema } from '../../../srv/db/schema'
 import { A, useNavigate } from '@solidjs/router'
 import AvatarIcon from '../../shared/AvatarIcon'
 import { matchStore, userStore, swipeStore } from '../../store'
 
+import { tagStore } from '../../store'
+import TagSelect from '../../shared/TagSelect'
+import Select, { Option } from '../../shared/Select'
+import TextInput from '../../shared/TextInput'
 import { SwipeCard } from '../../shared/Swipe'
 import type { SwipeCardRef } from '../../shared/Swipe'
 import { setComponentPageTitle } from '../../shared/util'
@@ -14,9 +25,17 @@ import { getAssetUrl } from '../../shared/util'
 
 const CACHE_KEY = 'charluv-likes-cache'
 
+type ViewTypes = 'list' | 'cards'
+type SortFieldTypes = 'modified' | 'created' | 'name'
+type SortDirectionTypes = 'asc' | 'desc'
+const sortOptions: Option<SortFieldTypes>[] = [
+  { value: 'modified', label: 'Last Modified' },
+  { value: 'created', label: 'Created' },
+  { value: 'name', label: 'Name' },
+]
 function getListCache(): ListCache {
-  const existing = localStorage.getItem(CACHE_KEY)
-  const defaultCache: ListCache = { view: 'likes' }
+  const existing = localStorage.getItem(CACHE_KEY)  
+  const defaultCache: ListCache = { view: 'likes', sort: { field: 'chat-updated', direction: 'desc' } }
 
   if (!existing) {
     return defaultCache
@@ -36,6 +55,22 @@ const MatchList: Component = () => {
   let tmpSwipes = []
 
   createEffect(() => {
+    const next = {
+      view: view(),
+      sort: {
+        field: sortField(),
+        direction: sortDirection(),
+      },
+    }
+
+    saveListCache(next)
+  })
+  createEffect(() => {
+    if(charsList().list){
+      tagStore.updateTags(charsList().list)
+    }
+  })
+  createEffect(() => {
     curApiref = ''
     swipeStore.getSwipe()
     matchStore.getMatches(swipeCount.lastid)
@@ -46,8 +81,13 @@ const MatchList: Component = () => {
     saveListCache(next)
   })
 
+  const tags = tagStore((s) => ({ filter: s.filter, hidden: s.hidden }))
+  const [showGrouping, setShowGrouping] = createSignal(false)
   const cached = getListCache()
   const [view, setView] = createSignal(cached.view)
+  const [sortField, setSortField] = createSignal(cached.sort.field)
+  const [sortDirection, setSortDirection] = createSignal(cached.sort.direction)
+  const [search, setSearch] = createSignal('')
   const getNextView = () => (view() === 'likes' ? 'list' : 'likes')
   const matchItems = matchStore((s) => s.characters)
   const [charsList, setCharList] = createSignal(matchItems)
@@ -115,6 +155,26 @@ const MatchList: Component = () => {
     }
   }
 
+  function getSortableValue(char: AppSchema.Character, field: SortFieldTypes) {
+    switch (field) {
+      case 'name':
+        return char.name.toLowerCase()
+      case 'created':
+        return char.createdAt
+      case 'modified':
+        return char.updatedAt
+      default:
+        return 0
+    }
+  }
+  function getSortFunction(field: SortFieldTypes, direction: SortDirectionTypes) {
+    return (left: AppSchema.Character, right: AppSchema.Character) => {
+      const mod = direction === 'asc' ? 1 : -1
+      const l = getSortableValue(left, field)
+      const r = getSortableValue(right, field)
+      return l > r ? mod : l === r ? 0 : -mod
+    }
+  }
   function swipeMovement(a) {
     switch (a) {
       case 'left':
@@ -204,9 +264,30 @@ const MatchList: Component = () => {
     totalSwipes[charsIds().list[charsIds().list.length - 1]._id].swipe(direction)
   }
 
+  const groupslist = createMemo(() => {
+    if(!charsList().list) return []
+
+    const list = charsList().list
+      .slice()
+      .filter((ch) => ch.name.toLowerCase().includes(search().toLowerCase()))
+      .filter((ch) => tags.filter.length === 0 || ch.tags?.some((t) => tags.filter.includes(t)))
+      .filter((ch) => !ch.tags || !ch.tags.some((t) => tags.hidden.includes(t)))
+      .sort(getSortFunction(sortField(), sortDirection()))
+
+    const groups = [
+      { label: 'Favorites', list: list.filter((c) => c.favorite) },
+      { label: '', list: list.filter((c) => !c.favorite) },
+    ]
+    if (groups[0].list.length === 0) {
+      setShowGrouping(false)
+      return groups[1].list
+    }
+    setShowGrouping(true)
+    return groups
+  })
   return (
     <>
-      <div class="overflow-hidden">
+      <div class="overflow-hidden min-h-[455px]">
         <PageHeader title="Likes" subtitle="" />
         <Show when={!charsList().list}>
           <div>Loading ...{charsList()}</div>
@@ -229,17 +310,56 @@ const MatchList: Component = () => {
               </Match>
             </Switch>
           </Button>
+          <Show when={getNextView() == 'list'}>
+            <div class="mb-2 flex justify-between">
+              <div class="flex flex-wrap w-full">
+                <div class="m-1 ml-0 mr-1 min-w-[200px]">
+                  <TextInput
+                    fieldName="search"
+                    placeholder="Search by name..."
+                    onKeyUp={(ev) => setSearch(ev.currentTarget.value)}
+                  />
+                </div>
+
+                <div class="flex flex-wrap">
+                  <Select
+                    class="m-1 ml-0 bg-[var(--bg-600)]"
+                    fieldName="sortBy"
+                    items={sortOptions}
+                    value={sortField()}
+                    onChange={(next) => setSortField(next.value as SortFieldTypes)}
+                  />
+
+                  <div class="mr-1 py-1">
+                    <Button
+                      schema="secondary"
+                      class="rounded-xl"
+                      onClick={() => {
+                        const next = sortDirection() === 'asc' ? 'desc' : 'asc'
+                        setSortDirection(next)
+                      }}
+                    >
+                      {sortDirection() === 'asc' ? <SortAsc /> : <SortDesc />}
+                    </Button>
+                  </div>
+                </div>
+                <Show when={user.user?.admin}>
+                  <TagSelect class="m-1" />
+                </Show>
+              </div>
+            </div>
+          </Show>
           <Switch>
             <Match when={getNextView() == 'list'}>
               <div class="flex w-full flex-col gap-2">
-                <For each={charsList().list}>
+                <For each={groupslist()}>
                   {(char) => <MatchLike character={char} match={createMatch} />}
                 </For>
               </div>
             </Match>
             <Match when={getNextView() == 'likes'}>
               <div class="h-96 max-h-[90%] sm:h-[550px] sm:max-h-[550px] flex w-full flex-col gap-2 ">
-                <For each={charsList().list}>
+                <For each={groupslist()}>
                   {(char, i) => (
                     <DSwipeCard
                       character={char}
@@ -358,6 +478,7 @@ const DSwipeCard: Component<{ character: AppSchema.Character; match: Any }> = (p
 // [TODO] this should be in a seperate file and breaks the philosophy of solidjs and react
 
 const MatchLike: Component<{ character: AppSchema.Character; match: Any }> = (props) => {
+  console.log(props);
   return (
     <div class="flex w-full gap-2">
       <div class="flex h-12 w-full flex-row items-center gap-4 rounded-xl bg-[var(--bg-800)]">
