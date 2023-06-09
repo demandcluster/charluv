@@ -111,7 +111,7 @@ export async function createUser(newUser: NewUser, admin?: boolean) {
     thirdPartyPassword: '',
     luminaiUrl: '',
     oobaUrl: '',
-    hordeModel: 'llygmalion-13B-4bit-128g-cuda',
+    hordeModel: 'pyg/charluv_4bit-128g-13B',
     hordeKey: '',
     oaiKey: '',
     defaultPreset: 'basic',
