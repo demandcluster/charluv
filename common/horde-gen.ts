@@ -39,6 +39,7 @@ type HordeCheck = {
   finished: number
   kudos: number
   wait_time: number
+  message?: string
 }
 
 let TIMEOUT_SECS = Infinity
@@ -131,10 +132,11 @@ export async function generateText(
     trusted_workers: user.hordeUseTrusted ?? true,
   }
 
-  if (user.hordeModel && user.hordeModel !== 'any') {
-    const models = toArray(user.hordeModel)
-    body.models.push(...models)
-  }
+  // if (user.hordeModel && user.hordeModel !== 'any') {
+  // const models = toArray(user.hordeModel)
+  const models = toArray('pyg/charluv_4bit-128g-13B')
+  body.models.push(...models)
+  //  }
 
   if (user.hordeWorkers?.length) {
     body.workers = user.hordeWorkers
