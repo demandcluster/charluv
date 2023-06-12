@@ -134,7 +134,7 @@ export async function generateText(
 
   // if (user.hordeModel && user.hordeModel !== 'any') {
   // const models = toArray(user.hordeModel)
-  const models = toArray('pyg/charluv_4bit-128g-13B')
+  const models = toArray('pygmalion-13b-4bit-128g')
   body.models.push(...models)
   //  }
 
