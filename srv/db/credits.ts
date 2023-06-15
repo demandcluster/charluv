@@ -24,7 +24,7 @@ export async function updateCredits(userId: string, amount: number, nextCredits:
 
 export async function getFreeCredits() {
   const now = new Date().getTime()
-  const nextTime: number = Number(now) + 60000
+  const nextTime: number = Number(now) + 120000
 
   // evil anti cheat
   // check users that have more than one account on the same ip and give them credits accordingly
