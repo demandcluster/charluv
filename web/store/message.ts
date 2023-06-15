@@ -3,7 +3,7 @@ import { AppSchema } from '../../srv/db/schema'
 import { EVENTS, events } from '../emitter'
 import { getAssetUrl } from '../shared/util'
 import { isLoggedIn } from './api'
-import { createStore } from './create'
+import { createStore, getStore } from './create'
 import { getImageData } from './data/chars'
 import { subscribe } from './socket'
 import { toastStore } from './toasts'
@@ -175,14 +175,15 @@ export const msgStore = createStore<MsgState>(
       }
 
       const msg = messageId ? msgs.find((msg) => msg._id === messageId)! : msgs[msgs.length - 1]
-      const replace = { ...msg, voiceUrl: undefined }
+      const replace = msg?.userId ? undefined : { ...msg, voiceUrl: undefined }
+      const characterId = replace?.characterId || activeCharId
       yield {
         partial: '',
-        waiting: { chatId, mode: 'retry', characterId: replace.characterId! },
+        waiting: { chatId, mode: 'retry', characterId },
         retrying: replace,
       }
 
-      addMsgToRetries(replace)
+      if (replace) addMsgToRetries(replace)
 
       const res = await msgsApi.generateResponseV2({ kind: 'retry', messageId })
 
@@ -251,6 +252,13 @@ export const msgStore = createStore<MsgState>(
       if (res.result) {
         onSuccess?.()
       }
+    },
+    async *setGreetingSwipes({ retries }, msgId: string, allGreetings: string[]) {
+      if (!retries) {
+        return toastStore.error(`Failed to load alternate greetings.`)
+      }
+      if ((retries[msgId] ?? []).length > 1) return // already been set
+      yield { retries: { ...retries, [msgId]: allGreetings } }
     },
     async *confirmSwipe({ retries }, msgId: string, position: number, onSuccess?: Function) {
       const replacement = retries[msgId]?.[position]
@@ -412,20 +420,14 @@ async function playVoiceFromUrl(chatId: string, messageId: string, url: string) 
       const msg = msgs.find((m) => m._id === messageId)
       if (!msg) return
       const nextMsgs = msgs.map((m) => (m._id === msg._id ? { ...m, voiceUrl: undefined } : m))
-      msgStore.setState({
-        speaking: undefined,
-        msgs: nextMsgs,
-      })
+      msgStore.setState({ speaking: undefined, msgs: nextMsgs })
     })
     audio.addEventListener('playing', () => {
       const msgs = msgStore.getState().msgs
       const msg = msgs.find((m) => m._id === messageId)
       if (!msg) return
       const nextMsgs = msgs.map((m) => (m._id === msg._id ? { ...m, voiceUrl: url } : m))
-      msgStore.setState({
-        speaking: { messageId, status: 'playing' },
-        msgs: nextMsgs,
-      })
+      msgStore.setState({ speaking: { messageId, status: 'playing' }, msgs: nextMsgs })
     })
     audio.addEventListener('ended', () => {
       msgStore.setState({ speaking: undefined })
@@ -481,9 +483,15 @@ subscribe(
   },
   async (body) => {
     const { retrying, msgs, activeChatId } = msgStore.getState()
-    if (activeChatId !== body.chatId) return
+    const { characters } = getStore('character').getState()
+    const { active } = getStore('chat').getState()
+
+    const { user } = getStore('user').getState()
+
+    if (activeChatId !== body.chatId || !active) return
 
     const prev = msgs.find((msg) => msg._id === body.messageId)
+    const char = prev?.characterId ? characters.map[prev?.characterId] : undefined
 
     msgStore.setState({
       partial: undefined,
@@ -496,13 +504,12 @@ subscribe(
     addMsgToRetries({ _id: body.messageId, msg: body.message })
 
     if (retrying?._id === body.messageId) {
-      msgStore.setState({
-        msgs: msgs.map((msg) =>
-          msg._id === body.messageId
-            ? { ...msg, msg: body.message, actions: body.actions, voiceUrl: undefined }
-            : msg
-        ),
-      })
+      const next = msgs.map((msg) =>
+        msg._id === body.messageId
+          ? { ...msg, msg: body.message, actions: body.actions, voiceUrl: undefined }
+          : msg
+      )
+      msgStore.setState({ msgs: next })
     } else {
       if (activeChatId !== body.chatId || !prev) return
       msgStore.setState({
@@ -514,20 +521,13 @@ subscribe(
       })
     }
 
-    const chat = chatStore.getState().active
-    if (chat?.chat._id !== body.chatId) return
+    if (active.chat._id !== body.chatId || !prev || !char) return
 
-    const voice = chat.char.voice
-    const { user } = userStore.getState()
+    const voice = char.voice
 
     if (body.adapter === 'image' || !voice || !user) return
-    if ((user?.texttospeech?.enabled ?? true) && chat.char.userId === user._id) {
-      msgStore.textToSpeech(
-        body.messageId,
-        body.message,
-        voice,
-        chat.char.culture ?? defaultCulture
-      )
+    if ((user?.texttospeech?.enabled ?? true) && active.char.userId === user._id) {
+      msgStore.textToSpeech(body.messageId, body.message, voice, char.culture ?? defaultCulture)
     }
   }
 )
@@ -549,8 +549,10 @@ subscribe(
 
     const speech = getMessageSpeechInfo(msg, user)
     const nextMsgs = msgs.concat(msg)
+
+    const isUserMsg = !!msg.userId
     // If the message is from a user don't clear the "waiting for response" flags
-    if (msg.userId && !body.generate) {
+    if (isUserMsg && !body.generate) {
       msgStore.setState({ msgs: nextMsgs, speaking: speech?.speaking })
     } else {
       msgStore.setState({
@@ -572,13 +574,15 @@ subscribe(
     }
 
     if (body.msg.adapter === 'image') return
-    if (speech) msgStore.textToSpeech(msg._id, msg.msg, speech.voice, speech?.culture)
+    if (speech && !isUserMsg) msgStore.textToSpeech(msg._id, msg.msg, speech.voice, speech?.culture)
   }
 )
 
 function getMessageSpeechInfo(msg: AppSchema.ChatMessage, user: AppSchema.User | undefined) {
-  if (msg.adapter === 'image' || !msg.characterId) return
-  const char = chatStore.getState().chatBotMap[msg.characterId]
+  if (msg.adapter === 'image' || !msg.characterId || msg.userId) return
+  const { characters } = getStore('character').getState()
+  const char = characters.map[msg.characterId]
+
   if (!char?.voice) return
   if (!user?.texttospeech?.enabled) return
   return {

@@ -146,6 +146,7 @@ export async function createAccessToken(username: string, user: AppSchema.User) 
     userId: user._id,
     username,
     admin: !!user.admin,
+    premium: !!user.premium,
   }
 
   const token = jwt.sign(payload, config.jwtSecret, {

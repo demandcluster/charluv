@@ -1,7 +1,7 @@
 import { UnwrapBody, assertValid } from '/common/valid'
 import { store } from '../../db'
 import { createTextStreamV2 } from '../../adapter/generate'
-import { AppRequest, errors, handle } from '../wrap'
+import { AppRequest, StatusError, errors, handle } from '../wrap'
 import { sendGuest, sendMany, sendOne } from '../ws'
 import { obtainLock, releaseLock } from './lock'
 import { AppSchema } from '../../db/schema'
@@ -36,9 +36,8 @@ const genValidator = {
     greeting: 'string?',
     memory: 'any?',
     sampleChat: ['string?'],
-    gaslight: 'string',
-    gaslightHasChat: 'boolean',
     post: ['string'],
+    allPersonas: 'any?',
   },
   lines: ['string'],
   text: 'string?',
@@ -71,21 +70,20 @@ export const createMessage = handle(async (req) => {
     })
     sendGuest(guest, { type: 'message-created', msg: newMsg, chatId })
   } else {
-    const chat = await store.chats.update(chatId, {})
+    const chat = await store.chats.getChatOnly(chatId)
     if (!chat) throw errors.NotFound
-    const char = impersonate
-      ? await store.characters.getCharacter(userId, impersonate?._id)
-      : undefined
-    if (impersonate && !char) throw errors.Forbidden
-
     const members = chat.memberIds.concat(chat.userId)
+
+    await ensureBotMembership(chat, members, impersonate)
+
     const userMsg = await store.msgs.createChatMessage({
       chatId,
       message: body.text,
       characterId: impersonate?._id,
-      senderId: impersonate ? undefined : userId!,
+      senderId: userId,
       ooc: body.kind === 'ooc',
     })
+
     sendMany(members, { type: 'message-created', msg: userMsg, chatId })
   }
 
@@ -146,37 +144,16 @@ export const generateMessageV2 = handle(async (req, res) => {
 
   // For authenticated users we will verify parts of the payload
   if (body.kind === 'send' || body.kind === 'ooc') {
-    const update: Partial<AppSchema.Chat> = {}
-    if (impersonate) {
-      const nextChars = { ...chat.characters }
-      if (impersonate._id in nextChars === false) {
-        const char = await store.characters.getCharacter(userId, impersonate._id)
-        if (!char) throw errors.Forbidden
-
-        // Ensure the character is update to date for authorized users
-        Object.assign(impersonate, char)
-
-        nextChars[impersonate._id] = false
-        publishMany(members, {
-          type: 'chat-character-added',
-          chatId,
-          character: char,
-          active: false,
-        })
-      }
-
-      update.characters = nextChars
-    }
+    await ensureBotMembership(chat, members, impersonate)
 
     const userMsg = await store.msgs.createChatMessage({
       chatId,
       message: body.text!,
       characterId: impersonate?._id,
-      senderId: impersonate ? undefined : userId!,
+      senderId: userId,
       ooc: body.kind === 'ooc',
     })
 
-    await store.chats.update(chatId, update)
     sendMany(members, { type: 'message-created', msg: userMsg, chatId })
   }
 
@@ -411,4 +388,36 @@ function newMessage(
     ...props,
   }
   return userMsg
+}
+
+async function ensureBotMembership(
+  chat: AppSchema.Chat,
+  members: string[],
+  impersonate: AppSchema.Character | undefined
+) {
+  const update: Partial<AppSchema.Chat> = {}
+
+  const characters = chat.characters || {}
+  if (impersonate && characters[impersonate._id] === undefined) {
+    const actual = await store.characters.getCharacter(impersonate.userId, impersonate._id)
+    if (!actual) {
+      throw new StatusError(
+        'Could not create message: Impersonation character could not be found',
+        400
+      )
+    }
+
+    // Ensure the caller's character is up to date
+    Object.assign(impersonate, actual)
+    characters[impersonate._id] = false
+    publishMany(members, {
+      type: 'chat-character-added',
+      chatId: chat._id,
+      character: actual,
+      active: false,
+    })
+  }
+
+  update.characters = characters
+  await store.chats.update(chat._id, update)
 }

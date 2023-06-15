@@ -27,8 +27,10 @@ const CreateChatModal: Component<{
   let ref: any
 
   const nav = useNavigate()
+  const user = userStore((s) => ({ ...s.user }))
+  const presets = presetStore((s) => s.presets)
   const state = characterStore((s) => ({
-    chars: s.characters?.list || [],
+    chars: (s.characters?.list || []).filter((c) => c.userId === user._id),
     loaded: s.characters.loaded,
   }))
 
@@ -48,9 +50,6 @@ const CreateChatModal: Component<{
     setSelected(state.chars[0]._id)
   })
 
-  const user = userStore((s) => ({ ...s.user }))
-  const presets = presetStore((s) => s.presets)
-
   const presetOptions = createMemo(() => {
     const opts = getPresetOptions(presets, { builtin: true }).filter((pre) => pre.value !== 'chat')
     return [{ label: 'System Built-in Preset (Horde)', value: AutoPreset.service }].concat(opts)
@@ -58,7 +57,6 @@ const CreateChatModal: Component<{
 
   const selectedPreset = createMemo(() => {
     const id = presetId()
-    console.log('pre', id)
     if (!id) return defaultPresets.horde
     if (isDefaultPreset(id)) return defaultPresets[id]
     return presets.find((pre) => pre._id === id)

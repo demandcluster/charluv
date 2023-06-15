@@ -1,3 +1,4 @@
+import './chat-detail.css'
 import { Component, createEffect, createMemo, createSignal, For, JSX, Show } from 'solid-js'
 import { A, useNavigate, useParams } from '@solidjs/router'
 import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, Menu, Radio } from 'lucide-solid'
@@ -7,7 +8,7 @@ import Button from '../../shared/Button'
 import IsVisible from '../../shared/IsVisible'
 import Modal from '../../shared/Modal'
 import { getRootRgb, setComponentPageTitle } from '../../shared/util'
-import { chatStore, settingStore, UISettings as UI, userStore } from '../../store'
+import { characterStore, chatStore, settingStore, UISettings as UI, userStore } from '../../store'
 import { msgStore } from '../../store'
 import { ChatGenSettingsModal } from './ChatGenSettings'
 import ChatSettingsModal from './ChatSettings'
@@ -27,7 +28,8 @@ import { getClientPreset } from '../../shared/adapter'
 import ForcePresetModal from './ForcePreset'
 import DeleteChatModal from './components/DeleteChat'
 import AvatarIcon from '/web/shared/AvatarIcon'
-import './chat-detail.css'
+import { cycleArray } from '/common/util'
+import { getActiveBots } from './util'
 
 const ChatDetail: Component = () => {
   const { updateTitle } = setComponentPageTitle('Chat')
@@ -35,16 +37,21 @@ const ChatDetail: Component = () => {
   const nav = useNavigate()
   const user = userStore()
   const cfg = settingStore()
+
+  const chars = characterStore((s) => ({
+    chatBots: s.characters.list,
+    botMap: s.characters.map,
+  }))
+
   const chats = chatStore((s) => ({
     ...(s.active?.chat._id === params.id ? s.active : undefined),
     lastId: s.lastChatId,
     members: s.chatProfiles,
     loaded: s.loaded,
     opts: s.opts,
-    chatBots: s.chatBots,
-    botMap: s.chatBotMap,
-    activeBots: Object.values(s.active?.chat.characters || {}).filter((bot) => !!bot).length,
+    activeBots: getActiveBots(s.active?.chat!, chars.botMap),
   }))
+
   const msgs = msgStore((s) => ({
     msgs: s.msgs,
     images: s.images,
@@ -60,9 +67,13 @@ const ChatDetail: Component = () => {
     return true
   })
 
+  const isGreetingOnlyMsg = createMemo(() => msgs.msgs.length === 1)
+  const botGreeting = createMemo(() => chars.chatBots[0]?.greeting)
+  const altGreetings = createMemo(() => chars.chatBots[0]?.alternateGreetings ?? [])
+
   const retries = createMemo(() => {
     const last = msgs.msgs.slice(-1)[0]
-    if (!last) return
+    if (!last && !isGreetingOnlyMsg()) return
 
     return { msgId: last._id, list: msgs.retries?.[last._id] || [] }
   })
@@ -103,6 +114,7 @@ const ChatDetail: Component = () => {
       charId: msgs.waiting?.mode !== 'self' ? msgs.waiting.characterId : undefined,
       userId: msgs.waiting?.mode === 'self' ? msgs.waiting.userId || user.user?._id : undefined,
       message: msgs.partial || '',
+      adapter: 'partial',
     })
   })
 
@@ -141,6 +153,16 @@ const ChatDetail: Component = () => {
       name || presetLabel
     }`
     return label
+  })
+
+  createEffect(() => {
+    if (isGreetingOnlyMsg() && botGreeting() && altGreetings().length > 0) {
+      const currentChoice = msgs.msgs[0].msg
+      const allGreetings = [botGreeting(), ...altGreetings()]
+      const currentChoiceIndex = allGreetings.findIndex((greeting) => greeting === currentChoice)
+      const greetingsWithCurrentChoiceFirst = cycleArray(allGreetings, currentChoiceIndex)
+      msgStore.setGreetingSwipes(msgs.msgs[0]._id, greetingsWithCurrentChoiceFirst)
+    }
   })
 
   createEffect(() => {
@@ -198,14 +220,6 @@ const ChatDetail: Component = () => {
   const generateFirst = () => {
     msgStore.retry(chats.chat?._id!)
   }
-
-  const activeCharIds = createMemo(() => {
-    if (!chats.char) return []
-    const active = chats.chatBots
-      .filter((bot) => chats.chat?.characters?.[bot._id])
-      .map((ch) => ch._id)
-    return [chats.char._id, ...active]
-  })
 
   return (
     <>
@@ -282,21 +296,22 @@ const ChatDetail: Component = () => {
               setOoc={setOoc}
               showOocToggle={isGroupChat()}
               request={requestMessage}
-              bots={chats.chatBots}
+              bots={chars.chatBots}
+              botMap={chars.botMap}
             />
-            <Show when={isOwner() && chats.activeBots >= 1}>
+            <Show when={isOwner() && chats.activeBots.length > 1}>
               <div
                 class={`flex justify-center gap-2 py-1 ${
                   msgs.waiting ? 'opacity-70 saturate-0' : ''
                 }`}
               >
-                <For each={activeCharIds()}>
-                  {(id) => (
+                <For each={chats.activeBots}>
+                  {(bot) => (
                     <CharacterResponseBtn
-                      char={chats.botMap[id]}
+                      char={bot}
                       request={requestMessage}
                       waiting={!!msgs.waiting}
-                      replying={chats.replyAs === id}
+                      replying={chats.replyAs === bot._id}
                     />
                   )}
                 </For>
@@ -309,6 +324,21 @@ const ChatDetail: Component = () => {
             </Show>
             <div class="flex flex-col-reverse gap-4 overflow-y-scroll sm:pr-2">
               <div id="chat-messages" class="flex flex-col gap-2">
+                <Show
+                  when={
+                    cfg.flags.charv2 &&
+                    chats.loaded &&
+                    chatMsgs().length < 2 &&
+                    chats.char?.description
+                  }
+                >
+                  <div class="mx-auto mb-4 text-[var(--text-500)]">
+                    <div class="font-bold">Notes from the creator of {chats.char!.name}:</div>
+                    {chats.char!.description!.split('\n').map((paragText) => (
+                      <div>{paragText}</div>
+                    ))}
+                  </div>
+                </Show>
                 <Show when={chats.loaded && chatMsgs().length === 0 && !msgs.waiting}>
                   <div class="flex justify-center">
                     <Button onClick={generateFirst}>Generate Message</Button>
@@ -318,6 +348,7 @@ const ChatDetail: Component = () => {
                   {(msg, i) => (
                     <Message
                       msg={msg}
+                      botMap={chars.botMap}
                       chat={chats.chat!}
                       char={chats.char!}
                       editing={chats.opts.editing}
@@ -336,7 +367,6 @@ const ChatDetail: Component = () => {
                     >
                       {isOwner() &&
                         retries()?.list?.length! > 1 &&
-                        i() >= 1 &&
                         i() === indexOfLastRPMessage() && (
                           <SwipeMessage
                             chatId={chats.chat?._id!}
@@ -351,8 +381,9 @@ const ChatDetail: Component = () => {
                 </For>
                 <Show when={waitingMsg()}>
                   <Message
+                    botMap={chars.botMap}
                     msg={waitingMsg()!}
-                    char={chats.botMap[waitingMsg()?.characterId!]}
+                    char={chars.botMap[waitingMsg()?.characterId!]}
                     chat={chats.chat!}
                     onRemove={() => {}}
                     editing={chats.opts.editing}
@@ -436,7 +467,7 @@ const CharacterResponseBtn: Component<{
   return (
     <Show when={props.char}>
       <div
-        class={`flex max-w-[200px] overflow-hidden px-2 py-1 ${cursor()} items-center rounded-md border-[1px] border-[var(--bg-800)] bg-[var(--bg-900)] hover:bg-[var(--bg-800)]`}
+        class={`flex max-w-[200px] overflow-hidden px-2 py-1 ${cursor()} bg-900 items-center rounded-md border-[1px] border-[var(--bg-800)] hover:bg-[var(--bg-800)]`}
         onclick={() => !props.waiting && props.request(props.char._id)}
       >
         <AvatarIcon
@@ -522,7 +553,7 @@ function getHeaderBg(mode: UI['mode']) {
   mode
   const rgb = getRootRgb('bg-900')
   const styles: JSX.CSSProperties = {
-    background: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.7)`,
+    background: rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.7)` : 'bg-900',
   }
   return styles
 }
@@ -530,6 +561,7 @@ function emptyMsg(opts: {
   id?: string
   charId?: string
   userId?: string
+  adapter?: string
   message: string
 }): AppSchema.ChatMessage {
   return {
@@ -539,6 +571,7 @@ function emptyMsg(opts: {
     characterId: opts.charId,
     userId: opts.userId,
     msg: opts.message || '',
+    adapter: opts.adapter,
     updatedAt: new Date().toISOString(),
     createdAt: new Date().toISOString(),
   }

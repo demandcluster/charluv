@@ -2,7 +2,7 @@ import { StatusError, errors, wrap } from '../wrap'
 import { sendGuest, sendOne } from '../ws'
 import { defaultPresets, isDefaultPreset } from '/common/presets'
 import { assertValid } from '/common/valid'
-import { createPlainStream } from '/srv/adapter/generate'
+import { createInferenceStream } from '/srv/adapter/generate'
 import { store } from '/srv/db'
 import { AppSchema } from '/srv/db/schema'
 
@@ -11,15 +11,18 @@ import { AppSchema } from '/srv/db/schema'
  * Handler for arbitrary generation -- not for messages
  */
 
-export const plainGenerate = wrap(async ({ socketId, userId, body, log }, res) => {
+export const inference = wrap(async ({ socketId, userId, body, log }, res) => {
   assertValid({ requestId: 'string', prompt: 'string', settings: 'any', user: 'any' }, body)
 
   let settings = body.settings as Partial<AppSchema.GenSettings> | null
-  let user = body.user as AppSchema.User | null
   if (userId) {
     const id = body.settings._id as string
-    settings = isDefaultPreset(id) ? defaultPresets[id] : await store.presets.getUserPreset(id)
-    user = await store.users.getUser(userId)
+    settings = !id
+      ? body.settings
+      : isDefaultPreset(id)
+      ? defaultPresets[id]
+      : await store.presets.getUserPreset(id)
+    body.user = await store.users.getUser(userId)
   }
 
   if (!settings) {
@@ -29,18 +32,18 @@ export const plainGenerate = wrap(async ({ socketId, userId, body, log }, res) =
     )
   }
 
-  if (!user) {
+  if (!body.user) {
     throw errors.Unauthorized
   }
 
   res.json({ success: true, generating: true, message: 'Generating response' })
 
-  const { stream } = await createPlainStream({
-    user,
+  const { stream } = await createInferenceStream({
+    user: body.user,
     settings,
     log,
     prompt: body.prompt,
-    guest: socketId,
+    guest: userId ? undefined : socketId,
   })
 
   let generated = ''
@@ -58,7 +61,11 @@ export const plainGenerate = wrap(async ({ socketId, userId, body, log }, res) =
 
     if (gen.error) {
       error = true
-      const payload = { type: 'plain-generate-error', requestId: body.requestId, error: gen.error }
+      const payload = {
+        type: 'inference-complete',
+        requestId: body.requestId,
+        error: gen.error,
+      }
       if (userId) sendOne(userId, payload)
       else sendGuest(socketId, payload)
       continue
@@ -68,7 +75,7 @@ export const plainGenerate = wrap(async ({ socketId, userId, body, log }, res) =
   if (error) return
 
   const payload = {
-    type: 'plain-generate-complete',
+    type: 'inference-complete',
     requestId: body.requestId,
     response: generated,
   }

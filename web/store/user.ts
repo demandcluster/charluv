@@ -1,7 +1,7 @@
 import { AppSchema } from '../../srv/db/schema'
 import { EVENTS, events } from '../emitter'
 import { FileInputResult } from '../shared/FileInput'
-import { hexToRgb, safeLocalStorage, setRootVariable } from '../shared/util'
+import { getRootVariable, hexToRgb, safeLocalStorage, setRootVariable } from '../shared/util'
 import { api, clearAuth, getAuth, setAuth } from './api'
 import { createStore } from './create'
 import { localApi } from './data/storage'
@@ -14,9 +14,21 @@ const BACKGROUND_KEY = 'ui-bg'
 
 type ConfigUpdate = Partial<AppSchema.User & { hordeModels?: string[] }>
 
+type CustomUI = {
+  msgBackground: string
+  botBackground: string
+  chatTextColor: string
+  chatEmphasisColor: string
+}
+
 export type UISettings = {
   theme: ThemeColor
+  themeBg: ThemeBGColor
   mode: ThemeMode
+
+  bgCustom: string
+  bgCustomGradient: string
+
   avatarSize: AvatarSize
   avatarCorners: AvatarCornerRadius
   font: FontSetting
@@ -25,26 +37,27 @@ export type UISettings = {
   /** 0 -> 1. 0 = transparent. 1 = opaque */
   msgOpacity: number
 
-  msgBackground: string
-  botBackground: string
-  chatTextColor: string
-  chatEmphasisColor: string
-
   chatWidth?: 'full' | 'narrow'
   logPromptsToBrowserConsole: boolean
-}
+
+  dark: CustomUI
+  light: CustomUI
+} & Partial<CustomUI>
 
 const defaultUIsettings: UISettings = {
   theme: 'teal',
+  themeBg: 'truegray',
+  bgCustom: '',
+  bgCustomGradient: '',
   mode: 'dark',
   avatarSize: 'md',
   avatarCorners: 'circle',
   font: 'default',
   msgOpacity: 0.8,
-  msgBackground: '',
-  botBackground: '',
-  chatTextColor: '',
-  chatEmphasisColor: '',
+  msgBackground: '--bg-800',
+  botBackground: '--bg-800',
+  chatTextColor: '--text-800',
+  chatEmphasisColor: '--text-600',
   chatWidth: 'full',
   logPromptsToBrowserConsole: false,
   charAnime: true,
@@ -54,6 +67,20 @@ const defaultUIsettings: UISettings = {
   charTrans: true,
   charOther: true,
   imageWrap: false,
+
+  light: {
+    msgBackground: '--bg-800',
+    botBackground: '--bg-800',
+    chatTextColor: '--text-800',
+    chatEmphasisColor: '--text-600',
+  },
+
+  dark: {
+    msgBackground: '--bg-800',
+    botBackground: '--bg-800',
+    chatTextColor: '--text-800',
+    chatEmphasisColor: '--text-600',
+  },
 }
 
 const fontFaces: { [key in FontSetting]: string } = {
@@ -74,6 +101,8 @@ export const UI_THEME = [
   'purple',
   'premium',
 ] as const
+export const BG_THEME = ['truegray', 'coolgray', 'bluegray'] as const
+
 export const UI_FONT = ['default', 'lato'] as const
 
 export type UserState = {
@@ -84,6 +113,7 @@ export type UserState = {
   profile?: AppSchema.Profile
   user?: AppSchema.User
   ui: UISettings
+  current: CustomUI
   background?: string
   metadata: {
     openaiUsage?: number
@@ -92,6 +122,7 @@ export type UserState = {
 }
 
 export type ThemeColor = (typeof UI_THEME)[number]
+export type ThemeBGColor = (typeof BG_THEME)[number]
 export type ThemeMode = (typeof UI_MODE)[number]
 export type AvatarSize = (typeof AVATAR_SIZES)[number]
 export type AvatarCornerRadius = (typeof AVATAR_CORNERS)[number]
@@ -216,13 +247,25 @@ export const userStore = createStore<UserState>(
     },
 
     updateUI({ ui }, update: Partial<UISettings>) {
+      const current = ui[update.mode || ui.mode]
       const next = { ...ui, ...update }
       try {
         updateTheme(next)
       } catch (e: any) {
         toastStore.error(`Failed to save UI settings: ${e.message}`)
       }
-      return { ui: next }
+      return { ui: next, current }
+    },
+
+    updateColor({ ui }, update: Partial<CustomUI>) {
+      const prev = ui[ui.mode]
+      const next = { ...prev, ...update }
+      try {
+        updateTheme({ ...ui, [ui.mode]: next })
+      } catch (e: any) {
+        toastStore.error(`Failed to save UI settings: ${e.message}`)
+      }
+      return { current: next, [ui.mode]: next }
     },
 
     setBackground(_, file: FileInputResult | null) {
@@ -331,6 +374,7 @@ function init(): UserState {
       background,
       oaiUsageLoading: false,
       metadata: {},
+      current: ui[ui.mode] || defaultUIsettings[ui.mode],
     }
   }
   localStorage.setItem('ecu', true)
@@ -342,34 +386,53 @@ function init(): UserState {
     background,
     oaiUsageLoading: false,
     metadata: {},
+    current: ui[ui.mode] || defaultUIsettings[ui.mode],
   }
 }
 
 function updateTheme(ui: UISettings) {
   safeLocalStorage.setItem(UI_KEY, JSON.stringify(ui))
   const root = document.documentElement
-  for (let shade = 100; shade <= 900; shade += 100) {
-    const num = ui.mode === 'light' ? 1000 - shade : shade
 
-    const color = getComputedStyle(root).getPropertyValue(`--${ui.theme}-${num}`)
-    const colorRgb = hexToRgb(color)
-    root.style.setProperty(`--hl-${shade}`, color)
-    root.style.setProperty(`--rgb-hl-${shade}`, `${colorRgb?.rgb}`)
+  const colors = ui.bgCustom ? getColorShades(ui.bgCustom) : []
 
-    const bg = getComputedStyle(root).getPropertyValue(`--dark-${num}`)
-    const bgRgb = hexToRgb(bg)
-    root.style.setProperty(`--bg-${shade}`, bg)
-    root.style.setProperty(`--rgb-bg-${shade}`, `${bgRgb?.rgb}`)
-
-    const text = getComputedStyle(root).getPropertyValue(`--dark-${900 - (num - 100)}`)
-    const textRgb = hexToRgb(text)
-    root.style.setProperty(`--text-${shade}`, text)
-    root.style.setProperty(`--rgb-text-${shade}`, `${textRgb?.rgb}`)
+  if (ui.mode === 'dark') {
+    colors.reverse()
   }
 
-  setRootVariable('text-chatcolor', ui.chatTextColor || 'unset')
-  setRootVariable('text-emphasis-color', ui.chatEmphasisColor || 'unset')
-  setRootVariable('bot-background', ui.botBackground || 'unset')
+  const gradients = ui.bgCustomGradient ? getColorShades(ui.bgCustomGradient) : []
+  const mode = ui[ui.mode]
+
+  for (let shade = 100; shade <= 1000; shade += 100) {
+    const index = shade / 100 - 1
+    const num = ui.mode === 'light' ? 1000 - shade : shade
+
+    if (shade <= 900) {
+      const color = getRootVariable(`--${ui.theme}-${num}`)
+      const colorRgb = hexToRgb(color)
+      root.style.setProperty(`--hl-${shade}`, color)
+      root.style.setProperty(`--rgb-hl-${shade}`, `${colorRgb?.rgb}`)
+
+      const text = getRootVariable(`--truegray-${900 - (num - 100)}`)
+      const textRgb = hexToRgb(text)
+      root.style.setProperty(`--text-${shade}`, text)
+      root.style.setProperty(`--rgb-text-${shade}`, `${textRgb?.rgb}`)
+    }
+
+    const bg = getRootVariable(`--${ui.themeBg}-${num}`)
+    const bgValue = colors.length ? colors[index] : bg
+    const bgRgb = hexToRgb(getSettingColor(bgValue))
+    const gradient = getSettingColor(gradients.length ? colors[index] : bg)
+
+    root.style.setProperty(`--bg-${shade}`, bgValue)
+    root.style.setProperty(`--gradient-${shade}`, gradient)
+    root.style.setProperty(`--gradient-bg-${shade}`, `linear-gradient(${bgValue}, ${gradient})`)
+    root.style.setProperty(`--rgb-bg-${shade}`, `${bgRgb?.rgb}`)
+  }
+
+  setRootVariable('text-chatcolor', getSettingColor(mode.chatTextColor || 'text-800'))
+  setRootVariable('text-emphasis-color', getSettingColor(mode.chatEmphasisColor || 'text-600'))
+  setRootVariable('bot-background', getSettingColor(mode.botBackground || 'bg-800'))
   root.style.setProperty(`--sitewide-font`, fontFaces[ui.font])
 }
 
@@ -383,7 +446,13 @@ function getUIsettings() {
     settings.theme = theme
   }
 
-  return { ...defaultUIsettings, ...settings }
+  const ui = { ...defaultUIsettings, ...settings }
+  ui.botBackground = ui.botBackground || defaultUIsettings.botBackground
+  ui.msgBackground = ui.msgBackground || defaultUIsettings.msgBackground
+  ui.chatEmphasisColor = ui.chatEmphasisColor || defaultUIsettings.chatEmphasisColor
+  ui.chatTextColor = ui.chatTextColor || defaultUIsettings.chatTextColor
+
+  return ui
 }
 
 subscribe('credits-updated', { credits: 'any' }, (body) => {
@@ -397,4 +466,45 @@ function setBackground(content: any) {
   }
 
   safeLocalStorage.setItemUnsafe(BACKGROUND_KEY, content)
+}
+
+function adjustColor(color: string, percent: number, target = 0) {
+  if (!color.startsWith('#')) {
+    color = '#' + color
+  }
+
+  const step = [0, 0, 0]
+
+  const hex = [1, 3, 5]
+    .map((v, i) => {
+      const val = parseInt(color.substring(v, v + 2), 16)
+      step[i] = target !== 0 ? (val + target) / 100 : 0
+      return val
+    })
+    .map((v, i) => {
+      if (target !== 0) return v + percent * step[i]
+      return (v * (100 + percent)) / 100
+    })
+    .map((v) => Math.min(v, 255))
+    .map((v) => Math.round(v))
+    .map((v) => v.toString(16).padStart(2, '0'))
+    .join('')
+
+  return '#' + hex
+}
+
+function getColorShades(color: string) {
+  const colors: string[] = [adjustColor(color, -100), color]
+  for (let i = 2; i <= 9; i++) {
+    const next = adjustColor(color, i * 100)
+    colors.push(next)
+  }
+
+  return colors
+}
+
+export function getSettingColor(color: string) {
+  if (!color) return ''
+  if (color.startsWith('#')) return color
+  return getRootVariable(color)
 }

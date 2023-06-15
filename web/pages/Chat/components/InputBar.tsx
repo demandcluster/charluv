@@ -15,7 +15,6 @@ import Button from '../../../shared/Button'
 import { DropMenu } from '../../../shared/DropMenu'
 import { chatStore, draftStore, toastStore, userStore } from '../../../store'
 import { msgStore } from '../../../store'
-import './Message.css'
 import { SpeechRecognitionRecorder } from './SpeechRecognitionRecorder'
 import { Toggle } from '/web/shared/Toggle'
 import { defaultCulture } from '/web/shared/CultureCodes'
@@ -26,6 +25,7 @@ import { createDebounce } from '/web/shared/util'
 const InputBar: Component<{
   chat: AppSchema.Chat
   bots: AppSchema.Character[]
+  botMap: Record<string, AppSchema.Character>
   char?: AppSchema.Character
   swiped: boolean
   showOocToggle: boolean
@@ -39,7 +39,7 @@ const InputBar: Component<{
 
   const user = userStore()
   const state = msgStore((s) => ({ lastMsg: s.msgs.slice(-1)[0], msgs: s.msgs }))
-  const chats = chatStore((s) => ({ replyAs: s.active?.replyAs, botMap: s.chatBotMap }))
+  const chats = chatStore((s) => ({ replyAs: s.active?.replyAs }))
   const draft = draftStore((p) => ({ value: p.drafts[props.chat._id] }))
   let draftRestored = false
 
@@ -55,7 +55,7 @@ const InputBar: Component<{
 
   const placeholder = createMemo(() => {
     if (props.ooc) return 'Send a message... (OOC)'
-    if (chats.replyAs) return `Send a message to ${chats.botMap[chats.replyAs]?.name}...`
+    if (chats.replyAs) return `Send a message to ${props.botMap[chats.replyAs]?.name}...`
     return `Send a message...`
   })
 

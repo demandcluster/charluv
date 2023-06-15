@@ -6,12 +6,16 @@ import FileInput, { FileInputResult } from '../../shared/FileInput'
 import RangeInput from '../../shared/RangeInput'
 import Select from '../../shared/Select'
 import { toDropdownItems } from '../../shared/util'
-import { AVATAR_CORNERS, AVATAR_SIZES, UI_THEME, userStore } from '../../store'
+import { AVATAR_CORNERS, AVATAR_SIZES, BG_THEME, UI_THEME, userStore } from '../../store'
 import Message from '../Chat/components/Message'
 import { Toggle } from '../../shared/Toggle'
 import ColorPicker from '/web/shared/ColorPicker'
+import { FormLabel } from '/web/shared/FormLabel'
 
 const themeOptions = UI_THEME.map((color) => ({ label: color, value: color }))
+const themeBgOptions = [{ label: 'Custom', value: '' }].concat(
+  ...BG_THEME.map((color) => ({ label: color, value: color }))
+)
 
 function noop() {}
 
@@ -51,6 +55,43 @@ const UISettings: Component = () => {
           onChange={(item) => userStore.updateUI({ mode: item.value as any })}
         />
       </div>
+      <div class="flex flex-col">
+        <FormLabel
+          label="Backgrounds"
+          helperText={
+            <>
+              <span
+                class="link"
+                onClick={() =>
+                  userStore.updateUI({ bgCustom: '', bgCustomGradient: '', themeBg: BG_THEME[0] })
+                }
+              >
+                Reset to Default
+              </span>
+            </>
+          }
+        />
+        <div class="flex items-center gap-2">
+          <Select
+            fieldName="themeBg"
+            items={themeBgOptions}
+            value={state.ui.themeBg}
+            onChange={(item) =>
+              userStore.updateUI({ themeBg: item.value as any, bgCustom: undefined })
+            }
+          />
+          <ColorPicker
+            fieldName="customBg"
+            onChange={(color) => userStore.updateUI({ bgCustom: color, themeBg: undefined })}
+            value={state.ui.bgCustom}
+          />
+          {/* <ColorPicker
+          fieldName="customBgGradient"
+          onChange={(color) => userStore.updateUI({ bgCustomGradient: color })}
+          value={state.ui.bgCustomGradient}
+        /> */}
+        </div>
+      </div>
       <Select
         fieldName="font"
         label="Font"
@@ -84,12 +125,12 @@ const UISettings: Component = () => {
         label="Message Background Color"
         fieldName="messageColor"
         helperText={
-          <span class="link" onClick={() => userStore.updateUI({ msgBackground: '' })}>
+          <span class="link" onClick={() => userStore.updateColor({ msgBackground: 'bg-800' })}>
             Reset to Default
           </span>
         }
-        onChange={(color) => userStore.updateUI({ msgBackground: color })}
-        value={state.ui.msgBackground}
+        onChange={(color) => userStore.updateColor({ msgBackground: color })}
+        value={state.current.msgBackground}
       />
 
       <ColorPicker
@@ -97,40 +138,43 @@ const UISettings: Component = () => {
         fieldName="botMessageColor"
         helperText={
           <>
-            <span>
-              This will override the <b>Message Background</b>.{' '}
-            </span>
-            <span class="link" onClick={() => userStore.updateUI({ botBackground: '' })}>
+            <span class="link" onClick={() => userStore.updateColor({ botBackground: 'bg-800' })}>
               Reset to Default
+            </span>
+            <span>
+              . This will override the <b>Message Background</b>.{' '}
             </span>
           </>
         }
-        onChange={(color) => userStore.updateUI({ botBackground: color })}
-        value={state.ui.botBackground}
+        onChange={(color) => userStore.updateColor({ botBackground: color })}
+        value={state.current.botBackground}
       />
 
       <ColorPicker
         label="Chat Text Color"
         fieldName="chatTextColor"
         helperText={
-          <span class="link" onClick={() => userStore.updateUI({ chatTextColor: '' })}>
+          <span class="link" onClick={() => userStore.updateColor({ chatTextColor: 'text-800' })}>
             Reset to Default
           </span>
         }
-        onChange={(color) => userStore.updateUI({ chatTextColor: color })}
-        value={state.ui.chatTextColor}
+        onChange={(color) => userStore.updateColor({ chatTextColor: color })}
+        value={state.current.chatTextColor}
       />
 
       <ColorPicker
         label="Chat Emphasis Color"
         fieldName="chatEmphasisColor"
         helperText={
-          <span class="link" onClick={() => userStore.updateUI({ chatEmphasisColor: '' })}>
+          <span
+            class="link"
+            onClick={() => userStore.updateColor({ chatEmphasisColor: 'text-600' })}
+          >
             Reset to Default
           </span>
         }
-        onChange={(color) => userStore.updateUI({ chatEmphasisColor: color })}
-        value={state.ui.chatEmphasisColor}
+        onChange={(color) => userStore.updateColor({ chatEmphasisColor: color })}
+        value={state.current.chatEmphasisColor}
       />
 
       <FileInput fieldName="background" label="Background Image" onUpdate={onBackground} />
@@ -177,8 +221,9 @@ const UISettings: Component = () => {
       />
       <Divider />
       <div class="text-lg font-bold">Preview</div>
-      <div class="flex w-full flex-col gap-2 rounded-md bg-[var(--bg-100)] p-2">
+      <div class="bg-100 flex w-full flex-col gap-2 rounded-md p-2">
         <Message
+          botMap={{}}
           char={bot}
           chat={chat}
           editing={false}
@@ -189,6 +234,7 @@ const UISettings: Component = () => {
 
         <Show when={state.profile}>
           <Message
+            botMap={{}}
             char={bot}
             chat={chat}
             editing={false}

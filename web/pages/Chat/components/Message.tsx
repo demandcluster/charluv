@@ -1,3 +1,4 @@
+import './Message.css'
 import {
   Check,
   DownloadCloud,
@@ -24,13 +25,14 @@ import { BOT_REPLACE, SELF_REPLACE } from '../../../../common/prompt'
 import { AppSchema } from '../../../../srv/db/schema'
 import AvatarIcon from '../../../shared/AvatarIcon'
 import { getAssetUrl, getRootVariable, hexToRgb } from '../../../shared/util'
-import { chatStore, userStore, msgStore, settingStore } from '../../../store'
+import { chatStore, userStore, msgStore, settingStore, getSettingColor } from '../../../store'
 import { markdown } from '../../../shared/markdown'
 import Button from '/web/shared/Button'
 
 type MessageProps = {
   msg: SplitMessage
   chat: AppSchema.Chat
+  botMap: Record<string, AppSchema.Character>
   char: AppSchema.Character
   last?: boolean
   swipe?: string | false
@@ -74,6 +76,7 @@ const Message: Component<MessageProps> = (props) => {
             retrying={props.retrying}
             partial={props.partial}
             sendMessage={props.sendMessage}
+            botMap={props.botMap}
           />
         )}
       </For>
@@ -113,9 +116,11 @@ const SingleMessage: Component<
     user.ui.mode // This causes this memoized value to re-evaluated as it becomes a subscriber of ui.mode
 
     const hex =
-      (props.msg.characterId && props.msg.adapter
-        ? user.ui.botBackground
-        : user.ui.msgBackground) || getRootVariable(props.msg.ooc ? 'bg-1000' : 'bg-800')
+      props.msg.characterId && !props.msg.userId
+        ? getSettingColor(user.current.botBackground || 'bg-800')
+        : props.msg.ooc
+        ? getRootVariable('bg-1000')
+        : getSettingColor(user.current.msgBackground || 'bg-800')
 
     if (!hex) return {}
 
@@ -197,9 +202,7 @@ const SingleMessage: Component<
 
                 <Match when={props.char && !!props.msg.characterId}>
                   <AvatarIcon
-                    avatarUrl={
-                      state.chatBotMap[props.msg.characterId!]?.avatar || props.char?.avatar
-                    }
+                    avatarUrl={props.botMap[props.msg.characterId!]?.avatar || props.char?.avatar}
                     openable
                     bot={true}
                     format={format()}
@@ -230,7 +233,7 @@ const SingleMessage: Component<
                   data-user-name={isUser()}
                 >
                   {props.msg.characterId
-                    ? state.chatBotMap[props.msg.characterId!]?.name || props.char?.name!
+                    ? props.botMap[props.msg.characterId!]?.name || props.char?.name!
                     : handleToShow()}
                 </b>
                 <span

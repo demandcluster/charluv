@@ -1,4 +1,4 @@
-import { ArrowBigLeft, Bot, Crown, Mail, Trash, User } from 'lucide-solid'
+import { ArrowBigLeft, Crown, Mail, Plus, Trash } from 'lucide-solid'
 import { Component, createMemo, createSignal, For, Match, onMount, Show, Switch } from 'solid-js'
 import { AppSchema } from '../../../srv/db/schema'
 import AvatarIcon from '../../shared/AvatarIcon'
@@ -10,6 +10,7 @@ import { v4 } from 'uuid'
 import { getStrictForm } from '../../shared/util'
 import { isLoggedIn } from '/web/store/api'
 import CharacterSelectList from '/web/shared/CharacterSelectList'
+import { getActiveBots } from './util'
 
 type View = 'list' | 'invite_user' | 'add_character'
 
@@ -23,11 +24,11 @@ const MemberModal: Component<{ show: boolean; close: () => void; charId: string 
           Close
         </Button>
         <Button schema="primary" onClick={() => setView('add_character')}>
-          <Bot size={16} /> Add Character
+          <Plus size={16} /> Character
         </Button>
         <Show when={isLoggedIn()}>
           <Button schema="primary" onClick={() => setView('invite_user')}>
-            <User size={16} /> Add User
+            <Plus size={16} /> User
           </Button>
         </Show>
       </Show>
@@ -61,30 +62,16 @@ const MemberModal: Component<{ show: boolean; close: () => void; charId: string 
 
 const ParticipantsList: Component<{ setView: (view: View) => {}; charId: string }> = (props) => {
   const self = userStore()
+  const chars = characterStore((s) => s.characters)
   const state = chatStore()
 
   const [deleting, setDeleting] = createSignal<AppSchema.Profile>()
 
-  const charMembers = createMemo<AppSchema.Character[]>(() => {
-    const characters = state.active?.chat.characters || {}
-    const mainChar = state.active?.char
-    if (!mainChar) return []
-    return [
-      mainChar,
-      ...Object.entries(characters)
-        .filter((pair) => pair[1])
-        .map((pair) => pair[0])
-        .map(
-          (charId) =>
-            state.chatBots.find((bot) => bot._id === charId) ??
-            ({
-              _id: charId,
-              name: charId,
-            } as AppSchema.Character)
-        )
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    ]
-  })
+  const charMembers = createMemo<AppSchema.Character[]>(() =>
+    getActiveBots(state.active?.chat!, chars.map).sort((left, right) =>
+      left.name.localeCompare(right.name)
+    )
+  )
 
   const isOwner = createMemo(() => self.user?._id === state.active?.chat.userId)
 
@@ -233,7 +220,7 @@ const UserParticipant: Component<{
   isOwner: boolean
 }> = (props) => {
   return (
-    <div class="flex items-center justify-between gap-2 rounded-md bg-[var(--bg-800)] p-1">
+    <div class="bg-800 flex items-center justify-between gap-2 rounded-md p-1">
       <div class="flex items-center gap-2">
         <AvatarIcon
           avatarUrl={props.member.avatar}
@@ -270,7 +257,7 @@ const CharacterParticipant: Component<{
   remove: (charId: string) => void
 }> = (props) => {
   return (
-    <div class="flex items-center justify-between gap-2 rounded-md bg-[var(--bg-800)] p-1">
+    <div class="bg-800 flex items-center justify-between gap-2 rounded-md p-1">
       <div class="ellipsis flex items-center gap-2">
         <AvatarIcon
           format={{ corners: 'circle', size: 'sm' }}

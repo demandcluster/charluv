@@ -14,6 +14,7 @@ const CharacterSelectList: Component<{
   emptyLabel?: string
   onSelect: (item: AppSchema.Character | undefined) => void
 }> = (props) => {
+  const [_ref, setRef] = createSignal<any>()
   const [filter, setFilter] = createSignal('')
 
   const sorted = createMemo(() => {
@@ -22,6 +23,7 @@ const CharacterSelectList: Component<{
       .toLowerCase()
       .split(' ')
       .filter((w) => !!w)
+
     return props.items
       .slice()
       .filter((i) => {
@@ -38,6 +40,11 @@ const CharacterSelectList: Component<{
     props.onSelect(value)
   }
 
+  const assignRef = (ref: any) => {
+    setRef(ref)
+    ref.focus()
+  }
+
   return (
     <>
       <div class="flex-1 overflow-y-auto">
@@ -46,10 +53,11 @@ const CharacterSelectList: Component<{
             fieldName="__filter"
             placeholder="Type to filter characters..."
             onKeyUp={(e) => setFilter(e.currentTarget.value)}
+            ref={assignRef}
           />
           <Show when={props.emptyLabel}>
             <div
-              class="flex w-full cursor-pointer flex-row items-center justify-between gap-4 rounded-xl bg-[var(--bg-700)] py-1 px-2"
+              class="bg-700 flex w-full cursor-pointer flex-row items-center justify-between gap-4 rounded-xl py-1 px-2"
               onClick={() => onChange(undefined)}
             >
               <div class="ellipsis flex h-3/4 items-center">
@@ -65,7 +73,7 @@ const CharacterSelectList: Component<{
           <For each={sorted()}>
             {(item) => (
               <div
-                class="flex w-full cursor-pointer flex-row items-center justify-between gap-4 rounded-xl bg-[var(--bg-700)] py-1 px-2"
+                class="bg-700 flex w-full cursor-pointer flex-row items-center justify-between gap-4 rounded-xl py-1 px-2"
                 onClick={() => onChange(item)}
               >
                 <div class="ellipsis flex h-3/4 items-center">

@@ -3,19 +3,15 @@ import { getCharacter } from './characters'
 import { db } from './client'
 import { AppSchema } from './schema'
 import { now } from './util'
-
-export async function list() {
-  const docs = await db('chat').find({ kind: 'chat' }).toArray()
-  return docs
-}
+import { StatusError } from '../api/wrap'
 
 export async function getChatOnly(id: string) {
-  const chat = await db('chat').findOne({ _id: id, kind: 'chat' })
+  const chat = await db('chat').findOne({ _id: id })
   return chat
 }
 
 export async function getChat(id: string) {
-  const chat = await db('chat').findOne({ _id: id, kind: 'chat' })
+  const chat = await db('chat').findOne({ _id: id })
   if (!chat) return
 
   const charIds = Object.keys(chat.characters || {})
@@ -27,16 +23,13 @@ export async function getChat(id: string) {
 }
 
 export async function listByCharacter(userId: string, characterId: string) {
-  const docs = await db('chat')
-    .find({ kind: 'chat', characterId, userId })
-    .sort({ updatedAt: -1 })
-    .toArray()
+  const docs = await db('chat').find({ characterId, userId }).sort({ updatedAt: -1 }).toArray()
 
   return docs
 }
 
 export async function getMessageAndChat(msgId: string) {
-  const msg = await db('chat-message').findOne({ _id: msgId, kind: 'chat-message' })
+  const msg = await db('chat-message').findOne({ _id: msgId })
   if (!msg) return
 
   const chat = await getChatOnly(msg.chatId)
@@ -58,7 +51,7 @@ export async function create(
   const id = `${v4()}`
   const char = await getCharacter(props.userId, characterId)
   if (!char) {
-    throw new Error(`Unable to create chat: Character not found`)
+    throw new StatusError(`Character not found (${characterId.slice(0, 8)})`, 400)
   }
 
   const doc: AppSchema.Chat = {
@@ -97,14 +90,14 @@ export async function create(
 }
 
 export async function deleteChat(chatId: string) {
-  await db('chat').deleteMany({ _id: chatId, kind: 'chat' }, {})
+  await db('chat').deleteMany({ _id: chatId }, {})
   await db('chat-message').deleteMany({ chatId })
   await db('chat-invite').deleteMany({ chatId })
   await db('chat-member').deleteMany({ chatId })
 }
 
 export async function deleteAllChats(characterId?: string) {
-  const chatQuery: any = { kind: 'chat' }
+  const chatQuery: any = {}
 
   if (characterId) {
     chatQuery.characterId = characterId

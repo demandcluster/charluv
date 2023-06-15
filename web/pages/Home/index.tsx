@@ -44,7 +44,6 @@ You can perform an action by placing the action in between asterisks \*action\*.
 
 If you don't like a reply, you can just reroll it and get another reply. You can even edit the reply to be exactly as you like. This will take away the fun for a large part, so in order to access the edit feaetures, you first have to toggle the switch on top of the chat window to activate them.
 
-You can provide your API key and choose between Euterpe and Krake in the settings page. Visit the [instructions page](https://github.com/agnaistic/agnai/blob/dev/instructions/novel.md) to learn how to retrieve your API key.
 
 ### Survival Goals
 

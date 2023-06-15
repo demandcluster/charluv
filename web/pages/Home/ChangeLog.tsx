@@ -4,7 +4,10 @@ import { markdown } from '../../shared/markdown'
 import { setComponentPageTitle } from '../../shared/util'
 
 const text = `
-_3 June 2023_ 
+_6 June 2023_
+- Add background color to customizable colors
+
+_3 June 2023_
 - Add "message background color", "chat text color", and "chat emphasis color" to UI settings
 
 _1 June 2023_

@@ -48,6 +48,7 @@ export const config = {
   jwtExpiry: env('JWT_EXPIRY', '7d'),
   port: +env('PORT', '3001'),
   assetFolder: env('ASSET_FOLDER', resolve(__dirname, '..', 'dist', 'assets')),
+  extraFolder: env('EXTRA_FOLDER', ''),
   db: {
     name: env('DB_NAME', 'agnai'),
     host: env('DB_HOST', '127.0.0.1'),
@@ -99,6 +100,17 @@ export const config = {
     patreon: !!env('PATREON', ''),
     policies: !!env('SHOW_POLICIES', ''),
     inject: env('INJECT', ''),
+  },
+
+  inference: {
+    flatChatCompletion: !!env('SIMPLE_COMPLETION', ''),
+  },
+  slots: {
+    enabled: env('SLOTS_ENABLED', 'false') === 'true',
+    testing: env('SLOTS_TESTING', 'true') === 'false' ? false : true,
+    menu: env('MENU_SLOT', ''),
+    banner: env('BANNER_SLOT', ''),
+    mobile: env('MOBILE_SLOT', ''),
   },
 }
 

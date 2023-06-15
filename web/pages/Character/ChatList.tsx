@@ -23,6 +23,7 @@ import {
   groupAndSort,
   saveListCache,
 } from './util'
+import Loading from '/web/shared/Loading'
 
 const sortOptions = [
   { value: 'chat-updated', label: 'Chat Activity', kind: 'chat' },
@@ -35,19 +36,24 @@ const sortOptions = [
 const CharacterChats: Component = () => {
   const params = useParams()
   const cache = getListCache()
+  const chars = characterStore((s) => ({
+    list: s.characters.list,
+    map: s.characters.list.reduce<Record<string, AppSchema.Character>>(
+      (prev, curr) => Object.assign(prev, { [curr._id]: curr }),
+      {}
+    ),
+    loaded: s.characters.loaded,
+  }))
   const state = chatStore((s) =>
-    (s.all?.chats || [])?.map((chat) => ({
+    s.allChats.map((chat) => ({
       _id: chat._id,
       name: chat.name,
       createdAt: chat.createdAt,
       updatedAt: chat.updatedAt,
-      characters: toChatListState(s.all?.chars || {}, chat),
+      characterId: chat.characterId,
+      characters: toChatListState(chars.map, chat),
     }))
   )
-  const chars = characterStore((s) => ({
-    list: s.characters.list,
-    loaded: s.characters.loaded,
-  }))
 
   const nav = useNavigate()
   const [search, setSearch] = createSignal('')
@@ -187,6 +193,7 @@ const CharacterChats: Component = () => {
         fallback={<NoChats character={chars.list.find((c) => c._id === params.id)?.name} />}
       >
         <Chats
+          allChars={chars.map}
           chats={chats()}
           chars={chars.list}
           sortField={sortField()}
@@ -205,6 +212,7 @@ const CharacterChats: Component = () => {
 }
 
 const Chats: Component<{
+  allChars: Record<string, AppSchema.Character>
   chats: ChatLine[]
   chars: AppSchema.Character[]
   sortField: SortType
@@ -214,12 +222,7 @@ const Chats: Component<{
   const [showDelete, setDelete] = createSignal('')
 
   const groups = createMemo(() => {
-    const filteredCharId = props.charId
-    let chars = props.chars
-
-    if (filteredCharId) {
-      chars = props.chars.filter((c) => c._id === filteredCharId)
-    }
+    const chars = props.charId ? props.chars.filter((ch) => ch._id === props.charId) : props.chars
 
     return groupAndSort(chars, props.chats, props.sortField, props.sortDirection)
   })
@@ -250,7 +253,7 @@ const Chats: Component<{
                       <div class="ml-4 flex items-center">
                         <div class="relative flex-shrink-0">
                           <For each={chat.characters.slice(0, 3).reverse()}>
-                            {(char, i) => {
+                            {(ch, i) => {
                               const positionStyle = getAvatarPositionStyle(chat, i)
                               if (positionStyle === undefined) return
 
@@ -258,7 +261,7 @@ const Chats: Component<{
                                 <div
                                   class={`absolute top-1/2 -translate-y-1/2 transform ${positionStyle}`}
                                 >
-                                  <AvatarIcon avatarUrl={char.avatar} />
+                                  <AvatarIcon avatarUrl={props.allChars[ch._id]?.avatar} />
                                 </div>
                               )
                             }}
@@ -299,16 +302,28 @@ const Chats: Component<{
   )
 }
 
-const NoChats: Component<{ character?: string }> = (props) => (
-  <div class="mt-4 flex w-full justify-center text-xl">
-    <div>
-      <Show when={!props.character}>You have no conversations yet.</Show>
-      <Show when={props.character}>
-        You have no conversations with <i>{props.character}</i>.
-      </Show>
-    </div>
-  </div>
-)
+const NoChats: Component<{ character?: string }> = (props) => {
+  const state = chatStore()
+  return (
+    <Show
+      when={state.loaded}
+      fallback={
+        <div class="flex w-full justify-center">
+          <Loading />
+        </div>
+      }
+    >
+      <div class="mt-4 flex w-full justify-center text-xl">
+        <div>
+          <Show when={!props.character}>You have no conversations yet.</Show>
+          <Show when={props.character}>
+            You have no conversations with <i>{props.character}</i>.
+          </Show>
+        </div>
+      </div>
+    </Show>
+  )
+}
 
 export default CharacterChats
 
@@ -338,8 +353,11 @@ function toCharacterIds(characters?: Record<string, boolean>) {
 function toChatListState(chars: Record<string, AppSchema.Character>, chat: AllChat) {
   const charIds = [chat.characterId].concat(toCharacterIds(chat.characters))
 
+  const seen = new Set<string>()
   const rows: ChatCharacter[] = []
   for (const id of charIds) {
+    if (seen.has(id)) continue
+    seen.add(id)
     const char = chars[id]
     if (!char) {
       rows.push({ _id: '', name: 'Unknown', description: '', avatar: '' })

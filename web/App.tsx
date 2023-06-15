@@ -1,5 +1,8 @@
-import { Component, createEffect, createMemo, JSX, Show, lazy, createSignal } from 'solid-js'
-import { Outlet, Route, Router, Routes, useLocation, useNavigate } from '@solidjs/router'
+import './tailwind.css'
+import './app.css'
+import './dots.css'
+import { Component, createEffect, createMemo, JSX, Show, lazy } from 'solid-js'
+import { Outlet, Route, Router, Routes, useLocation } from '@solidjs/router'
 import NavBar from './shared/NavBar'
 import Toasts from './Toasts'
 import CharacterRoutes from './pages/Character'
@@ -17,11 +20,16 @@ import PremiumOptions from './pages/Premium/PremiumOptions'
 import ThankYou from './pages/Premium/ThankYou'
 import Error from './pages/Premium/Error'
 import MatchRoutes from './pages/Match'
-import './app.css'
-import './dots.css'
-import Modal from './shared/Modal'
+
 import ImpersonateModal from './pages/Character/ImpersonateModal'
 import ChubRoutes from './pages/Chub'
+import Redirect from './shared/Redirect'
+import Maintenance from './shared/Maintenance'
+import CharacterChats from './pages/Character/ChatList'
+import ChatDetail from './pages/Chat/ChatDetail'
+import ChangeLog from './pages/Home/ChangeLog'
+import Settings from './pages/Settings'
+import ProfilePage from './pages/Profile'
 
 const App: Component = () => {
   const state = userStore()
@@ -37,19 +45,18 @@ const App: Component = () => {
             component={() => <Redirect external="https://discord.gg/8E6FRdsvhg" />}
           />
           <ChubRoutes />
-          <Route path="/chats" component={lazy(() => import('./pages/Character/ChatList'))} />
-          <Route path="/chat" component={lazy(() => import('./pages/Chat/ChatDetail'))} />
-          <Route path="/chat/:id" component={lazy(() => import('./pages/Chat/ChatDetail'))} />
-          <Route path="/" component={lazy(() => import('./pages/Home'))} />
-          <Route path="/info" component={HomePage} />
-          <Route path="/changelog" component={lazy(() => import('./pages/Home/ChangeLog'))} />
-
-          <Route path="/privacy" component={lazy(() => import('./pages/Home/policy'))} />
-          <Route path="/help" component={lazy(() => import('./pages/Home/Help'))} />
-          <Route path="/terms" component={lazy(() => import('./pages/Home/terms'))} />
-
-          <Route path="/profile" component={lazy(() => import('./pages/Profile'))} />
-          <Route path="/settings" component={lazy(() => import('./pages/Settings'))} />
+          <Route path="/chats" component={CharacterChats} />
+          <Route path="/chat" component={ChatDetail} />
+          <Route path="/chat/:id" component={ChatDetail} />
+          <Route path={['/info', '/']} component={HomePage} />
+          <Route path="/changelog" component={ChangeLog} />
+          <Route path="/presets/:id" component={lazy(() => import('./pages/GenerationPresets'))} />
+          <Route
+            path="/presets"
+            component={lazy(() => import('./pages/GenerationPresets/PresetList'))}
+          />
+          <Route path="/profile" component={ProfilePage} />
+          <Route path="/settings" component={Settings} />
           <Route path="/memory" component={lazy(() => import('./pages/Memory'))} />
           <Route
             path="/memory/:id"
@@ -64,10 +71,15 @@ const App: Component = () => {
           <Route path="/thankyou" component={ThankYou} />
           <Route path="/shop/error" component={Error} />
           <Route
-            path="/terms-of-service"
-            component={lazy(() => import('./pages/TermsOfService'))}
+            path="/memory/instructions"
+            component={lazy(() => import('./pages/Memory/Instructions'))}
           />
-          <Route path="/privacy-policy" component={lazy(() => import('./pages/PrivacyPolicy'))} />
+          <MatchRoutes />
+          <Route path="/shop" component={PremiumOptions} />
+          <Route path="/thankyou" component={ThankYou} />
+          <Route path="/shop/error" component={Error} />
+         
+          
           <Show when={state.loggedIn}>
             <Route path="/invites" component={lazy(() => import('./pages/Invite/InvitesPage'))} />
             <Show when={state.user?.admin}>
@@ -172,32 +184,3 @@ const Layout: Component = () => {
 }
 
 export default App
-
-const Maintenance: Component = () => {
-  const state = settingStore((s) => ({ init: s.init, loading: s.initLoading }))
-  const [show, setShow] = createSignal(!!state.init?.config.maintenance)
-
-  return (
-    <Modal show={show()} close={() => setShow(false)} title="Maintenance Mode">
-      <div class="flex flex-col gap-4">
-        <div>Charluv is currently down for maintenance</div>
-
-        <div>You can continue to use the site as a guest.</div>
-
-        <div>Reason: {state.init?.config.maintenance}</div>
-      </div>
-    </Modal>
-  )
-}
-
-const Redirect: Component<{ internal?: string; external?: string }> = (props) => {
-  const nav = useNavigate()
-
-  if (props.external) {
-    window.location.href = props.external
-  }
-
-  nav(props.internal || '/')
-
-  return <>Redirecting...</>
-}

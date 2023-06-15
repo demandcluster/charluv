@@ -1,3 +1,4 @@
+import { v4 } from 'uuid'
 import { createPrompt, getChatPreset } from '../../../common/prompt'
 import { getEncoder } from '../../../common/tokenize'
 import { GenerateRequestV2 } from '../../../srv/adapter/type'
@@ -7,8 +8,24 @@ import { ChatState, chatStore } from '../chat'
 import { getStore } from '../create'
 import { userStore } from '../user'
 import { loadItem, localApi } from './storage'
+import { toastStore } from '../toasts'
+import { subscribe } from '../socket'
+import { getActiveBots, getBotsForChat } from '/web/pages/Chat/util'
 
-export type PromptEntities = Awaited<ReturnType<typeof getPromptEntities>>
+export type PromptEntities = {
+  chat: AppSchema.Chat
+  char: AppSchema.Character
+  user: AppSchema.User
+  profile: AppSchema.Profile
+  book?: AppSchema.MemoryBook
+  messages: AppSchema.ChatMessage[]
+  settings: Partial<AppSchema.GenSettings>
+  members: AppSchema.Profile[]
+  chatBots: AppSchema.Character[]
+  autoReplyAs?: string
+  characters: Record<string, AppSchema.Character>
+  impersonating?: AppSchema.Character
+}
 
 export const msgsApi = {
   editMessage,
@@ -16,6 +33,35 @@ export const msgsApi = {
   getPromptEntities,
   generateResponseV2,
   deleteMessages,
+  generatePlain: basicInference,
+}
+
+type PlainOpts = { prompt: string; settings: Partial<AppSchema.GenSettings> }
+
+export async function basicInference(
+  { prompt, settings }: PlainOpts,
+  onComplete: (err?: any, response?: string) => void
+) {
+  const requestId = v4()
+  const { user } = userStore()
+
+  if (!user) {
+    toastStore.error(`Could not get user settings. Refresh and try again.`)
+    return
+  }
+
+  subscribe(
+    'inference-complete',
+    { requestId: 'string', response: 'string?', error: 'string?' },
+    (body) => onComplete(body.error, body.response),
+    (body) => body.requestId === requestId
+  )
+
+  const res = await api.method('post', `/chat/inference`, { requestId, user, prompt, settings })
+  if (res.error) {
+    onComplete(res.error)
+    return
+  }
 }
 
 export async function editMessage(msg: AppSchema.ChatMessage, replace: string) {
@@ -123,8 +169,8 @@ export async function generateResponseV2(opts: GenerateOpts) {
     settings: entities.settings,
     replacing: props.replacing,
     continuing: props.continuing,
-    replyAs: props.replyAs,
-    impersonate: props.impersonate,
+    replyAs: removeAvatar(props.replyAs),
+    impersonate: removeAvatar(props.impersonate),
     characters: removeAvatars(entities.characters),
   }
 
@@ -149,7 +195,7 @@ async function getGenerateProps(
   active: NonNullable<ChatState['active']>
 ): Promise<GenerateProps> {
   const entities = await getPromptEntities()
-  const [message, lastMessage] = entities.messages.slice(-2)
+  const [secondLastMsg, lastMsg] = entities.messages.slice(-2)
 
   const props: GenerateProps = {
     entities,
@@ -166,22 +212,29 @@ async function getGenerateProps(
         // Case: When regenerating a response that isn't last. Typically when image messages follow the last text message
         const index = entities.messages.findIndex((msg) => msg._id === opts.messageId)
         const replacing = entities.messages[index]
-        props.replyAs = getBot(replacing.characterId || active.char._id)
-        props.replacing = replacing
-        props.messages = entities.messages.slice(0, index)
-      } else if (!lastMessage && message.characterId) {
+
+        // Retrying an impersonated message - We'll use the "auto-reply as" or the "main character"
+        if (replacing?.userId) {
+          props.replyAs = getBot(active.replyAs || active.char._id)
+          props.messages = entities.messages
+        } else {
+          props.replyAs = getBot(replacing.characterId || active.char._id)
+          props.replacing = replacing
+          props.messages = entities.messages.slice(0, index)
+        }
+      } else if (!lastMsg && secondLastMsg.characterId) {
         // Case: Replacing the first message (i.e. the greeting)
         props.replyAs = getBot(active.replyAs || active.char._id)
-        props.replacing = message
-      } else if (lastMessage?.characterId) {
+        props.replacing = secondLastMsg
+      } else if (lastMsg?.characterId && !lastMsg.userId) {
         // Case: When the user clicked on their own message. Probably after deleting a bot response
-        props.retry = message
-        props.replacing = lastMessage
-        props.replyAs = getBot(lastMessage.characterId)
+        props.retry = secondLastMsg
+        props.replacing = lastMsg
+        props.replyAs = getBot(lastMsg.characterId)
         props.messages = entities.messages.slice(0, -1)
       } else {
         // Case: Clicked on a bot response to regenerate
-        props.retry = lastMessage
+        props.retry = lastMsg
         props.replyAs = getBot(active.replyAs || active.char._id)
       }
 
@@ -189,18 +242,17 @@ async function getGenerateProps(
     }
 
     case 'continue': {
-      if (!lastMessage.characterId) throw new Error(`Cannot continue user message`)
-      props.continuing = lastMessage
-      props.replyAs = getBot(lastMessage.characterId)
-      props.continue = lastMessage.msg
+      if (!lastMsg.characterId) throw new Error(`Cannot continue user message`)
+      props.continuing = lastMsg
+      props.replyAs = getBot(lastMsg.characterId)
+      props.continue = lastMsg.msg
       break
     }
 
     case 'send': {
       // If the chat is a single-user chat, it is always in 'auto-reply' mode
       // Ensure the autoReplyAs parameter is set for single-bot chats
-      const isMulti =
-        Object.values(entities.chat.characters || {}).filter((val) => !!val).length >= 1
+      const isMulti = getActiveBots(entities.chat, entities.characters).length > 1
       if (!isMulti) entities.autoReplyAs = entities.char._id
 
       if (!entities.autoReplyAs) throw new Error(`No character selected to reply with`)
@@ -253,7 +305,7 @@ export async function deleteMessages(chatId: string, msgIds: string[]) {
 
 type GenerateEntities = Awaited<ReturnType<typeof getPromptEntities>>
 
-export async function getPromptEntities() {
+export async function getPromptEntities(): Promise<PromptEntities> {
   if (isLoggedIn()) {
     const entities = getAuthedPromptEntities()
     if (!entities) throw new Error(`Could not collate data for prompting`)
@@ -266,7 +318,7 @@ export async function getPromptEntities() {
 }
 
 async function getGuestEntities() {
-  const { active, chatBots, chatBotMap } = getStore('chat').getState()
+  const { active } = getStore('chat').getState()
   if (!active) return
 
   const chat = active.chat
@@ -283,7 +335,12 @@ async function getGuestEntities() {
   const user = loadItem('config')
   const settings = getGuestPreset(user, chat)
 
-  const { impersonating } = getStore('character').getState()
+  const {
+    impersonating,
+    characters: { list, map },
+  } = getStore('character').getState()
+
+  const characters = getBotsForChat(chat, char, map)
 
   return {
     chat,
@@ -294,15 +351,15 @@ async function getGuestEntities() {
     messages,
     settings,
     members: [profile] as AppSchema.Profile[],
-    chatBots,
+    chatBots: list,
     autoReplyAs: active.replyAs,
-    characters: chatBotMap,
+    characters,
     impersonating,
   }
 }
 
 function getAuthedPromptEntities() {
-  const { active, chatProfiles: members, chatBots, chatBotMap } = getStore('chat').getState()
+  const { active, chatProfiles: members } = getStore('chat').getState()
   if (!active) return
 
   const { profile, user } = getStore('user').getState()
@@ -316,9 +373,14 @@ function getAuthedPromptEntities() {
     .books.list.find((book) => book._id === chat.memoryId)
 
   const messages = getStore('messages').getState().msgs
-  const settings = getAuthGenSettings(chat, user)
+  const settings = getAuthGenSettings(chat, user)!
 
-  const { impersonating } = getStore('character').getState()
+  const {
+    impersonating,
+    characters: { list, map },
+  } = getStore('character').getState()
+
+  const characters = getBotsForChat(chat, char, map)
 
   return {
     chat,
@@ -329,9 +391,9 @@ function getAuthedPromptEntities() {
     messages,
     settings,
     members,
-    chatBots,
+    chatBots: list,
     autoReplyAs: active.replyAs,
-    characters: chatBotMap,
+    characters,
     impersonating,
   }
 }
@@ -366,7 +428,8 @@ function emptyMsg(
   }
 }
 
-function removeAvatar<T extends AppSchema.Character | AppSchema.Profile>(char: T): T {
+function removeAvatar<T extends AppSchema.Character | AppSchema.Profile | undefined>(char?: T): T {
+  if (!char) return undefined as T
   return { ...char, avatar: undefined }
 }
 

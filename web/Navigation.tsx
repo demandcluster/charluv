@@ -7,7 +7,6 @@ import {
   Heart,
   Home,
   HeartHandshake,
-  Info,
   LogIn,
   LogOut,
   MailPlus,
@@ -23,10 +22,14 @@ import {
 import { Component, createMemo, JSX, Show } from 'solid-js'
 import AvatarIcon from './shared/AvatarIcon'
 import { characterStore, inviteStore, settingStore, userStore } from './store'
+import Slot from './shared/Slot'
+import { useEffect, useWindowSize } from './shared/hooks'
 import logo from './assets/logo.png'
 import logoDark from './assets/logoDark.png'
 
 const Navigation: Component = () => {
+  let parent: any
+  let content: any
   const state = settingStore()
   const user = userStore()
   const chars = characterStore()
@@ -37,33 +40,43 @@ const Navigation: Component = () => {
     userStore.logout()
   }
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!parent || !content) return
+
+      parent.setAttribute('style', '')
+      content.setAttribute('style', '')
+    }, 50)
+
+    return () => clearInterval(interval)
+  })
+
   const hide = createMemo(() => (state.showMenu ? '' : 'drawer--hide'))
   const fullscreen = createMemo(() => (state.fullscreen ? 'hidden' : ''))
 
   return (
     <>
-      <div
-        data-menu=""
-        class={`drawer flex flex-col gap-4 bg-[var(--bg-800)] pt-4 ${hide()} ${fullscreen()}`}
-      >
-        <div class="drawer__content flex flex-col gap-2 px-4">
+      <div ref={parent} class={`drawer bg-800 flex flex-col gap-2 pt-2 ${hide()} ${fullscreen()}`}>
+        <div ref={content} class="drawer__content flex flex-col gap-1 px-4 sm:gap-2">
           <div
-            class="hidden w-full py-4 px-4 sm:flex"
+            class="hidden w-full items-center justify-center sm:flex"
             style={user.ui?.mode === 'light' ? 'background:#55b89cff;' : 'background:#1f4439ff;'}
           >
             <A href="/">
-              <img width="200px" alt="Charluv" src={user.ui?.mode === 'light' ? logoDark : logo} />
+              <img
+                width="180px"
+                class="py-2 px-0"
+                alt="Charluv"
+                src={user.ui?.mode === 'light' ? logoDark : logo}
+              />
             </A>
           </div>
           <Show when={user.loggedIn} fallback={<GuestNavigation />}>
             <UserNavigation />
           </Show>
         </div>
-        {/* <div class="flex flex-row justify-around text-xs">
-        <Item href="/terms-of-service">Terms</Item>
-        <Item href="/privacy-policy">Privacy Policy</Item>
-      </div> */}
-        <div class="flex h-16 w-full flex-col items-center justify-between border-t-2 border-[var(--bg-700)] px-4">
+
+        <div class="absolute bottom-0 flex h-16 w-full flex-col items-center justify-between border-t-2 border-[var(--bg-700)] px-4">
           <div class="ellipsis my-auto flex w-full items-center justify-between">
             <div
               class="flex max-w-[calc(100%-32px)] items-center gap-2"
@@ -82,6 +95,7 @@ const Navigation: Component = () => {
                   <span>
                     {chars.impersonating?.name || user.profile?.handle}
                     {state.flags.charv2 ? ' (v2)' : ''}
+                    {user.user?.premium ? ' ⭐' : ''}
                   </span>
                 </div>
                 <Show when={!!chars.impersonating}>
@@ -105,7 +119,8 @@ const Navigation: Component = () => {
 
 const UserNavigation: Component = () => {
   const user = userStore()
-  const cfg = settingStore()
+  const menu = settingStore()
+  const page = useWindowSize()
 
   return (
     <>
@@ -120,7 +135,7 @@ const UserNavigation: Component = () => {
           <Heart /> Matches
         </Item>
       </Show>
-      <Show when={cfg.flags.chub}>
+      <Show when={menu.flags.chub}>
         <Item href="/chub">
           <ShoppingBag />
           CHUB
@@ -154,10 +169,9 @@ const UserNavigation: Component = () => {
           <ShoppingCart /> Shop
         </Item>
       </Show>
-      <Item href="/info">
-        <Info />
-        Information
-      </Item>
+      <Show when={page.width() >= 1024}>
+        <Slot slot="menu" />
+      </Show>
     </>
   )
 }
@@ -169,6 +183,7 @@ const GuestNavigation: Component = () => {
     guest: s.guestAccessAllowed,
     flags: s.flags,
   }))
+  const page = useWindowSize()
 
   return (
     <>
@@ -206,10 +221,10 @@ const GuestNavigation: Component = () => {
           <Settings /> Settings
         </Item>
       </Show>
-      <Item href="/info">
-        <Info />
-        Information
-      </Item>
+
+      <Show when={page.width() >= 1024}>
+        <Slot slot="menu" />
+      </Show>
     </>
   )
 }
@@ -218,7 +233,7 @@ const Item: Component<{ href: string; children: string | JSX.Element }> = (props
   return (
     <A
       href={props.href}
-      class="flex h-12 items-center justify-start gap-4 rounded-xl px-2 hover:bg-[var(--bg-700)] "
+      class="sm:text-md flex h-10 items-center justify-start gap-4 rounded-lg px-2 text-sm hover:bg-[var(--bg-700)] sm:h-12 "
       onClick={settingStore.closeMenu}
     >
       {props.children}

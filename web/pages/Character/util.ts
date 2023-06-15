@@ -1,5 +1,7 @@
+import { toArray } from '/common/util'
 import { AppSchema } from '/srv/db/schema'
 import { safeLocalStorage } from '/web/shared/util'
+import { NewCharacter } from '/web/store'
 
 const CACHE_KEY = 'agnai-chatlist-cache'
 
@@ -11,6 +13,7 @@ export type ChatLine = {
   name: string
   createdAt: string
   updatedAt: string
+  characterId: string
 }
 
 export type SortType =
@@ -92,7 +95,7 @@ export function groupAndSort(
 
   const chars = allChars.slice().map((char) => {
     if (type !== 'bot-activity') return char
-    const first = sortedChats.find((c) => c.characters.some((char) => char._id === char._id))
+    const first = sortedChats.find((c) => c.characters.some((ch) => ch._id === char._id))
     return { ...char, updatedAt: first?.updatedAt || new Date(0).toISOString() }
   })
 
@@ -121,4 +124,53 @@ export function getListCache(): ListCache {
 
 export function saveListCache(cache: ListCache) {
   safeLocalStorage.setItem(CACHE_KEY, JSON.stringify(cache))
+}
+
+export function toGeneratedCharacter(response: string, description: string): NewCharacter {
+  const lines = response.split('\n')
+  const char: NewCharacter = {
+    originalAvatar: undefined,
+    description,
+    scenario: extract(lines, 'Scenario'),
+    greeting: extract(lines, 'Greeting'),
+    name: extract(lines, 'FirstName'),
+    sampleChat: extract(lines, 'ExampleSpeech1', 'ExampleSpeech2', 'ExampleSpeech3')
+      .split('\n')
+      .map((line) => `{{char}}: ${line}`)
+      .join('\n'),
+    persona: {
+      kind: 'wpp',
+      attributes: {
+        personality: extract(lines, 'Personality').split(', '),
+        behaviours: extract(lines, 'Behaviours', 'Behaviors').split(', '),
+        appearance: extract(lines, 'Appearance').split(','),
+        description: toArray(extract(lines, 'Description')),
+      },
+    },
+  }
+  return char
+}
+
+function extract(from: string[], ...match: string[]) {
+  const matches: string[] = []
+  for (const search of match) {
+    for (const line of from) {
+      const start = line.indexOf(`${search}:`)
+      if (start === -1) continue
+
+      const text = line.slice(start + search.length + 1).trim()
+      if (match.length === 1) return text
+      matches.push(text)
+    }
+  }
+
+  return matches.join('\n')
+}
+
+export function toCharacterMap(bots: AppSchema.Character[]) {
+  const map = bots.reduce<Record<string, AppSchema.Character>>(
+    (prev, curr) => Object.assign(prev, { [curr._id]: curr }),
+    {}
+  )
+  return map
 }

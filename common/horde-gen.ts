@@ -7,6 +7,7 @@ import { AppLog } from '/srv/logger'
 const HORDE_GUEST_KEY = '0000000000'
 const imageUrl = 'https://horde.koboldai.net/api/v2'
 const hordeUrl = 'https://horde.aivo.chat/api/v2'
+
 //const imageUrl = 'http://localhost:7001/api/v2'
 //const hordeUrl = 'https://051f-2a01-4f9-2b-26e3-00-2.ngrok-free.app/api/v2'
 const defaults = {
@@ -134,8 +135,8 @@ export async function generateText(
 
   // if (user.hordeModel && user.hordeModel !== 'any') {
   // const models = toArray(user.hordeModel)
-  const models = toArray('pygmalion-13b-4bit-128g')
-  body.models.push(...models)
+  //const models = toArray('any')
+  //body.models.push(...models)
   //  }
 
   if (user.hordeWorkers?.length) {

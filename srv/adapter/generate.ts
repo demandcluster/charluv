@@ -51,7 +51,7 @@ const handlers: { [key in AIAdapter]: ModelAdapter } = {
   goose: handleGooseAI,
 }
 
-type PlainRequest = {
+type InferenceRequest = {
   prompt: string
   settings: Partial<AppSchema.GenSettings>
   guest?: string
@@ -59,10 +59,17 @@ type PlainRequest = {
   log: AppLog
 }
 
-export async function createPlainStream(opts: PlainRequest) {
+export async function createInferenceStream(opts: InferenceRequest) {
+  opts.settings.maxTokens = 500
+  opts.settings.temp = 1
+  opts.settings.topP = 1
+  opts.settings.frequencyPenalty = 0
+  opts.settings.presencePenalty = 0
+  opts.settings.streamResponse = false
+
   const handler = handlers[opts.settings.service!]
   const stream = handler({
-    kind: 'request',
+    kind: 'plain',
     char: {} as any,
     chat: {} as any,
     gen: opts.settings,
@@ -72,7 +79,7 @@ export async function createPlainStream(opts: PlainRequest) {
     guest: opts.guest,
     user: opts.user,
     replyAs: {} as any,
-    parts: {} as any,
+    parts: { persona: '', post: [], allPersonas: [] },
     prompt: opts.prompt,
     sender: {} as any,
     settings: mapPresetsToAdapter(opts.settings, opts.settings.service!),
@@ -108,6 +115,7 @@ export async function createTextStreamV2(
         members: opts.members,
         replyAs: opts.replyAs,
         impersonate: opts.impersonate,
+        characters: opts.characters,
       },
       [...opts.lines].reverse(),
       encoder
@@ -145,7 +153,7 @@ export async function createTextStreamV2(
     settings,
     user: opts.user,
     guest: guestSocketId,
-    lines: opts.lines,
+    lines: prompt.lines,
     isThirdParty,
     replyAs: opts.replyAs,
     characters: Object.assign(opts.characters, { impersonated: opts.impersonate }),

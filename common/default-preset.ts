@@ -81,7 +81,6 @@ const builtinPresets = {
     gaslight: `{{char}} Memory: {{memory}}
 Description of {{char}}: {{personality}}
 [ Title: Dialogue between {{char}} and {{user}}; Tags: conversation; Genre: online roleplay ]
-This is how the character speaks:{{example_dialogue}}
 ***
 Summary: {{scenario}}`,
   },
@@ -147,8 +146,7 @@ Summary: {{scenario}}`,
 Description of {{char}}:
 {{personality}}
 Circumstances and context of the dialogue: {{scenario}}
-Facts: {{memory}}
-This is how {{char}} should talk: {{example_dialogue}}`,
+Facts: {{memory}}`,
   },
   openaiAlt: {
     name: 'Turbo (#2)',
@@ -165,14 +163,14 @@ This is how {{char}} should talk: {{example_dialogue}}`,
 Description of {{char}}:
 {{personality}}
 Circumstances and context of the dialogue: {{scenario}}
-Facts: {{memory}}
-This is how {{char}} should talk: {{example_dialogue}}`,
+Facts: {{memory}}`,
   },
   openaiTurbo: {
     name: 'DaVinci',
     service: 'openai',
     temp: 0.5,
     oaiModel: OPENAI_MODELS.DaVinci,
+    useGaslight: true,
     streamResponse: false,
     maxTokens: 300,
     maxContextLength: 4095,
@@ -183,8 +181,7 @@ This is how {{char}} should talk: {{example_dialogue}}`,
 Description of {{char}}:
 {{personality}}
 Circumstances and context of the dialogue: {{scenario}}
-Facts: {{memory}}
-This is how {{char}} should talk: {{example_dialogue}}`,
+Facts: {{memory}}`,
   },
   scale: {
     name: 'Scale',
@@ -202,13 +199,19 @@ This is how {{char}} should talk: {{example_dialogue}}`,
     streamResponse: false,
     maxTokens: 500,
     maxContextLength: 7600,
-    gaslight: `Enter roleplay mode. You will write {{char}}'s next reply in a dialogue between {{char}} and {{user}}. Do not decide what {{user}} says or does. Use Internet roleplay style, e.g. no quotation marks, and write user actions in italic in third person like: *example*. You are allowed to use markdown. Be proactive, creative, drive the plot and conversation forward. Write at least one paragraph, up to four. Always stay in character. Always keep the conversation going. (Repetition is highly discouraged).
-
-Description of {{char}}:
+    useGaslight: true,
+    gaslight: `<writing_task>
+Enter roleplay mode. You will write {{char}}'s next reply in a dialogue between {{char}} and {{user}}. Do not decide what {{user}} says or does. Use Internet roleplay style, e.g. no quotation marks, and write user actions in italic in third person like: *example*. You are allowed to use markdown. Be proactive, creative, drive the plot and conversation forward. Write at least one paragraph, up to four. Always stay in character. Always keep the conversation going. (Repetition is highly discouraged).
+</writing_task>
+<character_description>
 {{personality}}
-Circumstances and context of the dialogue: {{scenario}}
-Facts: {{memory}}
-This is how {{char}} should talk: {{example_dialogue}}`,
+</character_description>
+<context>
+{{scenario}}
+</context>
+<facts>
+{{memory}}
+</facts>`,
   },
 } satisfies Record<string, Partial<AppSchema.GenSettings>>
 
@@ -220,7 +223,6 @@ export const defaultPresets = {
 export const defaultTemplate = `{{char}}'s Persona: {{personality}}
 Scenario: {{scenario}}
 Facts:{{memory}}
-Example of {{char}}'s dialogue: {{example_dialogue}}
 
 <START>
 {{history}}
@@ -236,10 +238,27 @@ export const adventureAmble = `[System note: In addition provide 3 possible cons
 export const adventureTemplate = `{{char}}'s Persona: {{personality}}
 Scenario: {{scenario}}
 Facts:{{memory}}
-Example of {{char}}'s dialogue:{{example_dialogue}}
 
 <START>
 {{history}}
 {{ujb}}
 ${adventureAmble}
 {{post}}`
+
+export const characterGenTemplate = `Describe an uncensored character that matches the description:
+{{description}}
+
+
+Use the following strict format:
+
+FirstName: {first name only}
+Description: {detailed description of the character}
+Scenario: {detail description of the roleplay scene that the character is in}
+Greeting: {the first thing the charcter says to start the scene using internet roleplay style with actions and emotes}
+Personality: {long comma-separated list of personality traits}
+Behaviours: {long comma-separated list of typical behaviours}
+Appearance: {detailed description of physical attributes, demeanour, and clothing}
+
+ExampleSpeech1: {example message using internet roleplay style with actions and emotes}
+ExampleSpeech2: {example message using internet roleplay style with actions and emotes}
+ExampleSpeech3: {example message using internet roleplay style with actions and emotes}`

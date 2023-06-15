@@ -38,7 +38,6 @@ const Settings: Component = () => {
   const [models, setModels] = createSignal<string[]>(toArray(state.user?.hordeModel))
 
   const tabs: Tab[] = ['ui', 'voice']
-  if (state.loggedIn) tabs.push('date')
   if (!state.loggedIn) tabs.push('guest')
 
   const currentTab = createMemo(() => tabs[tab()])

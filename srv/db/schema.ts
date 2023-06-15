@@ -32,6 +32,14 @@ export namespace AppSchema {
     maintenance?: string
     patreon?: boolean
     policies?: boolean
+    flags?: string
+    slots: {
+      enabled: boolean
+      testing: boolean
+      menu: string
+      banner: string
+      mobile: string
+    }
   }
 
   export type ChatMode = 'standard' | 'adventure'
@@ -40,6 +48,7 @@ export namespace AppSchema {
     userId: string
     username: string
     admin: boolean
+    premium: boolean
     iat: number
     exp: number
   }
@@ -170,6 +179,7 @@ export namespace AppSchema {
     updatedAt: string
     first?: boolean
     ooc?: boolean
+    system?: boolean
   }
 
   /** Description of the character or user */
