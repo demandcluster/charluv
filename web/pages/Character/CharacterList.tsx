@@ -188,9 +188,7 @@ const CharacterList: Component = () => {
               </Button>
             </div>
           </div>
-          <Show when={user.user?.admin}>
-            <TagSelect class="m-1" />
-          </Show>
+          <TagSelect class="m-1" />
         </div>
 
         <div class="flex flex-wrap">

@@ -1,13 +1,20 @@
-import { Component, createEffect,
-  createMemo, createSignal, For, Show } from 'solid-js'
+import { Component, createEffect, createMemo, createSignal, For, Show } from 'solid-js'
 import Button from '../../shared/Button'
 import PageHeader from '../../shared/PageHeader'
-import { Check, Delete, Heart, Undo2, X, AlignLeft, LayoutList, Image, 
+import {
+  Check,
+  Delete,
+  Heart,
+  Undo2,
+  X,
+  AlignLeft,
+  LayoutList,
+  Image,
   Star,
   SortAsc,
   SortDesc,
-  User
-} from 'lucide-solid' 
+  User,
+} from 'lucide-solid'
 
 import { AppSchema } from '../../../srv/db/schema'
 import { A, useNavigate } from '@solidjs/router'
@@ -34,8 +41,11 @@ const sortOptions: Option<SortFieldTypes>[] = [
   { value: 'name', label: 'Name' },
 ]
 function getListCache(): ListCache {
-  const existing = localStorage.getItem(CACHE_KEY)  
-  const defaultCache: ListCache = { view: 'likes', sort: { field: 'chat-updated', direction: 'desc' } }
+  const existing = localStorage.getItem(CACHE_KEY)
+  const defaultCache: ListCache = {
+    view: 'likes',
+    sort: { field: 'chat-updated', direction: 'desc' },
+  }
 
   if (!existing) {
     return defaultCache
@@ -66,7 +76,7 @@ const MatchList: Component = () => {
     saveListCache(next)
   })
   createEffect(() => {
-    if(charsList().list){
+    if (charsList().list) {
       tagStore.updateTags(charsList().list)
     }
   })
@@ -265,10 +275,10 @@ const MatchList: Component = () => {
   }
 
   const groupslist = createMemo(() => {
-    if(!charsList().list) return []
+    if (!charsList().list) return []
 
-    const list = charsList().list
-      .slice()
+    const list = charsList()
+      .list.slice()
       .filter((ch) => ch.name.toLowerCase().includes(search().toLowerCase()))
       .filter((ch) => tags.filter.length === 0 || ch.tags?.some((t) => tags.filter.includes(t)))
       .filter((ch) => !ch.tags || !ch.tags.some((t) => tags.hidden.includes(t)))
@@ -287,7 +297,7 @@ const MatchList: Component = () => {
   })
   return (
     <>
-      <div class="overflow-hidden min-h-[455px]">
+      <div class="min-h-[455px] overflow-hidden">
         <PageHeader title="Likes" subtitle="" />
         <Show when={!charsList().list}>
           <div>Loading ...{charsList()}</div>
@@ -312,7 +322,7 @@ const MatchList: Component = () => {
           </Button>
           <Show when={getNextView() == 'list'}>
             <div class="mb-2 flex justify-between">
-              <div class="flex flex-wrap w-full">
+              <div class="flex w-full flex-wrap">
                 <div class="m-1 ml-0 mr-1 min-w-[200px]">
                   <TextInput
                     fieldName="search"
@@ -343,9 +353,8 @@ const MatchList: Component = () => {
                     </Button>
                   </div>
                 </div>
-                <Show when={user.user?.admin}>
-                  <TagSelect class="m-1" />
-                </Show>
+
+                <TagSelect class="m-1" />
               </div>
             </div>
           </Show>
@@ -358,7 +367,7 @@ const MatchList: Component = () => {
               </div>
             </Match>
             <Match when={getNextView() == 'likes'}>
-              <div class="h-96 max-h-[90%] sm:h-[550px] sm:max-h-[550px] flex w-full flex-col gap-2 ">
+              <div class="flex h-96 max-h-[90%] w-full flex-col gap-2 sm:h-[550px] sm:max-h-[550px] ">
                 <For each={groupslist()}>
                   {(char, i) => (
                     <DSwipeCard
@@ -374,7 +383,7 @@ const MatchList: Component = () => {
                 </For>
               </div>
               <Show when={charsList().list && charsList().list.length > 0}>
-                <div class=" mx-auto text-center md:w-[26rem] mt-3 sm:mt-6 mb-3 sm:mb-6">
+                <div class=" mx-auto mt-3 mb-3 text-center md:w-[26rem] sm:mt-6 sm:mb-6">
                   <button
                     onclick={() => buttonSwipe('left')}
                     class={`${
@@ -457,18 +466,18 @@ const DSwipeCard: Component<{ character: AppSchema.Character; match: Any }> = (p
           class="absolute h-full max-h-full w-full max-w-full bg-cover"
           style={{ 'background-image': `url(${getAssetUrl(props.character.avatar)})` }}
         >
-          <div class=" absolute size  bottom-6 w-full p-2 text-3xl text-white shadow-black text-shadow-lg sm:bottom-10 sm:text-5xl">
+          <div class=" size absolute  bottom-6 w-full p-2 text-3xl text-white shadow-black text-shadow-lg sm:bottom-10 sm:text-5xl">
             <span class="font-black ">{props.character.name}</span> {age}
           </div>
-            <div class=" absolute bottom-1 h-8 overflow-hidden sm:h-10">
-              <For each={props.character.persona.attributes.likes}>
-                {(attr) => (
-                  <div class=" float-left m-1 rounded-md border bg-[var(--hl-900)] bg-opacity-80 px-2 py-[5px] text-[8px] capitalize sm:py-2 sm:text-[12px]">
-                    {attr}
-                  </div>
-                )}
-              </For>
-            </div>
+          <div class=" absolute bottom-1 h-8 overflow-hidden sm:h-10">
+            <For each={props.character.persona.attributes.likes}>
+              {(attr) => (
+                <div class=" float-left m-1 rounded-md border bg-[var(--hl-900)] bg-opacity-80 px-2 py-[5px] text-[8px] capitalize sm:py-2 sm:text-[12px]">
+                  {attr}
+                </div>
+              )}
+            </For>
+          </div>
         </div>
       </SwipeCard>
     </div>
@@ -478,7 +487,7 @@ const DSwipeCard: Component<{ character: AppSchema.Character; match: Any }> = (p
 // [TODO] this should be in a seperate file and breaks the philosophy of solidjs and react
 
 const MatchLike: Component<{ character: AppSchema.Character; match: Any }> = (props) => {
-  console.log(props);
+  console.log(props)
   return (
     <div class="flex w-full gap-2">
       <div class="flex h-12 w-full flex-row items-center gap-4 rounded-xl bg-[var(--bg-800)]">
