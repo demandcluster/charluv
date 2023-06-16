@@ -456,7 +456,8 @@ function getUIsettings() {
 }
 
 subscribe('credits-updated', { credits: 'any' }, (body) => {
-  userStore.setState({ user: { ...userStore.getState().user, credits: body.credits.credits } })
+ 
+  userStore.setState({ user: { ...userStore.getState().user, credits: body.credits } })
 })
 
 function setBackground(content: any) {

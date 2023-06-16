@@ -25,6 +25,9 @@ const characterValidator = {
   greeting: 'string?',
   sampleChat: 'string?',
   persona: 'string?',
+  xp: 'string?',
+  match: 'string?',
+  premium: 'string?',
   favorite: 'boolean?',
   voice: 'string?',
   tags: 'string?',
@@ -45,10 +48,9 @@ const newCharacterValidator = {
   scenario: 'string',
   greeting: 'string',
   sampleChat: 'string',
-  xp: 'string',
-  match: 'string',
-  premium: 'string',
-  anime: 'string',
+  xp: 'string?',
+  match: 'string?',
+  premium: 'string?',
   persona: 'string',
   originalAvatar: 'string?',
 } as const
@@ -76,14 +78,18 @@ const createCharacter = handle(async (req) => {
   if (!isObject(extensions) && extensions !== undefined) {
     throw new StatusError('Character `extensions` field must be an object or undefined.', 400)
   }
+  const user = await store.users.getUser(req.userId!)
+  if (user?.credits && user?.credits<50){
+    throw new StatusError('Not enough credits', 400)
+  }
+  await store.credits.updateCredits(req.userId!, -50)
 
   const char = await store.characters.createCharacter(req.user?.userId!, {
     name: body.name,
     persona,
-    premium: body.premium.toString() === 'true',
+    premium: body.premium?.toString() === 'true'||false,
     xp: 0,
-    match: false,
-    anime: body.anime.toString() === 'true' || false,
+    match: body.match?.toString() === 'true'||false,
     sampleChat: body.sampleChat,
     description: body.description,
     culture: body.culture,
@@ -101,6 +107,7 @@ const createCharacter = handle(async (req) => {
     characterVersion: body.characterVersion,
   })
 
+ 
   const filename = await entityUpload(
     'char',
     char._id,
@@ -123,7 +130,6 @@ const getCharacters = handle(async ({ userId }) => {
 const editCharacter = handle(async (req) => {
   const id = req.params.id
   const body = handleForm(req, characterValidator)
-
   const alternateGreetings = body.alternateGreetings ? toArray(body.alternateGreetings) : undefined
   const characterBook = body.characterBook ? JSON.parse(body.characterBook) : undefined
   if (characterBook !== undefined) {
@@ -171,6 +177,12 @@ const editCharacter = handle(async (req) => {
   if (filename) {
     update.avatar = filename + `?v=${v4().slice(0, 4)}`
   }
+
+  const user = await store.users.getUser(req.userId!)
+  if (user?.credits && user?.credits<20){
+    throw new StatusError('Not enough credits', 400)
+  }
+  await store.credits.updateCredits(req.userId!, -20)
 
   const char = await store.characters.updateCharacter(id, req.userId!, update)
 
@@ -241,12 +253,12 @@ export const createImage = handle(async ({ body, userId, socketId, log }) => {
 })
 
 router.use(loggedIn)
-router.post('/', isAdmin, createCharacter)
+router.post('/', loggedIn, createCharacter)
 router.get('/', getCharacters)
-router.post('/image', isAdmin, createImage)
-router.post('/:id', isAdmin, editCharacter)
+router.post('/image',loggedIn, createImage)
+router.post('/:id', loggedIn, editCharacter)
 router.get('/:id', getCharacter)
-router.delete('/:id', deleteCharacter)
+router.delete('/:id',loggedIn, deleteCharacter)
 router.post('/:id/favorite', editCharacterFavorite)
 router.delete('/:id/avatar', removeAvatar)
 

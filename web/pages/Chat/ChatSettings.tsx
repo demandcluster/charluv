@@ -84,6 +84,7 @@ const ChatSettingsModal: Component<{ show: boolean; close: () => void }> = (prop
   )
 
   const adapterText = createMemo(() => {
+   
     if (!state.chat || !user.user) return
     const preset = getChatPreset(state.chat, user.user, presets)
     if (!preset.service) return
@@ -112,41 +113,13 @@ const ChatSettingsModal: Component<{ show: boolean; close: () => void }> = (prop
           </Card>
         </Show>
 
-        <Show when={!adapterText()}>
-          <Card>
-            <Select
-              class={`mb-2 ${adapterText() ? 'hidden' : ''}`}
-              fieldName="adapter"
-              helperText={`Default is set to: ${
-                ADAPTER_LABELS[user.user?.defaultAdapter || 'horde']
-              }`}
-              label="AI Service"
-              value={state.chat?.adapter}
-              items={[
-                { label: 'Default', value: 'default' },
-                ...adaptersToOptions(cfg.config.adapters),
-              ]}
-            />
-          </Card>
-        </Show>
+      
 
-        <Show when={activePreset()?.service === 'openai'}>
-          <Card>
-            <Select
-              fieldName="mode"
-              label="Chat Mode"
-              helperText="Adventure mode is only available for instruct-capable models. I.e: OpenAI Turbo"
-              items={[
-                { label: 'Conversation', value: 'standard' },
-                { label: 'Adventure (Experimental)', value: 'adventure' },
-              ]}
-              value={state.chat?.mode || 'standard'}
-            />
-          </Card>
-        </Show>
+        
         <Card>
           <TextInput fieldName="name" class="text-sm" value={state.chat?.name} label="Chat name" />
         </Card>
+        <Show when={!state.char?.parent&&state.char?.name!=="Aiva"}>
         <Card>
           <Toggle
             fieldName="useOverrides"
@@ -156,6 +129,7 @@ const ChatSettingsModal: Component<{ show: boolean; close: () => void }> = (prop
             helperText="If you want to edit the character itself and all chats using it, open the 'Chara' link in the Chat Menu instead."
           />
         </Card>
+        </Show>
 
         <Show when={useOverrides()}>
           <Card>

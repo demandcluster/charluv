@@ -84,6 +84,7 @@ const fallbacks: { [key in StorageKey]: LocalStorage[key] } = {
     hordeModel: 'llygmalion-13B-4bit-128g-cuda',
     defaultAdapter: 'horde',
     koboldUrl: '',
+    premium: false,
     thirdPartyFormat: 'kobold',
     thirdPartyPassword: '',
     luminaiUrl: '',

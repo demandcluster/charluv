@@ -214,7 +214,7 @@ export function getAttributeMap(event: Event | HTMLFormElement) {
 
 function toAttrs(value?: Record<string, string[]>) {
   if (!value) return defaultAttrs
-  console.log('value', value)
+  
   const attrs = Object.entries(value).map<Attr>(([key, values]) => ({
     key,
     values: values?.join(', ') || '',

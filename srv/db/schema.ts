@@ -209,7 +209,6 @@ export namespace AppSchema {
     match: boolean
     xp: number
     premium: boolean
-    anime: boolean
 
     createdAt: string
     updatedAt: string

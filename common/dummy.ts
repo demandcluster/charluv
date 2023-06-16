@@ -24,7 +24,6 @@ export function toChar(
     match: false,
     xp: 0,
     premium: false,
-    anime: true,
     updatedAt: '',
     userId: '',
     favorite: false,

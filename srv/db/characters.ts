@@ -19,7 +19,6 @@ export type CharacterUpdate = Partial<
     | 'match'
     | 'xp'
     | 'premium'
-    | 'anime'
     | 'voice'
     | 'alternateGreetings'
     | 'characterBook'
@@ -48,7 +47,6 @@ export async function createCharacter(
     | 'match'
     | 'xp'
     | 'premium'
-    | 'anime'
     | 'voice'
     | 'alternateGreetings'
     | 'characterBook'
@@ -67,7 +65,7 @@ export async function createCharacter(
     updatedAt: now(),
     ...char,
   }
-
+ 
   await db('character').insertOne(newChar)
   return newChar
 }
@@ -77,6 +75,9 @@ export async function updateCharacter(id: string, userId: string, char: Characte
   if (edit.avatar === undefined) {
     delete edit.avatar
   }
+  const user = await db('user').findOne({ kind: 'user', _id: userId })
+
+ 
   await db('character').updateOne({ _id: id, userId, kind: 'character' }, { $set: edit })
   return getCharacter(userId, id)
 }

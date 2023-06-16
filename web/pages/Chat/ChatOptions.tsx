@@ -39,6 +39,7 @@ const ChatOptions: Component<{
     members: s.chatProfiles,
   }))
   const user = userStore()
+  
   const cfg = settingStore()
 
   const toggleOocMessages = () => {
@@ -67,7 +68,7 @@ const ChatOptions: Component<{
     domToPng(ele, { backgroundColor: `rgb(${bgRgb.r}, ${bgRgb.g}, ${bgRgb.b})` })
       .then((dataUrl) => {
         const link = document.createElement('a')
-        link.download = 'agnai_chat_screenshot.png'
+        link.download = 'charluv_chat_screenshot.png'
         link.href = dataUrl
         link.click()
         toggleScreenshot(false)
@@ -106,11 +107,11 @@ const ChatOptions: Component<{
             />
           </div>
         </Option>
-
-        <Option onClick={props.toggleCharEditor}>
+      
+        <Option  onClick={props.toggleCharEditor}>
           <User /> Character
         </Option>
-
+      
         <Option onClick={() => props.setModal('members')}>
           <Users /> Participants
         </Option>
@@ -119,9 +120,7 @@ const ChatOptions: Component<{
           <MenuItem onClick={() => props.setModal('settings')} hide={!isOwner()}>
             <Settings /> Edit Chat
           </MenuItem>
-          <MenuItem onClick={() => props.setModal('gen')}>
-            <Sliders /> Preset
-          </MenuItem>
+         
         </MenuItemRow>
         <MenuItemRow>
           <MenuItem onClick={screenshotChat}>

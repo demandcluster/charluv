@@ -61,7 +61,7 @@ const CreateChatModal: Component<{
 
   const selectedPreset = createMemo(() => {
     const id = presetId()
-    if (!id) return defaultPresets.horde
+    if (!id||id) return defaultPresets.horde
     if (isDefaultPreset(id)) return defaultPresets[id]
     return presets.find((pre) => pre._id === id)
   })
@@ -138,12 +138,12 @@ const CreateChatModal: Component<{
       }
     >
       <form ref={ref}>
-        <Show when={user?.admin}>
+        
           <div class="mb-2 text-sm">
             Optionally modify some of the conversation context. You can override other aspects of
-            the character's persona from the conversation after it is created.
+            the character's persona from the conversation after it is created. You can not modify Matched characters, only self-made or imported.
           </div>
-        </Show>
+        
         <div class="mb-4 text-sm">
           The information provided here is only applied to the newly created conversation.
         </div>
@@ -161,34 +161,8 @@ const CreateChatModal: Component<{
               />
             </Card>
           </Show>
-          <Card>
-            <Select
-              fieldName="genPreset"
-              label="Preset"
-              items={presetOptions()}
-              value={user.defaultPreset || ''}
-              helperText={
-                <>
-                  <ServiceWarning service={selectedPreset()?.service} />
-                </>
-              }
-              onChange={(ev) => setPresetId(ev.value)}
-            />
-          </Card>
-          <Show when={selectedPreset()?.service === 'openai'}>
-            <Card>
-              <Select
-                fieldName="mode"
-                label="Chat Mode"
-                helperText="EXPERIMENTAL: This is only supported on OpenAI Turbo at the moment. This feature may not work "
-                items={[
-                  { label: 'Conversation', value: 'standard' },
-                  { label: 'Adventure (Experimental)', value: 'adventure' },
-                ]}
-                value={'standard'}
-              />
-            </Card>
-          </Show>
+         
+         
           <Card>
             <TextInput
               class="text-sm"
@@ -202,6 +176,7 @@ const CreateChatModal: Component<{
               placeholder="Untitled"
             />
           </Card>
+         <Show when={!char()?.parent && char().name!=="Aiva"}> 
           <Card>
             <Toggle
               fieldName="useOverrides"
@@ -224,6 +199,7 @@ const CreateChatModal: Component<{
               disabled={!useOverrides()}
             ></TextInput>
           </Card>
+
           <Card>
             <TextInput
               isMultiline
@@ -294,6 +270,7 @@ const CreateChatModal: Component<{
               </Show>
             </div>
           </Card>
+          </Show>
         </div>
       </form>
     </Modal>

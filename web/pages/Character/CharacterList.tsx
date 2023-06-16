@@ -134,8 +134,8 @@ const CharacterList: Component = () => {
         title={
           <div class="flex w-full justify-between">
             <div>Matches</div>
+            <Show when={user.user._id !== 'anon'}>
             <div class="flex text-base">
-              <Show when={user.user?.admin}>
                 <div class="px-1">
                   <Button onClick={() => setImport(true)}>
                     <Import />
@@ -150,8 +150,9 @@ const CharacterList: Component = () => {
                     </Button>
                   </A>
                 </div>
-              </Show>
+              
             </div>
+            </Show>
           </div>
         }
       />
@@ -287,7 +288,7 @@ const Characters: Component<{
               You are not <a href="/login">registered</a>. You can only chat with the helpdesk bot.
             </div>
           </Show>
-
+          <Show when={props.user.user._id !== 'anon'}>
           <Show when={!props.type || props.type === 'list'}>
             <div class="flex w-full flex-col gap-2 pb-5">
               <For each={groups()}>
@@ -346,6 +347,7 @@ const Characters: Component<{
               )}
             </For>
           </Show>
+          </Show>
         </Match>
       </Switch>
 
@@ -393,7 +395,7 @@ const Character: Component<{
         </A>
         <div>
           <div class="hidden flex-row items-center justify-center gap-2 sm:flex">
-            <Show when={props.char.name !== 'Aiva'}>
+            <Show when={props.char.name !== 'Aiva' && props.char?.parent}>
               <Gauge showBar={false} currentXP={props.char.xp} />
             </Show>
             <Show when={props.char.favorite}>
@@ -405,7 +407,7 @@ const Character: Component<{
             <Show when={!props.char.favorite}>
               <Star class="icon-button" onClick={() => props.toggleFavorite(true)} />
             </Show>
-           
+           <Show when={!props.char?.parent && props.char?.name!=="Aiva"}>
               <a onClick={props.download}>
                 <Download class="icon-button" />
               </a>
@@ -417,17 +419,20 @@ const Character: Component<{
               <A href={`/character/create/${props.char._id}`}>
                 <Copy class="icon-button" />
               </A>
-            
-            <Trash class="icon-button" onClick={props.delete} />
-            <User class="icon-button" onClick={() => nav(`/likes/${props.char._id}/profile`)} />
-          </div>
-          <div class="flex items-center sm:hidden" onClick={() => setListOpts(true)}>
-            <Show when={props.char.name !== 'Aiva'}>
-              <Gauge showBar={false} currentXP={props.char.xp} />
             </Show>
-
-            <MoreHorizontal class="icon-button" />
+            <Show when={props.char?.name!=="Aiva"}>
+            <Trash class="icon-button" onClick={props.delete} />
+            </Show>
+            <Show when={props.char?.parent}>
+            <User class="icon-button" onClick={() => nav(`/likes/${props.char._id}/profile`)} />
+            </Show>
           </div>
+              <div class="flex items-center sm:hidden" onClick={() => setListOpts(true)}>
+            <Show when={props.char.name !== 'Aiva' && props.char?.parent}>
+                  <Gauge showBar={false} currentXP={props.char.xp} />
+            </Show>
+                <MoreHorizontal class="icon-button" />
+              </div>
           <DropMenu
             class="bg-[var(--bg-700)]"
             show={listOpts()}
@@ -448,7 +453,7 @@ const Character: Component<{
               <Button onClick={createChat} alignLeft size="sm">
                 <MessageCircle /> Chat
               </Button>
-             
+              <Show when={!props.char?.parent && props.char?.name!=="Aiva"}>
                 <Button alignLeft onClick={props.download} size="sm">
                   <Download /> Download
                 </Button>
@@ -466,13 +471,15 @@ const Character: Component<{
                 >
                   <Copy /> Duplicate
                 </Button>
-              
+              </Show>
               <Button alignLeft schema="red" onClick={props.delete} size="sm">
                 <Trash /> Delete
               </Button>
+               <Show when={props.char?.parent&&props.char?.name!=="Aiva"}>
               <Button alignLeft onClick={() => nav(`/likes/${props.char._id}/profile`)}>
                 <User /> Profile
               </Button>
+              </Show>
             </div>
           </DropMenu>
         </div>
@@ -512,7 +519,7 @@ const Character: Component<{
             : ''}
         </div>
         <div class="-mt-2 h-12 px-2">
-          <Show when={props.char.name !== 'Aiva'}>
+          <Show when={props.char?.parent && props.char?.name!=="Aiva"}>
             <div>
               <Gauge showBar={true} currentXP={props.char.xp} />
             </div>
@@ -551,7 +558,7 @@ const Character: Component<{
               <Button onClick={createChat} alignLeft size="sm">
                 <MessageCircle /> Chat
               </Button>
-              <Show when={props.user.user.admin}>
+               <Show when={!props.char?.parent && props.char?.name!=="Aiva"}>
                 <Button
                   alignLeft
                   size="sm"
@@ -588,9 +595,11 @@ const Character: Component<{
               >
                 <Trash /> Delete
               </Button>
+               <Show when={props.char?.parent}>
               <Button alignLeft onClick={() => nav(`/likes/${props.char._id}/profile`)}>
                 <User /> Profile
               </Button>
+              </Show>
             </div>
           </DropMenu>
         </div>
@@ -709,7 +718,7 @@ export const DownloadModal: Component<{
         <div class="flex">
           <Select
             label="Persona Format"
-            helperText="If exporting to Charluv format, this does not matter"
+            helperText="If exporting to Charluv/Agnai format, this does not matter"
             fieldName="format"
             items={opts()}
             value={schema()}

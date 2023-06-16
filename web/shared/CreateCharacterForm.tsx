@@ -391,6 +391,13 @@ export const CreateCharacterForm: Component<{
               </em>
             </div>
           </Show>
+          <Show when={state.edit?.parent || state.edit?.name==="Aiva"}>
+          <Card>
+            You can not edit Matched characters.<br/>This would take the fun out of the scenario progression.
+          </Card>  
+          </Show>
+
+          <Show when={!state.edit?.parent && state.edit?.name!=="Aiva"}>
           <Card>
             <TextInput
               fieldName="name"
@@ -420,6 +427,7 @@ export const CreateCharacterForm: Component<{
                 </div>
               }
             />
+            
             <div class="flex w-full gap-2">
               <TextInput
                 isMultiline
@@ -661,6 +669,7 @@ export const CreateCharacterForm: Component<{
               />
             </Card>
           </div>
+          </Show>
         </div>
         <div class={`sticky flex justify-end gap-2`}>
           <Button onClick={cancel} schema="secondary">

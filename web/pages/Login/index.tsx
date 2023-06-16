@@ -68,7 +68,7 @@ const LoginPage: Component = () => {
 
       <Show when={cfg.config.policies}>
         <div class="mt-2">
-          By logging in or registering, you agree that are 18 years or older and agree to the{' '}
+          By logging in or registering, you agree that you are 18 years or older and agree to the{' '}
           <A class="link" href="/terms">
             Terms
           </A>{' '}

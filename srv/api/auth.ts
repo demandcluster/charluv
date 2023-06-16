@@ -36,7 +36,7 @@ export const loggedIn: any = (req: AppRequest, _: any, next: NextFunction) => {
 }
 
 export const isAdmin: any = (req: AppRequest, _: any, next: NextFunction) => {
-  console.log(req.user)
+ 
   if (!req.user?.admin) return next(errors.Forbidden)
   next()
 }

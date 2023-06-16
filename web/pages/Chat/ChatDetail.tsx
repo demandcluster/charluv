@@ -106,9 +106,11 @@ const ChatDetail: Component = () => {
 
   const editableCharcters = createMemo(() => {
     const enabled = chats.chat?.characters || {}
+    console.log('user',user)
+    if(user.user?._id ==="anon")return []
     return chars.chatBots.filter(
       (ch) =>
-        ch.userId === user.user?._id && (enabled[ch._id] || chats.chat?.characterId === ch._id)
+        ch.userId === user.user?._id && !ch.hasOwnProperty("parent") && (enabled[ch._id] || chats.chat?.characterId === ch._id)
     )
   })
 
@@ -307,10 +309,10 @@ const ChatDetail: Component = () => {
       <Show when={chats.chat}>
         <main class="mx-auto flex  w-full justify-between gap-4">
           <div
-            class={`chat-detail ${chatMargin()} ${chatWidth()} mx-auto flex flex-col justify-between xs:flex sm:py-2`}
+            class={`chat-detail ${chatMargin()} ${chatWidth()}  w-full max-w-full mx-auto flex flex-col  xs:flex sm:py-2`}
           >
             <header
-              class={`hidden h-9 items-center justify-between rounded-md sm:flex`}
+              class={`hidden h-9 items-center  justify-between rounded-md sm:flex`}
               style={headerBg()}
             >
               <div class="ellipsis flex max-w-full cursor-pointer flex-row items-center justify-between gap-4 text-lg font-bold">
@@ -337,7 +339,7 @@ const ChatDetail: Component = () => {
                     {adapterLabel()}
                   </div>
                 </Show>
-
+               
                 <div class="" onClick={() => setShowOpts(true)}>
                   <Menu class="icon-button" />
                   <DropMenu
@@ -466,6 +468,7 @@ const ChatDetail: Component = () => {
                           class="w-full"
                           fieldName="editingId"
                           items={editableCharcters()}
+                
                           value={editingChar()}
                           onChange={changeEditingChar}
                         />
@@ -545,17 +548,7 @@ const ChatDetail: Component = () => {
 
       <ImageModal />
 
-      <Show
-        when={
-          chats.chat &&
-          !chats.chat.genPreset &&
-          !chats.chat.genSettings &&
-          !user.user?.defaultPreset
-        }
-      >
-        <ForcePresetModal chat={chats.chat!} show={true} close={() => {}} />
-      </Show>
-
+      
       <PromptModal />
       <Show when={chats.opts.modal === 'ui'}>
         <Modal
