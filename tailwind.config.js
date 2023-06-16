@@ -15,6 +15,7 @@ module.exports = {
         sans: ['Bai Jamjuree', 'sans-serif'],
       },
       screens: {
+        xs: '768px',
         sm: '1024px',
       },
       colors: {

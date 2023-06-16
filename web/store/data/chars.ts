@@ -3,7 +3,7 @@ import { AppSchema } from '../../../srv/db/schema'
 import { api, isLoggedIn } from '../api'
 import { NewCharacter, UpdateCharacter } from '../character'
 import { loadItem, localApi } from './storage'
-import { appendFormOptional, appendFormOptional_ } from '/web/shared/util'
+import { appendFormOptional, strictAppendFormOptional } from '/web/shared/util'
 
 export const charsApi = {
   getCharacters,
@@ -96,25 +96,24 @@ export async function editCharacter(charId: string, { avatar: file, ...char }: U
     appendFormOptional(form, 'name', char.name)
     appendFormOptional(form, 'match', char.match)
     appendFormOptional(form, 'xp', char.xp)
-    appendFormOptional(form, 'anime', char.anime)
     appendFormOptional(form, 'premium', char.premium)
     appendFormOptional(form, 'greeting', char.greeting)
     appendFormOptional(form, 'scenario', char.scenario)
     appendFormOptional(form, 'persona', JSON.stringify(char.persona))
-    appendFormOptional(form, 'description', char.description || '')
+    strictAppendFormOptional(form, 'description', char.description || '')
     appendFormOptional(form, 'culture', char.culture)
     appendFormOptional(form, 'tags', char.tags || [], JSON.stringify)
-    appendFormOptional(form, 'sampleChat', char.sampleChat)
+    strictAppendFormOptional(form, 'sampleChat', char.sampleChat)
     appendFormOptional(form, 'voice', JSON.stringify(char.voice))
     appendFormOptional(form, 'avatar', file)
     // v2 fields start here
     appendFormOptional(form, 'alternateGreetings', char.alternateGreetings, JSON.stringify)
     appendFormOptional(form, 'characterBook', char.characterBook, JSON.stringify)
     appendFormOptional(form, 'extensions', char.extensions, JSON.stringify)
-    appendFormOptional_(form, 'systemPrompt', char.systemPrompt)
-    appendFormOptional_(form, 'postHistoryInstructions', char.postHistoryInstructions)
-    appendFormOptional_(form, 'creator', char.creator)
-    appendFormOptional_(form, 'characterVersion', char.characterVersion)
+    strictAppendFormOptional(form, 'systemPrompt', char.systemPrompt)
+    strictAppendFormOptional(form, 'postHistoryInstructions', char.postHistoryInstructions)
+    strictAppendFormOptional(form, 'creator', char.creator)
+    strictAppendFormOptional(form, 'characterVersion', char.characterVersion)
 
     const res = await api.upload(`/character/${charId}`, form)
     return res

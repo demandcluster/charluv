@@ -139,10 +139,10 @@ export namespace AppSchema {
     messageCount: number
     adapter?: ChatAdapter
 
-    greeting: string
-    scenario: string
-    sampleChat: string
-    overrides: Persona
+    greeting?: string
+    scenario?: string
+    sampleChat?: string
+    overrides?: Persona
 
     createdAt: string
     updatedAt: string
@@ -339,6 +339,8 @@ export namespace AppSchema {
     oaiModel?: string
     novelModel?: string
     claudeModel?: string
+    replicateModelType?: string
+    replicateModelVersion?: string
     streamResponse?: boolean
 
     memoryDepth?: number

@@ -3,13 +3,13 @@ import { getEncoder } from '../../common/tokenize'
 import { AppSchema } from '../../srv/db/schema'
 import { EVENTS, events } from '../emitter'
 import type { ChatModal } from '../pages/Chat/ChatOptions'
+import { clearDraft } from '../shared/hooks'
 import { safeLocalStorage } from '../shared/util'
 import { api } from './api'
 import { createStore, getStore } from './create'
 import { AllChat, chatsApi } from './data/chats'
 import { msgsApi } from './data/messages'
 import { usersApi } from './data/user'
-import { draftStore } from './drafts'
 import { msgStore } from './message'
 import { subscribe } from './socket'
 import { toastStore } from './toasts'
@@ -44,6 +44,7 @@ export type ChatState = {
     editing: boolean
     screenshot: boolean
     hideOoc: boolean
+    editingChar: boolean
   }
 }
 
@@ -53,14 +54,16 @@ export type ImportChat = {
   scenario: string
   sampleChat: string
   messages: Array<{ msg: string; characterId?: string; userId?: string }>
+  useOverrides?: boolean
 }
 
 export type NewChat = {
   name: string
-  greeting: string
-  scenario: string
-  sampleChat: string
-  overrides: AppSchema.Chat['overrides']
+  greeting?: string
+  scenario?: string
+  sampleChat?: string
+  overrides?: AppSchema.Chat['overrides']
+  useOverrides: boolean
   mode?: AppSchema.Chat['mode']
 }
 
@@ -86,6 +89,7 @@ const initState: ChatState = {
     screenshot: false,
     hideOoc: false,
     modal: undefined,
+    editingChar: false,
   },
 }
 
@@ -104,6 +108,7 @@ export const chatStore = createStore<ChatState>('chat', {
     ...getOptsCache(),
     modal: undefined,
     screenshot: false,
+    editingChar: false,
   },
 })((get, set) => {
   events.on(EVENTS.loggedOut, () => {
@@ -195,9 +200,10 @@ export const chatStore = createStore<ChatState>('chat', {
       { char, allChats, active },
       id: string,
       update: Partial<AppSchema.Chat>,
+      useOverrides: boolean | undefined,
       onSuccess?: () => void
     ) {
-      const res = await chatsApi.editChat(id, update)
+      const res = await chatsApi.editChat(id, { ...update, useOverrides })
       if (res.error) {
         toastStore.error(`Failed to update chat: ${res.error}`)
         return
@@ -357,7 +363,7 @@ export const chatStore = createStore<ChatState>('chat', {
     },
 
     async *deleteChat({ active, allChats, char }, chatId: string, onSuccess?: Function) {
-      draftStore.clear(chatId)
+      clearDraft(chatId)
       const res = await chatsApi.deleteChat(chatId)
       if (res.error) return toastStore.error(`Failed to delete chat: ${res.error}`)
       if (res.result) {
@@ -520,6 +526,12 @@ function getOptsCache(): ChatOptCache {
   const body = JSON.parse(prev)
   return { editing: false, hideOoc: false, ...body, modal: undefined }
 }
+
+subscribe('chat-server-notification', { chatId: 'string', text: 'string' }, (body) => {
+  const { active } = chatStore.getState()
+  if (body.chatId !== active?.chat._id) return
+  toastStore.warn(body.text)
+})
 
 subscribe(
   'chat-character-added',
