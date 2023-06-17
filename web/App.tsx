@@ -19,6 +19,7 @@ import CharacterList from './pages/Character/CharacterList'
 import PremiumOptions from './pages/Premium/PremiumOptions'
 import ThankYou from './pages/Premium/ThankYou'
 import Error from './pages/Premium/Error'
+import PremiumInfo from './pages/Premium/Info'
 import MatchRoutes from './pages/Match'
 
 import ImpersonateModal from './pages/Character/ImpersonateModal'
@@ -70,6 +71,7 @@ const App: Component = () => {
           <Route path="/shop" component={PremiumOptions} />
           <Route path="/thankyou" component={ThankYou} />
           <Route path="/shop/error" component={Error} />
+          <Route path="/premium" component={PremiumInfo} />
           <Route
             path="/memory/instructions"
             component={lazy(() => import('./pages/Memory/Instructions'))}
@@ -78,8 +80,7 @@ const App: Component = () => {
           <Route path="/shop" component={PremiumOptions} />
           <Route path="/thankyou" component={ThankYou} />
           <Route path="/shop/error" component={Error} />
-         
-          
+
           <Show when={state.loggedIn}>
             <Route path="/invites" component={lazy(() => import('./pages/Invite/InvitesPage'))} />
             <Show when={state.user?.admin}>

@@ -172,6 +172,9 @@ const UserNavigation: Component = () => {
         </Item>
       </Show>
       <Show when={user.loggedIn}>
+        <Item href="/premium">
+          <HeartHandshake /> Premium
+        </Item>
         <Item href="/shop">
           <ShoppingCart /> Shop
         </Item>

@@ -50,14 +50,12 @@ If you don't like a reply, you can just reroll it and get another reply. You can
 In order to survive as a website we need ***€800,--*** before summer 2023. So far we got ***€78,--***. 
 All proceeds will be used to pay for the server and the AI. We will not take any money out of this project.
 
-### About
-
-Charluv
+### Credits
 
 Our app is based on [AgnAIstic](https://github.com/luminai-companion/agn-ai).
 The source code for our version can be found [here](https://github.com/demandcluster/charluv)
 
-We run our [own AI Horde](https://github.com/demandcluster/aivohorde) on a massive fine-tuned [13B model](https://huggingface.co/dcbv/pyg_charluv_4bit-128g-13B)!
+We run our [own AI Horde](https://github.com/demandcluster/aivohorde) on a massive fine-tuned 13B model [pyg/charluv-13B](https://huggingface.co/dcbv/pyg_charluv_4bit-128g-13B)!
 
 The software we use for the Horde is made possible by [db0](https://dbzer0.com/).
 
