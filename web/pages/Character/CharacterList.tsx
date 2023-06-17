@@ -536,7 +536,7 @@ const Character: Component<{
         >
           <div class="rounded-md bg-[var(--bg-500)] p-[2px]">
             <Menu size={24} class="icon-button" color="var(--bg-100)" />
-          </div>props.user.user?
+          </div>
           <DropMenu
             show={opts()}
             close={() => setOpts(false)}
