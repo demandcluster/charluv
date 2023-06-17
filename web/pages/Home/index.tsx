@@ -55,8 +55,11 @@ All proceeds will be used to pay for the server and the AI. We will not take any
 Charluv
 
 Our app is based on [AgnAIstic](https://github.com/luminai-companion/agn-ai).
+The source code for our version can be found [here](https://github.com/demandcluster/charluv)
 
-We run our own AI Horde on a massive 13B model!
+We run our [own AI Horde](https://github.com/demandcluster/aivohorde) on a massive fine-tuned [13B model](https://huggingface.co/dcbv/pyg_charluv_4bit-128g-13B)!
+
+The software we use for the Horde is made possible by [db0](https://dbzer0.com/).
 
 Charluv is created by Demandcluster B.V. in the Netherlands, we are a small team of developers and designers.
 `

@@ -4,6 +4,9 @@ import { markdown } from '../../shared/markdown'
 import { setComponentPageTitle } from '../../shared/util'
 
 const text = `
+_17 June 2023_
+- Added character creation,import,export,overrides in chat, and more!
+
 _6 June 2023_
 - Add background color to customizable colors
 
