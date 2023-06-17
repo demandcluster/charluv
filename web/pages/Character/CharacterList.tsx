@@ -283,12 +283,12 @@ const Characters: Component<{
           <NoCharacters />
         </Match>
         <Match when={props.loaded}>
-          <Show when={props.user.user._id === 'anon'}>
+          <Show when={props.user.user?._id === 'anon'}>
             <div class="gap-2 p-4 text-lg font-bold">
               You are not <a href="/login">registered</a>. You can only chat with the helpdesk bot.
             </div>
           </Show>
-          <Show when={props.user.user._id !== 'anon'}>
+          <Show when={props.user.user?._id !== 'anon'}>
           <Show when={!props.type || props.type === 'list'}>
             <div class="flex w-full flex-col gap-2 pb-5">
               <For each={groups()}>
@@ -531,7 +531,7 @@ const Character: Component<{
             positioned, then DropMenu breaks because it relies on the nearest
             positioned parent to be the sitewide container */}
         <div
-          class="float-right mt-[-149px] mr-[3px] flex justify-end"
+          class="float-right mt-[-297px] mr-[3px] flex justify-end"
           onClick={() => setOpts(true)}
         >
           <div class="rounded-md bg-[var(--bg-500)] p-[2px]">
