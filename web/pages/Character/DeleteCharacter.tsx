@@ -1,5 +1,5 @@
 import { Archive, Trash, X } from 'lucide-solid'
-import { Component } from 'solid-js'
+import { Component, Show } from 'solid-js'
 import { AppSchema } from '../../../srv/db/schema'
 import AvatarIcon from '../../shared/AvatarIcon'
 import Button from '../../shared/Button'
@@ -37,14 +37,19 @@ const DeleteCharacterModal: Component<{
             <X />
             Cancel
           </Button>
-
-          <Button schema="secondary" onClick={onArchive}>
-            <Archive /> Archive
-          </Button>
-
-          <Button schema="red" onClick={onDelete}>
-            <Trash /> Delete
-          </Button>
+          <Show when={!props.char?.parent}>
+            <Button schema="secondary" onClick={onArchive}>
+              <Archive /> Archive
+            </Button>
+            <Button schema="red" onClick={onDelete}>
+              <Trash /> Delete
+            </Button>
+          </Show>
+          <Show when={props.char?.parent}>
+            <Button schema="red" onClick={onDelete}>
+              <Trash /> Unmatch
+            </Button>
+          </Show>
         </>
       }
     >

@@ -437,7 +437,7 @@ const Character: Component<{
             class="bg-[var(--bg-700)]"
             show={listOpts()}
             close={() => setListOpts(false)}
-            customPosition="right-[10px]"
+            customPosition="right-[10px] top-[4px]"
             // horz="left"
             vert="down"
           >
