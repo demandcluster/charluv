@@ -120,10 +120,18 @@ const MatchList: Component = () => {
     const char = charsList().list.find((c) => c._id === charId)
     matchStore.createMatch(char)
   }
-
+  function fixcharlist(charsList){  
+    return charsList
+    .list.slice()
+    .filter((ch) => ch.name.toLowerCase().includes(search().toLowerCase()))
+    .filter((ch) => tags.filter.length === 0 || ch.tags?.some((t) => tags.filter.includes(t)))
+    .filter((ch) => !ch.tags || !ch.tags.some((t) => tags.hidden.includes(t)))
+    .sort(getSortFunction(sortField(), sortDirection()));
+  }
   const SwipeDirection = 'right' | 'left'
   function swipeAction(direction) {
     // let swipeNowAmount = 0;
+
     if (direction === 'down') direction = 'left'
     switch (direction) {
       case 'right':
@@ -230,9 +238,11 @@ const MatchList: Component = () => {
     }
   }
   function showProfile() {
+    setCharIds({ loaded: true, list: fixcharlist(charsIds()) })
     navigate(`/likes/${charsIds().list[charsIds().list.length - 1]._id}/profile`)
   }
   function SwipeUndo() {
+    setCharIds({ loaded: true, list: fixcharlist(charsIds()) })
     setUndo('disabled')
     totalSwipes[charsIds().list[0]._id].snapBack(6)
     const tmpChar = charsIds().list
@@ -271,6 +281,7 @@ const MatchList: Component = () => {
     })
   }
   function buttonSwipe(direction) {
+    setCharIds({ loaded: true, list: fixcharlist(charsIds()) })
     totalSwipes[charsIds().list[charsIds().list.length - 1]._id].swipe(direction)
   }
 
@@ -443,6 +454,8 @@ const DSwipeCard: Component<{ character: AppSchema.Character; match: Any }> = (p
   const apiRef: SwipeCardRef = {}
   apiRef.id = props.character._id
   props.totalSwipes[apiRef.id] = apiRef
+  
+  
   //map every id of an object to a new array
   const age = props.character.persona.attributes.age
     ? props.character.persona.attributes.age[0].split(' ')[0]
@@ -487,7 +500,6 @@ const DSwipeCard: Component<{ character: AppSchema.Character; match: Any }> = (p
 // [TODO] this should be in a seperate file and breaks the philosophy of solidjs and react
 
 const MatchLike: Component<{ character: AppSchema.Character; match: Any }> = (props) => {
-  console.log(props)
   return (
     <div class="flex w-full gap-2">
       <div class="flex h-12 w-full flex-row items-center gap-4 rounded-xl bg-[var(--bg-800)]">
