@@ -61,7 +61,7 @@ const CreateChatModal: Component<{
 
   const selectedPreset = createMemo(() => {
     const id = presetId()
-    if (!id||id) return defaultPresets.horde
+    if (!id || id) return defaultPresets.horde
     if (isDefaultPreset(id)) return defaultPresets[id]
     return presets.find((pre) => pre._id === id)
   })
@@ -138,12 +138,12 @@ const CreateChatModal: Component<{
       }
     >
       <form ref={ref}>
-        
-          <div class="mb-2 text-sm">
-            Optionally modify some of the conversation context. You can override other aspects of
-            the character's persona from the conversation after it is created. You can not modify Matched characters, only self-made or imported.
-          </div>
-        
+        <div class="mb-2 text-sm">
+          Optionally modify some of the conversation context. You can override other aspects of the
+          character's persona from the conversation after it is created. You can not modify Matched
+          characters, only self-made or imported.
+        </div>
+
         <div class="mb-4 text-sm">
           The information provided here is only applied to the newly created conversation.
         </div>
@@ -161,8 +161,7 @@ const CreateChatModal: Component<{
               />
             </Card>
           </Show>
-         
-         
+
           <Card>
             <TextInput
               class="text-sm"
@@ -176,100 +175,100 @@ const CreateChatModal: Component<{
               placeholder="Untitled"
             />
           </Card>
-         <Show when={!char()?.parent && char().name!=="Aiva"}> 
-          <Card>
-            <Toggle
-              fieldName="useOverrides"
-              value={useOverrides()}
-              onChange={(use) => setUseOverrides(use)}
-              label="Override Character Definitions"
-              helperText="Overrides will only apply to the newly created conversation."
-            />
-          </Card>
-
-          <Divider />
-
-          <Card>
-            <TextInput
-              isMultiline
-              fieldName="greeting"
-              label="Greeting"
-              value={char()?.greeting}
-              class="text-xs"
-              disabled={!useOverrides()}
-            ></TextInput>
-          </Card>
-
-          <Card>
-            <TextInput
-              isMultiline
-              fieldName="scenario"
-              label="Scenario"
-              value={char()?.scenario}
-              class="text-xs"
-              disabled={!useOverrides()}
-            ></TextInput>
-          </Card>
-
-          <Card>
-            <TextInput
-              isMultiline
-              fieldName="sampleChat"
-              label="Sample Chat"
-              value={char()?.sampleChat}
-              class="text-xs"
-              disabled={!useOverrides()}
-            ></TextInput>
-          </Card>
-
-          <Card>
-            <Show when={char()?.persona.kind !== 'text'}>
-              <Select
-                class="mb-2 text-sm"
-                fieldName="schema"
-                label="Persona"
-                items={options}
-                value={char()?.persona.kind || 'wpp'}
-                disabled={!useOverrides()}
+          <Show when={!char()?.parent && char()?.name !== 'Aiva'}>
+            <Card>
+              <Toggle
+                fieldName="useOverrides"
+                value={useOverrides()}
+                onChange={(use) => setUseOverrides(use)}
+                label="Override Character Definitions"
+                helperText="Overrides will only apply to the newly created conversation."
               />
-            </Show>
+            </Card>
 
-            <Show when={char()?.persona.kind === 'text'}>
-              <Select
-                class="mb-2 text-sm"
-                fieldName="schema"
-                label="Persona"
-                items={[{ label: 'Plain text', value: 'text' }]}
-                value={'text'}
+            <Divider />
+
+            <Card>
+              <TextInput
+                isMultiline
+                fieldName="greeting"
+                label="Greeting"
+                value={char()?.greeting}
+                class="text-xs"
                 disabled={!useOverrides()}
-              />
-            </Show>
+              ></TextInput>
+            </Card>
 
-            <div class="w-full text-sm">
-              <Show when={char()}>
-                <PersonaAttributes
-                  value={char()!.persona.attributes}
-                  hideLabel
-                  plainText={char()?.persona?.kind === 'text'}
+            <Card>
+              <TextInput
+                isMultiline
+                fieldName="scenario"
+                label="Scenario"
+                value={char()?.scenario}
+                class="text-xs"
+                disabled={!useOverrides()}
+              ></TextInput>
+            </Card>
+
+            <Card>
+              <TextInput
+                isMultiline
+                fieldName="sampleChat"
+                label="Sample Chat"
+                value={char()?.sampleChat}
+                class="text-xs"
+                disabled={!useOverrides()}
+              ></TextInput>
+            </Card>
+
+            <Card>
+              <Show when={char()?.persona.kind !== 'text'}>
+                <Select
+                  class="mb-2 text-sm"
+                  fieldName="schema"
+                  label="Persona"
+                  items={options}
+                  value={char()?.persona.kind || 'wpp'}
                   disabled={!useOverrides()}
                 />
               </Show>
-              <Show when={!char()}>
-                <For each={state.chars}>
-                  {(item) => (
-                    <Show when={char()?._id === item._id}>
-                      <PersonaAttributes
-                        value={item.persona.attributes}
-                        hideLabel
-                        plainText={item.persona.kind === 'text'}
-                        disabled={!useOverrides()}
-                      />
-                    </Show>
-                  )}
-                </For>
+
+              <Show when={char()?.persona.kind === 'text'}>
+                <Select
+                  class="mb-2 text-sm"
+                  fieldName="schema"
+                  label="Persona"
+                  items={[{ label: 'Plain text', value: 'text' }]}
+                  value={'text'}
+                  disabled={!useOverrides()}
+                />
               </Show>
-            </div>
-          </Card>
+
+              <div class="w-full text-sm">
+                <Show when={char()}>
+                  <PersonaAttributes
+                    value={char()!.persona.attributes}
+                    hideLabel
+                    plainText={char()?.persona?.kind === 'text'}
+                    disabled={!useOverrides()}
+                  />
+                </Show>
+                <Show when={!char()}>
+                  <For each={state.chars}>
+                    {(item) => (
+                      <Show when={char()?._id === item._id}>
+                        <PersonaAttributes
+                          value={item.persona.attributes}
+                          hideLabel
+                          plainText={item.persona.kind === 'text'}
+                          disabled={!useOverrides()}
+                        />
+                      </Show>
+                    )}
+                  </For>
+                </Show>
+              </div>
+            </Card>
           </Show>
         </div>
       </form>
