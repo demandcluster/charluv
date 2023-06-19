@@ -74,8 +74,7 @@ const CreateChatModal: Component<{
     const character = char()
     if (!character) return
 
-  
-  const body = getStrictForm(ref, {
+    const body = getStrictForm(ref, {
       name: 'string',
       greeting: 'string',
       scenario: 'string',
@@ -84,27 +83,8 @@ const CreateChatModal: Component<{
       mode: ['standard', 'adventure', null],
     } as const)
 
-    let attributes = getAttributeMap(ref)
+    const attributes = getAttributeMap(ref)
 
-    // if (user.admin) {
-    //   body = getStrictForm(ref, {
-    //     name: 'string',
-    //     greeting: 'string',
-    //     scenario: 'string',
-    //     sampleChat: 'string',
-    //     schema: ['wpp', 'boostyle', 'sbf', 'text'],
-    //   } as const)
-    //   attributes = getAttributeMap(ref)
-    // } else {
-    body = getStrictForm(ref, {
-      name: 'string',
-    } as const)
-    body.scenario = character.scenario
-    body.greeting = character.greeting
-    body.sampleChat = character.sampleChat
-    attributes = character.persona.attributes
-    body.schema = character.persona.kind
-    //  }
     const characterId = character._id
 
     const overrides = useOverrides()
@@ -170,7 +150,10 @@ const CreateChatModal: Component<{
                 fieldName="character"
                 label="Character"
                 helperText="The conversation's main character"
-                onChange={(c) => setSelected(c?._id)}
+                onChange={(c) => {
+                  setSelected(c?._id)
+                  setUseOverrides(false)
+                }}
               />
             </Card>
           </Show>
@@ -187,6 +170,7 @@ const CreateChatModal: Component<{
               placeholder="Untitled"
             />
           </Card>
+
           <Show when={!char()?.parent && char()?.name !== 'Aiva'}>
             <Card>
               <Toggle
@@ -197,91 +181,93 @@ const CreateChatModal: Component<{
                 helperText="Overrides will only apply to the newly created conversation."
               />
             </Card>
-
-            <Divider />
-
-            <Card>
-              <TextInput
-                isMultiline
-                fieldName="greeting"
-                label="Greeting"
-                value={char()?.greeting}
-                class="text-xs"
-                disabled={!useOverrides()}
-              ></TextInput>
-            </Card>
-
-            <Card>
-              <TextInput
-                isMultiline
-                fieldName="scenario"
-                label="Scenario"
-                value={char()?.scenario}
-                class="text-xs"
-                disabled={!useOverrides()}
-              ></TextInput>
-            </Card>
-
-            <Card>
-              <TextInput
-                isMultiline
-                fieldName="sampleChat"
-                label="Sample Chat"
-                value={char()?.sampleChat}
-                class="text-xs"
-                disabled={!useOverrides()}
-              ></TextInput>
-            </Card>
-
-            <Card>
-              <Show when={char()?.persona.kind !== 'text'}>
-                <Select
-                  class="mb-2 text-sm"
-                  fieldName="schema"
-                  label="Persona"
-                  items={options}
-                  value={char()?.persona.kind || 'wpp'}
-                  disabled={!useOverrides()}
-                />
-              </Show>
-
-              <Show when={char()?.persona.kind === 'text'}>
-                <Select
-                  class="mb-2 text-sm"
-                  fieldName="schema"
-                  label="Persona"
-                  items={[{ label: 'Plain text', value: 'text' }]}
-                  value={'text'}
-                  disabled={!useOverrides()}
-                />
-              </Show>
-
-              <div class="w-full text-sm">
-                <Show when={char()}>
-                  <PersonaAttributes
-                    value={char()!.persona.attributes}
-                    hideLabel
-                    plainText={char()?.persona?.kind === 'text'}
-                    disabled={!useOverrides()}
-                  />
-                </Show>
-                <Show when={!char()}>
-                  <For each={state.chars}>
-                    {(item) => (
-                      <Show when={char()?._id === item._id}>
-                        <PersonaAttributes
-                          value={item.persona.attributes}
-                          hideLabel
-                          plainText={item.persona.kind === 'text'}
-                          disabled={!useOverrides()}
-                        />
-                      </Show>
-                    )}
-                  </For>
-                </Show>
-              </div>
-            </Card>
           </Show>
+          <Show when={char()?.parent || char()?.name === 'Aiva'}>
+            <Card>Matches and Aiva can not be overridden.</Card>
+          </Show>
+          <Divider />
+
+          <Card>
+            <TextInput
+              isMultiline
+              fieldName="greeting"
+              label="Greeting"
+              value={char()?.greeting}
+              class="text-xs"
+              disabled={!useOverrides()}
+            ></TextInput>
+          </Card>
+
+          <Card>
+            <TextInput
+              isMultiline
+              fieldName="scenario"
+              label="Scenario"
+              value={char()?.scenario}
+              class="text-xs"
+              disabled={!useOverrides()}
+            ></TextInput>
+          </Card>
+
+          <Card>
+            <TextInput
+              isMultiline
+              fieldName="sampleChat"
+              label="Sample Chat"
+              value={char()?.sampleChat}
+              class="text-xs"
+              disabled={!useOverrides()}
+            ></TextInput>
+          </Card>
+
+          <Card>
+            <Show when={char()?.persona.kind !== 'text'}>
+              <Select
+                class="mb-2 text-sm"
+                fieldName="schema"
+                label="Persona"
+                items={options}
+                value={char()?.persona.kind || 'wpp'}
+                disabled={!useOverrides()}
+              />
+            </Show>
+
+            <Show when={char()?.persona.kind === 'text'}>
+              <Select
+                class="mb-2 text-sm"
+                fieldName="schema"
+                label="Persona"
+                items={[{ label: 'Plain text', value: 'text' }]}
+                value={'text'}
+                disabled={!useOverrides()}
+              />
+            </Show>
+
+            <div class="w-full text-sm">
+              <Show when={char()}>
+                <PersonaAttributes
+                  value={char()!.persona.attributes}
+                  hideLabel
+                  plainText={char()?.persona?.kind === 'text'}
+                  disabled={!useOverrides()}
+                />
+              </Show>
+              <Show when={!char()}>
+                <For each={state.chars}>
+                  {(item) => (
+                    <Show when={char()?._id === item._id}>
+                      <PersonaAttributes
+                        value={item.persona.attributes}
+                        hideLabel
+                        plainText={item.persona.kind === 'text'}
+                        disabled={!useOverrides()}
+                      />
+                    </Show>
+                  )}
+                </For>
+              </Show>
+            </div>
+          </Card>
         </div>
       </form>
     </Modal>
