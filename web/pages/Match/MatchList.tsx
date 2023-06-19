@@ -19,7 +19,8 @@ const MatchList: Component = () => {
 
   const createMatch = async (charId: string) => {
     const char = chars.list.find((c) => c._id === charId)
-    matchStore.createMatch(char).then(() => navigate('/character/list'))
+    // matchStore.createMatch(char).then(() => navigate('/character/list'))
+    matchStore.createMatch(char,((s) => (navigate(s))))
   }
 
   return (

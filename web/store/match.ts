@@ -4,6 +4,7 @@ import { createStore } from './create'
 import { userStore } from './user'
 import { toastStore } from './toasts'
 import { data } from './data'
+import { chatsApi } from './data/chats'
 type Matchesstate = {
   Matches: {
     loaded: boolean
@@ -96,9 +97,22 @@ export const matchStore = createStore<Matchesstate>('Match', {
 
       if (res.error) toastStore.error(`Failed to create Match: ${res.error}`)
       if (res.result) {
+
+        // const props = charsIds().list[charsIds().list.length - 1];
+        // console.log(charsIds().list,this.id,charsIds().list[charsIds().list.length - 1],props);
+
+        return chatsApi.createChat(res.result._id, {
+          name: "First Chat",
+          schema: "wpp",
+          useOverrides:  false,
+        }).then((res) => {
+          if (res.error) toastStore.error(`Failed to create conversation: ${res.error}`)
+          if (res.result) {
+            onSuccess?.(`/chat/${res.result._id}`);
+          }
+        })
         toastStore.success(`Successfully created Match`)
         Matchestore.getMatches()
-        onSuccess?.()
       }
     },
   }
