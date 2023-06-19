@@ -12,6 +12,7 @@ import CharacterSelect from '../../shared/CharacterSelect'
 import { AutoPreset, getPresetOptions } from '../../shared/adapter'
 import { defaultPresets, isDefaultPreset } from '/common/presets'
 import ServiceWarning from '/web/shared/ServiceWarning'
+import { PresetSelect } from '/web/shared/PresetSelect'
 import { Card } from '/web/shared/Card'
 import { Toggle } from '/web/shared/Toggle'
 import Divider from '/web/shared/Divider'
@@ -31,14 +32,12 @@ const CreateChatModal: Component<{
 
   const nav = useNavigate()
   const user = userStore((s) => ({ ...s.user }))
-  const presets = presetStore((s) => s.presets)
   const state = characterStore((s) => ({
     chars: (s.characters?.list || []).filter((c) => c.userId === user._id),
     loaded: s.characters.loaded,
   }))
 
   const [selectedId, setSelected] = createSignal<string>()
-  const [presetId, setPresetId] = createSignal('')
   const [useOverrides, setUseOverrides] = createSignal(false)
 
   const char = createMemo(() =>
@@ -54,9 +53,14 @@ const CreateChatModal: Component<{
     setSelected(state.chars[0]._id)
   })
 
+  const [presetId, setPresetId] = createSignal(user.defaultPreset)
+  const presets = presetStore((s) => s.presets)
+
   const presetOptions = createMemo(() => {
     const opts = getPresetOptions(presets, { builtin: true }).filter((pre) => pre.value !== 'chat')
-    return [{ label: 'System Built-in Preset (Horde)', value: AutoPreset.service }].concat(opts)
+    return [
+      { label: 'System Built-in Preset (Horde)', value: AutoPreset.service, custom: false },
+    ].concat(opts)
   })
 
   const selectedPreset = createMemo(() => {
@@ -70,7 +74,15 @@ const CreateChatModal: Component<{
     const character = char()
     if (!character) return
 
-    let body
+  
+  const body = getStrictForm(ref, {
+      name: 'string',
+      greeting: 'string',
+      scenario: 'string',
+      sampleChat: 'string',
+      schema: ['wpp', 'boostyle', 'sbf', 'text'],
+      mode: ['standard', 'adventure', null],
+    } as const)
 
     let attributes = getAttributeMap(ref)
 
@@ -100,6 +112,7 @@ const CreateChatModal: Component<{
           greeting: body.greeting,
           scenario: body.scenario,
           sampleChat: body.sampleChat,
+          genPreset: presetId(),
           overrides: { kind: body.schema, attributes },
         }
       : {
@@ -113,7 +126,7 @@ const CreateChatModal: Component<{
       overrides.greeting = body.greeting
     }
 
-    const payload = { ...body, ...overrides, useOverrides: useOverrides() }
+    const payload = { ...body, ...overrides, useOverrides: useOverrides(), genPreset: presetId() }
     chatStore.createChat(characterId, payload, (id) => nav(`/chat/${id}`))
   }
 
@@ -156,12 +169,11 @@ const CreateChatModal: Component<{
                 value={char()}
                 fieldName="character"
                 label="Character"
-                helperText="The conversation's central character"
+                helperText="The conversation's main character"
                 onChange={(c) => setSelected(c?._id)}
               />
             </Card>
           </Show>
-
           <Card>
             <TextInput
               class="text-sm"

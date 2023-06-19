@@ -6,6 +6,9 @@ import { setComponentPageTitle } from '../../shared/util'
 const text = `
 _17 June 2023_
 - Added character creation,import,export,overrides in chat, and more!
+- New character editor pane. Edit your characters while chatting!
+- Add token counts to character editor
+- New Prompt Editor
 
 _6 June 2023_
 - Add background color to customizable colors

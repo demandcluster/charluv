@@ -19,7 +19,16 @@ import {
   Users,
   VenetianMask,
 } from 'lucide-solid'
-import { Component, createMemo, JSX, Show } from 'solid-js'
+import {
+  Component,
+  createEffect,
+  createMemo,
+  createSignal,
+  JSX,
+  Match,
+  Show,
+  Switch,
+} from 'solid-js'
 import AvatarIcon from './shared/AvatarIcon'
 import { characterStore, chatStore, inviteStore, settingStore, userStore } from './store'
 import Slot from './shared/Slot'
@@ -53,9 +62,8 @@ const Navigation: Component = () => {
   })
 
   const hide = createMemo(() => {
-    if (chat.opts.editingChar && !state.showMenu) return 'drawer--hide'
+    if (!!chat.opts.pane && !state.showMenu) return 'drawer--hide'
     if (state.showMenu) return ''
-    // || (chat.opts.editingChar && !state.showMenu)
     return 'drawer--hide'
   })
 
@@ -64,9 +72,11 @@ const Navigation: Component = () => {
   return (
     <>
       <div ref={parent} class={`drawer bg-800 flex flex-col gap-2 pt-2 ${hide()} ${fullscreen()}`}>
-        <div ref={content} class="drawer__content flex flex-col gap-1 px-4 sm:gap-2">
-          <div
-            class="hidden w-full items-center justify-center sm:flex"
+         <div
+         ref={content}
+         class="drawer__content sm:text-md flex flex-col gap-1 px-4 text-xl sm:gap-2"
+       >
+         <div class="hidden w-full items-center justify-center sm:flex"
             style={user.ui?.mode === 'light' ? 'background:#55b89cff;' : 'background:#1f4439ff;'}
           >
             <A href="/">
@@ -127,7 +137,6 @@ const Navigation: Component = () => {
 const UserNavigation: Component = () => {
   const user = userStore()
   const menu = settingStore()
-  const page = useWindowSize()
 
   return (
     <>
@@ -179,9 +188,8 @@ const UserNavigation: Component = () => {
           <ShoppingCart /> Shop
         </Item>
       </Show>
-      <Show when={page.width() >= 1024}>
-        <Slot slot="menu" />
-      </Show>
+
+      <Slots />
     </>
   )
 }
@@ -193,7 +201,6 @@ const GuestNavigation: Component = () => {
     guest: s.guestAccessAllowed,
     flags: s.flags,
   }))
-  const page = useWindowSize()
 
   return (
     <>
@@ -232,10 +239,41 @@ const GuestNavigation: Component = () => {
         </Item>
       </Show>
 
-      <Show when={page.width() >= 1024}>
+     <Slots/>
+   </>
+  )
+}
+
+const Slots: Component = (props) => {
+  const state = settingStore()
+  const page = useWindowSize()
+
+  const [rendered, setRendered] = createSignal(false)
+
+  createEffect(() => {
+    if (rendered()) return
+
+    if (state.showMenu) {
+      setTimeout(() => setRendered(true), 500)
+    }
+  })
+
+  return (
+    <Switch>
+      <Match when={page.width() < 900}>
+        <Show when={rendered()}>
+          <Slot slot="menu" />
+        </Show>
+      </Match>
+
+      <Match when={page.height() >= 1000}>
+        <Slot slot="menuLg" />
+      </Match>
+
+      <Match when={true}>
         <Slot slot="menu" />
-      </Show>
-    </>
+      </Match>
+    </Switch>
   )
 }
 
@@ -243,7 +281,7 @@ const Item: Component<{ href: string; children: string | JSX.Element }> = (props
   return (
     <A
       href={props.href}
-      class="sm:text-md flex h-10 items-center justify-start gap-4 rounded-lg px-2 text-sm hover:bg-[var(--bg-700)] sm:h-12 "
+      class="flex h-10 items-center justify-start gap-4 rounded-lg px-2 hover:bg-[var(--bg-700)] sm:h-12"
       onClick={settingStore.closeMenu}
     >
       {props.children}

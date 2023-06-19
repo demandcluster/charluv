@@ -18,4 +18,4 @@ version.txt
 settings.json
 .npmrc
 .model/
-!tailwind.config.js
+!.github/*.js

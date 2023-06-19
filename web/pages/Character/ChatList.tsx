@@ -145,8 +145,8 @@ const CharacterChats: Component = () => {
       />
 
       <div class="mb-2 flex justify-between">
-        <div class="flex flex-wrap">
-          <div class="m-1 ml-0">
+        <div class="flex flex-wrap gap-1">
+          <div>
             <TextInput
               fieldName="search"
               placeholder="Search..."
@@ -163,16 +163,16 @@ const CharacterChats: Component = () => {
             onChange={(char) => setCharId(char?._id)}
           />
 
-          <div class="flex flex-wrap">
+          <div class="flex flex-wrap gap-1">
             <Select
-              class="m-1 bg-[var(--bg-600)]"
+              class="bg-[var(--bg-600)]"
               fieldName="sortBy"
               items={sortOptions.filter((opt) => (charId() ? opt.kind === 'chat' : true))}
               value={sortField()}
               onChange={(next) => setSortField(next.value as SortType)}
             />
 
-            <div class="py-1">
+            <div>
               <Button
                 schema="secondary"
                 class="rounded-xl"
@@ -273,11 +273,11 @@ const Chats: Component<{
                         <div class="overflow-hidden text-ellipsis whitespace-nowrap font-bold leading-5">
                           {chat.characters.map((c) => c.name).join(', ')}
                         </div>
-                        <div class="overflow-hidden text-ellipsis whitespace-nowrap text-sm leading-4">
-                          {chat.name || 'Untitled'}
-                        </div>
-                        <div class="flex text-xs italic text-[var(--text-600)]">
-                          Updated {toDuration(new Date(chat.updatedAt))} ago.
+                        <div class="flex gap-2 overflow-hidden text-ellipsis whitespace-nowrap text-sm leading-4">
+                          <span>{chat.name || 'Untitled'} </span>
+                          <span class="flex text-xs italic text-[var(--text-600)]">
+                            {toDuration(new Date(chat.updatedAt))} ago.
+                          </span>
                         </div>
                       </div>
                     </A>

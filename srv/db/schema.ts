@@ -35,8 +35,8 @@ export namespace AppSchema {
     flags?: string
     slots: {
       enabled: boolean
-      testing: boolean
       menu: string
+      menuLg: string
       banner: string
       mobile: string
     }
