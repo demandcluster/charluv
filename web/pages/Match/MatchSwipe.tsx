@@ -118,9 +118,7 @@ const MatchList: Component = () => {
 
   const createMatch = async (charId: string) => {
     const char = charsList().list.find((c) => c._id === charId)
-    console.log("eeeee");
     await matchStore.createMatch(char,((s) => (navigate(s))))
-
   }
   function fixcharlist(charsList){  
     return charsList
