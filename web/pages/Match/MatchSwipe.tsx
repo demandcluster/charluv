@@ -29,6 +29,7 @@ import { SwipeCard } from '../../shared/Swipe'
 import type { SwipeCardRef } from '../../shared/Swipe'
 import { setComponentPageTitle } from '../../shared/util'
 import { getAssetUrl } from '../../shared/util'
+import { chatsApi } from '../../store/data/chats'
 
 const CACHE_KEY = 'charluv-likes-cache'
 
@@ -136,7 +137,23 @@ const MatchList: Component = () => {
     switch (direction) {
       case 'right':
         createMatch(this.id)
-        this.apiRef.remove()
+        this.apiRef.remove();
+        const props = charsIds().list[charsIds().list.length - 1];
+        console.log(charsIds().list,this.id,charsIds().list[charsIds().list.length - 1],props);
+        chatsApi.createChat(this.id, {
+          name: "First Chat",
+          scenario: props.scenario,
+          greeting: props.greeting,
+          sampleChat: props.sampleChat,
+          overrides: { ...props.persona },
+          useOverrides: props.useOverrides ?? false,
+        }).then((res) => {
+          if (res.error) toastStore.error(`Failed to create conversation: ${res.error}`)
+          if (res.result) {
+            console.log(res.result);
+          }
+        })
+        
         break
       case 'up':
         showProfile()
