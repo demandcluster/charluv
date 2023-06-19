@@ -369,7 +369,7 @@ const ChatDetail: Component = () => {
                     {adapterLabel()}
                   </div>
                 </Show>
-               
+
                 <div class="" onClick={() => setShowOpts(true)}>
                   <Menu class="icon-button" />
                   <DropMenu
@@ -405,7 +405,7 @@ const ChatDetail: Component = () => {
               style={contentStyles()}
             >
               <section
-                class={`flex flex-col-reverse gap-4 overflow-y-auto sm:pr-2 ${msgsMaxWidth()}`}
+                class={`flex w-full flex-col-reverse gap-4 overflow-y-auto sm:pr-2 ${msgsMaxWidth()}`}
               >
                 <div id="chat-messages" class="flex w-full flex-col gap-2">
                   <Show
@@ -600,7 +600,6 @@ const ChatDetail: Component = () => {
 
       <ImageModal />
 
-      
       <PromptModal />
       <Show when={chats.opts.modal === 'ui'}>
         <Modal
