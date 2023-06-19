@@ -118,7 +118,7 @@ const MatchList: Component = () => {
 
   const createMatch = async (charId: string) => {
     const char = charsList().list.find((c) => c._id === charId)
-    matchStore.createMatch(char)
+    await matchStore.createMatch(char,((s) => (navigate(s))))
   }
   function fixcharlist(charsList){  
     return charsList
@@ -136,7 +136,8 @@ const MatchList: Component = () => {
     switch (direction) {
       case 'right':
         createMatch(this.id)
-        this.apiRef.remove()
+        this.apiRef.remove();
+        
         break
       case 'up':
         showProfile()
