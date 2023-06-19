@@ -65,7 +65,8 @@ const CreateChatModal: Component<{
 
   const selectedPreset = createMemo(() => {
     const id = presetId()
-    if (!id || id) return defaultPresets.horde
+    console.log(AutoPreset.service)
+    if (!id || id) return AutoPreset.service
     if (isDefaultPreset(id)) return defaultPresets[id]
     return presets.find((pre) => pre._id === id)
   })
