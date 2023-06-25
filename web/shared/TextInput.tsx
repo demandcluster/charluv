@@ -14,6 +14,7 @@ const TextInput: Component<{
   isMultiline?: boolean
   type?: string
   disabled?: boolean
+  autocomplete?: string
   value?: number | string
   required?: boolean
   class?: string
@@ -119,6 +120,7 @@ const TextInput: Component<{
             }}
             onChange={handleChange}
             disabled={props.disabled}
+            autocomplete={props.autocomplete}
             pattern={props.pattern}
             ref={ref}
           />

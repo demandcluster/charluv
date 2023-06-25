@@ -38,7 +38,11 @@ const Slot: Component<{ slot: SlotKind }> = (props) => {
     if (!hasSlot) {
       log('Missing slot')
     }
-    const canShow = hasSlot && (cfg.flags.slots || cfg.slots.enabled)
+    const canShow =
+      hasSlot &&
+      (cfg.flags.slots || cfg.slots.enabled) &&
+      !user.user?.premium &&
+      user.user?._id !== 'anon'
     setShow(canShow)
     const ele = document.getElementById(id()) || ref
     if (!ele) {

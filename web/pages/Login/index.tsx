@@ -106,6 +106,16 @@ const LoginPage: Component = () => {
               <span class="text-sm">(this code could run out)</span>
             </p>
           </div>
+          <p class="flex justify-center text-xl text-[var(--hl-400)]">
+            Do not register more than one account!
+          </p>
+
+          <div class="mx-4 flex flex-col items-center text-center ">
+            <p>
+              When using more than one account, all your accounts will have credit recharge rate
+              reduced substantially.
+            </p>
+          </div>
         </Show>
       </div>
     </div>
@@ -141,15 +151,28 @@ const RegisterForm: Component<FormProps> = (props) => {
     <form onSubmit={register} class="flex flex-col gap-6">
       <div class="flex flex-col gap-2">
         <TextInput label="Display Name" fieldName="handle" placeholder="Display name" required />
-        <TextInput label="Username" fieldName="username" placeholder="Username" required />
+        <TextInput
+          label="Username"
+          fieldName="username"
+          autocomplete="username"
+          placeholder="Username"
+          required
+        />
         <TextInput
           label="Password"
           fieldName="password"
           placeholder="Password"
           type="password"
+          autocomplete="new-password"
           required
         />
-        <TextInput fieldName="confirm" placeholder="Confirm Password" type="password" required />
+        <TextInput
+          fieldName="confirm"
+          placeholder="Confirm Password"
+          type="password"
+          autocomplete="new-password"
+          required
+        />
         <TextInput
           label="Invite code"
           fieldName="invitecode"
