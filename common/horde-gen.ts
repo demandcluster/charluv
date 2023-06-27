@@ -5,7 +5,8 @@ import { toArray } from './util'
 import { AppLog } from '/srv/logger'
 
 const HORDE_GUEST_KEY = '0000000000'
-const imageUrl = 'https://horde.koboldai.net/api/v2'
+//const imageUrl = 'https://horde.koboldai.net/api/v2'
+const imageUrl = 'https://horde.aivo.chat/api/v2'
 const hordeUrl = 'https://horde.aivo.chat/api/v2'
 
 //const imageUrl = 'http://localhost:7001/api/v2'
@@ -108,7 +109,7 @@ export async function generateImage(user: AppSchema.User, prompt: string) {
     },
     censor_nsfw: false,
     nsfw: true,
-    models: [settings.model || 'stable_diffusion'],
+    models: [settings.model || 'Deliberate'],
     r2: false,
     replacement_filter: true,
     trusted_workers: user.hordeUseTrusted ?? false,
