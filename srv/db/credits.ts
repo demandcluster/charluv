@@ -2,7 +2,7 @@ import { errors, StatusError } from '../api/wrap'
 import { getChat } from './chats'
 import { db } from './client'
 import { sendOne } from '../api/ws'
-import { AppSchema } from './schema'
+import { AppSchema } from '../../common/types/schema'
 
 export async function updateCredits(userId: string, amount: number, nextCredits: number = 0) {
   const user = await db('user').findOne({ kind: 'user', _id: userId })

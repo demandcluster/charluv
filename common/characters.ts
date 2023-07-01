@@ -7,7 +7,7 @@ export const defaultChars = {
     match: false,
     xp: 0,
     premium: false,
-    avatar: '/assets/aiva.png',
+    avatar: '/asset/aiva.png',
     persona: {
       kind: 'boostyle',
       attributes: {

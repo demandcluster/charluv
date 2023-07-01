@@ -134,7 +134,7 @@ const CharacterList: Component = () => {
           <div class="flex w-full justify-between">
             <div>Matches</div>
             <Show when={user.user._id !== 'anon'}>
-            <div class="flex text-base">
+              <div class="flex text-base">
                 <div class="px-1">
                   <Button onClick={() => setImport(true)}>
                     <Import />
@@ -149,8 +149,7 @@ const CharacterList: Component = () => {
                     </Button>
                   </A>
                 </div>
-              
-            </div>
+              </div>
             </Show>
           </div>
         }
@@ -283,62 +282,62 @@ const Characters: Component<{
             </div>
           </Show>
           <Show when={props.user.user?._id !== 'anon'}>
-          <Show when={!props.type || props.type === 'list'}>
-            <div class="flex w-full flex-col gap-2 pb-5">
+            <Show when={!props.type || props.type === 'list'}>
+              <div class="flex w-full flex-col gap-2 pb-5">
+                <For each={groups()}>
+                  {(group) => (
+                    <>
+                      <Show when={showGrouping() && group.label}>
+                        <h2 class="text-xl font-bold">{group.label}</h2>
+                      </Show>
+                      <For each={group.list}>
+                        {(char) => (
+                          <Character
+                            type={props.type}
+                            char={char}
+                            user={props.user}
+                            delete={() => setDelete(char)}
+                            download={() => setDownload(char)}
+                            toggleFavorite={(value) => toggleFavorite(char._id, value)}
+                          />
+                        )}
+                      </For>
+                      <Divider />
+                    </>
+                  )}
+                </For>
+              </div>
+            </Show>
+
+            <Show when={props.type === 'cards'}>
               <For each={groups()}>
                 {(group) => (
                   <>
-                    <Show when={showGrouping() && group.label}>
+                    <Show when={showGrouping()}>
                       <h2 class="text-xl font-bold">{group.label}</h2>
                     </Show>
-                    <For each={group.list}>
-                      {(char) => (
-                        <Character
-                          type={props.type}
-                          char={char}
-                          user={props.user}
-                          delete={() => setDelete(char)}
-                          download={() => setDownload(char)}
-                          toggleFavorite={(value) => toggleFavorite(char._id, value)}
-                        />
-                      )}
-                    </For>
+                    <div class="grid w-full grid-cols-[repeat(auto-fit,minmax(160px,1fr))] flex-row flex-wrap justify-start gap-2 py-2 md:gap-4">
+                      <For each={group.list}>
+                        {(char) => (
+                          <Character
+                            type={props.type}
+                            char={char}
+                            user={props.user}
+                            delete={() => setDelete(char)}
+                            download={() => setDownload(char)}
+                            toggleFavorite={(value) => toggleFavorite(char._id, value)}
+                          />
+                        )}
+                      </For>
+                      <Show when={group.list.length < 4}>
+                        <For each={new Array(4 - group.list.length)}>{() => <div></div>}</For>
+                      </Show>
+                    </div>
                     <Divider />
                   </>
                 )}
               </For>
-            </div>
-          </Show>
-
-          <Show when={props.type === 'cards'}>
-            <For each={groups()}>
-              {(group) => (
-                <>
-                  <Show when={showGrouping()}>
-                    <h2 class="text-xl font-bold">{group.label}</h2>
-                  </Show>
-                  <div class="grid w-full grid-cols-[repeat(auto-fit,minmax(160px,1fr))] flex-row flex-wrap justify-start gap-2 py-2 md:gap-4">
-                    <For each={group.list}>
-                      {(char) => (
-                        <Character
-                          type={props.type}
-                          char={char}
-                          user={props.user}
-                          delete={() => setDelete(char)}
-                          download={() => setDownload(char)}
-                          toggleFavorite={(value) => toggleFavorite(char._id, value)}
-                        />
-                      )}
-                    </For>
-                    <Show when={group.list.length < 4}>
-                      <For each={new Array(4 - group.list.length)}>{() => <div></div>}</For>
-                    </Show>
-                  </div>
-                  <Divider />
-                </>
-              )}
-            </For>
-          </Show>
+            </Show>
           </Show>
         </Match>
       </Switch>
@@ -392,33 +391,33 @@ const Character: Component<{
             <Show when={!props.char.favorite}>
               <Star class="icon-button" onClick={() => props.toggleFavorite(true)} />
             </Show>
-<Show when={!props.char?.parent && props.char?.name!=="Aiva"}>
-            <A href={`/chats/create/${props.char._id}`}>
-              <MessageCircle class="icon-button" />
-            </A>
-            <a onClick={props.download}>
-              <Download class="icon-button" />
-            </a>
-            <A href={`/character/${props.char._id}/edit`}>
-              <Edit class="icon-button" />
-            </A>
-            <A href={`/character/create/${props.char._id}`}>
-              <Copy class="icon-button" />
-            </A>
-            </Show></Show>
-            <Show when={props.char?.name!=="Aiva"}>
-            <Trash class="icon-button" onClick={props.delete} />
+            <Show when={!props.char?.parent && props.char?.name !== 'Aiva'}>
+              <A href={`/chats/create/${props.char._id}`}>
+                <MessageCircle class="icon-button" />
+              </A>
+              <a onClick={props.download}>
+                <Download class="icon-button" />
+              </a>
+              <A href={`/character/${props.char._id}/edit`}>
+                <Edit class="icon-button" />
+              </A>
+              <A href={`/character/create/${props.char._id}`}>
+                <Copy class="icon-button" />
+              </A>
+            </Show>
+            <Show when={props.char?.name !== 'Aiva'}>
+              <Trash class="icon-button" onClick={props.delete} />
             </Show>
             <Show when={props.char?.parent}>
-            <User class="icon-button" onClick={() => nav(`/likes/${props.char._id}/profile`)} />
+              <User class="icon-button" onClick={() => nav(`/likes/${props.char._id}/profile`)} />
             </Show>
           </div>
-              <div class="flex items-center sm:hidden" onClick={() => setListOpts(true)}>
+          <div class="flex items-center sm:hidden" onClick={() => setListOpts(true)}>
             <Show when={props.char.name !== 'Aiva' && props.char?.parent}>
-                  <Gauge showBar={false} currentXP={props.char.xp} />
+              <Gauge showBar={false} currentXP={props.char.xp} />
             </Show>
-                <MoreHorizontal class="icon-button" />
-              </div>
+            <MoreHorizontal class="icon-button" />
+          </div>
           <DropMenu
             class="bg-[var(--bg-700)]"
             show={listOpts()}
@@ -439,7 +438,7 @@ const Character: Component<{
               <Button onClick={() => nav(`/chats/create/${props.char._id}`)} alignLeft size="sm">
                 <MessageCircle /> Chat
               </Button>
-              <Show when={!props.char?.parent && props.char?.name!=="Aiva"}>
+              <Show when={!props.char?.parent && props.char?.name !== 'Aiva'}>
                 <Button alignLeft onClick={props.download} size="sm">
                   <Download /> Download
                 </Button>
@@ -461,10 +460,10 @@ const Character: Component<{
               <Button alignLeft schema="red" onClick={props.delete} size="sm">
                 <Trash /> Delete
               </Button>
-               <Show when={props.char?.parent&&props.char?.name!=="Aiva"}>
-              <Button alignLeft onClick={() => nav(`/likes/${props.char._id}/profile`)}>
-                <User /> Profile
-              </Button>
+              <Show when={props.char?.parent && props.char?.name !== 'Aiva'}>
+                <Button alignLeft onClick={() => nav(`/likes/${props.char._id}/profile`)}>
+                  <User /> Profile
+                </Button>
               </Show>
             </div>
           </DropMenu>
@@ -517,7 +516,7 @@ const Character: Component<{
             : ''}
         </div>
         <div class="-mt-2 h-12 px-2">
-          <Show when={props.char?.parent && props.char?.name!=="Aiva"}>
+          <Show when={props.char?.parent && props.char?.name !== 'Aiva'}>
             <div>
               <Gauge showBar={true} currentXP={props.char.xp} />
             </div>
@@ -556,7 +555,7 @@ const Character: Component<{
               <Button onClick={() => nav(`/chats/create/${props.char._id}`)} alignLeft size="sm">
                 <MessageCircle /> Chat
               </Button>
-               <Show when={!props.char?.parent && props.char?.name!=="Aiva"}>
+              <Show when={!props.char?.parent && props.char?.name !== 'Aiva'}>
                 <Button
                   alignLeft
                   size="sm"
@@ -593,10 +592,10 @@ const Character: Component<{
               >
                 <Trash /> Delete
               </Button>
-               <Show when={props.char?.parent}>
-              <Button alignLeft onClick={() => nav(`/likes/${props.char._id}/profile`)}>
-                <User /> Profile
-              </Button>
+              <Show when={props.char?.parent}>
+                <Button alignLeft onClick={() => nav(`/likes/${props.char._id}/profile`)}>
+                  <User /> Profile
+                </Button>
               </Show>
             </div>
           </DropMenu>

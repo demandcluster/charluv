@@ -1,5 +1,5 @@
 import { db } from './client'
-import { AppSchema } from './schema'
+import { AppSchema } from '../../common/types/schema'
 import { FindOneAndUpdateOptions } from 'mongodb'
 
 async function getNextOrderNumber() {

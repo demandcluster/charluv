@@ -6,9 +6,9 @@ import { settingStore } from '../../store'
 import { A } from '@solidjs/router'
 import Divider from '../../shared/Divider'
 import Button from '../../shared/Button'
-import logoDark from '../../assets/logoDark.png'
-import logo from '../../assets/logo.png'
-import discordLogo from '../../assets/discord-logo-blue.svg'
+import logoDark from '../../asset/logoDark.png'
+import logo from '../../asset/logo.png'
+import discordLogo from '../../asset/discord-logo-blue.svg'
 import { AlertTriangle } from 'lucide-solid'
 import { Card, Pill, SolidCard, TitleCard } from '/web/shared/Card'
 import Modal from '/web/shared/Modal'
@@ -92,7 +92,7 @@ const HomePage: Component = () => {
         title={
           <>
             <div
-              class="w-full pt-3 pl-4 pb-3 text-2xl text-white sm:flex"
+              class="w-full pb-3 pl-4 pt-3 text-2xl text-white sm:flex"
               style="background:#55b89cff;"
             >
               Charluv Virtual Dating
@@ -103,7 +103,7 @@ const HomePage: Component = () => {
 
       <Show when={!cfg.guest}>
         <div class="flex text-orange-500">
-          <AlertTriangle class="mr-2 mb-2" />
+          <AlertTriangle class="mb-2 mr-2" />
           We have become too busy to allow guest access. You will need to login/register to use
           Charluv.
         </div>

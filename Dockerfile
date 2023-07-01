@@ -2,8 +2,8 @@ FROM node:18.15.0-bullseye-slim
 
 WORKDIR /app
 VOLUME [ "/app/db" ]
-VOLUME [ "/app/assets" ]
-VOLUME [ "/app/dist/assets" ]
+VOLUME [ "/app/asset" ]
+VOLUME [ "/app/dist/asset" ]
 VOLUME [ "/app/extras" ]
 
 RUN npm install pnpm@8.6.0 -g
@@ -26,7 +26,7 @@ RUN pnpm run build:server && \
 ENV LOG_LEVEL=info \
   INITIAL_USER=administrator \
   DB_NAME=agnai \
-  ASSET_FOLDER=/app/dist/assets
+  ASSET_FOLDER=/app/dist/asset
 
 EXPOSE 3001
 EXPOSE 5001

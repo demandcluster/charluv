@@ -2,8 +2,8 @@ import { Component } from 'solid-js'
 import PageHeader from '../../shared/PageHeader'
 import { markdown } from '../../shared/markdown'
 import { setComponentPageTitle } from '../../shared/util'
-import logo from '../../assets/logo.png'
-import logoDark from '../../assets/logoDark.png'
+import logo from '../../asset/logo.png'
+import logoDark from '../../asset/logoDark.png'
 
 const text = `
 
@@ -57,7 +57,7 @@ const PremiumInfo: Component = () => {
       <img
         width="180px"
         style="background:#55b89cff;"
-        class="py-2 px-8"
+        class="px-8 py-2"
         alt="Charluv"
         src={logoDark}
       />

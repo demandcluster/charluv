@@ -3,7 +3,7 @@ import { Component } from 'solid-js'
 import PageHeader from '../../shared/PageHeader'
 import Divider from '../../shared/Divider'
 
-import logo from '../../assets/logo.png'
+import logo from '../../asset/logo.png'
 
 const Error: Component = () => {
     return (

@@ -10,7 +10,7 @@ import {
 } from '../../shared/util'
 import { userStore } from '../../store'
 import UISettings from './UISettings'
-import DateSettings from './DateSettings'
+
 import Tabs from '../../shared/Tabs'
 import AISettings from './AISettings'
 import { Show } from 'solid-js'
@@ -25,7 +25,6 @@ const settingTabs: Record<Tab, string> = {
   image: 'Image Settings',
   voice: 'Voice Settings',
   guest: 'Guest Data',
-  date: 'Dating Settings',
 }
 
 enum MainTab {

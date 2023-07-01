@@ -34,8 +34,8 @@ import AvatarIcon, { CharacterAvatar } from './shared/AvatarIcon'
 import { characterStore, chatStore, inviteStore, settingStore, userStore } from './store'
 import Slot from './shared/Slot'
 import { useEffect, useWindowSize } from './shared/hooks'
-import logo from './assets/logo.png'
-import logoDark from './assets/logoDark.png'
+import logo from './asset/logo.png'
+import logoDark from './asset/logoDark.png'
 
 const Navigation: Component = () => {
   let parent: any
@@ -73,17 +73,18 @@ const Navigation: Component = () => {
   return (
     <>
       <div ref={parent} class={`drawer bg-800 flex flex-col gap-2 pt-2 ${hide()} ${fullscreen()}`}>
-         <div
-         ref={content}
-         class="drawer__content sm:text-md flex flex-col gap-0 px-4 text-md sm:gap-1"
-       >
-         <div class="hidden w-full items-center justify-center sm:flex"
+        <div
+          ref={content}
+          class="drawer__content sm:text-md text-md flex flex-col gap-0 px-4 sm:gap-1"
+        >
+          <div
+            class="hidden w-full items-center justify-center sm:flex"
             style={user.ui?.mode === 'light' ? 'background:#55b89cff;' : 'background:#1f4439ff;'}
           >
             <A href="/">
               <img
                 width="180px"
-                class="py-2 px-0"
+                class="px-0 py-2"
                 alt="Charluv"
                 src={user.ui?.mode === 'light' ? logoDark : logo}
               />
@@ -120,8 +121,9 @@ const Navigation: Component = () => {
               </Switch>
               <div class="ellipsis flex cursor-pointer items-center justify-end rounded-lg bg-[var(--bg-700)] px-2 py-1">
                 <div class="ellipsis flex flex-col">
-                  <span>{chars.impersonating?.name || user.profile?.handle}
-                  {user.user?.premium ? ' ⭐' : ''}
+                  <span>
+                    {chars.impersonating?.name || user.profile?.handle}
+                    {user.user?.premium ? ' ⭐' : ''}
                   </span>
                 </div>
                 <Show when={!!chars.impersonating}>
@@ -248,8 +250,8 @@ const GuestNavigation: Component = () => {
         </Item>
       </Show>
 
-     <Slots/>
-   </>
+      <Slots />
+    </>
   )
 }
 

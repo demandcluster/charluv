@@ -4,7 +4,7 @@ import { A, useLocation } from '@solidjs/router'
 import { ChatRightPane, chatStore, settingStore } from '../store'
 import ChatOptions, { ChatModal } from '../pages/Chat/ChatOptions'
 import { DropMenu } from './DropMenu'
-import logoDark from '../assets/logoDark.png'
+import logoDark from '../asset/logoDark.png'
 import { getClientPreset } from './adapter'
 import { ADAPTER_LABELS } from '/common/adapters'
 
