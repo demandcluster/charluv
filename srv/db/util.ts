@@ -1,7 +1,7 @@
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 import { config } from '../config'
-import { AppSchema } from './schema'
+import { AppSchema } from '../../common/types/schema'
 import { defaultChars } from '../../common/characters'
 
 const ALGO = 'aes-192-cbc'
@@ -40,6 +40,7 @@ export const STARTER_CHARACTER: AppSchema.Character = {
   createdAt: '',
   updatedAt: '',
   favorite: false,
+  visualType: 'avatar',
   ...defaultChars.Robot,
 }
 

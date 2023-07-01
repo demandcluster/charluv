@@ -1,8 +1,8 @@
-import { AppSchema } from '../srv/db/schema'
+import { AppSchema } from './types/schema'
 import { defaultPresets } from './default-preset'
 import { SD_SAMPLER } from './image'
 import { toArray } from './util'
-import { AppLog } from '/srv/logger'
+import type { AppLog } from '/srv/logger'
 
 const HORDE_GUEST_KEY = '0000000000'
 //const imageUrl = 'https://horde.koboldai.net/api/v2'
@@ -161,8 +161,9 @@ export async function generateText(
   }
 
   const payload = { n: 1, ...body, ...settings }
-  const text = await generate({ type: 'text', payload, key: user.hordeKey || HORDE_GUEST_KEY })
-  return text
+  logger?.debug(payload, 'Horde payload')
+  const result = await generate({ type: 'text', payload, key: user.hordeKey || HORDE_GUEST_KEY })
+  return result
 }
 
 async function generate(opts: GenerateOpts) {
@@ -180,7 +181,14 @@ async function generate(opts: GenerateOpts) {
 
   const result = await poll(url, opts.key, opts.type === 'text' ? 2.5 : 6.5)
 
-  return opts.type === 'text' ? result.generations[0].text : result.generations[0].img
+  if (!result.generations || !result.generations.length) {
+    const error: any = new Error(`Horde request failed: No generation received`)
+    error.body = result
+    throw error
+  }
+
+  const text = opts.type === 'text' ? result.generations[0].text : result.generations[0].img
+  return { text, result }
 }
 
 async function poll(url: string, key: string | undefined, interval = 6.5) {

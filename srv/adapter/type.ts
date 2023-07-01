@@ -1,8 +1,9 @@
 import type { PromptParts } from '../../common/prompt'
-import { AppSchema } from '../db/schema'
+import { AppSchema } from '../../common/types/schema'
 import { AppLog } from '../logger'
 
 export type GenerateRequestV2 = {
+  requestId?: string
   kind: 'send' | 'ooc' | 'retry' | 'continue' | 'self' | 'summary' | 'request' | 'plain'
   chat: AppSchema.Chat
   user: AppSchema.User
@@ -18,6 +19,9 @@ export type GenerateRequestV2 = {
   continuing?: AppSchema.ChatMessage
   characters: Record<string, AppSchema.Character>
   impersonate?: AppSchema.Character
+
+  /** Date ISO string */
+  lastMessage?: string
 }
 
 export type GenerateOptions = {
@@ -42,6 +46,7 @@ export type AdapterProps = {
   lines: string[]
   characters?: Record<string, AppSchema.Character>
   impersonate: AppSchema.Character | undefined
+  lastMessage?: string
 
   /** GenSettings mapped to an object for the target adapter */
   gen: Partial<AppSchema.GenSettings>

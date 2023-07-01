@@ -1,6 +1,6 @@
 import { Import, X } from 'lucide-solid'
 import { Component, For, Show, createSignal, onMount } from 'solid-js'
-import { AppSchema } from '../../../srv/db/schema'
+import { AppSchema } from '../../../common/types/schema'
 import Button from '../../shared/Button'
 import FileInput, { FileInputResult, getFileAsString } from '../../shared/FileInput'
 import Modal from '../../shared/Modal'
@@ -277,12 +277,11 @@ function getImportFormat(obj: any): ImportFormat {
 
 function isNative(obj: any): obj is AppSchema.Character {
   return (
-    !!obj.name &&
-    !!obj.persona &&
-    !!obj.greeting &&
-    !!obj.scenario &&
-    !!obj.sampleChat &&
-    !!obj.anime
+    'name' in obj &&
+    'persona' in obj &&
+    'greeting' in obj &&
+    'scenario' in obj &&
+    'sampleChat' in obj
   )
 }
 

@@ -2,7 +2,7 @@ import { A, useNavigate, useParams, useSearchParams } from '@solidjs/router'
 import { Edit, Plus, Save, X } from 'lucide-solid'
 import { Component, createEffect, createSignal, Show } from 'solid-js'
 import { defaultPresets, isDefaultPreset, presetValidator } from '../../../common/presets'
-import { AppSchema } from '../../../srv/db/schema'
+import { AppSchema } from '../../../common/types/schema'
 import Button from '../../shared/Button'
 import Select, { Option } from '../../shared/Select'
 import GenerationSettings from '../../shared/GenerationSettings'
@@ -13,6 +13,7 @@ import { getStrictForm, setComponentPageTitle } from '../../shared/util'
 import { presetStore, toastStore } from '../../store'
 import { AI_ADAPTERS } from '../../../common/adapters'
 import Loading from '/web/shared/Loading'
+import { TitleCard } from '/web/shared/Card'
 
 export const GenerationPresetsPage: Component = () => {
   const { updateTitle } = setComponentPageTitle('Preset')
@@ -131,7 +132,7 @@ export const GenerationPresetsPage: Component = () => {
   if (params.id && !state.editing) {
     return (
       <>
-        <PageHeader title="Generation Presets" subtitle="Generation presets" />
+        <PageHeader title="Generation Presets" />
         <Loading />
       </>
     )
@@ -139,16 +140,16 @@ export const GenerationPresetsPage: Component = () => {
 
   return (
     <>
-      <PageHeader title="Generation Presets" subtitle="Generation presets" />
+      <PageHeader title="Generation Presets" />
       <div class="flex flex-col gap-2 pb-10">
         <Show when={params.id === 'default'}>
-          <div class="font-bold">
-            This is a default preset and cannot be saved.{' '}
+          <TitleCard type="orange" class="font-bold">
+            This is a built-in preset and cannot be saved.{' '}
             <A class="link" href={`/presets/new?preset=${query.preset}`}>
               Click here
             </A>{' '}
             if you'd like to create a copy of this preset.
-          </div>
+          </TitleCard>
         </Show>
         <div class="flex flex-col gap-4 p-2">
           <Show when={editing()}>
@@ -177,8 +178,9 @@ export const GenerationPresetsPage: Component = () => {
                   placeholder="E.g. Pygmalion Creative"
                   value={editing()?.name}
                   required
+                  parentClass="mb-2"
                 />
-                <GenerationSettings inherit={editing()} />
+                <GenerationSettings inherit={editing()} disabled={params.id === 'default'} />
               </div>
               <Show when={editing()?.userId !== 'SYSTEM'}>
                 <div class="flex flex-row justify-end">

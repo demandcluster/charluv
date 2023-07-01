@@ -1,4 +1,4 @@
-import { Component, JSX, createMemo } from 'solid-js'
+import { Component, JSX, Show, createMemo } from 'solid-js'
 import { getSettingColor, userStore } from '../store'
 import { useBgStyle } from './hooks'
 
@@ -8,6 +8,7 @@ export const Card: Component<{
   bg?: string
   bgOpacity?: number
   border?: boolean
+  hide?: boolean
 }> = (props) => {
   const cardBg = useBgStyle({
     hex: getSettingColor(props.bg || 'bg-500'),
@@ -15,15 +16,17 @@ export const Card: Component<{
     opacity: props.bgOpacity ?? 0.08,
   })
   return (
-    <div
-      class={`rounded-lg p-3 ${props.class ?? ''}`}
-      style={{
-        ...cardBg(),
-        border: props.border ? '1px solid var(--bg-600)' : 0,
-      }}
-    >
-      {props.children}
-    </div>
+    <Show when={!props.hide}>
+      <div
+        class={`rounded-lg p-3 ${props.class ?? ''}`}
+        style={{
+          ...cardBg(),
+          border: props.border ? '1px solid var(--bg-600)' : 0,
+        }}
+      >
+        {props.children}
+      </div>
+    </Show>
   )
 }
 
@@ -59,7 +62,7 @@ type CardType =
 
 export const TitleCard: Component<{
   children: JSX.Element
-  title: JSX.Element | string
+  title?: JSX.Element | string
   type?: CardType
   class?: string
   center?: boolean
@@ -78,15 +81,19 @@ export const TitleCard: Component<{
   })
   return (
     <div class={`flex flex-col gap-2 rounded-md border-[1px] ${props.class || ''}`} style={bg()}>
-      <div
-        class={`flex rounded-t-md px-2 pt-2 text-xl font-bold ${
-          props.center ? 'justify-center' : ''
-        }`}
-        style={bg()}
-      >
-        {props.title}
+      <Show when={!!props.title}>
+        <div
+          class={`flex rounded-t-md px-2 pt-2 text-xl font-bold ${
+            props.center ? 'justify-center' : ''
+          }`}
+          style={bg()}
+        >
+          {props.title}
+        </div>
+      </Show>
+      <div class="px-2 pb-2" classList={{ 'pt-2': !props.title }}>
+        {props.children}
       </div>
-      <div class="px-2 pb-2">{props.children}</div>
     </div>
   )
 }

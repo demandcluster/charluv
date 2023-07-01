@@ -5,7 +5,7 @@ import { store } from '../../db'
 import { errors, handle } from '../wrap'
 import { sendMany } from '../ws'
 import { personaValidator } from './common'
-import { AppSchema } from '/srv/db/schema'
+import { AppSchema } from '/common/types'
 
 export const updateChat = handle(async ({ params, body, user }) => {
   assertValid(
@@ -26,13 +26,13 @@ export const updateChat = handle(async ({ params, body, user }) => {
 
   const id = params.id
   const prev = await store.chats.getChatOnly(id)
-  if (prev?.userId !== user?.userId) throw errors.Forbidden
+  if (!prev || prev?.userId !== user?.userId) throw errors.Forbidden
 
   const update: PartialUpdate<AppSchema.Chat> = {
-    name: body.name,
-    mode: body.mode,
-    adapter: body.adapter,
-    memoryId: body.memoryId,
+    name: body.name ?? prev.name,
+    mode: body.mode ?? prev.mode,
+    adapter: body.adapter ?? prev.adapter,
+    memoryId: body.memoryId ?? prev.memoryId,
   }
 
   if (body.useOverrides === false) {

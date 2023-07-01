@@ -12,12 +12,14 @@ import {
 } from '../../common/prompt'
 import { OPENAI_CHAT_MODELS, OPENAI_MODELS } from '../../common/adapters'
 import { StatusError } from '../api/wrap'
-import { AppSchema } from '../db/schema'
+import { AppSchema } from '../../common/types/schema'
 import { getEncoder } from '../tokenize'
 import { needleToSSE } from './stream'
 import { adventureAmble } from '/common/default-preset'
 import { IMAGE_SUMMARY_PROMPT } from '/common/image'
 import { config } from '../config'
+import { AppLog } from '../logger'
+import { publishOne } from '../api/ws/handle'
 
 const baseUrl = `https://api.openai.com`
 
@@ -34,12 +36,15 @@ type Completion<T = Inference> = {
   model: string
   object: string
   choices: CompletionContent<T>
+  error?: { message: string }
 }
 
 type CompletionGenerator = (
+  userId: string,
   url: string,
   headers: Record<string, string | string[] | number>,
-  body: any
+  body: any,
+  log: AppLog
 ) => AsyncGenerator<
   { error: string } | { error?: undefined; token: string },
   Completion | undefined
@@ -47,7 +52,7 @@ type CompletionGenerator = (
 
 // We only ever use the OpenAI gpt-3 encoder
 // Don't bother passing it around since we know this already
-const encoder = getEncoder('openai', OPENAI_MODELS.Turbo)
+const encoder = () => getEncoder('openai', OPENAI_MODELS.Turbo)
 
 export const handleOAI: ModelAdapter = async function* (opts) {
   const { char, members, user, prompt, settings, log, guest, gen, kind, isThirdParty } = opts
@@ -108,8 +113,8 @@ export const handleOAI: ModelAdapter = async function* (opts) {
   const url = useChat ? `${base.url}/chat/completions` : `${base.url}/completions`
 
   const iter = body.stream
-    ? streamCompletion(url, headers, body)
-    : requestFullCompletion(url, headers, body)
+    ? streamCompletion(opts.user._id, url, headers, body, opts.log)
+    : requestFullCompletion(opts.user._id, url, headers, body, opts.log)
   let accumulated = ''
   let response: Completion<Inference> | undefined
 
@@ -135,7 +140,12 @@ export const handleOAI: ModelAdapter = async function* (opts) {
   }
 
   try {
-    let text = getCompletionContent(response)
+    let text = getCompletionContent(response, log)
+    if (text instanceof Error) {
+      yield { error: `OpenAI returned an error: ${text.message}` }
+      return
+    }
+
     if (!text?.length) {
       log.error({ body: response }, 'OpenAI request failed: Empty response')
       yield { error: `OpenAI request failed: Received empty response. Try again.` }
@@ -196,7 +206,13 @@ export async function getOpenAIUsage(oaiKey: string, guest: boolean): Promise<OA
   return res.body
 }
 
-const requestFullCompletion: CompletionGenerator = async function* (url, headers, body) {
+const requestFullCompletion: CompletionGenerator = async function* (
+  _userId,
+  url,
+  headers,
+  body,
+  _log
+) {
   const resp = await needle('post', url, JSON.stringify(body), {
     json: true,
     headers,
@@ -221,7 +237,7 @@ const requestFullCompletion: CompletionGenerator = async function* (url, headers
  * Yields individual tokens as OpenAI sends them, and ultimately returns a full completion object
  * once the stream is finished.
  */
-const streamCompletion: CompletionGenerator = async function* (url, headers, body) {
+const streamCompletion: CompletionGenerator = async function* (userId, url, headers, body, log) {
   const resp = needle.post(url, JSON.stringify(body), {
     parse: false,
     headers: {
@@ -246,10 +262,26 @@ const streamCompletion: CompletionGenerator = async function* (url, headers, bod
       }
 
       const parsed: Completion<AsyncDelta> = JSON.parse(event.slice('data: '.length))
-      const { choices, ...completionMeta } = parsed
+      const { choices, ...evt } = parsed
+      if (!choices || !choices[0]) {
+        log.warn({ sse: event }, `[OpenAI] Received invalid SSE during stream`)
+
+        const message = evt.error?.message
+          ? `OpenAI interrupted the response: ${evt.error.message}`
+          : `OpenAI interrupted the response`
+
+        if (!tokens.length) {
+          yield { error: message }
+          return
+        }
+
+        publishOne(userId, { type: 'notification', level: 'warn', message })
+        break
+      }
+
       const { finish_reason, index, ...choice } = choices[0]
 
-      meta = { ...completionMeta, finish_reason, index }
+      meta = { ...evt, finish_reason, index }
 
       if ('text' in choice) {
         const token = choice.text
@@ -281,9 +313,14 @@ const streamCompletion: CompletionGenerator = async function* (url, headers, bod
   }
 }
 
-function getCompletionContent(completion?: Completion<Inference>) {
+function getCompletionContent(completion: Completion<Inference> | undefined, log: AppLog) {
   if (!completion) {
     return ''
+  }
+
+  if (completion.error?.message) {
+    log.warn({ completion }, 'OpenAI returned an error')
+    return new Error(completion.error.message)
   }
 
   if ('text' in completion.choices[0]) {
@@ -309,7 +346,13 @@ function toChatCompletionPayload(opts: AdapterProps, maxTokens: number): Complet
       'history',
       'post',
     ]),
-    { opts, parts, encoder: encoder }
+    {
+      opts,
+      parts,
+      lastMessage: opts.lastMessage,
+      characters: opts.characters || {},
+      encoder: encoder(),
+    }
   )
 
   messages.push({ role: 'system', content: gaslight })
@@ -317,7 +360,7 @@ function toChatCompletionPayload(opts: AdapterProps, maxTokens: number): Complet
   const all = []
 
   let maxBudget = (gen.maxContextLength || defaultPresets.openai.maxContextLength) - maxTokens
-  let tokens = encoder(gaslight)
+  let tokens = encoder()(gaslight)
 
   if (lines) {
     all.push(...lines)
@@ -326,8 +369,14 @@ function toChatCompletionPayload(opts: AdapterProps, maxTokens: number): Complet
   // Append 'postamble' and system prompt (ujb)
   const post = getPostInstruction(opts, messages)
   if (post) {
-    post.content = injectPlaceholders(post.content, { opts, parts: opts.parts, encoder: encoder })
-    tokens += encoder(post.content)
+    post.content = injectPlaceholders(post.content, {
+      opts,
+      parts: opts.parts,
+      lastMessage: opts.lastMessage,
+      characters: opts.characters || {},
+      encoder: encoder(),
+    })
+    tokens += encoder()(post.content)
     history.push(post)
   }
 
@@ -368,7 +417,7 @@ function toChatCompletionPayload(opts: AdapterProps, maxTokens: number): Complet
       obj.role = 'user'
     }
 
-    const length = encoder(obj.content)
+    const length = encoder()(obj.content)
     if (tokens + length > maxBudget) break
     tokens += length
     history.push(obj)
@@ -398,6 +447,14 @@ function getPostInstruction(
   if (opts.chat.mode === 'adventure') {
     prefix = `${adventureAmble}\n\n${prefix}`
   }
+
+  prefix = injectPlaceholders(prefix, {
+    opts,
+    parts: opts.parts,
+    lastMessage: opts.lastMessage,
+    characters: opts.characters || {},
+    encoder: encoder(),
+  })
 
   switch (opts.kind) {
     // These cases should never reach here
@@ -474,7 +531,11 @@ export function splitSampleChat(opts: SplitSampleChatProps) {
     if (trimmed.toLowerCase().startsWith('<start>')) {
       const afterStart = trimmed.slice(7).trim()
       additions.push(sampleChatMarkerCompletionItem)
-      if (afterStart) additions.push({ role: 'system' as const, content: afterStart })
+      tokens += encoder()(sampleChatMarkerCompletionItem.content)
+      if (afterStart) {
+        additions.push({ role: 'system' as const, content: afterStart })
+        tokens += encoder()(afterStart)
+      }
       continue
     }
 
@@ -490,7 +551,7 @@ export function splitSampleChat(opts: SplitSampleChatProps) {
       content: sample.replace(BOT_REPLACE, char).replace(SELF_REPLACE, sender),
     }
 
-    const length = encoder(msg.content)
+    const length = encoder()(msg.content)
     if (budget && tokens + length > budget) break
 
     additions.push(msg)

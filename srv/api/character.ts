@@ -6,7 +6,7 @@ import { loggedIn, isAdmin } from './auth'
 import { errors, handle, StatusError } from './wrap'
 import { entityUpload, handleForm } from './upload'
 import { PERSONA_FORMATS } from '../../common/adapters'
-import { AppSchema } from '../db/schema'
+import { AppSchema } from '../../common/types/schema'
 import { CharacterUpdate } from '../db/characters'
 import { getVoiceService } from '../voice'
 import { generateImage } from '../image'
@@ -19,8 +19,13 @@ const router = Router()
 const characterValidator = {
   name: 'string?',
   description: 'string?',
+  appearance: 'string?',
   culture: 'string?',
+
+  visualType: 'string?',
+  sprite: 'any?',
   avatar: 'string?',
+
   scenario: 'string?',
   greeting: 'string?',
   sampleChat: 'string?',
@@ -65,6 +70,7 @@ const createCharacter = handle(async (req) => {
   const persona = JSON.parse(body.persona) as AppSchema.Persona
   assertValid(personaValidator, persona)
 
+  const sprite = body.sprite ? JSON.parse(body.sprite) : undefined
   const voice = parseAndValidateVoice(body.voice)
   const tags = toArray(body.tags)
   const alternateGreetings = body.alternateGreetings ? toArray(body.alternateGreetings) : undefined
@@ -92,9 +98,12 @@ const createCharacter = handle(async (req) => {
     match: body.match?.toString() === 'true'||false,
     sampleChat: body.sampleChat,
     description: body.description,
+    appearance: body.appearance,
     culture: body.culture,
     scenario: body.scenario,
     greeting: body.greeting,
+    visualType: body.visualType,
+    sprite,
     avatar: body.originalAvatar,
     favorite: false,
     voice,
@@ -143,10 +152,13 @@ const editCharacter = handle(async (req) => {
   const update: CharacterUpdate = {
     name: body.name,
     description: body.description,
+    appearance: body.appearance,
     culture: body.culture,
     greeting: body.greeting,
     scenario: body.scenario,
     sampleChat: body.sampleChat,
+    visualType: body.visualType,
+    sprite: body.sprite ? JSON.parse(body.sprite) : undefined,
     alternateGreetings,
     characterBook: characterBook ?? null,
     systemPrompt: body.systemPrompt,

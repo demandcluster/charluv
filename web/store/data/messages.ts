@@ -2,7 +2,7 @@ import { v4 } from 'uuid'
 import { createPrompt, getChatPreset } from '../../../common/prompt'
 import { getEncoder } from '../../../common/tokenize'
 import { GenerateRequestV2 } from '../../../srv/adapter/type'
-import { AppSchema } from '../../../srv/db/schema'
+import { AppSchema } from '../../../common/types/schema'
 import { api, isLoggedIn } from '../api'
 import { ChatState, chatStore } from '../chat'
 import { getStore } from '../create'
@@ -25,6 +25,7 @@ export type PromptEntities = {
   autoReplyAs?: string
   characters: Record<string, AppSchema.Character>
   impersonating?: AppSchema.Character
+  lastMessage: string
 }
 
 export const msgsApi = {
@@ -33,7 +34,7 @@ export const msgsApi = {
   getPromptEntities,
   generateResponseV2,
   deleteMessages,
-  generatePlain: basicInference,
+  basicInference,
 }
 
 type PlainOpts = { prompt: string; settings: Partial<AppSchema.GenSettings> }
@@ -148,6 +149,7 @@ export async function generateResponseV2(opts: GenerateOpts) {
       replyAs: props.replyAs,
       characters: entities.characters,
       impersonate: props.impersonate,
+      lastMessage: entities.lastMessage,
     },
     encoder
   )
@@ -157,6 +159,7 @@ export async function generateResponseV2(opts: GenerateOpts) {
   }
 
   const request: GenerateRequestV2 = {
+    requestId: v4(),
     kind: opts.kind,
     chat: entities.chat,
     user: entities.user,
@@ -172,9 +175,10 @@ export async function generateResponseV2(opts: GenerateOpts) {
     replyAs: removeAvatar(props.replyAs),
     impersonate: removeAvatar(props.impersonate),
     characters: removeAvatars(entities.characters),
+    lastMessage: entities.lastMessage,
   }
 
-  const res = await api.post(`/chat/${entities.chat._id}/generate`, request)
+  const res = await api.post<{ requestId: string }>(`/chat/${entities.chat._id}/generate`, request)
   return res
 }
 
@@ -286,7 +290,11 @@ async function getGenerateProps(
 async function createMessage(chatId: string, opts: { kind: 'ooc' | 'send-noreply'; text: string }) {
   const { impersonating } = getStore('character').getState()
   const impersonate = opts.kind === 'send-noreply' ? impersonating : undefined
-  return api.post(`/chat/${chatId}/send`, { text: opts.text, kind: opts.kind, impersonate })
+  return api.post<{ requestId: string }>(`/chat/${chatId}/send`, {
+    text: opts.text,
+    kind: opts.kind,
+    impersonate,
+  })
 }
 
 export async function deleteMessages(chatId: string, msgIds: string[]) {
@@ -309,12 +317,20 @@ export async function getPromptEntities(): Promise<PromptEntities> {
   if (isLoggedIn()) {
     const entities = getAuthedPromptEntities()
     if (!entities) throw new Error(`Could not collate data for prompting`)
-    return { ...entities, messages: entities.messages.filter((msg) => msg.ooc !== true) }
+    return {
+      ...entities,
+      messages: entities.messages.filter((msg) => msg.ooc !== true),
+      lastMessage: getLastMessage(entities.messages),
+    }
   }
 
   const entities = await getGuestEntities()
   if (!entities) throw new Error(`Could not collate data for prompting`)
-  return { ...entities, messages: entities.messages.filter((msg) => msg.ooc !== true) }
+  return {
+    ...entities,
+    messages: entities.messages.filter((msg) => msg.ooc !== true),
+    lastMessage: getLastMessage(entities.messages),
+  }
 }
 
 async function getGuestEntities() {
@@ -441,4 +457,14 @@ function removeAvatars(chars: Record<string, AppSchema.Character>) {
   }
 
   return next
+}
+
+function getLastMessage(messages: AppSchema.ChatMessage[]) {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i]
+    if (!msg.userId) continue
+    return msg.createdAt
+  }
+
+  return ''
 }

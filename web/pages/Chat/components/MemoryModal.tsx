@@ -1,13 +1,13 @@
 import { Save } from 'lucide-solid'
 import { Component, createSignal, onMount, Show } from 'solid-js'
-import { AppSchema } from '../../../../srv/db/schema'
+import { AppSchema } from '../../../../common/types/schema'
 import Button from '../../../shared/Button'
 import Divider from '../../../shared/Divider'
 import Select, { Option } from '../../../shared/Select'
 import Modal from '../../../shared/Modal'
 import { chatStore } from '../../../store'
 import { memoryStore } from '../../../store'
-import EditMemoryForm, { getBookUpdate, EntrySort } from '../../Memory/EditMemory'
+import EditMemoryForm, { EntrySort } from '../../Memory/EditMemory'
 
 const ChatMemoryModal: Component<{
   chat: AppSchema.Chat
@@ -43,8 +43,8 @@ const ChatMemoryModal: Component<{
 
   const onSubmit = (ev: Event) => {
     ev.preventDefault()
-    if (!id()) return
-    const update = getBookUpdate(ev)
+    const update = book()
+    if (!id() || !update) return
     memoryStore.update(id(), update)
   }
 
@@ -101,6 +101,7 @@ const ChatMemoryModal: Component<{
               book={book()!}
               entrySort={entrySort()}
               updateEntrySort={updateEntrySort}
+              onChange={setBook}
             />
           </div>
         </Show>

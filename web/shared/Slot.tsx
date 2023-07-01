@@ -1,5 +1,5 @@
 import { Component, createEffect, createMemo, createSignal } from 'solid-js'
-import { AppSchema } from '/srv/db/schema'
+import { AppSchema } from '/common/types'
 import { settingStore, userStore } from '../store'
 import { v4 } from 'uuid'
 
@@ -70,8 +70,8 @@ const Slot: Component<{ slot: SlotKind }> = (props) => {
       id={id()}
       data-slot={props.slot}
       classList={{
-        'border-[var(--bg-700)]': user.user?.admin && !!user.user?.admin,
-        'border-[1px]': user.user?.admin && !!user.user?.admin,
+        'border-[var(--bg-700)]': !!user.user?.admin,
+        'border-[1px]': !!user.user?.admin,
       }}
     ></div>
   )

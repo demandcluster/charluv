@@ -2,7 +2,7 @@ import { A } from '@solidjs/router'
 import { assertValid } from '/common/valid'
 import { Download, Plus, Trash, Upload, X } from 'lucide-solid'
 import { Component, createEffect, createSignal, For, Show } from 'solid-js'
-import { AppSchema } from '../../../srv/db/schema'
+import { AppSchema } from '../../../common/types/schema'
 import Button from '../../shared/Button'
 import FileInput, { FileInputResult, getFileAsString } from '../../shared/FileInput'
 import Modal from '../../shared/Modal'
@@ -117,7 +117,7 @@ const ImportMemoryModal: Component<ImportProps> = (props) => {
     memoryStore.create(json(), props.close)
   }
 
-  const Footer = () => (
+  const Footer = (
     <>
       <Button onClick={props.close}>
         <X /> Cancel

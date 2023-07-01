@@ -2,7 +2,7 @@ import './init'
 import { expect } from 'chai'
 import { OPENAI_MODELS } from '../common/adapters'
 import { createPrompt, BOT_REPLACE, SELF_REPLACE } from '../common/prompt'
-import { AppSchema } from '../srv/db/schema'
+import { AppSchema } from '../common/types/schema'
 import { toBook, toChar, toBotMsg, toChat, toEntry, toProfile, toUser, toUserMsg } from './util'
 import { getEncoder } from '../srv/tokenize'
 
@@ -218,6 +218,7 @@ function build(
       retry: opts.retry,
       replyAs: opts.replyAs || char,
       characters: {},
+      lastMessage: '',
     },
     encoder
   )

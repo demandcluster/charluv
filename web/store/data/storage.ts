@@ -1,7 +1,7 @@
 import { v4 } from 'uuid'
 import { NOVEL_MODELS } from '../../../common/adapters'
 import { defaultChars } from '../../../common/characters'
-import { AppSchema } from '../../../srv/db/schema'
+import { AppSchema } from '../../../common/types/schema'
 import { api } from '../api'
 import { toastStore } from '../toasts'
 import { safeLocalStorage } from '/web/shared/util'
@@ -64,7 +64,7 @@ const fallbacks: { [key in StorageKey]: LocalStorage[key] } = {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       kind: 'character',
-      userId: 'anonymous',
+      userId: 'anon',
       ...defaultChars.Robot,
     },
   ],

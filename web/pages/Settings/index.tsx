@@ -17,8 +17,9 @@ import { Show } from 'solid-js'
 import { ImageSettings } from './Image/ImageSettings'
 import { VoiceSettings } from './Voice/VoiceSettings'
 import { toArray } from '/common/util'
+import { useSearchParams } from '@solidjs/router'
 
-const settingTabs = {
+const settingTabs: Record<Tab, string> = {
   ai: 'AI Settings',
   ui: 'UI Settings',
   image: 'Image Settings',
@@ -27,13 +28,21 @@ const settingTabs = {
   date: 'Dating Settings',
 }
 
-type Tab = keyof typeof settingTabs
+enum MainTab {
+  ai = 0,
+  ui = 1,
+  image = 2,
+  voice = 3,
+  guest = 4,
+}
+
+type Tab = keyof typeof MainTab
 
 const Settings: Component = () => {
   setComponentPageTitle('Settings')
   const state = userStore()
-
-  const [tab, setTab] = createSignal(0)
+  const [query, _setQuery] = useSearchParams()
+  const [tab, setTab] = createSignal<number>(MainTab[query.tab as Tab] ?? 0)
   const [workers, setWorkers] = createSignal<string[]>(toArray(state.user?.hordeWorkers))
   const [models, setModels] = createSignal<string[]>(toArray(state.user?.hordeModel))
 
@@ -115,9 +124,22 @@ const Settings: Component = () => {
 
   const tabClass = `flex flex-col gap-4`
 
+  const version = (window.agnai_version?.includes('unknown') ? '' : window.agnai_version).slice(
+    0,
+    7
+  )
+
   return (
     <>
-      <PageHeader title="Settings" subtitle="Configuration" noDivider />
+      <PageHeader
+        title="Settings"
+        subtitle={
+          <Show when={!!version}>
+            <em>v.{version}</em>
+          </Show>
+        }
+        noDivider
+      />
 
       <div class="my-2">
         <Tabs tabs={tabs.map((t) => settingTabs[t])} selected={tab} select={setTab} />
@@ -144,7 +166,7 @@ const Settings: Component = () => {
           </div>
 
           <div class={currentTab() === 'guest' ? tabClass : 'hidden'}>
-            <div class="mt-8 mb-4 flex w-full flex-col items-center justify-center">
+            <div class="mb-4 mt-8 flex w-full flex-col items-center justify-center">
               <div>This cannot be undone!</div>
               <Button schema="red" onClick={userStore.clearGuestState}>
                 <AlertTriangle /> Delete Guest State <AlertTriangle />

@@ -14,7 +14,7 @@ import { tagStore } from '../../store'
 import PageHeader from '../../shared/PageHeader'
 import Select, { Option } from '../../shared/Select'
 import TextInput from '../../shared/TextInput'
-import { AppSchema } from '../../../srv/db/schema'
+import { AppSchema } from '../../../common/types/schema'
 import {
   Copy,
   Download,
@@ -36,7 +36,7 @@ import {
   MessageCircle,
 } from 'lucide-solid'
 import { A, useNavigate, useSearchParams } from '@solidjs/router'
-import AvatarIcon from '../../shared/AvatarIcon'
+import { CharacterAvatar } from '../../shared/AvatarIcon'
 import ImportCharacterModal from '../Character/ImportCharacter'
 import DeleteCharacterModal from '../Character/DeleteCharacter'
 import { getAssetUrl, safeLocalStorage, setComponentPageTitle } from '../../shared/util'
@@ -48,12 +48,12 @@ import Loading from '../../shared/Loading'
 import Divider from '../../shared/Divider'
 import Gauge from '../../shared/Gauge'
 
-import CreateChatModal from './CreateChat'
 import TagSelect from '../../shared/TagSelect'
 import { Accessor } from 'solid-js'
 import extract from 'png-chunks-extract'
 import encode from 'png-chunks-encode'
 import text from 'png-chunk-text'
+import { AvatarContainer } from '/web/shared/Avatar/Builder'
 const CACHE_KEY = 'agnai-charlist-cache'
 
 type ViewTypes = 'list' | 'cards'
@@ -89,7 +89,6 @@ const CharacterList: Component = () => {
   const [showImport, setImport] = createSignal(false)
   const user = userStore()
   const [importPath, setImportPath] = createSignal<string | undefined>(query.import)
-  const [create, setCreate] = createSignal<AppSchema.Character>()
   const importQueue: NewCharacter[] = []
 
   const onImport = (chars: NewCharacter[]) => {
@@ -217,7 +216,6 @@ const CharacterList: Component = () => {
         filter={search()}
         sortField={sortField()}
         sortDirection={sortDirection()}
-        createChat={setCreate}
       />
       <ImportCharacterModal
         charhubPath={importPath()}
@@ -225,9 +223,6 @@ const CharacterList: Component = () => {
         close={() => setImport(false)}
         onSave={onImport}
       />
-      <Show when={create()}>
-        <CreateChatModal show={!!create()} close={() => setCreate()} charId={create()?._id} />
-      </Show>
     </>
   )
 }
@@ -241,7 +236,6 @@ const Characters: Component<{
   user: AppSchema.User
   sortField: SortFieldTypes
   sortDirection: SortDirectionTypes
-  createChat: (char?: AppSchema.Character) => void
 }> = (props) => {
   const tags = tagStore((s) => ({ filter: s.filter, hidden: s.hidden }))
   const [showGrouping, setShowGrouping] = createSignal(false)
@@ -306,7 +300,6 @@ const Characters: Component<{
                           delete={() => setDelete(char)}
                           download={() => setDownload(char)}
                           toggleFavorite={(value) => toggleFavorite(char._id, value)}
-                          createChat={props.createChat}
                         />
                       )}
                     </For>
@@ -334,7 +327,6 @@ const Characters: Component<{
                           delete={() => setDelete(char)}
                           download={() => setDownload(char)}
                           toggleFavorite={(value) => toggleFavorite(char._id, value)}
-                          createChat={props.createChat}
                         />
                       )}
                     </For>
@@ -368,26 +360,19 @@ const Character: Component<{
   delete: () => void
   download: () => void
   toggleFavorite: (value: boolean) => void
-  createChat: (char?: AppSchema.Character) => void
 }> = (props) => {
   const [opts, setOpts] = createSignal(false)
   const [listOpts, setListOpts] = createSignal(false)
   const nav = useNavigate()
 
-  const createChat = () => {
-    props.createChat(props.char)
-    setOpts(false)
-    setListOpts(false)
-  }
-
   if (props.type === 'list') {
     return (
-      <div class="bg-800 flex w-full flex-row items-center justify-between gap-4 rounded-xl py-1 px-2 hover:bg-[var(--bg-700)]">
+      <div class="bg-800 flex w-full flex-row items-center justify-between gap-4 rounded-xl px-2 py-1 hover:bg-[var(--bg-700)]">
         <A
-          class="ellipsis flex h-3/4 grow cursor-pointer items-center"
+          class="ellipsis flex h-3/4 grow cursor-pointer items-center gap-4"
           href={`/character/${props.char._id}/chats`}
         >
-          <AvatarIcon avatarUrl={props.char.avatar} class="mr-4" />
+          <CharacterAvatar char={props.char} zoom={1.75} />
           <div class="flex max-w-full flex-col overflow-hidden">
             <span class="ellipsis font-bold">{props.char.name}</span>
             <span class="ellipsis">{props.char.description}</span>
@@ -407,19 +392,20 @@ const Character: Component<{
             <Show when={!props.char.favorite}>
               <Star class="icon-button" onClick={() => props.toggleFavorite(true)} />
             </Show>
-           <Show when={!props.char?.parent && props.char?.name!=="Aiva"}>
-              <a onClick={props.download}>
-                <Download class="icon-button" />
-              </a>
-
-              <A href={`/character/${props.char._id}/edit`}>
-                <Edit class="icon-button" />
-              </A>
-
-              <A href={`/character/create/${props.char._id}`}>
-                <Copy class="icon-button" />
-              </A>
-            </Show>
+<Show when={!props.char?.parent && props.char?.name!=="Aiva"}>
+            <A href={`/chats/create/${props.char._id}`}>
+              <MessageCircle class="icon-button" />
+            </A>
+            <a onClick={props.download}>
+              <Download class="icon-button" />
+            </a>
+            <A href={`/character/${props.char._id}/edit`}>
+              <Edit class="icon-button" />
+            </A>
+            <A href={`/character/create/${props.char._id}`}>
+              <Copy class="icon-button" />
+            </A>
+            </Show></Show>
             <Show when={props.char?.name!=="Aiva"}>
             <Trash class="icon-button" onClick={props.delete} />
             </Show>
@@ -450,7 +436,7 @@ const Character: Component<{
                   <Star /> Favorite
                 </Show>
               </Button>
-              <Button onClick={createChat} alignLeft size="sm">
+              <Button onClick={() => nav(`/chats/create/${props.char._id}`)} alignLeft size="sm">
                 <MessageCircle /> Chat
               </Button>
               <Show when={!props.char?.parent && props.char?.name!=="Aiva"}>
@@ -487,29 +473,41 @@ const Character: Component<{
     )
   }
 
+  let ref: any
+
   return (
-    <div class="bg-800 flex flex-col items-center justify-between gap-1 rounded-md p-1">
+    <div ref={ref} class="bg-800 flex flex-col items-center justify-between gap-1 rounded-md p-1">
       <div class="w-full">
-        <Show when={props.char.avatar}>
-          <A
-            href={`/character/${props.char._id}/chats`}
-            class="block h-56 w-full justify-center overflow-hidden rounded-lg "
-          >
-            <img
-              src={getAssetUrl(props.char.avatar!)}
-              class="h-full w-full object-cover"
-              style="object-position: 50% 30%;"
-            />
-          </A>
-        </Show>
-        <Show when={!props.char.avatar}>
-          <A
-            href={`/character/${props.char._id}/chats`}
-            class="bg-700 flex h-32 w-full items-center justify-center rounded-md"
-          >
-            <VenetianMask size={24} />
-          </A>
-        </Show>
+        <Switch>
+          <Match when={props.char.visualType === 'sprite' && props.char.sprite}>
+            <A
+              href={`/character/${props.char._id}/chats`}
+              class="block h-32 w-full justify-center overflow-hidden rounded-lg"
+            >
+              <AvatarContainer container={ref} body={props.char.sprite} />
+            </A>
+          </Match>
+          <Match when={props.char.avatar}>
+            <A
+              href={`/character/${props.char._id}/chats`}
+              class="block h-32 w-full justify-center overflow-hidden rounded-lg"
+            >
+              <img
+                src={getAssetUrl(props.char.avatar!)}
+                class="h-full w-full object-cover"
+                style="object-position: 50% 30%;"
+              />
+            </A>
+          </Match>
+          <Match when>
+            <A
+              href={`/character/${props.char._id}/chats`}
+              class="bg-700 flex h-32 w-full items-center justify-center rounded-md"
+            >
+              <VenetianMask size={24} />
+            </A>
+          </Match>
+        </Switch>
       </div>
       <div class="h-18 w-full text-sm">
         <div class="relative right-0 w-full px-2 text-right text-2xl text-white text-shadow md:right-1">
@@ -531,7 +529,7 @@ const Character: Component<{
             positioned, then DropMenu breaks because it relies on the nearest
             positioned parent to be the sitewide container */}
         <div
-          class="float-right mt-[-297px] mr-[3px] flex justify-end"
+          class="float-right mr-[3px] mt-[-149px] flex justify-end"
           onClick={() => setOpts(true)}
         >
           <div class="rounded-md bg-[var(--bg-500)] p-[2px]">
@@ -555,7 +553,7 @@ const Character: Component<{
                   <Star /> Favorite
                 </Show>
               </Button>
-              <Button onClick={createChat} alignLeft size="sm">
+              <Button onClick={() => nav(`/chats/create/${props.char._id}`)} alignLeft size="sm">
                 <MessageCircle /> Chat
               </Button>
                <Show when={!props.char?.parent && props.char?.name!=="Aiva"}>
@@ -745,7 +743,9 @@ export const DownloadModal: Component<{
               case 'png':
                 return (
                   <Button
-                    onClick={() => downloadPng(charJson, props.char!.avatar!, props.char!.name)}
+                    onClick={() =>
+                      downloadPng(charJson, getAssetUrl(props.char!.avatar!)!, props.char!.name)
+                    }
                   >
                     <Save /> Download
                   </Button>
@@ -761,6 +761,7 @@ export const DownloadModal: Component<{
 function downloadPng(charJson: string, charImgUrl: string, charName: string) {
   // Create a new image element
   const imgElement = document.createElement('img')
+  imgElement.setAttribute('crossorigin', 'anonymous')
   imgElement.src = charImgUrl
   imgElement.onload = () => {
     const imgDataUrl = imgToPngDataUrl(imgElement)

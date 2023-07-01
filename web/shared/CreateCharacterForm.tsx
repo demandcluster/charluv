@@ -36,19 +36,26 @@ import Select, { Option } from '../shared/Select'
 import TagInput from '../shared/TagInput'
 import { CultureCodes, defaultCulture } from '../shared/CultureCodes'
 import VoicePicker from '../pages/Character/components/VoicePicker'
-import { VoiceSettings } from '../../srv/db/texttospeech-schema'
-import { AppSchema } from '../../srv/db/schema'
+import { VoiceSettings } from '../../common/types/texttospeech-schema'
+import { AppSchema } from '../../common/types/schema'
 import { downloadCharacterHub } from '../pages/Character/ImportCharacter'
 import { ImageModal } from '../pages/Chat/ImageModal'
 import Loading from '/web/shared/Loading'
 import { JSX, For } from 'solid-js'
-import { BUNDLED_CHARACTER_BOOK_ID } from '/common/memory'
+import { BUNDLED_CHARACTER_BOOK_ID, emptyBookWithEmptyEntry } from '/common/memory'
 import { defaultPresets, isDefaultPreset } from '/common/presets'
 import { msgsApi } from '/web/store/data/messages'
-import { characterGenTemplate } from '/common/default-preset'
+import { createCharGenTemplate } from '/common/default-preset'
 import { toGeneratedCharacter } from '../pages/Character/util'
 import { Card, SolidCard } from './Card'
-import { usePane } from './hooks'
+import { usePane, useRootModal } from './hooks'
+import Modal from '/web/shared/Modal'
+import EditMemoryForm, { EntrySort, getBookUpdate } from '../pages/Memory/EditMemory'
+import { ToggleButtons } from './Toggle'
+import AvatarBuilder, { AvatarContainer } from './Avatar/Builder'
+import { FullSprite } from '/common/types/sprite'
+import Slot from './Slot'
+import { getRandomBody } from '../asset/sprite'
 
 const options = [
   { id: 'wpp', label: 'W++' },
@@ -83,21 +90,29 @@ export const CreateCharacterForm: Component<{
   const srcId = createMemo(() => props.editId || props.duplicateId || '')
   const [image, setImage] = createSignal<string | undefined>()
 
+  const [visualType, setVisualType] = createSignal('avatar')
+  const [spriteBody, setSpriteBody] = createSignal<FullSprite>()
+
   const presets = presetStore()
-  const memory = memoryStore()
-  const flags = settingStore((s) => s.flags)
   const user = userStore((s) => s.user)
   const tagState = tagStore()
   const state = characterStore((s) => {
     const edit = s.characters.list.find((ch) => ch._id === srcId())
     setImage(edit?.avatar)
+    if (edit?.sprite && !spriteBody()) {
+      setSpriteBody(edit.sprite)
+      setVisualType(edit.visualType || 'avatar')
+    }
+
     return {
       avatar: s.generate,
       creating: s.creating,
       edit,
       list: s.characters.list,
+      loaded: s.characters.loaded,
     }
   })
+
   const [tokens, setTokens] = createSignal({
     name: 0,
     scenario: 0,
@@ -108,12 +123,14 @@ export const CreateCharacterForm: Component<{
   const [downloaded, setDownloaded] = createSignal<NewCharacter>()
   const [schema, setSchema] = createSignal<AppSchema.Persona['kind'] | undefined>()
   const [tags, setTags] = createSignal(state.edit?.tags)
-  const [characterBook, setCharacterBook] = createSignal(state.edit?.characterBook)
+  const [bundledBook, setBundledBook] = createSignal(state.edit?.characterBook)
   const [extensions] = createSignal(state.edit?.extensions ?? {})
   const [avatar, setAvatar] = createSignal<File>()
   const [voice, setVoice] = createSignal<VoiceSettings>({ service: undefined })
   const [culture, setCulture] = createSignal(defaultCulture)
   const [creating, setCreating] = createSignal(false)
+  const [showBuilder, setShowBuilder] = createSignal(false)
+
   const [alternateGreetings, setAlternateGreetings] = createSignal(
     state.edit?.alternateGreetings ?? []
   )
@@ -132,12 +149,6 @@ export const CreateCharacterForm: Component<{
   })
 
   const edit = createMemo(() => state.edit)
-
-  const isExternalBook = createMemo(() =>
-    memory.books.list.every((book) => book._id !== state.edit?.characterBook?._id)
-  )
-
-  const bundledBook = createMemo(() => (isExternalBook() ? state.edit?.characterBook : undefined))
 
   const preferredPreset = createMemo(() => {
     const id = user?.defaultPreset
@@ -163,10 +174,10 @@ export const CreateCharacterForm: Component<{
     const { description } = getStrictForm(ref, { description: 'string' })
     if (!description) return
 
-    const prompt = characterGenTemplate.replace('{{description}}', description)
+    const prompt = createCharGenTemplate(preset).replace('{{description}}', description)
     setCreating(true)
 
-    msgsApi.generatePlain({ prompt, settings: preset }, (err, response) => {
+    msgsApi.basicInference({ prompt, settings: preset }, (err, response) => {
       setCreating(false)
       if (err) {
         toastStore.error(`Could not create character: ${err}`)
@@ -228,7 +239,7 @@ export const CreateCharacterForm: Component<{
   }
 
   const generateAvatar = async () => {
-    const { imagePrompt } = getStrictForm(ref, { imagePrompt: 'string' })
+    const { appearance } = getStrictForm(ref, { appearance: 'string' })
     if (!user) {
       toastStore.error(`Image generation settings missing`)
       return
@@ -241,7 +252,7 @@ export const CreateCharacterForm: Component<{
     }
 
     try {
-      characterStore.generateAvatar(user!, imagePrompt || persona)
+      characterStore.generateAvatar(user!, appearance || persona)
     } catch (ex: any) {
       toastStore.error(ex.message)
     }
@@ -249,11 +260,14 @@ export const CreateCharacterForm: Component<{
 
   const onSubmit = (ev: Event) => {
     const opts: PayloadOpts = {
-      version: flags.charv2 ? 'v2' : 'v1',
       tags: tags(),
+
+      visualType: visualType(),
       avatar: state.avatar.blob || avatar(),
+      sprite: spriteBody(),
+
       altGreetings: alternateGreetings(),
-      characterBook: characterBook(),
+      characterBook: bundledBook(),
       extensions: extensions(),
       originalAvatar: state.edit?.avatar,
       voice: voice(),
@@ -291,6 +305,8 @@ export const CreateCharacterForm: Component<{
     () => !!props.chat?.overrides && props.chat.characterId === props.editId
   )
 
+  let spriteRef: any
+
   return (
     <>
       <Show when={isPage || paneOrPopup() === 'pane'}>
@@ -318,16 +334,45 @@ export const CreateCharacterForm: Component<{
             </SolidCard>
           </Show>
 
-          <div class={`flex grow flex-col justify-between gap-4 pr-3 pl-2 `}>
-            <Show when={!state.edit?.parent && state.edit?.name !== 'Aiva'}>
-              <Show when={!isPage && paneOrPopup() === 'popup'}>
-                <div>
-                  <em>
-                    ({totalTokens()} tokens, {totalPermanentTokens()} permanent)
-                  </em>
-                </div>
-              </Show>
-              <Card>
+          <div class={`flex grow flex-col justify-between gap-4 pl-2 pr-3 `}>
+          <Show when={!state.edit?.parent && state.edit?.name !== 'Aiva'}>
+            <Show when={!isPage && paneOrPopup() === 'popup'}>
+              <div>
+                <em>
+                  ({totalTokens()} tokens, {totalPermanentTokens()} permanent)
+                </em>
+              </div>
+            </Show>
+            <Card>
+              <TextInput
+                fieldName="name"
+                required
+                label="Character Name"
+                placeholder=""
+                value={downloaded()?.name || state.edit?.name}
+                tokenCount={(v) => setTokens((prev) => ({ ...prev, name: v }))}
+              />
+            </Card>
+
+            <Card class="flex w-full flex-col">
+              <FormLabel
+                label="Description / Creator's notes"
+                helperText={
+                  <div class="flex flex-col">
+                    <span>
+                      A description, label, or notes for your character. This is will not influence
+                      your character in any way.
+                    </span>
+                    <Show when={canPopulatFields()}>
+                      <span>
+                        To use OpenAI to generate a character, describe the character below then
+                        click <b>Generate</b>. It can take 30-60 seconds.
+                      </span>
+                    </Show>
+                  </div>
+                }
+              />
+              <div class="flex w-full flex-col gap-2 sm:flex-row">
                 <TextInput
                   fieldName="name"
                   required
@@ -336,49 +381,154 @@ export const CreateCharacterForm: Component<{
                   value={downloaded()?.name || state.edit?.name}
                   tokenCount={(v) => setTokens((prev) => ({ ...prev, name: v }))}
                 />
-              </Card>
+                <Show when={canPopulatFields()}>
+                  <Button onClick={generateCharacter} disabled={creating()}>
+                    {creating() ? 'Generating...' : 'Generate'}
+                  </Button>
+                </Show>
+              </div>
+            </Card>
 
-              <Card class="flex w-full flex-col">
-                <FormLabel
-                  label="Description"
-                  helperText={
-                    <div class="flex flex-col">
-                      <span>
-                        A description or label for your character. This is will not influence your
-                        character in any way.
-                      </span>
-                      <Show when={canPopulatFields()}>
-                        <span>
-                          To use OpenAI to generate a character, describe the character below then
-                          click <b>Generate</b>. It can take 30-60 seconds.
-                        </span>
-                      </Show>
+            <Card>
+              <TagInput
+                availableTags={tagState.tags.map((t) => t.tag)}
+                value={tags()}
+                fieldName="tags"
+                label="Tags"
+                helperText="Used to help you organize and filter your characters."
+                onSelect={setTags}
+              />
+            </Card>
+
+            <Card class="flex w-full flex-col gap-4 sm:flex-row">
+              <Switch>
+                <Match when={visualType() === 'sprite'}>
+                  <div class="flex h-24 w-full justify-center sm:w-24" ref={spriteRef}>
+                    <AvatarContainer body={spriteBody()} container={spriteRef} />
+                  </div>
+                </Match>
+                <Match when={!state.avatar.loading}>
+                  <div
+                    class="flex items-baseline justify-center"
+                    style={{ cursor: state.avatar.image || image() ? 'pointer' : 'unset' }}
+                    onClick={() => settingStore.showImage(state.avatar.image || image())}
+                  >
+                    <AvatarIcon
+                      format={{ corners: 'sm', size: '3xl' }}
+                      avatarUrl={state.avatar.image || image()}
+                    />
+                  </div>
+                </Match>
+                <Match when={state.avatar.loading}>
+                  <div class="flex w-[80px] items-center justify-center">
+                    <Loading />
+                  </div>
+                </Match>
+              </Switch>
+              <div class="flex w-full flex-col gap-2">
+                <ToggleButtons
+                  items={[
+                    { value: 'avatar', label: 'Avatar' },
+                    { value: 'sprite', label: 'Sprite' },
+                  ]}
+                  onChange={(opt) => {
+                    setVisualType(opt.value)
+                  }}
+                  selected={visualType()}
+                />
+
+                <Switch>
+                  <Match when={visualType() === 'avatar'}>
+                    <FileInput
+                      class="w-full"
+                      fieldName="avatar"
+                      label="Avatar"
+                      accept="image/png,image/jpeg,image/apng"
+                      onUpdate={updateFile}
+                    />
+                    <div class="flex w-full flex-col gap-2 sm:flex-row">
+                      <TextInput
+                        isMultiline
+                        parentClass="w-full"
+                        fieldName="appearance"
+                        helperText={`Leave the prompt empty to use your character's W++ "looks" / "appearance" attributes`}
+                        placeholder="Appearance"
+                        value={downloaded()?.appearance || state.edit?.appearance}
+                      />
+                      <Button class="w-fit self-end" onClick={generateAvatar}>
+                        Generate
+                      </Button>
                     </div>
+                  </Match>
+                  <Match when={true}>
+                    <Button class="w-fit" onClick={() => setShowBuilder(true)}>
+                      Open Character Builder
+                    </Button>
+                  </Match>
+                </Switch>
+                <div></div>
+              </div>
+            </Card>
+
+            <Card>
+              <TextInput
+                fieldName="scenario"
+                label="Scenario"
+                helperText="The current circumstances and context of the conversation and the characters."
+                placeholder="E.g. {{char}} is in their office working. {{user}} opens the door and walks in."
+                value={downloaded()?.scenario || state.edit?.scenario}
+                isMultiline
+                tokenCount={(v) => setTokens((prev) => ({ ...prev, scenario: v }))}
+              />
+            </Card>
+            <Card class="flex flex-col gap-3">
+              <TextInput
+                isMultiline
+                fieldName="greeting"
+                label="Greeting"
+                helperText="The first message from your character. It is recommended to provide a lengthy first message to encourage the character to give longer responses."
+                placeholder={
+                  "E.g. *I smile as you walk into the room* Hello, {{user}}! I can't believe it's lunch time already! Where are we going?"
+                }
+                value={downloaded()?.greeting || state.edit?.greeting}
+                class="h-60"
+                tokenCount={(v) => setTokens((prev) => ({ ...prev, greeting: v }))}
+              />
+              <AlternateGreetingsInput
+                greetings={alternateGreetings()}
+                setGreetings={setAlternateGreetings}
+              />
+            </Card>
+            <Card class="flex flex-col gap-3">
+              <div>
+                <FormLabel
+                  label="Persona Schema"
+                  helperText={
+                    <>
+                      <p>If you do not know what this mean, you can leave this as-is.</p>
+                      <p class="font-bold">
+                        WARNING: "Plain Text" and "Non-Plain Text" schemas are not compatible.
+                        Changing between them will cause data loss.
+                      </p>
+                      <p>Format to use for the character's format</p>
+                    </>
                   }
                 />
-                <div class="flex w-full gap-2">
-                  <TextInput
-                    isMultiline
-                    fieldName="description"
-                    parentClass="w-full"
-                    value={downloaded()?.description || state.edit?.description}
-                  />
-                  <Show when={canPopulatFields()}>
-                    <Button onClick={generateCharacter} disabled={creating()}>
-                      {creating() ? 'Generating...' : 'Generate'}
-                    </Button>
-                  </Show>
-                </div>
-              </Card>
-
-              <Card>
-                <TagInput
-                  availableTags={tagState.tags.map((t) => t.tag)}
-                  value={tags()}
-                  fieldName="tags"
-                  label="Tags"
-                  helperText="Used to help you organize and filter your characters."
-                  onSelect={setTags}
+                <RadioGroup
+                  name="kind"
+                  horizontal
+                  options={options}
+                  value={state.edit?.persona.kind || schema() || 'text'}
+                  onChange={(kind) => setSchema(kind as any)}
+                />
+              </div>
+              <Show when={!props.editId && !props.duplicateId}>
+                <PersonaAttributes
+                  value={downloaded()?.persona.attributes}
+                  plainText={schema() === 'text' || schema() === undefined}
+                  schema={schema()}
+                  tokenCount={(v) => setTokens((prev) => ({ ...prev, persona: v }))}
+                  form={ref}
                 />
               </Card>
 
@@ -435,84 +585,97 @@ export const CreateCharacterForm: Component<{
                   isMultiline
                   tokenCount={(v) => setTokens((prev) => ({ ...prev, scenario: v }))}
                 />
-              </Card>
+              </Show>
+            </Card>
+            <Card>
+              <TextInput
+                isMultiline
+                fieldName="sampleChat"
+                label="Sample Conversation"
+                helperText={
+                  <span>
+                    Example chat between you and the character. This section is very important for
+                    teaching your character should speak.
+                  </span>
+                }
+                placeholder="{{user}}: Hello! *waves excitedly* \n{{char}}: *smiles and waves back* Hello! I'm so happy you're here!"
+                value={downloaded()?.sampleChat || state.edit?.sampleChat}
+                tokenCount={(v) => setTokens((prev) => ({ ...prev, sample: v }))}
+              />
+            </Card>
+            <h2
+              class={`mt-3 flex cursor-pointer gap-3 text-lg font-bold ${
+                showAdvanced() ? '' : 'mb-12'
+              }`}
+              onClick={toggleShowAdvanced}
+            >
+              <div class="relative top-[2px] inline-block">
+                {showAdvanced() ? <ChevronUp /> : <ChevronDown />}
+              </div>
+              Advanced options
+            </h2>
+            <div class={`flex flex-col gap-3 ${advancedVisibility()}`}>
               <Card class="flex flex-col gap-3">
                 <TextInput
                   isMultiline
-                  fieldName="greeting"
-                  label="Greeting"
-                  helperText="The first message from your character. It is recommended to provide a lengthy first message to encourage the character to give longer responses."
-                  placeholder={
-                    "E.g. *I smile as you walk into the room* Hello, {{user}}! I can't believe it's lunch time already! Where are we going?"
+                  fieldName="systemPrompt"
+                  label="Character System Prompt (optional)"
+                  helperText={
+                    <span>
+                      {`System prompt to bundle with your character. You can use the {{original}} placeholder to include the user's own system prompt, if you want to supplement it instead of replacing it.`}
+                    </span>
                   }
-                  value={downloaded()?.greeting || state.edit?.greeting}
-                  class="h-60"
-                  tokenCount={(v) => setTokens((prev) => ({ ...prev, greeting: v }))}
+                  placeholder="Enter roleplay mode. You will write {{char}}'s next reply in a dialogue between {{char}} and {{user}}. Do not decide what {{user}} says or does. Use Internet roleplay style, e.g. no quotation marks, and write user actions in italic in third person like: *example*. You are allowed to use markdown. Be proactive, creative, drive the plot and conversation forward. Write at least one paragraph, up to four. Always stay in character. Always keep the conversation going. (Repetition is highly discouraged)"
+                  value={state.edit?.systemPrompt}
                 />
-                <Show when={flags.charv2}>
-                  <AlternateGreetingsInput
-                    greetings={alternateGreetings()}
-                    setGreetings={setAlternateGreetings}
-                  />
-                </Show>
+                <TextInput
+                  isMultiline
+                  fieldName="postHistoryInstructions"
+                  label="Post-conversation History Instructions (optional)"
+                  helperText={
+                    <span>
+                      {`Prompt to bundle with your character, used at the bottom of the prompt. You can use the {{original}} placeholder to include the user's UJB, if you want to supplement it instead of replacing it.`}
+                    </span>
+                  }
+                  placeholder="Write at least four paragraphs."
+                  value={state.edit?.postHistoryInstructions}
+                />
               </Card>
-              <Card class="flex flex-col gap-3">
-                <div>
-                  <FormLabel
-                    label="Persona Schema"
-                    helperText={
-                      <>
-                        <p>If you do not know what this mean, you can leave this as-is.</p>
-                        <p class="font-bold">
-                          WARNING: "Plain Text" and "Non-Plain Text" schemas are not compatible.
-                          Changing between them will cause data loss.
-                        </p>
-                        <p>Format to use for the character's format</p>
-                      </>
-                    }
-                  />
-                  <RadioGroup
-                    name="kind"
-                    horizontal
-                    options={options}
-                    value={state.edit?.persona.kind || schema() || 'text'}
-                    onChange={(kind) => setSchema(kind as any)}
-                  />
-                </div>
-                <Show when={!props.editId && !props.duplicateId}>
-                  <PersonaAttributes
-                    value={downloaded()?.persona.attributes}
-                    plainText={schema() === 'text' || schema() === undefined}
-                    schema={schema()}
-                    tokenCount={(v) => setTokens((prev) => ({ ...prev, persona: v }))}
-                    form={ref}
-                  />
-                </Show>
-
-                <Show when={(props.editId || props.duplicateId) && state.edit}>
-                  <PersonaAttributes
-                    value={downloaded()?.persona.attributes || state.edit?.persona.attributes}
-                    plainText={schema() === 'text'}
-                    schema={schema()}
-                    tokenCount={(v) => setTokens((prev) => ({ ...prev, persona: v }))}
-                    form={ref}
-                  />
-                </Show>
+              <Card>
+                <MemoryBookPicker setBundledBook={setBundledBook} bundledBook={bundledBook()} />
               </Card>
               <Card>
                 <TextInput
-                  isMultiline
-                  fieldName="sampleChat"
-                  label="Sample Conversation"
-                  helperText={
-                    <span>
-                      Example chat between you and the character. This section is very important for
-                      teaching your character should speak.
-                    </span>
-                  }
-                  placeholder="{{user}}: Hello! *waves excitedly* \n{{char}}: *smiles and waves back* Hello! I'm so happy you're here!"
-                  value={downloaded()?.sampleChat || state.edit?.sampleChat}
-                  tokenCount={(v) => setTokens((prev) => ({ ...prev, sample: v }))}
+                  fieldName="creator"
+                  label="Creator (optional)"
+                  placeholder="e.g. John1990"
+                  value={state.edit?.creator}
+                />
+              </Card>
+              <Card>
+                <TextInput
+                  fieldName="characterVersion"
+                  label="Character Version (optional)"
+                  placeholder="any text e.g. 1, 2, v1, v1fempov..."
+                  value={state.edit?.characterVersion}
+                />
+              </Card>
+              <Card class="flex flex-col gap-3">
+                <h4 class="text-md font-bold">Voice</h4>
+                <div>
+                  <VoicePicker value={voice()} culture={culture()} onChange={setVoice} />
+                </div>
+                <Select
+                  fieldName="culture"
+                  label="Language"
+                  helperText={`The language this character speaks and understands.${
+                    culture().startsWith('en') ?? true
+                      ? ''
+                      : ' NOTE: You need to also translate the preset gaslight to use a non-english language.'
+                  }`}
+                  value={culture()}
+                  items={CultureCodes}
+                  onChange={(option) => setCulture(option.value)}
                 />
               </Card>
               <h2
@@ -605,6 +768,15 @@ export const CreateCharacterForm: Component<{
           </div>
         </div>
       </form>
+      <SpriteModal
+        body={spriteBody()}
+        onChange={(body) => {
+          setSpriteBody(body)
+          setShowBuilder(false)
+        }}
+        show={showBuilder()}
+        close={() => setShowBuilder(false)}
+      />
       <ImageModal />
     </>
   )
@@ -654,52 +826,148 @@ const AlternateGreetingsInput: Component<{
   )
 }
 
-// TODO: Character Book can only be imported from Agnai Memory books. It is not possible yet to edit a Character Book that was bundled with a downloaded character card.
+const SpriteModal: Component<{
+  body?: FullSprite
+  onChange: (body: FullSprite) => void
+  show: boolean
+  close: () => void
+}> = (props) => {
+  let ref: any
+
+  const [body, setBody] = createSignal(props.body || getRandomBody())
+
+  useRootModal({
+    id: 'sprite-modal',
+    element: (
+      <Modal
+        show={props.show}
+        close={props.close}
+        title="Character Designer"
+        fixedHeight
+        maxWidth="half"
+        footer={
+          <>
+            <Button schema="secondary">Cancel</Button>
+            <Button onClick={() => props.onChange(body())}>Confirm</Button>
+          </>
+        }
+      >
+        <Slot slot="mobile" />
+        <div class="h-[28rem] w-full text-sm sm:h-[42rem]" ref={ref}>
+          <AvatarBuilder body={body()} onChange={(body) => setBody(body)} bounds={ref} noHeader />
+        </div>
+      </Modal>
+    ),
+  })
+
+  return null
+}
+
 const MemoryBookPicker: Component<{
   bundledBook: AppSchema.MemoryBook | undefined
-  characterBook: AppSchema.MemoryBook | undefined
-  setCharacterBook: (newVal: AppSchema.MemoryBook | undefined) => void
+  setBundledBook: (newVal: AppSchema.MemoryBook | undefined) => void
 }> = (props) => {
   const memory = memoryStore()
-  const bookOptions = createMemo(() =>
-    memory.books.list.map((book) => ({ label: book.name, value: book._id }))
-  )
-  const NONE_VALUE = '__bundled__none__'
-  const onChange = (option: Option) => {
-    if (option.value == NONE_VALUE) {
-      props.setCharacterBook(undefined)
-    } else {
-      const isBundledMemoryBook = props.characterBook?._id === BUNDLED_CHARACTER_BOOK_ID
-      const newBook = isBundledMemoryBook
-        ? props.bundledBook
-        : memory.books.list.find((book) => book._id === option.value)
-      props.setCharacterBook(newBook)
+  const [isModalShown, setIsModalShown] = createSignal(false)
+  const [entrySort, setEntrySort] = createSignal<EntrySort>('creationDate')
+  const updateEntrySort = (item: Option<string>) => {
+    if (item.value === 'creationDate' || item.value === 'alpha') {
+      setEntrySort(item.value)
     }
   }
-  const dropdownItems = () => [
-    { label: 'None', value: NONE_VALUE },
-    ...(props.bundledBook
-      ? [{ label: 'Imported with card', value: BUNDLED_CHARACTER_BOOK_ID }]
-      : []),
-    ...bookOptions(),
-  ]
+
+  const NONE_VALUE = '__none_character_book__'
+  const internalMemoryBookOptions = createMemo(() => [
+    { label: 'Import Memory Book', value: NONE_VALUE },
+    ...memory.books.list.map((book) => ({ label: book.name, value: book._id })),
+  ])
+  const pickInternalMemoryBook = (option: Option) => {
+    const newBook = memory.books.list.find((book) => book._id === option.value)
+    props.setBundledBook(newBook ? { ...newBook, _id: BUNDLED_CHARACTER_BOOK_ID } : undefined)
+  }
+  const initBlankCharacterBook = () => {
+    props.setBundledBook(emptyBookWithEmptyEntry())
+  }
+  const deleteBook = () => {
+    props.setBundledBook(undefined)
+  }
+  const ModalFooter = () => (
+    <>
+      <Button schema="secondary" onClick={() => setIsModalShown(false)}>
+        Close
+      </Button>
+      <Button type="submit">
+        <Save />
+        Save Character Book
+      </Button>
+    </>
+  )
+  const onSubmitCharacterBookChanges = (ev: Event) => {
+    ev.preventDefault()
+    const update = getBookUpdate(ev)
+    if (props.bundledBook) {
+      props.setBundledBook({ ...props.bundledBook, ...update })
+    }
+    setIsModalShown(false)
+  }
+
+  const BookModal = (
+    <Modal
+      title="Chat Memory"
+      show={isModalShown()}
+      close={() => setIsModalShown(false)}
+      footer={<ModalFooter />}
+      onSubmit={onSubmitCharacterBookChanges}
+      maxWidth="half"
+      fixedHeight
+    >
+      <div class="text-sm">
+        <EditMemoryForm
+          hideSave
+          book={props.bundledBook!}
+          entrySort={entrySort()}
+          updateEntrySort={updateEntrySort}
+        />
+      </div>
+    </Modal>
+  )
+
+  useRootModal({ id: 'memoryBook', element: BookModal })
+
   return (
-    <Select
-      fieldName="memoryBook"
-      label="Character Memory Book"
-      helperText="Memory book to bundle with this character."
-      value={props.characterBook?._id ?? props.bundledBook ? BUNDLED_CHARACTER_BOOK_ID : NONE_VALUE}
-      items={dropdownItems()}
-      onChange={onChange}
-    />
+    <div>
+      <h4 class="text-lg">Character Book</h4>
+      <Show when={!props.bundledBook}>
+        <span class="text-sm"> This character doesn't have a Character Book. </span>
+        <div class="flex flex-col gap-3 sm:flex-row">
+          <Select
+            fieldName="memoryBook"
+            value={NONE_VALUE}
+            items={internalMemoryBookOptions()}
+            onChange={pickInternalMemoryBook}
+          />
+          <Button onClick={initBlankCharacterBook}>Create New Book</Button>
+        </div>
+      </Show>
+      <Show when={props.bundledBook}>
+        <span class="text-sm">This character has a Character Book.</span>
+        <div class="mt-2 flex gap-3">
+          <Button onClick={() => setIsModalShown(true)}>Edit Book</Button>
+          <Button onClick={deleteBook}>Delete Book</Button>
+        </div>
+      </Show>
+    </div>
   )
 }
 
 type PayloadOpts = {
-  version: 'v1' | 'v2'
   tags: string[] | undefined
   voice: VoiceSettings
+
+  visualType: string
   avatar: File | undefined
+  sprite: FullSprite | undefined
+
   altGreetings: string[] | undefined
   characterBook: AppSchema.MemoryBook | undefined
   extensions: Record<string, any>
@@ -707,45 +975,11 @@ type PayloadOpts = {
 }
 
 function getPayload(ev: Event, opts: PayloadOpts) {
-  if (opts.version === 'v1') {
-    const body = getStrictForm(ev, {
-      kind: PERSONA_FORMATS,
-      name: 'string',
-      description: 'string?',
-      culture: 'string',
-      greeting: 'string',
-      scenario: 'string',
-      sampleChat: 'string',
-    } as const)
-
-    const attributes = getAttributeMap(ev)
-
-    const persona = {
-      kind: body.kind,
-      attributes,
-    }
-
-    const payload = {
-      name: body.name,
-      description: body.description,
-      culture: body.culture,
-      tags: opts.tags,
-      scenario: body.scenario,
-      avatar: opts.avatar,
-      greeting: body.greeting,
-      sampleChat: body.sampleChat,
-      persona,
-      originalAvatar: opts.originalAvatar,
-      voice: opts.voice,
-    }
-
-    return payload
-  }
-
   const body = getStrictForm(ev, {
     kind: PERSONA_FORMATS,
     name: 'string',
     description: 'string?',
+    appearance: 'string?',
     culture: 'string',
     greeting: 'string',
     scenario: 'string',
@@ -769,7 +1003,10 @@ function getPayload(ev: Event, opts: PayloadOpts) {
     culture: body.culture,
     tags: opts.tags,
     scenario: body.scenario,
-    avatar: opts.avatar,
+    appearance: body.appearance,
+    visualType: opts.visualType,
+    avatar: opts.avatar ?? (null as any),
+    sprite: opts.sprite ?? (null as any),
     greeting: body.greeting,
     sampleChat: body.sampleChat,
     persona,
@@ -779,7 +1016,7 @@ function getPayload(ev: Event, opts: PayloadOpts) {
     // New fields start here
     systemPrompt: body.systemPrompt ?? '',
     postHistoryInstructions: body.postHistoryInstructions ?? '',
-    alternateGreetings: opts.altGreetings ?? '',
+    alternateGreetings: opts.altGreetings ?? [],
     characterBook: opts.characterBook,
     creator: body.creator ?? '',
     extensions: opts.extensions,

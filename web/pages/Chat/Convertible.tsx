@@ -19,7 +19,7 @@ type PageProps = {
 }
 
 type PartialProps = {
-  title?: string
+  title?: string | JSX.Element
   children: JSX.Element
   footer?: JSX.Element
   kind: 'partial'
@@ -57,10 +57,11 @@ const WithinPage: Component<PartialProps> = (props) => {
     <Switch>
       <Match when={paneOrPopup() === 'pane'}>
         <div
+          data-pane
           class="relative hidden w-full min-w-[448px]  overflow-y-auto py-3 xs:block"
           style={rightPaneBgStyles()}
         >
-          <div onClick={props.close} class="sticky top-0 z-20 float-right cursor-pointer">
+          <div onClick={props.close} class="sticky top-0 float-right cursor-pointer">
             <div class="ml-[-32px]">
               <X />
             </div>
@@ -80,7 +81,7 @@ const WithinPage: Component<PartialProps> = (props) => {
 }
 
 const Footer: Component<{ children: JSX.Element }> = (props) => (
-  <div class={`sticky bottom-0 mt-4 mr-2 text-right`}>
+  <div class={`sticky bottom-0 mr-2 mt-4 text-right`}>
     <Card class="inline-flex justify-end gap-2" bg="bg-900" bgOpacity={1}>
       {props.children}
     </Card>

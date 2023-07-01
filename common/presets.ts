@@ -1,4 +1,4 @@
-import { AppSchema } from '../srv/db/schema'
+import { AppSchema } from './types/schema'
 import { AIAdapter, AI_ADAPTERS, ChatAdapter } from './adapters'
 import { defaultPresets } from './default-preset'
 
@@ -31,7 +31,10 @@ export const chatGenSettings = {
   order: ['number?'],
   frequencyPenalty: 'number',
   presencePenalty: 'number',
-  gaslight: 'string',
+  systemPrompt: 'string?',
+  ignoreCharacterSystemPrompt: 'boolean?',
+  ignoreCharacterUjb: 'boolean?',
+  gaslight: 'string?',
   oaiModel: 'string',
   novelModel: 'string?',
   claudeModel: 'string',
@@ -39,6 +42,7 @@ export const chatGenSettings = {
   useGaslight: 'boolean?',
   ultimeJailbreak: 'string?',
   antiBond: 'boolean?',
+  useTemplateParser: 'boolean?',
 } as const
 
 export const presetValidator = {

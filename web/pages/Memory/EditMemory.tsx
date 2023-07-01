@@ -1,6 +1,6 @@
 import { Plus, X } from 'lucide-solid'
-import { Component, createMemo, createSignal, For } from 'solid-js'
-import { AppSchema } from '../../../srv/db/schema'
+import { Component, createMemo, createSignal, Index } from 'solid-js'
+import { AppSchema } from '../../../common/types/schema'
 import Accordian from '../../shared/Accordian'
 import Button from '../../shared/Button'
 import Divider from '../../shared/Divider'
@@ -9,15 +9,8 @@ import Select, { Option } from '../../shared/Select'
 import TextInput from '../../shared/TextInput'
 import { Toggle } from '../../shared/Toggle'
 import { alphaCaseInsensitiveSort, getFormEntries, getStrictForm } from '../../shared/util'
-
-export const emptyEntry: AppSchema.MemoryEntry = {
-  name: '',
-  entry: '',
-  keywords: [],
-  priority: 0,
-  weight: 0,
-  enabled: false,
-}
+import { emptyEntry } from '/common/memory'
+import { Card } from '/web/shared/Card'
 
 const missingFieldsInEntry = (entry: AppSchema.MemoryEntry): (keyof AppSchema.MemoryEntry)[] => [
   ...(entry.keywords.length === 0 ? ['keywords' as const] : []),
@@ -42,18 +35,23 @@ const EditMemoryForm: Component<{
   const [editing, setEditing] = createSignal(props.book)
   const [search, setSearch] = createSignal('')
 
+  const change = (book: AppSchema.MemoryBook) => {
+    setEditing(book)
+    props.onChange?.(book)
+  }
+
   const addEntry = () => {
     const book = editing()
     const next = book.entries.slice()
     next.push({ entry: '', keywords: [], name: '', priority: 0, weight: 0, enabled: true })
-    setEditing({ ...book, entries: next })
+    change({ ...book, entries: next })
   }
 
   const onRemoveEntry = (pos: number) => {
     const book = editing()
     const next = book.entries.filter((_, i) => i !== pos)
 
-    setEditing({ ...book, entries: next })
+    change({ ...book, entries: next })
   }
 
   const entries = () => sortEntries(editing().entries, props.entrySort)
@@ -73,7 +71,7 @@ const EditMemoryForm: Component<{
           placeholder="Name for your memory book"
           required
           onChange={(e) => {
-            setEditing({ ...editing(), name: e.currentTarget.value })
+            change({ ...editing(), name: e.currentTarget.value })
           }}
         />
 
@@ -83,15 +81,17 @@ const EditMemoryForm: Component<{
           value={editing().description}
           placeholder="(Optional) A description for your memory book"
           onChange={(e) => {
-            setEditing({ ...editing(), description: e.currentTarget.value })
+            change({ ...editing(), description: e.currentTarget.value })
           }}
         />
         <Divider />
-        <div class="sticky top-0 z-10 flex items-center justify-between  py-2">
-          <div class="text-lg font-bold">Entries</div>
-          <Button onClick={addEntry}>
-            <Plus /> Entry
-          </Button>
+        <div class="sticky top-0 w-full py-2">
+          <Card class="flex w-full items-center justify-between" bgOpacity={0.5}>
+            <div class="text-lg font-bold">Entries</div>
+            <Button onClick={addEntry}>
+              <Plus /> Entry
+            </Button>
+          </Card>
         </div>
         <div class="flex items-center">
           <div class="max-w-[200px]">
@@ -109,26 +109,25 @@ const EditMemoryForm: Component<{
             class="mx-1 my-1"
           />
         </div>
-        <For each={entries()}>
+        <Index each={entries()}>
           {(entry, i) => (
             <EntryCard
               {...entry}
-              entry={entry}
-              index={i()}
-              onRemove={() => onRemoveEntry(i())}
+              entry={entry()}
+              index={i}
+              onRemove={() => onRemoveEntry(i)}
               search={search()}
               onChange={(e) => {
                 const prev = editing()
                 const entries = prev.entries.map((entry, idx) =>
-                  idx === i() ? Object.assign(entry, e) : entry
+                  idx === i ? Object.assign({}, entry, e) : entry
                 )
                 const next = { ...prev, entries }
-                setEditing(next)
-                props.onChange?.(next)
+                change(next)
               }}
             />
           )}
-        </For>
+        </Index>
         <Button onClick={addEntry}>
           <Plus /> Entry
         </Button>
@@ -146,8 +145,6 @@ const EntryCard: Component<{
   index: number
   onChange: (e: AppSchema.MemoryEntry) => void
 }> = (props) => {
-  // const [entry, _setEntry] = createSignal(props.entry)
-
   const cls = createMemo(() =>
     props.entry.name.toLowerCase().includes(props.search.trim()) ? '' : 'hidden'
   )
@@ -173,7 +170,7 @@ const EntryCard: Component<{
             value={!!props.entry.enabled}
             class="flex items-center"
             onChange={(e) => {
-              props.onChange({ ...props.entry, enabled: e })
+              props.onChange({ ...props.entry, enabled: !!e })
             }}
           />
 
@@ -240,11 +237,12 @@ export function getBookUpdate(ref: Event | HTMLFormElement) {
   const { name, description } = getStrictForm(ref, { name: 'string', description: 'string?' })
 
   const map = new Map<string, AppSchema.MemoryEntry>()
+
   for (const [key, value] of inputs) {
     const [prop, i] = key.split('.')
     if (i === undefined) continue
 
-    const prev = map.get(i) || { ...emptyEntry }
+    const prev = map.get(i) || { ...emptyEntry() }
 
     switch (prop) {
       case 'name':

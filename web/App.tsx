@@ -35,6 +35,11 @@ import Settings from './pages/Settings'
 import ProfilePage from './pages/Profile'
 import { chatStore } from './store'
 import { usePane } from './shared/hooks'
+import { rootModalStore } from './store/root-modal'
+import { For } from 'solid-js'
+import { getMaxChatWidth } from './shared/util'
+import FAQ from './pages/Home/FAQ'
+import CreateChatForm from './pages/Chat/CreateChatForm'
 
 const App: Component = () => {
   const state = userStore()
@@ -50,6 +55,7 @@ const App: Component = () => {
             component={() => <Redirect external="https://discord.gg/8E6FRdsvhg" />}
           />
           <ChubRoutes />
+          <Route path="/chats/create/:id?" component={CreateChatForm} />
           <Route path="/chats" component={CharacterChats} />
           <Route path="/chat" component={ChatDetail} />
           <Route path="/chat/:id" component={ChatDetail} />
@@ -115,6 +121,8 @@ const App: Component = () => {
             <Route path="/login" component={LoginPage} />
             <Route path="/register" component={LoginPage} />
           </Show>
+          <Route path="/faq" component={FAQ} />
+          <Route path="/builder" component={lazy(() => import('./shared/Avatar/Builder'))} />
           <Route path="*" component={HomePage} />
         </Route>
       </Routes>
@@ -132,22 +140,10 @@ const Layout: Component = () => {
 
   const maxW = createMemo((): string => {
     if (isPaneOpen()) return 'max-w-full'
-    const width = state.ui.chatWidth || 'full'
-    switch (width) {
-      case 'full':
-      case 'narrow':
-        return 'max-w-5xl'
 
-      case 'xl':
-        return 'max-w-6xl'
-
-      case '2xl':
-        return 'max-w-7xl'
-
-      case '3xl':
-        return 'max-w-8xl'
-    }
+    return getMaxChatWidth(state.ui.chatWidth)
   })
+  const rootModals = rootModalStore()
 
   const reload = () => {
     settingStore.init()
@@ -210,6 +206,7 @@ const Layout: Component = () => {
         show={cfg.showImpersonate}
         close={() => settingStore.toggleImpersonate(false)}
       />
+      <For each={rootModals.modals}>{(modal) => modal.element}</For>
     </div>
   )
 }

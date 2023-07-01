@@ -3,7 +3,7 @@ import './init'
 import { toBotMsg, toChar, toChat, toProfile, toUser, toUserMsg } from './util'
 import { getPromptParts } from '/common/prompt'
 import { ParseOpts, parseTemplate } from '/common/template-parser'
-import { AppSchema } from '/srv/db/schema'
+import { AppSchema } from '/common/types'
 import { getEncoder } from '/srv/tokenize'
 
 const encoder = getEncoder('openai', 'turbo')
@@ -116,12 +116,12 @@ function getParseOpts(
     characters,
     chat: overChat,
     replyAs: char,
-    history,
     lines,
     members: [profile],
     parts,
     user,
     sender: profile,
+    lastMessage: '',
     ...overrides,
   }
 

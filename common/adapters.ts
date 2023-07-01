@@ -1,4 +1,4 @@
-import { AppSchema } from '../srv/db/schema'
+import { AppSchema } from './types/schema'
 
 export type AIAdapter = (typeof AI_ADAPTERS)[number]
 export type ChatAdapter = (typeof CHAT_ADAPTERS)[number]
@@ -62,6 +62,9 @@ export type NovelModel = keyof typeof NOVEL_MODELS
 export type OpenAIModel = (typeof OPENAI_MODELS)[keyof typeof OPENAI_MODELS]
 
 export const GOOSE_ENGINES = {
+  'cassandra-lit-2-8b': 'Cassandra 2.8B',
+  'cassandra-lit-6-9b': 'Cassandra 6.9B',
+  'convo-6b': 'Convo 6B',
   'gpt-neo-20b': 'GPT Neo 20B',
   'gpt-j-6b': 'GPT-J 6B',
   'gpt-neo-2-7b': 'GPT-Neo 2.7B',
@@ -197,15 +200,21 @@ export type PresetAISettings = Omit<
   | 'useGaslight'
 >
 
+/**
+ * This is al
+ */
 export const adapterSettings: {
   [key in keyof PresetAISettings]: AIAdapter[]
 } = {
-  temp: ['kobold', 'novel', 'ooba', 'horde', 'luminai', 'openai', 'scale', 'claude'],
+  temp: ['kobold', 'novel', 'ooba', 'horde', 'luminai', 'openai', 'scale', 'claude', 'goose'],
   maxTokens: AI_ADAPTERS.slice(),
   maxContextLength: AI_ADAPTERS.slice(),
+  systemPrompt: ['openai', 'novel', 'scale', 'kobold', 'claude', 'ooba', 'goose'],
+  ignoreCharacterSystemPrompt: ['openai', 'novel', 'scale', 'kobold', 'claude', 'ooba', 'goose'],
   gaslight: ['openai', 'novel', 'scale', 'kobold', 'claude', 'ooba', 'goose'],
-  antiBond: ['openai', 'claude', 'scale'],
+  antiBond: ['openai', 'scale'],
   ultimeJailbreak: ['openai', 'claude', 'kobold', 'scale'],
+  ignoreCharacterUjb: ['openai', 'claude', 'kobold'],
   topP: ['horde', 'kobold', 'claude', 'ooba', 'openai', 'novel', 'luminai'],
 
   repetitionPenalty: ['horde', 'novel', 'kobold', 'ooba', 'luminai'],

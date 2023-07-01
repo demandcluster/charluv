@@ -248,7 +248,7 @@ const HordeGuide: Component<{ close: () => void }> = (props) => (
           AI Horde
         </a>
         . Once you have your key, add it to your{' '}
-        <A href="/settings" class="link">
+        <A href="/settings?tab=ai&service=horde" class="link">
           Horde Settings
         </A>
         .
@@ -297,7 +297,7 @@ const OpenAIGuide: Component<{ close: () => void }> = (props) => (
 
       <Card>
         Once you have your API key, head to the{' '}
-        <A class="link" href="/settings">
+        <A class="link" href="/settings?tab=ai&service=openai">
           Settings
         </A>{' '}
         page and set your key in the OpenAI area.

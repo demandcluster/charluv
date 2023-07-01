@@ -15,6 +15,7 @@ import {
   createMemo,
   createSignal,
   For,
+  JSX,
   Match,
   onCleanup,
   onMount,
@@ -22,8 +23,8 @@ import {
   Switch,
 } from 'solid-js'
 import { BOT_REPLACE, SELF_REPLACE } from '../../../../common/prompt'
-import { AppSchema } from '../../../../srv/db/schema'
-import AvatarIcon from '../../../shared/AvatarIcon'
+import { AppSchema } from '../../../../common/types/schema'
+import AvatarIcon, { CharacterAvatar } from '../../../shared/AvatarIcon'
 import { getAssetUrl, getRootVariable } from '../../../shared/util'
 import { chatStore, userStore, msgStore, settingStore, getSettingColor } from '../../../store'
 import { markdown } from '../../../shared/markdown'
@@ -49,6 +50,7 @@ type MessageProps = {
   actions?: AppSchema.ChatMessage['actions']
   sendMessage: (msg: string, ooc: boolean) => void
   isPaneOpen: boolean
+  avatars?: Record<string, JSX.Element>
 }
 
 const Message: Component<MessageProps> = (props) => {
@@ -80,6 +82,7 @@ const Message: Component<MessageProps> = (props) => {
             sendMessage={props.sendMessage}
             botMap={props.botMap}
             isPaneOpen={props.isPaneOpen}
+            avatars={props.avatars}
           />
         )}
       </For>
@@ -170,7 +173,7 @@ const SingleMessage: Component<
 
   return (
     <div
-      class="flex w-full rounded-md py-2 px-2 pr-2 sm:px-4"
+      class="flex w-full rounded-md px-2 py-2 pr-2 sm:px-4"
       style={bgStyles()}
       data-sender={props.msg.characterId ? 'bot' : 'user'}
       data-bot={props.msg.characterId ? props.char?.name : ''}
@@ -188,20 +191,35 @@ const SingleMessage: Component<
               <Switch>
                 <Match when={voice.status === 'generating'}>
                   <div class="animate-pulse cursor-pointer" onClick={msgStore.stopSpeech}>
-                    <AvatarIcon bot={true} format={format()} Icon={DownloadCloud} />
+                    <AvatarIcon format={format()} Icon={DownloadCloud} />
                   </div>
                 </Match>
 
                 <Match when={voice.status === 'playing'}>
                   <div class="animate-pulse cursor-pointer" onClick={msgStore.stopSpeech}>
-                    <AvatarIcon bot={true} format={format()} Icon={PauseCircle} />
+                    <AvatarIcon format={format()} Icon={PauseCircle} />
                   </div>
                 </Match>
 
-                <Match when={props.char && !!props.msg.characterId}>
-                  <AvatarIcon
-                    avatarUrl={props.botMap[props.msg.characterId!]?.avatar || props.char?.avatar}
+                <Match when={props.avatars && props.avatars[props.msg.characterId!]}>
+                  {props.avatars![props.msg.characterId!]}
+                </Match>
+
+                <Match when={!!props.botMap[props.msg.characterId!]}>
+                  <CharacterAvatar
                     openable
+                    char={props.botMap[props.msg.characterId!]}
+                    format={format()}
+                    bot={!props.msg.userId}
+                    zoom={1.75}
+                  />
+                </Match>
+
+                <Match when={props.char && !!props.msg.characterId}>
+                  <CharacterAvatar
+                    char={props.botMap[props.msg.characterId!] || props.char}
+                    openable
+                    zoom={1.75}
                     bot={true}
                     format={format()}
                   />
@@ -209,9 +227,9 @@ const SingleMessage: Component<
 
                 <Match when={!props.msg.characterId}>
                   <AvatarIcon
-                    avatarUrl={state.memberIds[props.msg.userId!]?.avatar}
-                    openable
                     format={format()}
+                    Icon={DownloadCloud}
+                    avatarUrl={state.memberIds[props.msg.userId!]?.avatar}
                     anonymize={props.anonymize}
                   />
                 </Match>
@@ -310,7 +328,7 @@ const SingleMessage: Component<
                     props.char!,
                     user.profile!,
                     props.partial!,
-                    props.msg.adapter
+                    'partial'
                   )}
                 />
               </Match>
@@ -339,7 +357,7 @@ const SingleMessage: Component<
                     props.char!,
                     user.profile!,
                     msgText(),
-                    props.msg.adapter
+                    props.original.adapter
                   )}
                 />
                 <Show
@@ -539,6 +557,8 @@ function renderMessage(
   text: string,
   adapter?: string
 ) {
+  if (adapter === 'partial') return text
+
   // Address unfortunate Showdown bug where spaces in code blocks are replaced with nbsp, except
   // it also encodes the ampersand, which results in them actually being rendered as `&amp;nbsp;`
   // https://github.com/showdownjs/showdown/issues/669

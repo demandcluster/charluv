@@ -1,12 +1,14 @@
 import type { GenerateRequestV2 } from '../srv/adapter/type'
-import type { AppSchema } from '../srv/db/schema'
+import type { AppSchema } from './types/schema'
 import { AIAdapter, NOVEL_MODELS, OPENAI_CHAT_MODELS, OPENAI_MODELS } from './adapters'
 import { formatCharacter } from './characters'
 import { adventureTemplate, defaultTemplate } from './default-preset'
 import { IMAGE_SUMMARY_PROMPT } from './image'
 import { buildMemoryPrompt } from './memory'
 import { defaultPresets, getFallbackPreset, isDefaultPreset } from './presets'
+import { parseTemplate } from './template-parser'
 import { Encoder } from './tokenize'
+import { elapsedSince } from './util'
 
 export const SAMPLE_CHAT_MARKER = `System: New conversation started. Previous conversations are examples only.`
 export const SAMPLE_CHAT_PREAMBLE = `How {{char}} speaks:`
@@ -20,6 +22,7 @@ export type PromptParts = {
   ujb?: string
   post: string[]
   memory?: string
+  systemPrompt?: string
 }
 
 export type Prompt = {
@@ -49,6 +52,7 @@ export type PromptOpts = {
   replyAs: AppSchema.Character
   characters: GenerateRequestV2['characters']
   impersonate?: AppSchema.Character
+  lastMessage: string
 }
 
 type BuildPromptOpts = {
@@ -77,10 +81,15 @@ const HOLDER_NAMES = {
   post: 'post',
   scenario: 'scenario',
   history: 'history',
+  systemPrompt: 'system_prompt',
   linebreak: 'br',
+  chatAge: 'chat_age',
+  idleDuration: 'idle_duration',
 }
 
-const HOLDERS = {
+export const HOLDERS = {
+  chatAge: /\{\{chat_age\}\}/gi,
+  idleDuration: /\{\{idle_duration\}\}/gi,
   ujb: /\{\{ujb\}\}/gi,
   sampleChat: /\{\{example_dialogue\}\}/gi,
   scenario: /\{\{scenario\}\}/gi,
@@ -89,6 +98,7 @@ const HOLDERS = {
   allPersonas: /\{\{all_personalities\}\}/gi,
   post: /\{\{post\}\}/gi,
   history: /\{\{history\}\}/gi,
+  systemPrompt: /\{\{system_prompt\}\}/gi,
   linebreak: `/\{\{(br|linebreak|newline)\}\}/gi`,
 }
 
@@ -124,6 +134,8 @@ export function createPrompt(opts: PromptOpts, encoder: Encoder) {
     opts,
     parts,
     history: { lines, order: 'desc' },
+    lastMessage: opts.lastMessage,
+    characters: opts.characters,
     encoder,
   })
   return { lines: lines.reverse(), parts, template: prompt }
@@ -138,10 +150,7 @@ export function createPrompt(opts: PromptOpts, encoder: Encoder) {
  * @returns
  */
 export function createPromptWithParts(
-  opts: Pick<
-    GenerateRequestV2,
-    'chat' | 'char' | 'members' | 'settings' | 'user' | 'replyAs' | 'characters' | 'impersonate'
-  >,
+  opts: GenerateRequestV2,
   parts: PromptParts,
   lines: string[],
   encoder: Encoder
@@ -153,6 +162,8 @@ export function createPromptWithParts(
     opts,
     parts,
     history,
+    characters: opts.characters,
+    lastMessage: opts.lastMessage,
     encoder,
   })
   return { lines: history.lines, prompt, parts, post }
@@ -178,18 +189,31 @@ export function getTemplate(
 type InjectOpts = {
   opts: BuildPromptOpts
   parts: PromptParts
+  lastMessage?: string
+  characters: Record<string, AppSchema.Character>
   history?: { lines: string[]; order: 'asc' | 'desc' }
   encoder: Encoder
 }
 
 export function injectPlaceholders(
   template: string,
-  { opts, parts, history: hist, encoder }: InjectOpts
+  { opts, parts, history: hist, encoder, ...rest }: InjectOpts
 ) {
-  const sender =
-    opts.impersonate?.name ||
-    opts.members.find((mem) => mem.userId === opts.chat.userId)?.handle ||
-    'You'
+  const profile = opts.members.find((mem) => mem.userId === opts.chat.userId)
+  const sender = opts.impersonate?.name || profile?.handle || 'You'
+
+  if (opts.settings?.useTemplateParser) {
+    try {
+      const result = parseTemplate(template, {
+        ...opts,
+        sender: profile!,
+        parts,
+        lines: hist?.lines || [],
+        ...rest,
+      })
+      return result
+    } catch (ex) {}
+  }
   const sampleChat = parts.sampleChat?.join('\n')
 
   if (!template.match(HOLDERS.sampleChat) && sampleChat && hist) {
@@ -206,6 +230,7 @@ export function injectPlaceholders(
 
   let prompt = template
     // UJB must be first to replace placeholders within the UJB
+    // Note: for character post-history-instructions, this is off-spec behavior
     .replace(HOLDERS.ujb, opts.settings?.ultimeJailbreak || '')
     .replace(HOLDERS.sampleChat, newline(sampleChat))
     .replace(HOLDERS.scenario, parts.scenario || '')
@@ -214,6 +239,10 @@ export function injectPlaceholders(
     .replace(HOLDERS.allPersonas, parts.allPersonas?.join('\n') || '')
     .replace(HOLDERS.post, parts.post.join('\n'))
     .replace(HOLDERS.linebreak, '\n')
+    .replace(HOLDERS.chatAge, elapsedSince(opts.chat.createdAt))
+    .replace(HOLDERS.idleDuration, elapsedSince(rest.lastMessage || ''))
+    // system prompt should not support other placeholders
+    .replace(HOLDERS.systemPrompt, newline(parts.systemPrompt))
     // All placeholders support {{char}} and {{user}} placeholders therefore these must be last
     .replace(BOT_REPLACE, opts.replyAs.name)
     .replace(SELF_REPLACE, sender)
@@ -234,6 +263,7 @@ function removeUnusedPlaceholders(template: string, parts: PromptParts) {
   const useSampleChat = !!parts.sampleChat?.join('\n')
   const useMemory = !!parts.memory
   const useScenario = !!parts.scenario
+  const useSystemPrompt = !!parts.systemPrompt
 
   let modified = template
     .split('\n')
@@ -248,6 +278,8 @@ function removeUnusedPlaceholders(template: string, parts: PromptParts) {
       if (!useSampleChat && line.match(HOLDERS.sampleChat)) return false
       if (!useMemory && line.match(HOLDERS.memory)) return false
       if (!useScenario && line.match(HOLDERS.scenario)) return false
+      // idg what this does tbh - @malfoyslastname
+      if (!useSystemPrompt && line.match(HOLDERS.systemPrompt)) return false
       return true
     })
     .join('\n')
@@ -382,16 +414,43 @@ export function getPromptParts(opts: PromptPartsOptions, lines: string[], encode
     post.unshift(`${char.name}: ${opts.continue}`)
   }
 
-  const memory = buildMemoryPrompt({ ...opts, lines: lines.slice().reverse() }, encoder)
-  if (memory) parts.memory = memory.prompt
+  const linesForMemory = [...lines].reverse()
+  const books: AppSchema.MemoryBook[] = []
+  if (char.characterBook) books.push(char.characterBook)
+  if (opts.book) books.push(opts.book)
 
-  if (opts.settings?.useGaslight || opts.settings?.service === 'openai') {
-    parts.ujb = char.postHistoryInstructions || opts.settings?.ultimeJailbreak
-  }
+  const memory = buildMemoryPrompt({ ...opts, books, lines: linesForMemory }, encoder)
+  parts.memory = memory?.prompt
+
+  parts.ujb = getFinalUjbOrSystemPrompt(
+    opts.settings?.ignoreCharacterUjb,
+    replyAs.postHistoryInstructions,
+    opts.settings?.ultimeJailbreak
+  )
+
+  parts.systemPrompt = getFinalUjbOrSystemPrompt(
+    opts.settings?.ignoreCharacterSystemPrompt,
+    replyAs.systemPrompt,
+    opts.settings?.systemPrompt
+  )
 
   parts.post = post.map(replace)
 
   return parts
+}
+
+function getFinalUjbOrSystemPrompt(
+  ignoreChara?: boolean,
+  charaPrompt?: string,
+  userPrompt?: string
+) {
+  if (ignoreChara) {
+    return userPrompt
+  } else if (charaPrompt) {
+    return charaPrompt.replace(/{{original}}/gi, userPrompt ?? '')
+  } else {
+    return userPrompt
+  }
 }
 
 function createPostPrompt(
@@ -501,7 +560,7 @@ export function getChatPreset(
   chat: AppSchema.Chat,
   user: AppSchema.User,
   userPresets: AppSchema.UserGenPreset[]
-): Partial<AppSchema.GenSettings> {
+): Partial<AppSchema.UserGenPreset> {
   /**
    * Order of precedence:
    * 1. chat.genPreset
@@ -513,7 +572,8 @@ export function getChatPreset(
 
   // #1
   if (chat.genPreset) {
-    if (isDefaultPreset(chat.genPreset)) return defaultPresets[chat.genPreset]
+    if (isDefaultPreset(chat.genPreset))
+      return { _id: chat.genPreset, ...defaultPresets[chat.genPreset] }
 
     const preset = userPresets.find((preset) => preset._id === chat.genPreset)
     if (preset) return preset
@@ -527,7 +587,7 @@ export function getChatPreset(
   // #3
   const defaultId = user.defaultPreset
   if (defaultId) {
-    if (isDefaultPreset(defaultId)) return defaultPresets[defaultId]
+    if (isDefaultPreset(defaultId)) return { _id: defaultId, ...defaultPresets[defaultId] }
     const preset = userPresets.find((preset) => preset._id === defaultId)
     if (preset) return preset
   }
@@ -537,7 +597,7 @@ export function getChatPreset(
   const fallbackId = user.defaultPresets?.[isThirdParty ? 'kobold' : adapter]
 
   if (fallbackId) {
-    if (isDefaultPreset(fallbackId)) return defaultPresets[fallbackId]
+    if (isDefaultPreset(fallbackId)) return { _id: fallbackId, ...defaultPresets[fallbackId] }
     const preset = userPresets.find((preset) => preset._id === fallbackId)
     if (preset) return preset
   }
@@ -615,6 +675,7 @@ function getContextLimit(
     // Any LLM could be used here so don't max any assumptions
     case 'kobold':
     case 'luminai':
+    case 'horde':
     case 'ooba':
       return configuredMax - genAmount
 
@@ -622,8 +683,6 @@ function getContextLimit(
       if (model === NOVEL_MODELS.clio_v1) return 8000 - genAmount
       return configuredMax - genAmount
     }
-
-    case 'horde':
 
     case 'openai': {
       const models = new Set<string>([

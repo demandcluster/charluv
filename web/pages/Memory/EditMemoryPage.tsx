@@ -3,21 +3,13 @@ import PageHeader from '../../shared/PageHeader'
 import { setComponentPageTitle } from '../../shared/util'
 import { memoryStore } from '../../store'
 import { Show, createEffect, createSignal } from 'solid-js'
-import { AppSchema } from '../../../srv/db/schema'
-import EditMemoryForm, { EntrySort, emptyEntry, getBookUpdate } from './EditMemory'
+import { AppSchema } from '../../../common/types/schema'
+import EditMemoryForm, { EntrySort } from './EditMemory'
 import { Option } from '../../shared/Select'
 import Button from '../../shared/Button'
 import { FormLabel } from '../../shared/FormLabel'
 import { Save } from 'lucide-solid'
-
-const newBook: AppSchema.MemoryBook = {
-  _id: '',
-  name: '',
-  description: '',
-  entries: [],
-  kind: 'memory',
-  userId: '',
-}
+import { emptyBookWithEmptyEntry } from '/common/memory'
 
 const EditMemoryPage = () => {
   const { updateTitle } = setComponentPageTitle('Memory book')
@@ -36,7 +28,7 @@ const EditMemoryPage = () => {
   createEffect(() => {
     if (params.id === 'new') {
       updateTitle('Create memory book')
-      setEditing({ ...newBook, entries: [{ ...emptyEntry, name: 'New Entry' }] })
+      setEditing(emptyBookWithEmptyEntry())
       return
     }
 
@@ -58,8 +50,8 @@ const EditMemoryPage = () => {
     // has the entries in creation order, for now.
     const oldEntrySort = entrySort()
     setEntrySort('creationDate')
-    const body = getBookUpdate(ref)
-    if (!params.id) return
+    const body = editing()
+    if (!params.id || !body) return
 
     if (params.id === 'new') {
       memoryStore.create(body, (book) => {
@@ -87,6 +79,7 @@ const EditMemoryPage = () => {
             book={editing()!}
             entrySort={entrySort()}
             updateEntrySort={updateEntrySort}
+            onChange={setEditing}
           />
           <div class="mt-4 flex justify-end">
             <Button type="submit">

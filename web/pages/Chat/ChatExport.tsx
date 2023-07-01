@@ -14,9 +14,9 @@ const ChatExport: Component<{ show: boolean; close: () => void }> = (props) => {
 
     const json = {
       name: 'Exported',
-      greeting: chat?.greeting,
-      sampleChat: chat?.sampleChat,
-      scenario: chat?.scenario,
+      greeting: chat?.greeting || '',
+      sampleChat: chat?.sampleChat || '',
+      scenario: chat?.scenario || '',
       messages: messages.map((msg) => ({
         handle: msg.userId ? chats.memberIds[msg.userId]?.handle || 'You' : undefined,
         userId: msg.userId ? msg.userId : undefined,
@@ -28,7 +28,7 @@ const ChatExport: Component<{ show: boolean; close: () => void }> = (props) => {
     return encodeURIComponent(JSON.stringify(json, null, 2))
   })
 
-  const Footer = () => (
+  const Footer = (
     <>
       <Button schema="secondary" onClick={props.close}>
         Close

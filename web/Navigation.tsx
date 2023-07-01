@@ -7,6 +7,7 @@ import {
   Heart,
   Home,
   HeartHandshake,
+  HelpCircle,
   LogIn,
   LogOut,
   MailPlus,
@@ -29,7 +30,7 @@ import {
   Show,
   Switch,
 } from 'solid-js'
-import AvatarIcon from './shared/AvatarIcon'
+import AvatarIcon, { CharacterAvatar } from './shared/AvatarIcon'
 import { characterStore, chatStore, inviteStore, settingStore, userStore } from './store'
 import Slot from './shared/Slot'
 import { useEffect, useWindowSize } from './shared/hooks'
@@ -74,7 +75,7 @@ const Navigation: Component = () => {
       <div ref={parent} class={`drawer bg-800 flex flex-col gap-2 pt-2 ${hide()} ${fullscreen()}`}>
          <div
          ref={content}
-         class="drawer__content sm:text-md flex flex-col gap-1 px-4 text-xl sm:gap-2"
+         class="drawer__content sm:text-md flex flex-col gap-0 px-4 text-md sm:gap-1"
        >
          <div class="hidden w-full items-center justify-center sm:flex"
             style={user.ui?.mode === 'light' ? 'background:#55b89cff;' : 'background:#1f4439ff;'}
@@ -102,17 +103,25 @@ const Navigation: Component = () => {
                 settingStore.closeMenu()
               }}
             >
-              <AvatarIcon
-                avatarUrl={chars.impersonating?.avatar || user.profile?.avatar}
-                format={{ corners: 'circle', size: 'md' }}
-              />
+              <Switch>
+                <Match when={chars.impersonating}>
+                  <CharacterAvatar
+                    char={chars.impersonating!}
+                    format={{ corners: 'circle', size: 'md' }}
+                  />
+                </Match>
 
+                <Match when>
+                  <AvatarIcon
+                    avatarUrl={chars.impersonating?.avatar || user.profile?.avatar}
+                    format={{ corners: 'circle', size: 'md' }}
+                  />
+                </Match>
+              </Switch>
               <div class="ellipsis flex cursor-pointer items-center justify-end rounded-lg bg-[var(--bg-700)] px-2 py-1">
                 <div class="ellipsis flex flex-col">
-                  <span>
-                    {chars.impersonating?.name || user.profile?.handle}
-                    {state.flags.charv2 ? ' (v2)' : ''}
-                    {user.user?.premium ? ' ⭐' : ''}
+                  <span>{chars.impersonating?.name || user.profile?.handle}
+                  {user.user?.premium ? ' ⭐' : ''}
                   </span>
                 </div>
                 <Show when={!!chars.impersonating}>
@@ -264,10 +273,6 @@ const Slots: Component = (props) => {
         <Show when={rendered()}>
           <Slot slot="menu" />
         </Show>
-      </Match>
-
-      <Match when={page.height() >= 1000}>
-        <Slot slot="menuLg" />
       </Match>
 
       <Match when={true}>

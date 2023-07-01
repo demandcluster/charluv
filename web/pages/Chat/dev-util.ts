@@ -1,4 +1,5 @@
-import { AvatarCornerRadius, AVATAR_SIZES, UserState, userStore } from '../../store'
+import { UserState, userStore } from '../../store'
+import { UI } from '/common/types'
 
 /* Magic strings for dev testing purposes. */
 
@@ -18,19 +19,19 @@ export function devCycleAvatarSettings(user: UserState) {
     avatarCorners: user.ui.avatarCorners,
     avatarSize: user.ui.avatarSize,
   }
-  const testedCornerSettings: AvatarCornerRadius[] = ['md', 'circle']
+  const testedCornerSettings: UI.AvatarCornerRadius[] = ['md', 'circle']
   const settingPermutations = testedCornerSettings.flatMap((avatarCorners) =>
-    AVATAR_SIZES.map((avatarSize) => ({ avatarCorners, avatarSize }))
+    UI.AVATAR_SIZES.map((avatarSize) => ({ avatarCorners, avatarSize }))
   )
   const applyPermutations = ([perm, ...rest]: typeof settingPermutations) => {
     if (perm === undefined) {
       console.log('Done demonstrating avatar setting permutations, restoring original settings')
       const { avatarCorners, avatarSize } = originalSettings
-      userStore.updateUI({ avatarCorners, avatarSize })
+      userStore.saveUI({ avatarCorners, avatarSize })
     } else {
       console.log(perm)
       const { avatarCorners, avatarSize } = perm
-      userStore.updateUI({ avatarCorners, avatarSize })
+      userStore.saveUI({ avatarCorners, avatarSize })
       setTimeout(() => applyPermutations(rest), 800)
     }
   }

@@ -4,12 +4,13 @@ import { NewCharacter } from '/web/store'
 import { jsonToCharacter } from '../Character/ImportCharacter'
 import { extractCardData } from '../Character/card-utils'
 import { processBook, processChar } from './util'
-import { AppSchema } from '/srv/db/schema'
+import { AppSchema } from '/common/types'
 
 export const ChubItem: Component<{
   name: string
   fullPath: string
   avatar: string
+  loading?: () => void
   book?: boolean
   setBook?: (book: AppSchema.MemoryBook, fullPath: string) => void
   setChar?: (char: NewCharacter, fullPath: string) => void
@@ -17,13 +18,14 @@ export const ChubItem: Component<{
   const [memorybook, setMemoryBook] = createSignal<any>({})
 
   const processItem = async () => {
+    props.loading?.()
     if (props.book) {
       const book = await processBook(props.fullPath)
       setMemoryBook(book)
       props.setBook?.(
         {
-          kind: 'memory',
           _id: '',
+          kind: 'memory',
           name: memorybook().name == 'Exported' ? props.name : memorybook().name,
           description: memorybook().description,
           userId: '',

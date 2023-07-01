@@ -20,6 +20,22 @@ body {
   width: 2.5rem;
 }
 
+.max-w-7xl {
+  max-width: 80rem;
+}
+
+.max-w-6xl {
+  max-width: 72rem;
+}
+
+.max-w-5xl {
+  max-width: 64rem;
+}
+
+.max-w-8xl {
+  max-width: 88rem;
+}
+
 body {
   @apply text-900 bg-[var(--bg-900)];
   height: 100%;
@@ -407,41 +423,92 @@ textarea:disabled {
   @apply bg-[var(--bg-900)];
 }
 
-.markdown > * a,
-.markdown > a {
+.markdown code {
+  font-size: 0.75rem !important;
+}
+
+.markdown a {
   @apply cursor-pointer text-[var(--hl-500)] hover:text-[var(--hl-300)];
 }
 
-.markdown > h1 {
-  @apply py-2 text-2xl font-bold text-[var(--hl-400)];
+.markdown h1 {
+  @apply pt-8 text-2xl font-bold text-[var(--hl-400)];
 }
 
-.markdown > h2 {
-  @apply py-2 text-xl font-bold text-[var(--hl-400)];
+.markdown h2 {
+  @apply pt-6 text-xl font-bold text-[var(--hl-400)];
 }
 
-.markdown > h3 {
-  @apply py-1 text-lg font-bold text-[var(--hl-400)];
+.markdown h3 {
+  @apply pt-4 text-lg font-bold text-[var(--hl-400)];
 }
 
-.markdown > p {
+.markdown h4 {
+  @apply py-1 text-base font-bold text-[var(--hl-400)];
+}
+
+.markdown p {
   @apply py-1;
 }
 
-.markdown > ul {
-  @apply ml-6;
+.markdown em {
+  @apply font-normal text-[var(--hl-200)];
+}
+
+.markdown ul {
+  @apply pl-5;
+  list-style-type: disc;
+  list-style-position: inside;
+}
+
+.markdown ol {
+  @apply pl-5;
+  counter-reset: item;
+  list-style-position: inside;
+}
+
+.markdown ul > li {
+  @apply ml-5;
   list-style-type: disc;
 }
 
-.markdown > ol {
-  @apply ml-6;
-  list-style-type: decimal;
+.markdown ol > li {
+  counter-increment: item;
+}
+
+.markdown ol > li::before {
+  content: counters(item, '.') '. ';
+}
+
+.markdown > ul > li > ul {
+  @apply pl-5;
+  list-style-type: circle;
+  list-style-position: inside;
 }
 
 .markdown > blockquote {
   @apply pl-4;
   border-left: 0.25em solid var(--bg-300);
 }
+
+.markdown ul > li {
+  list-style-type: disc;
+}
+.markdown ul > li > ul > li {
+  list-style-type: circle;
+}
+.markdown ul > li > ul > li > ul > li {
+  list-style-type: square;
+}
+/* .markdown ul ul ul ul li {
+  list-style: disc;
+}
+.markdown ul ul ul ul ul li {
+  list-style: circle;
+}
+.markdown ul ul ul ul ul ul li {
+  list-style: square;
+} */
 
 .overlay {
   position: fixed; /* Sit on top of the page content */

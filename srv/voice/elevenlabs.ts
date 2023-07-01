@@ -1,11 +1,11 @@
 import needle from 'needle'
 import { TextToSpeechAdapter, VoiceListResponse } from './types'
 import { decryptText } from '../db/util'
-import { AppSchema } from '../db/schema'
+import { AppSchema } from '../../common/types/schema'
 import { errors } from '../api/wrap'
 import { Validator } from '/common/valid'
 import { config } from '../config'
-import { ElevenLabsModel } from '../db/texttospeech-schema'
+import { ElevenLabsModel } from '../../common/types/texttospeech-schema'
 
 const baseUrl = 'https://api.elevenlabs.io/v1'
 

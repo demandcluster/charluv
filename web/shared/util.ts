@@ -2,7 +2,28 @@ import { UnwrapBody, Validator, assertValid } from '/common/valid'
 import { ADAPTER_LABELS, AIAdapter, PresetAISettings, adapterSettings } from '../../common/adapters'
 import type { Option } from './Select'
 import { createEffect, onCleanup } from 'solid-js'
-import { settingStore } from '../store'
+import { UserState, settingStore } from '../store'
+
+export function getMaxChatWidth(chatWidth: UserState['ui']['chatWidth']) {
+  switch (chatWidth) {
+    case 'xl':
+      return 'max-w-6xl'
+
+    case '2xl':
+      return 'max-w-7xl'
+
+    case '3xl':
+      return 'max-w-8xl'
+
+    case 'fill':
+      return 'max-w-none'
+
+    case 'full':
+    case 'narrow':
+    default:
+      return 'max-w-5xl'
+  }
+}
 
 export const safeLocalStorage = {
   getItem,
@@ -419,6 +440,17 @@ export function isDirty<T extends {}>(original: T, compare: T): boolean {
   }
 
   return false
+}
+
+export function serviceHasSetting(service: AIAdapter | undefined, prop: keyof PresetAISettings) {
+  if (!service) return true
+  const { config } = settingStore()
+  const base = adapterSettings[prop]
+  const services = config.registered
+    .filter((reg) => reg.options.includes(prop))
+    .map((reg) => reg.name)
+
+  return base?.includes(service) || services.includes(service)
 }
 
 export function getAISettingServices(prop?: keyof PresetAISettings) {

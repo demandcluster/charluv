@@ -1,9 +1,10 @@
 import { v4 } from 'uuid'
-import { AppSchema } from '../../../srv/db/schema'
+import { AppSchema } from '../../../common/types/schema'
 import { api, isLoggedIn } from '../api'
 import { loadItem, localApi } from './storage'
 
 export type PresetUpdate = Omit<AppSchema.UserGenPreset, '_id' | 'kind' | 'userId'>
+export type PresetCreate = PresetUpdate & { chatId?: string }
 
 export const presetApi = {
   getPresets,

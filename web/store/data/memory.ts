@@ -1,5 +1,5 @@
 import { v4 } from 'uuid'
-import { AppSchema, NewBook } from '../../../srv/db/schema'
+import { AppSchema, NewBook } from '../../../common/types/schema'
 import { api, isLoggedIn } from '../api'
 import { localApi } from './storage'
 
@@ -27,10 +27,10 @@ export async function createBook(book: NewBook) {
   }
 
   const next: AppSchema.MemoryBook = {
-    _id: v4(),
+    ...book,
     kind: 'memory',
     userId: localApi.ID,
-    ...book,
+    _id: v4(),
   }
   const books = localApi.loadItem('memory').concat(next)
   localApi.saveBooks(books)
