@@ -4,6 +4,11 @@ import { markdown } from '../../shared/markdown'
 import { setComponentPageTitle } from '../../shared/util'
 
 const text = `
+_29 June 2023_
+- Add character "sprites". These are an alternative to avatar images.
+- "Trim Sentences" option in UI settings. This will trim incomplete sentences.
+- Character Card V2 support
+
 _17 June 2023_
 - Added character creation,import,export,overrides in chat, and more!
 - New character editor pane. Edit your characters while chatting!

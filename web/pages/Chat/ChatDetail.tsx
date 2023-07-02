@@ -41,7 +41,7 @@ import DeleteChatModal from './components/DeleteChat'
 import { cycleArray, wait } from '/common/util'
 import { HOLDERS } from '/common/prompt'
 import UpdateGaslightToUseSystemPromptModal from './UpdateGaslightToUseSystemPromptModal'
-import { getActiveBots } from './util'
+import { getActiveBots, canConvertGaslightV2 } from './util'
 import { CreateCharacterForm } from '/web/shared/CreateCharacterForm'
 import { usePane } from '/web/shared/hooks'
 import CharacterSelect from '/web/shared/CharacterSelect'
@@ -55,8 +55,9 @@ import {
   insertImageMessages,
   SwipeMessage,
 } from './helpers'
-import { AvatarContainer, useAutoExpression } from '/web/shared/Avatar/Builder'
+import { useAutoExpression } from '/web/shared/Avatar/hooks'
 import { useChatAvatars } from './components/ChatAvatar'
+import AvatarContainer from '/web/shared/Avatar/Container'
 
 const ChatDetail: Component = () => {
   const { updateTitle } = setComponentPageTitle('Chat')
@@ -249,13 +250,16 @@ const ChatDetail: Component = () => {
   })
 
   const shouldForceV2Gaslight = createMemo(() => {
-    const isUserSetting = chatPreset()?.preset._id !== undefined && chatPreset()?.preset._id !== ''
-    if (!isUserSetting) return false
-    const gaslight = chatPreset()?.preset.gaslight
-    if (!gaslight) return false
+    const cfg = chatPreset()
+    if (!cfg) return false
+
+    if (!canConvertGaslightV2(cfg.preset)) return false
+    const gaslight = cfg.preset.gaslight!
+
     const characterHasSystemPrompt = chars.chatBots.some(
       (char) => char.systemPrompt !== undefined && char.systemPrompt !== ''
     )
+
     const gaslightHasSystemPrompt = !!gaslight.match(HOLDERS.systemPrompt)
     return characterHasSystemPrompt && !gaslightHasSystemPrompt
   })
@@ -506,11 +510,7 @@ const ChatDetail: Component = () => {
                       {(msg, i) => (
                         <Message
                           msg={msg}
-                          botMap={chars.botMap}
-                          chat={chats.chat!}
-                          char={chats.char!}
                           editing={chats.opts.editing}
-                          anonymize={cfg.anonymize}
                           last={i() === indexOfLastRPMessage()}
                           onRemove={() => setRemoveId(msg._id)}
                           swipe={
@@ -540,13 +540,9 @@ const ChatDetail: Component = () => {
                     </For>
                     <Show when={waitingMsg()}>
                       <Message
-                        botMap={chars.botMap}
                         msg={waitingMsg()!}
-                        char={chars.botMap[waitingMsg()?.characterId!]}
-                        chat={chats.chat!}
                         onRemove={() => {}}
                         editing={chats.opts.editing}
-                        anonymize={cfg.anonymize}
                         sendMessage={sendMessage}
                         isPaneOpen={!!chatStore().opts.pane}
                         avatars={avatars.avatars()}

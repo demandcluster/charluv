@@ -42,6 +42,10 @@ export type NewCharacter = UpdateCharacter &
     | 'postHistoryInstructions'
     | 'creator'
     | 'characterVersion'
+    | 'match'
+    | 'premium'
+    | 'xp'
+    | 'shared'
   > & {
     originalAvatar: any
   }

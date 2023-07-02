@@ -57,6 +57,7 @@ export type UISettings = {
   viewHeight?: number
 
   chatWidth?: ChatWidth
+  trimSentences?: boolean
   logPromptsToBrowserConsole: boolean
 
   dark: CustomUI
@@ -92,7 +93,7 @@ export const uiGuard = {
 } as const
 
 export const defaultUIsettings: UISettings = {
-  theme: 'sky',
+  theme: 'teal',
   themeBg: 'truegray',
 
   bgCustom: '',

@@ -66,6 +66,9 @@ export namespace AppSchema {
 
   export interface User {
     _id: string
+
+    updatedAt?: string
+
     kind: 'user'
     username: string
     hash: string
@@ -184,6 +187,7 @@ export namespace AppSchema {
     first?: boolean
     ooc?: boolean
     system?: boolean
+    meta?: any
   }
 
   /** Description of the character or user */
@@ -214,6 +218,7 @@ export namespace AppSchema {
     parent?: string
     match: boolean
     xp: number
+    share: string
     premium: boolean
     sprite?: FullSprite
 

@@ -78,6 +78,7 @@
     "@types/crypto-js": "^4.1.1",
     "@types/paypal-rest-sdk": "^1.7.6",
     "@types/paypal__checkout-server-sdk": "^1.0.5",
+    "@mlc-ai/web-tokenizers": "^0.1.0",
     "adm-zip": "^0.5.10",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
@@ -107,6 +108,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.12",
+    "@melloware/coloris": "^0.20.0",
     "@parcel/config-default": "^2.9.2",
     "@parcel/resolver-glob": "^2.9.2",
     "@parcel/transformer-inline-string": "2.9.2",

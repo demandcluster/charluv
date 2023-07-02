@@ -32,6 +32,7 @@ const characterValidator = {
   persona: 'string?',
   xp: 'string?',
   match: 'string?',
+  share: 'string?',
   premium: 'string?',
   favorite: 'boolean?',
   voice: 'string?',
@@ -56,6 +57,7 @@ const newCharacterValidator = {
   xp: 'string?',
   match: 'string?',
   premium: 'string?',
+  share: 'string?',
   persona: 'string',
   originalAvatar: 'string?',
 } as const
@@ -85,7 +87,7 @@ const createCharacter = handle(async (req) => {
     throw new StatusError('Character `extensions` field must be an object or undefined.', 400)
   }
   const user = await store.users.getUser(req.userId!)
-  if (user?.credits && user?.credits<50){
+  if (user?.credits && user?.credits < 50) {
     throw new StatusError('Not enough credits', 400)
   }
   await store.credits.updateCredits(req.userId!, -50)
@@ -93,9 +95,10 @@ const createCharacter = handle(async (req) => {
   const char = await store.characters.createCharacter(req.user?.userId!, {
     name: body.name,
     persona,
-    premium: body.premium?.toString() === 'true'||false,
+    premium: !!body.premium,
     xp: 0,
-    match: body.match?.toString() === 'true'||false,
+    match: body.match?.toString() === 'true' || false,
+    share: body.share,
     sampleChat: body.sampleChat,
     description: body.description,
     appearance: body.appearance,
@@ -116,7 +119,6 @@ const createCharacter = handle(async (req) => {
     characterVersion: body.characterVersion,
   })
 
- 
   const filename = await entityUpload(
     'char',
     char._id,
@@ -165,6 +167,10 @@ const editCharacter = handle(async (req) => {
     postHistoryInstructions: body.postHistoryInstructions,
     creator: body.creator,
     characterVersion: body.characterVersion,
+    match: body.match?.toString() === 'true' || false,
+    premium: body.premium?.toString() === 'true' || false,
+    xp: parseInt(body.xp) || 0,
+    share: body.share,
   }
 
   if (body.persona) {
@@ -191,7 +197,7 @@ const editCharacter = handle(async (req) => {
   }
 
   const user = await store.users.getUser(req.userId!)
-  if (user?.credits && user?.credits<20){
+  if (user?.credits && user?.credits < 20) {
     throw new StatusError('Not enough credits', 400)
   }
   await store.credits.updateCredits(req.userId!, -20)
@@ -267,21 +273,25 @@ export const createImage = handle(async ({ body, userId, socketId, log }) => {
 router.use(loggedIn)
 router.post('/', loggedIn, createCharacter)
 router.get('/', getCharacters)
-router.post('/image',loggedIn, createImage)
+router.post('/image', loggedIn, createImage)
 router.post('/:id', loggedIn, editCharacter)
 router.get('/:id', getCharacter)
-router.delete('/:id',loggedIn, deleteCharacter)
+router.delete('/:id', loggedIn, deleteCharacter)
 router.post('/:id/favorite', editCharacterFavorite)
 router.delete('/:id/avatar', removeAvatar)
 
 export default router
 
 function toArray(value?: string) {
-  const parsed = tryParse(value)
-  if (!parsed) return
+  if (!value) return []
 
-  assertValid({ parsed: ['string'] }, { parsed })
-  return parsed
+  if (Array.isArray(value)) return value.filter((v) => typeof v === 'string')
+
+  const parsed = tryParse(value)
+  if (Array.isArray(parsed)) return parsed.filter((v) => typeof v === 'string')
+  if (typeof parsed === 'string') return []
+
+  if (!parsed) return []
 }
 
 function tryParse(value?: any) {

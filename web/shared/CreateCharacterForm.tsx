@@ -51,11 +51,12 @@ import { Card, SolidCard } from './Card'
 import { usePane, useRootModal } from './hooks'
 import Modal from '/web/shared/Modal'
 import EditMemoryForm, { EntrySort, getBookUpdate } from '../pages/Memory/EditMemory'
-import { ToggleButtons } from './Toggle'
-import AvatarBuilder, { AvatarContainer } from './Avatar/Builder'
+import { ToggleButtons, Toggle } from './Toggle'
+import AvatarBuilder from './Avatar/Builder'
 import { FullSprite } from '/common/types/sprite'
 import Slot from './Slot'
 import { getRandomBody } from '../asset/sprite'
+import AvatarContainer from './Avatar/Container'
 
 const options = [
   { id: 'wpp', label: 'W++' },
@@ -131,6 +132,11 @@ export const CreateCharacterForm: Component<{
   const [creating, setCreating] = createSignal(false)
   const [showBuilder, setShowBuilder] = createSignal(false)
 
+  const [match, setMatch] = createSignal(state.edit?.match ?? false)
+  const [premium, setPremium] = createSignal(state.edit?.premium ?? false)
+  const [xp, setXp] = createSignal(state.edit?.xp ?? 0)
+  const [shareable, setShareable] = createSignal(state.edit?.share ?? 'private')
+
   const [alternateGreetings, setAlternateGreetings] = createSignal(
     state.edit?.alternateGreetings ?? []
   )
@@ -140,12 +146,12 @@ export const CreateCharacterForm: Component<{
 
   const totalTokens = createMemo(() => {
     const t = tokens()
-    return t.greeting + t.name + t.persona + t.sample + t.scenario
+    return t.name + t.persona + t.sample + t.scenario
   })
 
   const totalPermanentTokens = createMemo(() => {
     const t = tokens()
-    return t.greeting + t.name + t.persona + t.scenario
+    return t.name + t.persona + t.scenario
   })
 
   const edit = createMemo(() => state.edit)
@@ -200,6 +206,8 @@ export const CreateCharacterForm: Component<{
       const { file, json } = await downloadCharacterHub(query.import)
       const imageData = await getImageData(file)
       setDownloaded(json)
+      setBundledBook(json.characterBook)
+      setAlternateGreetings(json.alternateGreetings ?? [])
       setImage(imageData)
       setAvatar(() => file)
       setSchema('text')
@@ -216,6 +224,9 @@ export const CreateCharacterForm: Component<{
       setVoice(edit.voice || { service: undefined })
       setCulture(edit.culture ?? defaultCulture)
       setTags(edit.tags)
+      setMatch(edit.match)
+      setPremium(edit.premium)
+      setShareable(edit.share)
     })
   )
 
@@ -265,7 +276,9 @@ export const CreateCharacterForm: Component<{
       visualType: visualType(),
       avatar: state.avatar.blob || avatar(),
       sprite: spriteBody(),
-
+      match: match(),
+      premium: premium(),
+      share: shareable(),
       altGreetings: alternateGreetings(),
       characterBook: bundledBook(),
       extensions: extensions(),
@@ -568,32 +581,6 @@ export const CreateCharacterForm: Component<{
                 Advanced options
               </h2>
               <div class={`flex flex-col gap-3 ${advancedVisibility()}`}>
-                <Card class="flex flex-col gap-3">
-                  <TextInput
-                    isMultiline
-                    fieldName="systemPrompt"
-                    label="Character System Prompt (optional)"
-                    helperText={
-                      <span>
-                        {`System prompt to bundle with your character. You can use the {{original}} placeholder to include the user's own system prompt, if you want to supplement it instead of replacing it.`}
-                      </span>
-                    }
-                    placeholder="Enter roleplay mode. You will write {{char}}'s next reply in a dialogue between {{char}} and {{user}}. Do not decide what {{user}} says or does. Use Internet roleplay style, e.g. no quotation marks, and write user actions in italic in third person like: *example*. You are allowed to use markdown. Be proactive, creative, drive the plot and conversation forward. Write at least one paragraph, up to four. Always stay in character. Always keep the conversation going. (Repetition is highly discouraged)"
-                    value={state.edit?.systemPrompt}
-                  />
-                  <TextInput
-                    isMultiline
-                    fieldName="postHistoryInstructions"
-                    label="Post-conversation History Instructions (optional)"
-                    helperText={
-                      <span>
-                        {`Prompt to bundle with your character, used at the bottom of the prompt. You can use the {{original}} placeholder to include the user's UJB, if you want to supplement it instead of replacing it.`}
-                      </span>
-                    }
-                    placeholder="Write at least four paragraphs."
-                    value={state.edit?.postHistoryInstructions}
-                  />
-                </Card>
                 <Card>
                   <MemoryBookPicker setBundledBook={setBundledBook} bundledBook={bundledBook()} />
                 </Card>
@@ -602,7 +589,7 @@ export const CreateCharacterForm: Component<{
                     fieldName="creator"
                     label="Creator (optional)"
                     placeholder="e.g. John1990"
-                    value={state.edit?.creator}
+                    value={downloaded()?.creator || state.edit?.creator}
                   />
                 </Card>
                 <Card>
@@ -610,9 +597,69 @@ export const CreateCharacterForm: Component<{
                     fieldName="characterVersion"
                     label="Character Version (optional)"
                     placeholder="any text e.g. 1, 2, v1, v1fempov..."
-                    value={state.edit?.characterVersion}
+                    value={downloaded()?.characterVersion || state.edit?.characterVersion}
                   />
                 </Card>
+                <Show when={!!user.admin}>
+                  <Card>
+                    <ToggleButtons
+                      label="Match"
+                      helperText="Is this a matchable character?"
+                      fieldName="match"
+                      items={[
+                        { value: true, label: 'Matchable (public)' },
+                        { value: false, label: 'Not Matchable (private)' },
+                      ]}
+                      onChange={(opt) => setMatch(opt.value)}
+                      selected={match()}
+                    />
+                  </Card>
+                  <Card>
+                    <ToggleButtons
+                      label="Premium"
+                      fieldName="premium"
+                      items={[
+                        { value: false, label: 'FREE' },
+                        { value: true, label: 'PREMIUM' },
+                      ]}
+                      onChange={(opt) => setPremium(opt.value)}
+                      selected={premium()}
+                    />
+                  </Card>
+                </Show>
+                <Card>
+                  <h4 class="text-md font-bold">Share</h4>
+                  <h5 class="pb-2 text-sm">
+                    Submit your character to be considered for dating and get rewarded if it is
+                    accepted!
+                  </h5>
+                  <div>
+                    <Show when={shareable() !== 'declined'}>
+                      <ToggleButtons
+                        fieldName="share"
+                        items={[
+                          { value: 'private', label: 'Not suitable for dating' },
+                          { value: 'submitted', label: 'Submit for DATING' },
+                        ]}
+                        onChange={(opt) => setShareable(opt.value)}
+                        selected={shareable()}
+                      />
+                    </Show>
+                    <Show when={shareable() === 'declined'}>
+                      <div class="text-bold text-red-500">Not accepted for dating.</div>
+                      <ToggleButtons
+                        fieldName="share"
+                        items={[
+                          { value: 'private', label: 'Select to reset' },
+                          { value: 'declined', label: 'Declined' },
+                        ]}
+                        onChange={(opt) => setShareable(opt.value)}
+                        selected={shareable()}
+                      />
+                    </Show>
+                  </div>
+                </Card>
+
                 <Card class="flex flex-col gap-3">
                   <h4 class="text-md font-bold">Voice</h4>
                   <div>
@@ -706,7 +753,18 @@ const SpriteModal: Component<{
 }> = (props) => {
   let ref: any
 
+  const [original, setOriginal] = createSignal(props.body)
   const [body, setBody] = createSignal(props.body || getRandomBody())
+
+  createEffect(() => {
+    if (props.body && !original()) {
+      setOriginal(props.body)
+    }
+  })
+
+  const handleChange = () => {
+    props.onChange(body())
+  }
 
   useRootModal({
     id: 'sprite-modal',
@@ -719,8 +777,10 @@ const SpriteModal: Component<{
         maxWidth="half"
         footer={
           <>
-            <Button schema="secondary">Cancel</Button>
-            <Button onClick={() => props.onChange(body())}>Confirm</Button>
+            <Button onClick={() => props.onChange(original()!)} schema="secondary">
+              Cancel
+            </Button>
+            <Button onClick={handleChange}>Confirm</Button>
           </>
         }
       >
@@ -856,9 +916,13 @@ function getPayload(ev: Event, opts: PayloadOpts) {
     greeting: 'string',
     scenario: 'string',
     sampleChat: 'string',
-    systemPrompt: 'string',
-    postHistoryInstructions: 'string',
+    systemPrompt: 'string?',
+    postHistoryInstructions: 'string?',
     creator: 'string',
+    match: 'string?',
+    premium: 'string?',
+    share: 'string?',
+    xp: 'string?',
     characterVersion: 'string',
   } as const)
 
@@ -884,7 +948,10 @@ function getPayload(ev: Event, opts: PayloadOpts) {
     persona,
     originalAvatar: opts.originalAvatar,
     voice: opts.voice,
-
+    match: opts.match,
+    premium: opts.premium,
+    share: opts.share,
+    xp: opts.xp ?? 0,
     // New fields start here
     systemPrompt: body.systemPrompt ?? '',
     postHistoryInstructions: body.postHistoryInstructions ?? '',

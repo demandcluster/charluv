@@ -156,9 +156,6 @@ const Settings: Component = () => {
           <div class={currentTab() === 'image' ? tabClass : 'hidden'}>
             <ImageSettings />
           </div>
-          <div class={currentTab() === 'date' ? tabClass : 'hidden'}>
-            <DateSettings />
-          </div>
 
           <div class={currentTab() === 'voice' ? tabClass : 'hidden'}>
             <VoiceSettings />

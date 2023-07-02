@@ -19,15 +19,19 @@ import { UI } from '/common/types'
 import { publishOne } from '../ws/handle'
 
 export const getInitialLoad = handle(async ({ userId }) => {
-  const [profile, user, presets, config, books] = await Promise.all([
+  const appConfig = await getAppConfig()
+  if (config.ui.maintenance) {
+    return { config: appConfig }
+  }
+
+  const [profile, user, presets, books] = await Promise.all([
     store.users.getProfile(userId!),
     getSafeUserConfig(userId!),
     store.presets.getUserPresets(userId!),
-    getAppConfig(),
     store.memory.getBooks(userId!),
   ])
 
-  return { profile, user, presets, config, books }
+  return { profile, user, presets, config: appConfig, books }
 })
 
 export const getProfile = handle(async ({ userId, params }) => {
@@ -100,9 +104,9 @@ export const deleteElevenLabsKey = handle(async ({ userId }) => {
 })
 
 export const updateUI = handle(async ({ userId, body }) => {
-  assertValid(UI.uiGuard, body)
+  assertValid(UI.uiGuard, body, true)
 
-  await store.users.updateUser(userId, { ui: body })
+  await store.users.updateUserUI(userId, body)
 
   publishOne(userId, { type: 'ui-update', ui: body })
 

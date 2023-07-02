@@ -23,6 +23,7 @@ export function toChar(
     },
     match: false,
     xp: 0,
+    share: 'private',
     premium: false,
     updatedAt: '',
     userId: '',

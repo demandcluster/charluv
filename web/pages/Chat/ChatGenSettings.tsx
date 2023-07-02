@@ -113,7 +113,9 @@ export const ChatGenSettings: Component<{
        * Assign it to the chat without creating a new preset
        */
       if (!isPresetDirty(original, update)) {
-        chatStore.editChatGenPreset(props.chat._id, preset)
+        chatStore.editChatGenPreset(props.chat._id, preset, () => {
+          toastStore.success('Switched preset')
+        })
         return
       }
 
@@ -191,9 +193,9 @@ export const ChatGenSettings: Component<{
               You are using a built-in preset which cannot be modified. Modifying this will create a
               new preset and assign it to your chat.
             </TitleCard>
-
-            <TextInput fieldName="name" value={getPresetName(selected())} label="Preset Name" />
           </Show>
+
+          <TextInput fieldName="name" value={getPresetName(selected())} label="Preset Name" />
         </Card>
 
         <Switch>
@@ -247,7 +249,7 @@ function isPresetDirty(
     if (svc && usable && !usable.includes(svc)) continue
 
     if (original[prop] !== compare[prop]) {
-      console.log('Diff', prop, original[prop], compare[prop])
+      // console.log('Diff', prop, original[prop], compare[prop])
       return true
     }
   }

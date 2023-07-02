@@ -1,6 +1,12 @@
 import type { GenerateRequestV2 } from '../srv/adapter/type'
 import type { AppSchema } from './types/schema'
-import { AIAdapter, NOVEL_MODELS, OPENAI_CHAT_MODELS, OPENAI_MODELS } from './adapters'
+import {
+  AIAdapter,
+  NOVEL_MODELS,
+  OPENAI_CHAT_MODELS,
+  OPENAI_MODELS,
+  SUPPORTS_INSTRUCT,
+} from './adapters'
 import { formatCharacter } from './characters'
 import { adventureTemplate, defaultTemplate } from './default-preset'
 import { IMAGE_SUMMARY_PROMPT } from './image'
@@ -23,6 +29,9 @@ export type PromptParts = {
   post: string[]
   memory?: string
   systemPrompt?: string
+
+  /** User's impersonated personality */
+  impersonality?: string
 }
 
 export type Prompt = {
@@ -85,21 +94,23 @@ const HOLDER_NAMES = {
   linebreak: 'br',
   chatAge: 'chat_age',
   idleDuration: 'idle_duration',
+  impersonating: 'impersonating',
 }
 
 export const HOLDERS = {
-  chatAge: /\{\{chat_age\}\}/gi,
-  idleDuration: /\{\{idle_duration\}\}/gi,
-  ujb: /\{\{ujb\}\}/gi,
-  sampleChat: /\{\{example_dialogue\}\}/gi,
-  scenario: /\{\{scenario\}\}/gi,
-  memory: /\{\{memory\}\}/gi,
-  persona: /\{\{personality\}\}/gi,
-  allPersonas: /\{\{all_personalities\}\}/gi,
-  post: /\{\{post\}\}/gi,
-  history: /\{\{history\}\}/gi,
-  systemPrompt: /\{\{system_prompt\}\}/gi,
-  linebreak: `/\{\{(br|linebreak|newline)\}\}/gi`,
+  chatAge: /{{chat_age}}/gi,
+  idleDuration: /{{idle_duration}}/gi,
+  ujb: /{{ujb}}/gi,
+  sampleChat: /{{example_dialogue}}/gi,
+  scenario: /{{scenario}}/gi,
+  memory: /{{memory}}/gi,
+  persona: /{{personality}}/gi,
+  allPersonas: /{{all_personalities}}/gi,
+  post: /{{post}}/gi,
+  history: /{{history}}/gi,
+  systemPrompt: /{{system_prompt}}/gi,
+  linebreak: /{{(br|linebreak|newline)}}/gi,
+  impersonating: /{{impersonating}}/gi,
 }
 
 const ALL_HOLDERS = new RegExp(
@@ -216,10 +227,16 @@ export function injectPlaceholders(
   }
   const sampleChat = parts.sampleChat?.join('\n')
 
+  // Automatically inject example conversation if not included in the prompt
   if (!template.match(HOLDERS.sampleChat) && sampleChat && hist) {
     const next = hist.lines.filter((line) => !line.includes(SAMPLE_CHAT_MARKER))
 
-    const msg = `${SAMPLE_CHAT_PREAMBLE}\n${sampleChat}\n${SAMPLE_CHAT_MARKER}`
+    const postSample =
+      opts.settings?.service && SUPPORTS_INSTRUCT[opts.settings.service]
+        ? SAMPLE_CHAT_MARKER
+        : '<START>'
+
+    const msg = `${SAMPLE_CHAT_PREAMBLE}\n${sampleChat}\n${postSample}`
       .replace(BOT_REPLACE, opts.replyAs.name)
       .replace(SELF_REPLACE, sender)
     if (hist.order === 'asc') next.unshift(msg)
@@ -231,11 +248,12 @@ export function injectPlaceholders(
   let prompt = template
     // UJB must be first to replace placeholders within the UJB
     // Note: for character post-history-instructions, this is off-spec behavior
-    .replace(HOLDERS.ujb, opts.settings?.ultimeJailbreak || '')
+    .replace(HOLDERS.ujb, parts.ujb || '')
     .replace(HOLDERS.sampleChat, newline(sampleChat))
     .replace(HOLDERS.scenario, parts.scenario || '')
     .replace(HOLDERS.memory, newline(parts.memory))
     .replace(HOLDERS.persona, parts.persona)
+    .replace(HOLDERS.impersonating, parts.impersonality || '')
     .replace(HOLDERS.allPersonas, parts.allPersonas?.join('\n') || '')
     .replace(HOLDERS.post, parts.post.join('\n'))
     .replace(HOLDERS.linebreak, '\n')
@@ -264,7 +282,13 @@ function removeUnusedPlaceholders(template: string, parts: PromptParts) {
   const useMemory = !!parts.memory
   const useScenario = !!parts.scenario
   const useSystemPrompt = !!parts.systemPrompt
+  const useImpersonality = !!parts.impersonality
 
+  /**
+   * Filter out lines that contain only one 'one of a kind' placeholder where the placeholder is empty
+   * E.g. Remove the line: `Scenario: {{scenario}}` when the scenario is empty, but
+   * Keep: `Scenario and Facts: {{scenario}} {{memory}}
+   */
   let modified = template
     .split('\n')
     .filter((line) => {
@@ -278,7 +302,7 @@ function removeUnusedPlaceholders(template: string, parts: PromptParts) {
       if (!useSampleChat && line.match(HOLDERS.sampleChat)) return false
       if (!useMemory && line.match(HOLDERS.memory)) return false
       if (!useScenario && line.match(HOLDERS.scenario)) return false
-      // idg what this does tbh - @malfoyslastname
+      if (!useImpersonality && line.match(HOLDERS.impersonating)) return false
       if (!useSystemPrompt && line.match(HOLDERS.systemPrompt)) return false
       return true
     })
@@ -362,15 +386,22 @@ export function getPromptParts(opts: PromptPartsOptions, lines: string[], encode
 
   const personalities = new Set(replyAs._id)
 
-  const botKind = opts.chat.overrides?.kind || opts.char.persona.kind
   if (opts.impersonate && !personalities.has(opts.impersonate._id)) {
     personalities.add(opts.impersonate._id)
     parts.allPersonas.push(
       `${opts.impersonate.name}'s personality: ${formatCharacter(
         opts.impersonate.name,
         opts.impersonate.persona,
-        botKind
+        opts.impersonate.persona.kind
       )}`
+    )
+  }
+
+  if (opts.impersonate) {
+    parts.impersonality = formatCharacter(
+      opts.impersonate.name,
+      opts.impersonate.persona,
+      opts.impersonate.persona.kind
     )
   }
 
@@ -379,7 +410,7 @@ export function getPromptParts(opts: PromptPartsOptions, lines: string[], encode
     if (personalities.has(bot._id)) continue
     personalities.add(bot._id)
     parts.allPersonas.push(
-      `${bot.name}'s personality: ${formatCharacter(bot.name, bot.persona, botKind)}`
+      `${bot.name}'s personality: ${formatCharacter(bot.name, bot.persona, bot.persona.kind)}`
     )
   }
 
@@ -422,35 +453,41 @@ export function getPromptParts(opts: PromptPartsOptions, lines: string[], encode
   const memory = buildMemoryPrompt({ ...opts, books, lines: linesForMemory }, encoder)
   parts.memory = memory?.prompt
 
-  parts.ujb = getFinalUjbOrSystemPrompt(
-    opts.settings?.ignoreCharacterUjb,
-    replyAs.postHistoryInstructions,
-    opts.settings?.ultimeJailbreak
-  )
-
-  parts.systemPrompt = getFinalUjbOrSystemPrompt(
-    opts.settings?.ignoreCharacterSystemPrompt,
-    replyAs.systemPrompt,
-    opts.settings?.systemPrompt
-  )
+  const supplementary = getSupplementaryParts(opts, replyAs)
+  parts.ujb = supplementary.ujb
+  parts.systemPrompt = supplementary.system
 
   parts.post = post.map(replace)
 
   return parts
 }
 
-function getFinalUjbOrSystemPrompt(
-  ignoreChara?: boolean,
-  charaPrompt?: string,
-  userPrompt?: string
-) {
-  if (ignoreChara) {
-    return userPrompt
-  } else if (charaPrompt) {
-    return charaPrompt.replace(/{{original}}/gi, userPrompt ?? '')
-  } else {
-    return userPrompt
+function getSupplementaryParts(opts: PromptPartsOptions, replyAs: AppSchema.Character) {
+  const { settings, user } = opts
+  const parts = {
+    ujb: '' as string | undefined,
+    system: '' as string | undefined,
   }
+
+  if (!settings?.service) return parts
+  const supports = SUPPORTS_INSTRUCT[settings?.service]
+  if (!supports?.(user)) return parts
+
+  parts.ujb = settings.ultimeJailbreak
+  parts.system = settings.systemPrompt
+
+  if (replyAs.postHistoryInstructions && !settings.ignoreCharacterUjb) {
+    parts.ujb = replyAs.postHistoryInstructions
+  }
+
+  if (replyAs.systemPrompt && !settings.ignoreCharacterSystemPrompt) {
+    parts.system = replyAs.systemPrompt
+  }
+
+  parts.ujb = parts.ujb?.replace(/{{original}}/gi, settings.ultimeJailbreak || '')
+  parts.system = parts.system?.replace(/{{original}}/gi, settings.systemPrompt || '')
+
+  return parts
 }
 
 function createPostPrompt(

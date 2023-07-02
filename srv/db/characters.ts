@@ -18,6 +18,7 @@ export type CharacterUpdate = Partial<
     | 'favorite'
     | 'match'
     | 'xp'
+    | 'share'
     | 'premium'
     | 'voice'
     | 'alternateGreetings'
@@ -51,6 +52,7 @@ export async function createCharacter(
     | 'match'
     | 'xp'
     | 'premium'
+    | 'share'
     | 'voice'
     | 'alternateGreetings'
     | 'characterBook'
@@ -71,7 +73,7 @@ export async function createCharacter(
     updatedAt: now(),
     ...char,
   }
- 
+
   await db('character').insertOne(newChar)
   return newChar
 }

@@ -145,7 +145,8 @@ const CreateChatForm: Component<{
       <form ref={ref}>
         <div class="mb-2 text-sm">
           Optionally modify some of the conversation context. You can override other aspects of the
-          character's persona from the conversation after it is created.
+          character's persona (not for matches, only imported/created) from the conversation after
+          it is created.
         </div>
         <div class="mb-4 text-sm">
           The information provided here is only applied to the newly created conversation.
@@ -164,14 +165,7 @@ const CreateChatForm: Component<{
               />
             </Card>
           </Show>
-          <Card>
-            <PresetSelect
-              options={presetOptions()}
-              selected={presetId()}
-              setPresetId={setPresetId}
-              warning={<ServiceWarning service={selectedPreset()?.service} />}
-            />
-          </Card>
+
           <Show when={selectedPreset()?.service === 'openai'}>
             <Card>
               <Select
@@ -199,11 +193,13 @@ const CreateChatForm: Component<{
               placeholder="Untitled"
             />
           </Card>
+
           <Card>
             <Toggle
               fieldName="useOverrides"
               value={useOverrides()}
               onChange={(use) => setUseOverrides(use)}
+              disabled={char()?.parent || char()?.name === 'Aiva'}
               label="Override Character Definitions"
               helperText="Overrides will only apply to the newly created conversation."
             />

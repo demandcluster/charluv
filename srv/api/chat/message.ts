@@ -189,6 +189,7 @@ export const generateMessageV2 = handle(async (req, res) => {
 
   let generated = ''
   let error = false
+  let meta = {}
 
   for await (const gen of stream) {
     if (typeof gen === 'string') {
@@ -207,7 +208,12 @@ export const generateMessageV2 = handle(async (req, res) => {
       continue
     }
 
-    if (gen.error) {
+    if ('meta' in gen) {
+      Object.assign(meta, gen.meta)
+      continue
+    }
+
+    if ('error' in gen) {
       error = true
       sendMany(members, { type: 'message-error', requestId, error: gen.error, adapter, chatId })
       continue
@@ -245,6 +251,7 @@ export const generateMessageV2 = handle(async (req, res) => {
         adapter,
         ooc: false,
         actions: actioned.actions,
+        meta,
       })
       sendMany(members, {
         type: 'message-created',
@@ -264,6 +271,7 @@ export const generateMessageV2 = handle(async (req, res) => {
           msg: actioned.text,
           actions: actioned.actions,
           adapter,
+          meta,
         })
         sendMany(members, {
           type: 'message-retry',
@@ -274,6 +282,7 @@ export const generateMessageV2 = handle(async (req, res) => {
           actions: actioned.actions,
           adapter,
           generate: true,
+          meta,
         })
       } else {
         const msg = await store.msgs.createChatMessage({
@@ -283,6 +292,7 @@ export const generateMessageV2 = handle(async (req, res) => {
           adapter,
           actions: actioned.actions,
           ooc: false,
+          meta,
         })
         sendMany(members, {
           type: 'message-created',
@@ -298,7 +308,7 @@ export const generateMessageV2 = handle(async (req, res) => {
     }
 
     case 'continue': {
-      await store.msgs.editMessage(body.continuing._id, { msg: responseText, adapter })
+      await store.msgs.editMessage(body.continuing._id, { msg: responseText, adapter, meta })
       sendMany(members, {
         type: 'message-retry',
         requestId,
@@ -307,6 +317,7 @@ export const generateMessageV2 = handle(async (req, res) => {
         message: responseText,
         adapter,
         generate: true,
+        meta,
       })
       break
     }
@@ -348,6 +359,7 @@ async function handleGuestGenerate(body: GenRequest, req: AppRequest, res: Respo
 
   let generated = ''
   let error = false
+  let meta = {}
 
   for await (const gen of stream) {
     if (typeof gen === 'string') {
@@ -360,7 +372,12 @@ async function handleGuestGenerate(body: GenRequest, req: AppRequest, res: Respo
       continue
     }
 
-    if (gen.error) {
+    if ('meta' in gen) {
+      Object.assign(meta, gen.meta)
+      continue
+    }
+
+    if ('error' in gen) {
       error = true
       sendGuest(guest, { type: 'message-error', error: gen.error, adapter, chatId })
       continue
@@ -373,7 +390,12 @@ async function handleGuestGenerate(body: GenRequest, req: AppRequest, res: Respo
 
   const characterId = body.kind === 'self' ? undefined : body.replyAs?._id || body.char?._id
   const senderId = body.kind === 'self' ? 'anon' : undefined
-  const response = newMessage(chatId, responseText, { characterId, userId: senderId, ooc: false })
+  const response = newMessage(chatId, responseText, {
+    characterId,
+    userId: senderId,
+    ooc: false,
+    meta,
+  })
 
   switch (body.kind) {
     case 'summary':
@@ -401,7 +423,7 @@ async function handleGuestGenerate(body: GenRequest, req: AppRequest, res: Respo
 function newMessage(
   chatId: string,
   text: string,
-  props: { userId?: string; characterId?: string; ooc: boolean }
+  props: { userId?: string; characterId?: string; ooc: boolean; meta?: any }
 ) {
   const userMsg: AppSchema.ChatMessage = {
     _id: v4(),
