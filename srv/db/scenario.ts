@@ -3,7 +3,11 @@ import { db } from './client'
 import { AppSchema, NewScenario } from '/common/types'
 
 export async function getScenarios(userId: string) {
-  const books = await db('scenario').find({ userId }).toArray()
+  // const books = await db('scenario').find({ userId }).toArray()
+  const books = await db('scenario')
+    .find({ $or: [{ userId }, { public: true }] })
+    .toArray()
+
   return books
 }
 

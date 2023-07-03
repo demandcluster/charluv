@@ -76,6 +76,7 @@ const App: Component = () => {
           <Route path="/privacy" component={lazy(() => import('./pages/Home/policy'))} />
           <Route path="/help" component={lazy(() => import('./pages/Home/Help'))} />
           <Route path="/terms" component={lazy(() => import('./pages/Home/terms'))} />
+          <Route path="/share" component={lazy(() => import('./pages/Home/Share'))} />
 
           <Route path="/memory" component={lazy(() => import('./pages/Memory'))} />
           <Route

@@ -14,6 +14,7 @@ export const scenarioApi = {
 export async function getScenarios() {
   if (isLoggedIn()) {
     const res = await api.get<{ scenarios: AppSchema.ScenarioBook[] }>('/scenario')
+
     return res
   }
 

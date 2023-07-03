@@ -66,7 +66,9 @@ const CreateChatForm: Component<{
     if (!scenarios.length) return [{ value: '', label: 'You have no scenarios' }]
     return [
       { value: '', label: "Use character's scenario" },
-      ...scenarios.map((s) => ({ label: s.name, value: s._id })),
+      ...scenarios
+        .filter((scenario) => scenario?.public !== true)
+        .map((s) => ({ label: s.name, value: s._id })),
     ]
   })
 

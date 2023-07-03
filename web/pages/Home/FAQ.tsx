@@ -16,8 +16,7 @@ export default FAQ
 const faq = `
 
 ### Are my responses filtered?
-No, Charluv does not make any attempt to filter your responses. 
-
+No, Charluv does not make any attempt to filter your responses. However, on model level we have taken measures to prevent CSAM.
 
 ### How can I have multiple profiles or change my name in the chat?
 This is accomplished by **impersonating a character**. To impersonate, click on your Avatar/Name in the main menu.

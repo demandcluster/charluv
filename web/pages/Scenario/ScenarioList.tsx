@@ -68,7 +68,7 @@ const CreateScenario: Component = () => {
         </Match>
         <Match when={scenarioState.scenarios.length > 0}>
           <div class="flex flex-col gap-2">
-            <For each={scenarioState.scenarios}>
+            <For each={scenarioState.scenarios.filter((scenario) => scenario?.public !== true)}>
               {(scenario) => (
                 <div class="flex w-full justify-between gap-2 rounded-lg bg-[var(--bg-800)] p-1 hover:bg-[var(--bg-700)]">
                   <A class="flex w-full cursor-pointer gap-2" href={`/scenario/${scenario._id}`}>
