@@ -9,6 +9,7 @@ import {
   Terminal,
   Trash,
   X,
+  Zap,
 } from 'lucide-solid'
 import {
   Accessor,
@@ -26,11 +27,10 @@ import {
 import { BOT_REPLACE, SELF_REPLACE } from '../../../../common/prompt'
 import { AppSchema } from '../../../../common/types/schema'
 import AvatarIcon, { CharacterAvatar } from '../../../shared/AvatarIcon'
-import { getAssetUrl, getRootVariable } from '../../../shared/util'
-import { chatStore, userStore, msgStore, settingStore, getSettingColor } from '../../../store'
+import { getAssetUrl } from '../../../shared/util'
+import { chatStore, userStore, msgStore, settingStore } from '../../../store'
 import { markdown } from '../../../shared/markdown'
 import Button from '/web/shared/Button'
-import { useBgStyle } from '/web/shared/hooks'
 import { rootModalStore } from '/web/store/root-modal'
 import { ContextState, useAppContext } from '/web/store/context'
 import { trimSentence } from '/common/util'
@@ -47,10 +47,10 @@ type MessageProps = {
   children?: any
   retrying?: AppSchema.ChatMessage
   partial?: string
-  actions?: AppSchema.ChatMessage['actions']
   sendMessage: (msg: string, ooc: boolean) => void
   isPaneOpen: boolean
   avatars?: Record<string, JSX.Element>
+  showHiddenEvents?: boolean
 }
 
 const Message: Component<MessageProps> = (props) => {
@@ -76,6 +76,7 @@ const Message: Component<MessageProps> = (props) => {
             sendMessage={props.sendMessage}
             isPaneOpen={props.isPaneOpen}
             avatars={props.avatars}
+            showHiddenEvents={props.showHiddenEvents}
           >
             {props.children}
           </SingleMessage>
@@ -86,11 +87,9 @@ const Message: Component<MessageProps> = (props) => {
 }
 
 const SingleMessage: Component<
-  Omit<
-    MessageProps & { original: AppSchema.ChatMessage; lastSplit: boolean },
-    'anonymize' | 'botMap'
-  >
+  MessageProps & { original: AppSchema.ChatMessage; lastSplit: boolean }
 > = (props) => {
+  let ref: HTMLDivElement
   let avatarRef: any
   const user = userStore()
   const state = chatStore()
@@ -110,33 +109,27 @@ const SingleMessage: Component<
 
   const [ctx] = useAppContext()
 
-  onMount(() => {
-    obs().observe(avatarRef)
-  })
+  onMount(() => obs().observe(avatarRef))
+  onCleanup(() => obs().disconnect())
 
-  onCleanup(() => {
-    obs().disconnect()
-  })
-
-  const format = createMemo(() => ({ size: user.ui.avatarSize, corners: user.ui.avatarCorners }))
-
-  const bgStyles = useBgStyle({
-    hex:
-      props.msg.characterId && !props.msg.userId
-        ? getSettingColor(user.current.botBackground || 'bg-800')
-        : props.msg.ooc
-        ? getRootVariable('bg-1000')
-        : getSettingColor(user.current.msgBackground || 'bg-800'),
-    blur: true,
-  })
+  const bgStyles = createMemo(() =>
+    props.msg.characterId && !props.msg.userId
+      ? ctx.bg.bot
+      : props.msg.ooc
+      ? ctx.bg.ooc
+      : ctx.bg.user
+  )
 
   const msgText = createMemo(() => {
+    let msg = props.msg.msg
     if (props.last && props.swipe) return props.swipe
-    if (!ctx.anonymize) {
-      return props.msg.msg
+    if (ctx.anonymize) {
+      msg = state.chatProfiles.reduce(anonymizeText, msg).replace(SELF_REPLACE, 'User #1')
     }
-
-    return state.chatProfiles.reduce(anonymizeText, props.msg.msg).replace(SELF_REPLACE, 'User #1')
+    if (props.msg.event && !props.showHiddenEvents) {
+      msg = msg.replace(/\(OOC:.+\)/, '')
+    }
+    return msg
   })
 
   const saveEdit = () => {
@@ -146,7 +139,6 @@ const SingleMessage: Component<
   }
 
   const cancelEdit = () => setEdit(false)
-  const visibilityClass = () => (ctx.anonymize ? 'invisible' : '')
 
   const startEdit = () => {
     setEdit(true)
@@ -162,14 +154,17 @@ const SingleMessage: Component<
     return handle
   }
 
-  let ref: HTMLDivElement | undefined
-
   const opacityClass = props.msg.ooc ? 'opacity-50' : ''
 
-  const nameDateFlexDir = () => (props.isPaneOpen ? 'sm:flex-col sm:gap-1' : 'sm:flex-row sm:gap-0')
-  const nameDateAlignItems = () => (props.isPaneOpen ? '' : 'sm:items-end')
-  const nameClasses = () => (props.isPaneOpen ? 'sm:text-base' : 'sm:text-lg')
-  const oocNameClass = () => (props.msg.ooc ? 'italic' : '')
+  const nameDateFlexDir = createMemo(() =>
+    props.isPaneOpen ? 'sm:flex-col sm:gap-1' : 'sm:flex-row sm:gap-0'
+  )
+
+  const format = createMemo(() => ({ size: user.ui.avatarSize, corners: user.ui.avatarCorners }))
+  const visibilityClass = createMemo(() => (ctx.anonymize ? 'invisible' : ''))
+  const nameDateAlignItems = createMemo(() => (props.isPaneOpen ? '' : 'sm:items-end'))
+  const nameClasses = createMemo(() => (props.isPaneOpen ? 'sm:text-base' : 'sm:text-lg'))
+  const oocNameClass = createMemo(() => (props.msg.ooc ? 'italic' : ''))
 
   return (
     <div
@@ -189,6 +184,14 @@ const SingleMessage: Component<
               data-user-avatar={isUser()}
             >
               <Switch>
+                <Match when={props.msg.event === 'world'}>
+                  <div
+                    class={`avatar-${format().size} flex shrink-0 items-center justify-center pt-3`}
+                  >
+                    <Zap />
+                  </div>
+                </Match>
+
                 <Match when={voice.status === 'generating'}>
                   <div class="animate-pulse cursor-pointer" onClick={msgStore.stopSpeech}>
                     <AvatarIcon format={format()} Icon={DownloadCloud} />
@@ -245,10 +248,14 @@ const SingleMessage: Component<
                   style="line-height: 1;"
                   data-bot-name={isBot()}
                   data-user-name={isUser()}
+                  classList={{ hidden: !!props.msg.event }}
                 >
-                  {props.msg.characterId
-                    ? ctx.botMap[props.msg.characterId!]?.name || ctx.char?.name!
-                    : handleToShow()}
+                  <Switch>
+                    <Match when={props.msg.characterId}>
+                      {ctx.botMap[props.msg.characterId!]?.name || ctx.char?.name!}
+                    </Match>
+                    <Match when={true}>{handleToShow()}</Match>
+                  </Switch>
                 </b>
                 <span
                   class={`
@@ -331,7 +338,7 @@ const SingleMessage: Component<
                   class="rendered-markdown px-1"
                   data-bot-message={isBot()}
                   data-user-message={isUser()}
-                  innerHTML={renderMessage(ctx, props.partial!, 'partial')}
+                  innerHTML={renderMessage(ctx, props.partial!, isUser(), 'partial')}
                 />
               </Match>
               <Match
@@ -349,7 +356,7 @@ const SingleMessage: Component<
                       class="rendered-markdown px-1"
                       data-bot-message={isBot()}
                       data-user-message={isUser()}
-                      innerHTML={renderMessage(ctx, props.partial!, 'partial')}
+                      innerHTML={renderMessage(ctx, props.partial!, isUser(), 'partial')}
                     />
                   </Show>
                 </div>
@@ -359,7 +366,7 @@ const SingleMessage: Component<
                   class="rendered-markdown px-1"
                   data-bot-message={isBot()}
                   data-user-message={isUser()}
-                  innerHTML={renderMessage(ctx, msgText(), props.original.adapter)}
+                  innerHTML={renderMessage(ctx, msgText(), isUser(), props.original.adapter)}
                 />
                 <Show
                   when={
@@ -387,7 +394,7 @@ const SingleMessage: Component<
               </Match>
               <Match when={edit()}>
                 <div
-                  ref={ref}
+                  ref={ref!}
                   contentEditable={true}
                   onKeyUp={(ev) => {
                     if (ev.key === 'Escape') cancelEdit()
@@ -408,8 +415,11 @@ export default Message
 export type SplitMessage = AppSchema.ChatMessage & { split?: boolean; handle?: string }
 
 function splitMessage(ctx: ContextState, incoming: AppSchema.ChatMessage): SplitMessage[] {
-  const charName = ctx.char?.name || 'Unknown'
-  const CHARS = [`${charName}:`, `{{char}}:`]
+  const charName =
+    (incoming.characterId ? ctx.botMap[incoming.characterId]?.name : ctx.char?.name) || ''
+
+  const CHARS = [`{{char}}:`]
+  if (charName) CHARS.push(`${charName}:`)
 
   const USERS = [`${ctx.handle}:`, `{{user}}:`]
 
@@ -455,7 +465,6 @@ function splitMessage(ctx: ContextState, incoming: AppSchema.ChatMessage): Split
     }
 
     if (!next.length && !newMsg) return [msg]
-
     if (!newMsg) {
       const lastMsg = next.slice(-1)[0]
       lastMsg.msg += ` ${trim}`
@@ -554,12 +563,14 @@ function retryMessage(original: AppSchema.ChatMessage, split: SplitMessage) {
   }
 }
 
-function renderMessage(ctx: ContextState, text: string, adapter?: string) {
+function renderMessage(ctx: ContextState, text: string, isUser: boolean, adapter?: string) {
   // Address unfortunate Showdown bug where spaces in code blocks are replaced with nbsp, except
   // it also encodes the ampersand, which results in them actually being rendered as `&amp;nbsp;`
   // https://github.com/showdownjs/showdown/issues/669
 
-  const html = markdown.makeHtml(parseMessage(text, ctx, adapter)).replace(/&amp;nbsp;/g, '&nbsp;')
+  const html = markdown
+    .makeHtml(parseMessage(text, ctx, isUser, adapter))
+    .replace(/&amp;nbsp;/g, '&nbsp;')
   return html
 }
 
@@ -567,7 +578,7 @@ function sendAction(send: MessageProps['sendMessage'], { emote, action }: AppSch
   send(`*${emote}* ${action}`, false)
 }
 
-function parseMessage(msg: string, ctx: ContextState, adapter?: string) {
+function parseMessage(msg: string, ctx: ContextState, isUser: boolean, adapter?: string) {
   if (adapter === 'image') {
     return msg.replace(BOT_REPLACE, ctx.char?.name || '').replace(SELF_REPLACE, ctx.handle)
   }
@@ -588,7 +599,7 @@ function parseMessage(msg: string, ctx: ContextState, adapter?: string) {
     .replace(/(<)/g, '‹')
     .replace(/(>)/g, '›')
 
-  if (ctx.trimSentences) return trimSentence(parsed)
+  if (ctx.trimSentences && !isUser) return trimSentence(parsed)
   return parsed
 }
 

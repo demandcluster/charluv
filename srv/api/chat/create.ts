@@ -16,19 +16,20 @@ export const createChat = handle(async ({ body, user, userId }) => {
       sampleChat: 'string?',
       overrides: { '?': 'any?', kind: PERSONA_FORMATS, attributes: 'any' },
       useOverrides: 'boolean?',
+      scenarioIds: ['string?'],
     },
     body
   )
 
   const character = await store.characters.getCharacter(userId, body.characterId)
 
-  if (character) {
-    const scene = await store.scenario.getScenario(body.characterId, character)
-    if (scene) {
-      body.greeting = scene.greeting
-      body.scenario = scene.prompt
-    }
-  }
+  // if (character) {
+  //   const scene = await store.scenario.getScenario(body.characterId, character)
+  //   if (scene) {
+  //     body.greeting = scene.greeting
+  //     body.scenario = scene.prompt
+  //   }
+  // }
   const chat = await store.chats.create(body.characterId, {
     ...body,
     greeting: body.greeting ?? character?.greeting,
@@ -80,6 +81,7 @@ export const importChat = handle(async ({ body, userId }) => {
     senderId: msg.userId ? msg.userId : undefined,
     handle: msg.handle,
     ooc: msg.ooc ?? false,
+    event: undefined,
   }))
 
   await store.msgs.importMessages(userId, messages)

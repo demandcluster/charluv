@@ -15,7 +15,7 @@ export const register = handle(async (req) => {
   const alreadyRegisterd = await store.users.checkIp(req.ip)
 
   if (alreadyRegisterd) {
-    throw new StatusError('Only 1 account per IP', 403)
+    throw new StatusError('Only 1 account per IP, goto our Discord if you lost password.', 403)
   }
 
   const { profile, token, user } = await store.users.createUser(req.body)

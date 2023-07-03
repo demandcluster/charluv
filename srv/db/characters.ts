@@ -92,6 +92,10 @@ export async function getPublicCharacter(name: string) {
   return char
 }
 
+export async function getSubmitted() {
+  const list = await db('character').find({ kind: 'character', share: 'submitted' }).toArray()
+  return list.length || 0
+}
 export async function getCharacter(
   userId: string,
   id: string

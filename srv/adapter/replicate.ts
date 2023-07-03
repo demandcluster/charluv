@@ -3,9 +3,9 @@ import { decryptText } from '../db/util'
 import { registerAdapter } from './register'
 import { ModelAdapter } from './type'
 import { sanitise, trimResponseV2 } from '../api/chat/common'
-import { tokenize } from '/common/tokenize'
 import { sendMany } from '../api/ws'
 import { logger } from '../logger'
+import { getEncoder } from '../tokenize'
 
 const publicApiV1 = 'https://api.replicate.com/v1'
 
@@ -87,13 +87,17 @@ export const handleReplicate: ModelAdapter = async function* (opts) {
   const { log } = opts
   const config = opts.user.adapterConfig?.replicate
   if (!config) {
-    yield { error: `Replicate request failed: No config` }
+    yield {
+      error: `Replicate request failed: User settings missing. Make sure you've provided your API key in your user settings.`,
+    }
     return
   }
 
   const key = config.apiToken ? (opts.guest ? config.apiToken : decryptText(config.apiToken)) : null
   if (!key) {
-    yield { error: `Replicate request failed: No API Token set` }
+    yield {
+      error: `Replicate request failed: No API Token set. Make sure it is set in your user settings.`,
+    }
     return
   }
 
@@ -104,11 +108,12 @@ export const handleReplicate: ModelAdapter = async function* (opts) {
     '6282abe6a492de4145d7bb601023762212f9ddbbe78278bd6771c8b3b2f2a13b'
 
   let input: ReplicatePredictionRequest['input']
+  const encoder = getEncoder('replicate', modelType)
   switch (modelType) {
     case 'llama': {
       input = {
         prompt: opts.prompt,
-        max_length: (await tokenize(opts.prompt)) + (opts.gen.maxTokens || 500),
+        max_length: encoder(opts.prompt) + (opts.gen.maxTokens || 500),
         temperature: opts.gen.temp,
         top_p: opts.gen.topP,
         repetition_penalty: opts.gen.repetitionPenalty,
@@ -121,8 +126,8 @@ export const handleReplicate: ModelAdapter = async function* (opts) {
         .replace(new RegExp(`^${opts.replyAs.name}:`, 'gm'), '\n<|ASSISTANT|>')
         .replace(new RegExp(`^${opts.members[0].handle || 'You'}:`, 'gm'), '\n<|USER|>')
       input = {
-        prompt: prompt,
-        max_tokens: (await tokenize(opts.prompt)) + (opts.gen.maxTokens || 500),
+        prompt,
+        max_tokens: encoder(opts.prompt) + (opts.gen.maxTokens || 500),
         temperature: opts.gen.temp,
         top_p: opts.gen.topP,
         repetition_penalty: opts.gen.repetitionPenalty,
@@ -138,8 +143,8 @@ export const handleReplicate: ModelAdapter = async function* (opts) {
           '<|endoftext|><|prompter|>'
         )
       input = {
-        prompt: prompt,
-        max_length: (await tokenize(opts.prompt)) + (opts.gen.maxTokens || 500),
+        prompt,
+        max_length: encoder(opts.prompt) + (opts.gen.maxTokens || 500),
         decoding: 'top_p',
         temperature: opts.gen.temp,
         top_p: opts.gen.topP,
@@ -156,6 +161,9 @@ export const handleReplicate: ModelAdapter = async function* (opts) {
     version,
     input,
   }
+
+  logger.debug({ ...input, prompt: null }, 'Replicate payload')
+  logger.debug(`Prompt:\n${input.prompt}`)
 
   let prediction: ReplicatePredictionResponse
   try {
@@ -224,6 +232,8 @@ export const handleReplicate: ModelAdapter = async function* (opts) {
       yield { error: `Replicate request failed: Received empty response.` }
       return
     }
+
+    yield { meta: { predict_time: prediction.metrics.predict_time } }
     const parsed = sanitise(text)
     const trimmed = trimResponseV2(parsed, opts.replyAs, opts.members, opts.characters, [
       '<|USER|>',
@@ -247,6 +257,7 @@ registerAdapter('replicate', handleReplicate, {
     {
       field: 'apiToken',
       label: 'API Token',
+      helperText: 'You can get your key from https://replicate.com/account/api-tokens',
       secret: true,
       setting: { type: 'text', placeholder: 'E.g. a0_Q45sfF...' },
     },

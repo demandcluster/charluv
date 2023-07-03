@@ -169,8 +169,8 @@ const editCharacter = handle(async (req) => {
     characterVersion: body.characterVersion,
     match: body.match?.toString() === 'true' || false,
     premium: body.premium?.toString() === 'true' || false,
-    xp: parseInt(body.xp) || 0,
-    share: body.share,
+    xp: body.xp ? parseInt(body.xp) : 0,
+    share: body.share || 'private',
   }
 
   if (body.persona) {

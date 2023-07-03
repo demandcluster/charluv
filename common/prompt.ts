@@ -14,7 +14,7 @@ import { buildMemoryPrompt } from './memory'
 import { defaultPresets, getFallbackPreset, isDefaultPreset } from './presets'
 import { parseTemplate } from './template-parser'
 import { Encoder } from './tokenize'
-import { elapsedSince } from './util'
+import { elapsedSince, trimSentence } from './util'
 
 export const SAMPLE_CHAT_MARKER = `System: New conversation started. Previous conversations are examples only.`
 export const SAMPLE_CHAT_PREAMBLE = `How {{char}} speaks:`
@@ -62,6 +62,7 @@ export type PromptOpts = {
   characters: GenerateRequestV2['characters']
   impersonate?: AppSchema.Character
   lastMessage: string
+  trimSentences?: boolean
 }
 
 type BuildPromptOpts = {
@@ -127,7 +128,25 @@ const ALL_HOLDERS = new RegExp(
  * @param opts
  * @returns
  */
-export function createPrompt(opts: PromptOpts, encoder: Encoder) {
+export function createPrompt(opts: PromptOpts, encoder: Encoder, maxContext?: number) {
+  if (opts.trimSentences) {
+    const nextMsgs = opts.messages.slice()
+    for (let i = 0; i < nextMsgs.length; i++) {
+      if (nextMsgs[i].userId) continue
+      nextMsgs[i] = { ...nextMsgs[i], msg: trimSentence(nextMsgs[i].msg) }
+    }
+
+    opts.messages = nextMsgs
+
+    if (opts.retry) {
+      opts.retry = { ...opts.retry, msg: trimSentence(opts.retry.msg) }
+    }
+
+    if (opts.lastMessage) {
+      opts.lastMessage = trimSentence(opts.lastMessage)
+    }
+  }
+
   const sortedMsgs = opts.messages
     .filter((msg) => msg.adapter !== 'image')
     .slice()
@@ -138,7 +157,7 @@ export function createPrompt(opts: PromptOpts, encoder: Encoder) {
   /**
    * The lines from `getLinesForPrompt` are returned in time-descending order
    */
-  const lines = getLinesForPrompt(opts, encoder)
+  const lines = getLinesForPrompt(opts, encoder, maxContext)
   const parts = getPromptParts(opts, lines, encoder)
   const template = getTemplate(opts, parts)
   const prompt = injectPlaceholders(template, {
@@ -533,10 +552,11 @@ function removeEmpty(value?: string) {
  */
 function getLinesForPrompt(
   { settings, char, members, messages, continue: cont, book, ...opts }: PromptOpts,
-  encoder: Encoder
+  encoder: Encoder,
+  maxContext?: number
 ) {
   const { adapter, model } = getAdapter(opts.chat, opts.user, settings)
-  const maxContext = getContextLimit(settings, adapter, model)
+  maxContext = maxContext || getContextLimit(settings, adapter, model)
 
   const profiles = new Map<string, AppSchema.Profile>()
   for (const member of members) {
@@ -558,6 +578,11 @@ function getLinesForPrompt(
   const history = messages.slice().sort(sortMessagesDesc).map(formatMsg)
 
   const lines = fillPromptWithLines(encoder, maxContext, '', history)
+
+  if (opts.trimSentences) {
+    return lines.map(trimSentence)
+  }
+
   return lines
 }
 
@@ -667,6 +692,10 @@ export function getAdapter(
 
   let model = ''
   let presetName = 'Fallback Preset'
+
+  if (adapter === 'replicate') {
+    model = preset?.replicateModelType || 'llama'
+  }
 
   if (adapter === 'novel') {
     model = config.novelModel

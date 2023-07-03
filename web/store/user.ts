@@ -1,3 +1,4 @@
+import Values from 'values.js'
 import { AppSchema } from '../../common/types/schema'
 import { EVENTS, events } from '../emitter'
 import { FileInputResult } from '../shared/FileInput'
@@ -15,6 +16,8 @@ import { usersApi } from './data/user'
 import { publish, subscribe } from './socket'
 import { toastStore } from './toasts'
 import { UI } from '/common/types'
+import { defaultUIsettings } from '/common/types/ui'
+import type { FindUserResponse } from '/common/horde-gen'
 
 const BACKGROUND_KEY = 'ui-bg'
 
@@ -41,8 +44,10 @@ export type UserState = {
   background?: string
   metadata: {
     openaiUsage?: number
+    hordeStats?: FindUserResponse
   }
   oaiUsageLoading: boolean
+  hordeStatsLoading: boolean
 }
 
 export const userStore = createStore<UserState>(
@@ -60,9 +65,9 @@ export const userStore = createStore<UserState>(
      * While introducing persisted UI settings, we'll automatically persist settings that the user has in local storage
      */
     if (!init.user.ui) {
-      userStore.saveUI({})
+      userStore.saveUI(defaultUIsettings)
     } else {
-      updateTheme(init.user.ui)
+      userStore.receiveUI(init.user.ui)
     }
   })
 
@@ -186,10 +191,26 @@ export const userStore = createStore<UserState>(
     },
 
     async saveUI({ ui }, update: Partial<UI.UISettings>) {
-      const mode = update.mode ? update.mode : ui.mode
-      const next = { ...ui, ...update }
-      const current = next[mode]
+      // const mode = update.mode ? update.mode : ui.mode
+      const next: UI.UISettings = { ...ui, ...update }
+      const mode = next.mode
+      const current = next[next.mode]
 
+      await usersApi.updateUI({ ...next, [mode]: current })
+
+      try {
+        updateTheme({ ...next, [mode]: current })
+      } catch (e: any) {
+        toastStore.error(`Failed to save UI settings: ${e.message}`)
+      }
+
+      return { ui: next, current, [mode]: current }
+    },
+
+    async saveCustomUI({ ui }, update: Partial<UI.CustomUI>) {
+      const current = { ...ui[ui.mode], ...update }
+
+      const next = { ...ui, [ui.mode]: current }
       await usersApi.updateUI(next)
 
       try {
@@ -197,12 +218,8 @@ export const userStore = createStore<UserState>(
       } catch (e: any) {
         toastStore.error(`Failed to save UI settings: ${e.message}`)
       }
-      return { ui: next, current }
-    },
 
-    saveCustomUI({ ui }, update: Partial<UI.CustomUI>) {
-      const curr = ui[ui.mode]
-      userStore.saveUI({ ...ui, [ui.mode]: { ...curr, ...update } })
+      return { ui: next, current }
     },
 
     tryCustomUI({ ui }, update: Partial<UI.CustomUI>) {
@@ -222,19 +239,9 @@ export const userStore = createStore<UserState>(
     },
 
     receiveUI(_, update: UI.UISettings) {
+      const current = update[update.mode]
       updateTheme(update)
-      return { ui: update }
-    },
-
-    updateColor({ ui }, update: Partial<UI.CustomUI>) {
-      const prev = ui[ui.mode]
-      const next = { ...prev, ...update }
-      try {
-        updateTheme({ ...ui, [ui.mode]: next })
-      } catch (e: any) {
-        toastStore.error(`Failed to save UI settings: ${e.message}`)
-      }
-      return { current: next, [ui.mode]: next }
+      return { ui: update, current }
     },
 
     setBackground(_, file: FileInputResult | null) {
@@ -317,6 +324,29 @@ export const userStore = createStore<UserState>(
         }
       }
     },
+    async *hordeStats({ metadata, user }) {
+      yield { hordeStatsLoading: true }
+      const res = await api.post('/user/services/horde-stats', { key: user?.hordeKey })
+      yield { hordeStatsLoading: false }
+      if (res.error) {
+        toastStore.error(`Could not retrieve usage: ${res.error}`)
+        yield { metadata: { ...metadata, openaiUsage: -1 } }
+      }
+
+      if (res.result) {
+        if (res.result.error) {
+          toastStore.warn(`Could not retrieve Horde stats: ${res.result.error}`)
+          return
+        }
+
+        yield {
+          metadata: {
+            ...metadata,
+            hordeStats: res.result.user,
+          },
+        }
+      }
+    },
   }
 })
 
@@ -342,6 +372,7 @@ function init(): UserState {
       ui,
       background,
       oaiUsageLoading: false,
+      hordeStatsLoading: false,
       metadata: {},
       current: ui[ui.mode] || UI.defaultUIsettings[ui.mode],
     }
@@ -354,6 +385,7 @@ function init(): UserState {
     ui,
     background,
     oaiUsageLoading: false,
+    hordeStatsLoading: false,
     metadata: {},
     current: ui[ui.mode] || UI.defaultUIsettings[ui.mode],
   }
@@ -365,11 +397,8 @@ function updateTheme(ui: UI.UISettings) {
 
   const mode = ui[ui.mode]
 
-  const colors = mode.bgCustom
-    ? getMidColorShades(mode.bgCustom)
-    : ui.bgCustom
-    ? getColorShades(ui.bgCustom)
-    : []
+  const hex = mode.bgCustom || getSettingColor('--bg-800')
+  const colors = mode.bgCustom ? new Values(`${hex}`).all(12).map(({ hex }) => '#' + hex) : []
 
   if (ui.mode === 'dark') {
     colors.reverse()
@@ -426,10 +455,6 @@ function getUIsettings(guest = false) {
   }
 
   const ui = { ...UI.defaultUIsettings, ...settings }
-  ui.botBackground = ui.botBackground || UI.defaultUIsettings.botBackground
-  ui.msgBackground = ui.msgBackground || UI.defaultUIsettings.msgBackground
-  ui.chatEmphasisColor = ui.chatEmphasisColor || UI.defaultUIsettings.chatEmphasisColor
-  ui.chatTextColor = ui.chatTextColor || UI.defaultUIsettings.chatTextColor
 
   return ui
 }
@@ -449,7 +474,9 @@ function setBackground(content: any) {
 }
 
 function adjustColor(color: string, percent: number, target = 0) {
-  if (!color.startsWith('#')) {
+  if (color.startsWith('--')) {
+    color = getSettingColor(color)
+  } else if (!color.startsWith('#')) {
     color = '#' + color
   }
 
@@ -476,17 +503,6 @@ function adjustColor(color: string, percent: number, target = 0) {
 function getColorShades(color: string) {
   const colors: string[] = [adjustColor(color, -100), color]
   for (let i = 2; i <= 9; i++) {
-    const next = adjustColor(color, i * 100)
-    colors.push(next)
-  }
-
-  return colors
-}
-
-function getMidColorShades(color: string) {
-  const start = -400
-  const colors: string[] = [adjustColor(color, start), color]
-  for (let i = 1; i <= 9; i++) {
     const next = adjustColor(color, i * 100)
     colors.push(next)
   }

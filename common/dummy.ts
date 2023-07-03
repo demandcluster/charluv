@@ -64,6 +64,7 @@ export function toUser(name: string): AppSchema.User {
     credits: 0,
     premiumUntil: 0,
     nextCredits: 0,
+    useLocalPipeline: false,
   }
   return user
 }

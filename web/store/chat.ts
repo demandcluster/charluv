@@ -9,6 +9,7 @@ import { api } from './api'
 import { createStore, getStore } from './create'
 import { AllChat, chatsApi } from './data/chats'
 import { msgsApi } from './data/messages'
+import { pipelineApi } from './data/pipeline'
 import { replace } from './data/storage'
 import { usersApi } from './data/user'
 import { msgStore } from './message'
@@ -64,6 +65,7 @@ export type NewChat = {
   name: string
   greeting?: string
   scenario?: string
+  scenarioIds?: string[]
   sampleChat?: string
   overrides?: AppSchema.Chat['overrides']
   useOverrides: boolean
@@ -104,8 +106,6 @@ export const chatStore = createStore<ChatState>('chat', {
   loaded: false,
   allChats: [],
   chatProfiles: [],
-  // chatBots: [],
-  // chatBotMap: {},
   memberIds: {},
   opts: {
     ...getOptsCache(),
@@ -151,7 +151,7 @@ export const chatStore = createStore<ChatState>('chat', {
       const res = await usersApi.getProfile(id)
       if (res.result) {
         return {
-          memberIds: { ...memberIds, [id]: res.result },
+          memberIds: { ...memberIds, [id]: res.result! },
         }
       }
     },
@@ -175,10 +175,13 @@ export const chatStore = createStore<ChatState>('chat', {
         activeCharId: undefined,
       })
       const res = await chatsApi.getChat(id)
+
       yield { loaded: true }
 
       if (res.error) toastStore.error(`Failed to retrieve conversation: ${res.error}`)
       if (res.result) {
+        pipelineApi.memoryEmbed(res.result.chat, res.result.messages)
+
         safeLocalStorage.setItem('lastChatId', id)
 
         msgStore.setState({
@@ -209,6 +212,23 @@ export const chatStore = createStore<ChatState>('chat', {
       if (!active) return
       return {
         active: { ...active, replyAs: charId },
+      }
+    },
+    async *updateChatScenarioStates({ active }, chatId: string, states: string[]) {
+      if (!active || active.chat._id !== chatId) return
+      yield {
+        active: {
+          ...active,
+          chat: { ...active.chat, scenarioStates: states },
+        },
+      }
+      const res = await chatsApi.editChat(chatId, {
+        scenarioStates: states,
+        useOverrides: undefined,
+      })
+      if (res.error) {
+        toastStore.error(`Failed to update chat states: ${res.error}`)
+        return
       }
     },
     async *editChat(

@@ -13,9 +13,12 @@ import {
   MailPlus,
   MessageCircle,
   ShoppingCart,
+  Moon,
   Settings,
   ShoppingBag,
   Sliders,
+  Sun,
+  Sword,
   User,
   Users,
   VenetianMask,
@@ -197,36 +200,61 @@ const UserNavigation: Component = () => {
         <Book /> Memory
       </Item>
 
+      <Show when={menu.flags.events}>
+        <Item href="/scenario">
+          <Sword /> Scenario
+        </Item>
+      </Show>
+
       <Item href="/invites">
         <MailPlus /> Invites <InviteBadge />
       </Item>
-
-      <Item href="/settings">
-        <Settings /> Settings
-      </Item>
-      <Show when={user.user?.admin}>
-        <Item href="/presets">
-          <Sliders /> Presets
-        </Item>
-        <Item href="/admin/metrics">
-          <Activity /> Metrics
-        </Item>
-      </Show>
       <Show when={user.loggedIn}>
         <Item href="/premium">
           <HeartHandshake /> Premium
         </Item>
-        <Item href="/shop">
-          <ShoppingCart /> Shop
+      </Show>
+      <Show when={user.user?.admin}>
+        <Item href="/presets">
+          <Sliders /> Presets
         </Item>
       </Show>
 
+      <div class="flex flex-wrap justify-center gap-1 text-sm">
+        <Item href="/faq">
+          <HelpCircle />
+        </Item>
+        <Show when={user.loggedIn}>
+          <Item href="/shop">
+            <ShoppingCart />
+          </Item>
+        </Show>
+        <Item href="/settings">
+          <Settings />
+        </Item>
+        <Show when={user.user?.admin}>
+          <Item href="/admin/metrics">
+            <Activity />
+          </Item>
+        </Show>
+
+        <Item
+          onClick={() => {
+            userStore.saveUI({ mode: user.ui.mode === 'light' ? 'dark' : 'light' })
+          }}
+        >
+          <Show when={user.ui.mode === 'dark'} fallback={<Sun />}>
+            <Moon />
+          </Show>
+        </Item>
+      </div>
       <Slots />
     </>
   )
 }
 
 const GuestNavigation: Component = () => {
+  const user = userStore()
   const menu = settingStore((s) => ({
     showMenu: s.showMenu,
     config: s.config,
@@ -266,10 +294,32 @@ const GuestNavigation: Component = () => {
           <Book /> Memory
         </Item>
 
-        <Item href="/settings">
-          <Settings /> Settings
-        </Item>
+        <Show when={menu.flags.events}>
+          <Item href="/scenario">
+            <Sword /> Scenario
+          </Item>
+        </Show>
       </Show>
+
+      <div class="flex flex-wrap justify-center gap-1 text-sm">
+        <Item href="/faq">
+          <HelpCircle />
+        </Item>
+
+        <Item href="/settings">
+          <Settings />
+        </Item>
+
+        <Item
+          onClick={() => {
+            userStore.saveUI({ mode: user.ui.mode === 'light' ? 'dark' : 'light' })
+          }}
+        >
+          <Show when={user.ui.mode === 'dark'} fallback={<Sun />}>
+            <Moon />
+          </Show>
+        </Item>
+      </div>
 
       <Slots />
     </>
@@ -305,15 +355,32 @@ const Slots: Component = (props) => {
   )
 }
 
-const Item: Component<{ href: string; children: string | JSX.Element }> = (props) => {
+const Item: Component<{ href?: string; children: string | JSX.Element; onClick?: () => void }> = (
+  props
+) => {
   return (
-    <A
-      href={props.href}
-      class="flex h-10 items-center justify-start gap-4 rounded-lg px-2 hover:bg-[var(--bg-700)] sm:h-12"
-      onClick={settingStore.closeMenu}
-    >
-      {props.children}
-    </A>
+    <>
+      <Show when={!props.href}>
+        <div
+          class="flex h-10 cursor-pointer items-center justify-start gap-4 rounded-lg px-2 hover:bg-[var(--bg-700)] sm:h-12"
+          onClick={() => {
+            if (props.onClick) props.onClick()
+            else settingStore.closeMenu()
+          }}
+        >
+          {props.children}
+        </div>
+      </Show>
+      <Show when={props.href}>
+        <A
+          href={props.href!}
+          class="flex h-10 items-center justify-start gap-4 rounded-lg px-2 hover:bg-[var(--bg-700)] sm:h-12"
+          onClick={settingStore.closeMenu}
+        >
+          {props.children}
+        </A>
+      </Show>
+    </>
   )
 }
 

@@ -12,6 +12,7 @@ const MetricsPage: Component = () => {
 
   createEffect(() => {
     adminStore.getMetrics()
+    adminStore.getShared()
   })
 
   return (
@@ -41,7 +42,11 @@ const MetricsPage: Component = () => {
           label="Registered Users"
           helperText={state.metrics?.totalUsers || '...'}
         />
-
+        <FormLabel
+          fieldName="shared"
+          label="Shared Characters"
+          helperText={state.shared || '...'}
+        />
         <FormLabel fieldName="services" label="Services" helperText={state.metrics?.each.length} />
       </div>
     </>

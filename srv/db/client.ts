@@ -68,4 +68,5 @@ export async function createIndexes() {
   await db('gen-setting').createIndex({ userId: 1 }, { name: 'gen-setting_userId' })
   await db('chat-message').createIndex({ chatId: 1 }, { name: 'chatmessages_chatId' })
   await db('user').createIndex({ lastIp: 1 }, { name: 'users_lastIp' })
+  await db('scenario').createIndex({ userId: 1 }, { name: 'scenario_userId' })
 }

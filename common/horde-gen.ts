@@ -115,7 +115,8 @@ export async function generateImage(user: AppSchema.User, prompt: string) {
     trusted_workers: user.hordeUseTrusted ?? false,
   }
 
-  logger?.debug(payload, 'Horde payload')
+  logger?.debug({ ...payload, prompt: null }, 'Horde payload')
+  logger?.debug(`Prompt:\n${payload.prompt}`)
 
   const image = await generate({ type: 'image', payload, key: user.hordeKey || HORDE_GUEST_KEY })
   return image
@@ -161,7 +162,10 @@ export async function generateText(
   }
 
   const payload = { n: 1, ...body, ...settings }
-  logger?.debug(payload, 'Horde payload')
+
+  logger?.debug({ ...payload, prompt: null }, 'Horde payload')
+  logger?.debug(`Prompt:\n${payload.prompt}`)
+
   const result = await generate({ type: 'text', payload, key: user.hordeKey || HORDE_GUEST_KEY })
   return result
 }
@@ -216,4 +220,32 @@ async function poll(url: string, key: string | undefined, interval = 6.5) {
 
 function wait(secs: number) {
   return new Promise((resolve) => setTimeout(resolve, secs * 1000))
+}
+
+export type FindUserResponse = {
+  kudos_details: {
+    accumulated: number
+    gifted: number
+    admin: number
+    received: number
+    recurring: number
+  }
+  usage: {
+    tokens: number
+    requests: number
+  }
+  contributions: {
+    tokens: number
+    fulfillments: number
+  }
+  username: string
+  id: number
+  kudos: number
+  concurrency: number
+  worker_invited: number
+  moderator: boolean
+  worker_count: number
+  worker_ids: string[]
+  trusted: number
+  pseudonymous: number
 }

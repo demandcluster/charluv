@@ -27,6 +27,12 @@ const getUserInfo = handle(async ({ params }) => {
   return info
 })
 
+const getSubmitted = handle(async () => {
+  const submitted = await store.characters.getSubmitted()
+  console.log(submitted)
+  return submitted
+})
+
 const getMetrics = handle(async () => {
   const { entries: counts, maxLiveCount } = getLiveCounts()
   const metrics = await store.users.getMetrics()
@@ -44,6 +50,7 @@ const getMetrics = handle(async () => {
 
 router.post('/users', searchUsers)
 router.get('/metrics', getMetrics)
+router.get('/submitted', getSubmitted)
 router.get('/users/:id/info', getUserInfo)
 router.post('/user/password', setUserPassword)
 

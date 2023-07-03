@@ -123,7 +123,8 @@ export function getAssetUrl(filename: string) {
     filename.endsWith('.jpeg') ||
     filename.endsWith('.mp3') ||
     filename.endsWith('.wav') ||
-    filename.endsWith('.webm')
+    filename.endsWith('.webm') ||
+    filename.endsWith('.apng')
 
   if (!isFile) return filename
   assetPrefix = 'https://cdn.aivo.chat'
@@ -186,6 +187,24 @@ export function getStrictForm<T extends Validator>(
 
   assertValid(body, values, partial)
   return values
+}
+
+export function setFormField(ref: HTMLFormElement, field: string, value: any) {
+  const elem = document.querySelector(`.form-field[name="${field}"]`)
+  if (!elem) {
+    console.warn(`[${field}] Could not update field: Element not found`)
+    return
+  }
+
+  if ('value' in elem) {
+    elem.value = value
+  }
+}
+
+export function setFormFields(ref: HTMLFormElement, update: Record<string, any>) {
+  for (const [field, value] of Object.entries(update)) {
+    setFormField(ref, field, value)
+  }
 }
 
 export function getFormEntries(evt: Event | HTMLFormElement): Array<[string, string]> {
@@ -527,4 +546,31 @@ export function strictAppendFormOptional<T>(
   if (value === null || value === undefined) return
   if (stringify) form.append(key, stringify(value))
   else form.append(key, value as string | File)
+}
+
+export function weightedRandom<T>(list: T[], getProbability: (v: T) => number): T {
+  const total = list.reduce((sum, item) => sum + getProbability(item), 0)
+  let random = Math.random() * total
+
+  for (const item of list) {
+    random -= getProbability(item)
+    if (random < 0) {
+      return item
+    }
+  }
+
+  return list[list.length - 1]
+}
+
+type OmitKeys<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>
+
+export function deepCloneAndRemoveFields<T, K extends keyof T>(
+  input: T,
+  fieldsToRemove: K[]
+): OmitKeys<T, K> {
+  const clone: T = JSON.parse(JSON.stringify(input))
+  fieldsToRemove.forEach((field) => {
+    delete (clone as any)[field]
+  })
+  return clone as OmitKeys<T, K>
 }

@@ -3,7 +3,7 @@ import { AppSchema } from '../../../common/types/schema'
 import { api, isLoggedIn } from '../api'
 import { NewCharacter, UpdateCharacter } from '../character'
 import { loadItem, localApi } from './storage'
-import { appendFormOptional, strictAppendFormOptional } from '/web/shared/util'
+import { appendFormOptional, getAssetUrl, strictAppendFormOptional } from '/web/shared/util'
 
 export const charsApi = {
   getCharacters,
@@ -209,12 +209,28 @@ export async function createCharacter(char: NewCharacter) {
   return { result: newChar, error: undefined }
 }
 
-export async function getImageData(file?: File | Blob) {
+export const ALLOWED_TYPES = new Map([
+  ['jpg', 'image/jpeg'],
+  ['jpeg', 'image/jpeg'],
+  ['png', 'image/png'],
+  ['apng', 'image/apng'],
+  ['gif', 'image/gif'],
+])
+
+export async function getImageData(file?: File | Blob | string) {
   if (!file) return
+
+  if (typeof file === 'string') {
+    const image = await fetch(getAssetUrl(file)).then((res) => res.blob())
+    const ext = file.split('.').slice(-1)[0]
+    const mimetype = ALLOWED_TYPES.get(ext) || 'image/png'
+    file = new File([image], 'downloaded.png', { type: mimetype })
+  }
+
   const reader = new FileReader()
 
   return new Promise<string>((resolve, reject) => {
-    reader.readAsDataURL(file)
+    reader.readAsDataURL(file as File | Blob)
 
     reader.onload = (evt) => {
       if (!evt.target?.result) return reject(new Error(`Failed to process image`))

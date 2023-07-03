@@ -137,11 +137,11 @@ const HomePage: Component = () => {
           <TitleCard type="bg" title="Useful Links" center>
             <div class="flex flex-wrap justify-center gap-2">
               <a href="/discord" target="_blank">
-                <Pill>Discord</Pill>
+                <Pill inverse>Discord</Pill>
               </a>
 
               <A class="link" href="/changelog">
-                <Pill>Change Log</Pill>
+                <Pill inverse>Change Log</Pill>
               </A>
 
               <A class="link" href="/terms">

@@ -24,14 +24,15 @@ export const getInitialLoad = handle(async ({ userId }) => {
     return { config: appConfig }
   }
 
-  const [profile, user, presets, books] = await Promise.all([
+  const [profile, user, presets, books, scenarios] = await Promise.all([
     store.users.getProfile(userId!),
     getSafeUserConfig(userId!),
     store.presets.getUserPresets(userId!),
     store.memory.getBooks(userId!),
+    store.scenario.getScenarios(userId!),
   ])
 
-  return { profile, user, presets, config: appConfig, books }
+  return { profile, user, presets, config: appConfig, books, scenarios }
 })
 
 export const getProfile = handle(async ({ userId, params }) => {
@@ -119,6 +120,7 @@ export const updateConfig = handle(async ({ userId, body }) => {
       novelApiKey: 'string?',
       novelModel: 'string?',
       koboldUrl: 'string?',
+      useLocalPipeline: 'boolean?',
       thirdPartyFormat: 'string?',
       thirdPartyPassword: 'string?',
       hordeUseTrusted: 'boolean?',
@@ -152,6 +154,7 @@ export const updateConfig = handle(async ({ userId, body }) => {
     hordeWorkers: body.hordeWorkers,
     hordeUseTrusted: body.hordeUseTrusted ?? false,
     defaultPreset: body.defaultPreset || '',
+    useLocalPipeline: body.useLocalPipeline,
   }
 
   if (body.hordeKey || body.hordeApiKey) {

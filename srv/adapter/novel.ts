@@ -68,7 +68,11 @@ export const handleNovel: ModelAdapter = async function* ({
 
   const endTokens = ['***', 'Scenario:', '----', '⁂']
 
-  log.debug({ ...body, parameters: { ...body.parameters, bad_words_ids: null } }, 'NovelAI payload')
+  log.debug(
+    { ...body, input: null, parameters: { ...body.parameters, bad_words_ids: null } },
+    'NovelAI payload'
+  )
+  log.debug(`Prompt:\n${body.input}`)
 
   const headers = {
     Authorization: `Bearer ${guest ? user.novelApiKey : decryptText(user.novelApiKey)}`,

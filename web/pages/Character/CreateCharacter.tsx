@@ -1,7 +1,7 @@
 import { Component } from 'solid-js'
 import { setComponentPageTitle } from '../../shared/util'
 import { useParams, useSearchParams } from '@solidjs/router'
-import { CreateCharacterForm } from '/web/shared/CreateCharacterForm'
+import { CreateCharacterForm } from './CreateCharacterForm'
 
 // [TODO] remove IDs which is just against html standard and stupid
 const premiumoptions = [

@@ -7,12 +7,13 @@ import admin from './admin'
 import horde from './horde'
 import settings from './settings'
 import memory from './memory'
+import scenario from './scenario'
 import selfhost from './json'
 import voice from './voice'
 import { config } from '../config'
 
 import freeCredits from './freecredits'
-import scenario from './scenario'
+
 import match from './match'
 
 import cart from './cart'
@@ -27,10 +28,9 @@ router.use('/admin', admin)
 router.use('/horde', horde)
 router.use('/settings', settings)
 router.use('/memory', memory)
+router.use('/scenario', scenario)
 router.use('/voice', voice)
-
 router.use('/freecredits', freeCredits)
-router.use('/scenarios', scenario)
 router.use('/shop', cart)
 router.use('/match', match)
 

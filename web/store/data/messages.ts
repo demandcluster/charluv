@@ -11,6 +11,7 @@ import { loadItem, localApi } from './storage'
 import { toastStore } from '../toasts'
 import { subscribe } from '../socket'
 import { getActiveBots, getBotsForChat } from '/web/pages/Chat/util'
+import { pipelineApi } from './pipeline'
 
 export type PromptEntities = {
   chat: AppSchema.Chat
@@ -26,6 +27,7 @@ export type PromptEntities = {
   characters: Record<string, AppSchema.Character>
   impersonating?: AppSchema.Character
   lastMessage: string
+  scenarios: AppSchema.ScenarioBook[]
 }
 
 export const msgsApi = {
@@ -35,6 +37,7 @@ export const msgsApi = {
   generateResponseV2,
   deleteMessages,
   basicInference,
+  createActiveChatPrompt,
 }
 
 type PlainOpts = { prompt: string; settings: Partial<AppSchema.GenSettings> }
@@ -92,6 +95,9 @@ export type GenerateOpts =
    * A user sending a new message
    */
   | { kind: 'send'; text: string }
+  | { kind: 'send-event:world'; text: string }
+  | { kind: 'send-event:character'; text: string }
+  | { kind: 'send-event:hidden'; text: string }
   | { kind: 'send-noreply'; text: string }
   | { kind: 'ooc'; text: string }
   /**
@@ -126,33 +132,13 @@ export async function generateResponseV2(opts: GenerateOpts) {
     return createMessage(active.chat._id, opts)
   }
 
-  const props = await getGenerateProps(opts, active).catch((err: Error) => err)
-  if (props instanceof Error) {
-    return localApi.error(props.message)
+  const activePrompt = await createActiveChatPrompt(opts).catch((err) => ({ err }))
+  if ('err' in activePrompt) {
+    return localApi.error(activePrompt.err.message || activePrompt.err)
   }
 
-  const entities = props.entities
+  const { prompt, props, entities } = activePrompt
 
-  const encoder = await getEncoder()
-  const prompt = createPrompt(
-    {
-      kind: opts.kind,
-      char: entities.char,
-      chat: entities.chat,
-      user: entities.user,
-      members: entities.members.concat([entities.profile]),
-      continue: props?.continue,
-      book: entities.book,
-      retry: props?.retry,
-      settings: entities.settings,
-      messages: props.messages,
-      replyAs: props.replyAs,
-      characters: entities.characters,
-      impersonate: props.impersonate,
-      lastMessage: entities.lastMessage,
-    },
-    encoder
-  )
   if (ui?.logPromptsToBrowserConsole) {
     console.log(`=== Sending the following prompt: ===`)
     console.log(`${prompt.template}`)
@@ -167,7 +153,13 @@ export async function generateResponseV2(opts: GenerateOpts) {
     sender: removeAvatar(entities.profile),
     members: entities.members.map(removeAvatar),
     parts: prompt.parts,
-    text: opts.kind === 'send' ? opts.text : undefined,
+    text:
+      opts.kind === 'send' ||
+      opts.kind === 'send-event:world' ||
+      opts.kind === 'send-event:character' ||
+      opts.kind === 'send-event:hidden'
+        ? opts.text
+        : undefined,
     lines: prompt.lines,
     settings: entities.settings,
     replacing: props.replacing,
@@ -178,8 +170,64 @@ export async function generateResponseV2(opts: GenerateOpts) {
     lastMessage: entities.lastMessage,
   }
 
+  const lastMsg = props.messages.slice(-1)[0]
+  const text = request.text || lastMsg?.msg
+  const created = request.text ? new Date().toISOString() : lastMsg?.createdAt
+
+  /**
+   * TESTING
+   * This will only be invoked
+   */
+  if (text) {
+    await pipelineApi.memoryRecall(entities.chat._id, text, created!)
+  }
+
   const res = await api.post<{ requestId: string }>(`/chat/${entities.chat._id}/generate`, request)
   return res
+}
+
+async function createActiveChatPrompt(
+  opts: Exclude<GenerateOpts, { kind: 'ooc' | 'send-noreply' }>,
+  maxContext?: number
+) {
+  const { active } = chatStore()
+  const { ui } = userStore()
+
+  if (!active) {
+    throw new Error('No active chat. Try refreshing')
+  }
+
+  const props = await getGenerateProps(opts, active)
+  const entities = props.entities
+
+  const chat = {
+    ...entities.chat,
+    scenario: resolveScenario(entities.chat.scenario || '', entities.scenarios),
+  }
+
+  const encoder = await getEncoder()
+  const prompt = createPrompt(
+    {
+      kind: opts.kind,
+      char: entities.char,
+      chat,
+      user: entities.user,
+      members: entities.members.concat([entities.profile]),
+      continue: props?.continue,
+      book: entities.book,
+      retry: props?.retry,
+      settings: entities.settings,
+      messages: props.messages,
+      replyAs: props.replyAs,
+      characters: entities.characters,
+      impersonate: props.impersonate,
+      lastMessage: entities.lastMessage,
+      trimSentences: ui.trimSentences,
+    },
+    encoder,
+    maxContext
+  )
+  return { prompt, props, entities }
 }
 
 type GenerateProps = {
@@ -192,6 +240,16 @@ type GenerateProps = {
   messages: AppSchema.ChatMessage[]
   continue?: string
   impersonate?: AppSchema.Character
+}
+
+function resolveScenario(chatScenario: string, scenarios: AppSchema.ScenarioBook[]) {
+  let scenario = chatScenario
+  const mainScenario = scenarios.find((s) => s.overwriteCharacterScenario)
+  if (mainScenario) scenario = mainScenario.text
+  const secondaryScenarios = scenarios.filter((s) => s.overwriteCharacterScenario === false)
+  if (!scenarios.length) return scenario
+  scenario += '\n' + secondaryScenarios.map((s) => s.text).join('\n')
+  return scenario
 }
 
 async function getGenerateProps(
@@ -253,7 +311,10 @@ async function getGenerateProps(
       break
     }
 
-    case 'send': {
+    case 'send':
+    case 'send-event:world':
+    case 'send-event:character':
+    case 'send-event:hidden': {
       // If the chat is a single-user chat, it is always in 'auto-reply' mode
       // Ensure the autoReplyAs parameter is set for single-bot chats
       const isMulti = getActiveBots(entities.chat, entities.characters).length > 1
@@ -350,6 +411,9 @@ async function getGuestEntities() {
   const messages = await localApi.getMessages(chat?._id)
   const user = loadItem('config')
   const settings = getGuestPreset(user, chat)
+  const scenarios = loadItem('scenario')?.filter(
+    (s) => chat.scenarioIds && chat.scenarioIds.includes(s._id)
+  )
 
   const {
     impersonating,
@@ -371,6 +435,7 @@ async function getGuestEntities() {
     autoReplyAs: active.replyAs,
     characters,
     impersonating,
+    scenarios,
   }
 }
 
@@ -390,6 +455,9 @@ function getAuthedPromptEntities() {
 
   const messages = getStore('messages').getState().msgs
   const settings = getAuthGenSettings(chat, user)!
+  const scenarios = getStore('scenario')
+    .getState()
+    .scenarios.filter((s) => chat.scenarioIds && chat.scenarioIds.includes(s._id))
 
   const {
     impersonating,
@@ -411,6 +479,7 @@ function getAuthedPromptEntities() {
     autoReplyAs: active.replyAs,
     characters,
     impersonating,
+    scenarios,
   }
 }
 

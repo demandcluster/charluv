@@ -14,6 +14,7 @@ type UserInfo = {
 type AdminState = {
   users: AppSchema.User[]
   info?: UserInfo
+  shared?: number
   metrics?: {
     totalUsers: number
     connected: number
@@ -41,6 +42,11 @@ export const adminStore = createStore<AdminState>('admin', { users: [] })((_) =>
       const res = await api.get<UserInfo>(`/admin/users/${userId}/info`)
       if (res.error) toastStore.error(`Failed to get user info: ${res.error}`)
       if (res.result) return { info: res.result }
+    },
+    async getShared() {
+      const res = await api.get<{ shared: number }>('/admin/submitted')
+      if (res.error) toastStore.error(`Failed to get submitted characters: ${res.error}`)
+      if (res.result) return { shared: res.result }
     },
     async getMetrics() {
       const res = await api.get('/admin/metrics')

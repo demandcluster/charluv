@@ -8,6 +8,7 @@ import { Outlet, Route, Router, Routes, useLocation } from '@solidjs/router'
 import NavBar from './shared/NavBar'
 import Toasts from './Toasts'
 import CharacterRoutes from './pages/Character'
+import ScenarioRoutes from './pages/Scenario'
 import { settingStore } from './store/settings'
 import { userStore } from './store/user'
 import LoginPage from './pages/Login'
@@ -42,7 +43,7 @@ import { getMaxChatWidth } from './shared/util'
 import FAQ from './pages/Home/FAQ'
 import CreateChatForm from './pages/Chat/CreateChatForm'
 import Modal from './shared/Modal'
-import { ContextProvider, useAppContext } from './store/context'
+import { ContextProvider } from './store/context'
 
 const App: Component = () => {
   const state = userStore()
@@ -53,6 +54,7 @@ const App: Component = () => {
       <Routes>
         <Route path="" component={Layout}>
           <CharacterRoutes />
+          <ScenarioRoutes />
           <Route
             path="/discord"
             component={() => <Redirect external="https://discord.gg/8E6FRdsvhg" />}
@@ -134,7 +136,6 @@ const App: Component = () => {
 }
 
 const Layout: Component = () => {
-  const [ctx] = useAppContext()
   const state = userStore()
   const cfg = settingStore()
   const location = useLocation()
@@ -213,11 +214,6 @@ const Layout: Component = () => {
         />
         <InfoModal />
         <For each={rootModals.modals}>{(modal) => modal.element}</For>
-        <Show when={ctx.tooltip}>
-          <div class="absolute bottom-0 left-0 right-0 top-0 m-auto h-12 w-12 bg-red-500">
-            {ctx.tooltip}
-          </div>
-        </Show>
       </div>
     </ContextProvider>
   )
