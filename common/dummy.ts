@@ -27,6 +27,7 @@ export function toChar(
     premium: false,
     updatedAt: '',
     userId: '',
+    scenarioIds: [],
     favorite: false,
     ...overrides,
   }

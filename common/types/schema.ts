@@ -227,6 +227,7 @@ export namespace AppSchema {
     xp: number
     share?: string
     premium: boolean
+    scenarioIds?: string[]
     sprite?: FullSprite
 
     createdAt: string

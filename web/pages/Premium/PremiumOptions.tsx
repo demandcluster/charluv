@@ -97,7 +97,7 @@ const PremiumOptions: Component = () => {
         </h4>
 
         <Show when={!orderId()}>
-          <div class="grid columns-3 grid-cols-1 gap-y-10 gap-x-6 shadow sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 xl:gap-x-8">
+          <div class="grid columns-3 grid-cols-1 gap-x-6 gap-y-10 shadow sm:grid-cols-2 xl:grid-cols-4 xl:gap-x-8">
             <For each={items.list}>
               {(item) => (
                 <Item

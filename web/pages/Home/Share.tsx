@@ -20,7 +20,7 @@ You can now make your characters dateable! Share your characters with the world 
 
 ### How do I share my characters?
 When editting your character, check under  **Advanced Options**, you can enable **Submit for dating**. This will submit your character for review. Once approved, your character will be available for dating.
-If the character is accepted you will be rewarded between 1,000 and 2,000 credits depending on the quality of your character.
+If the character is accepted you will be rewarded between 1,000 and 5,000 credits depending on the quality of your character.
 
 ### How do I increase the chances of my character being accepted?
 
@@ -38,7 +38,7 @@ Visit [Discord](https://aivo.chat/discord) for more information if you don't kno
 
 ### What happens if my character is accepted for dating?
 
-Your character will be available for dating and you will be rewarded between 1,000 and 2,000 credits depending on the quality of your character.	
+Your character will be available for dating and you will be rewarded between 1,000 and 5,000 credits depending on the quality of your character.	
 This also means you loose the ability to edit your character. If you want to be able to edit it later, make a copy of it before submitting it for dating.
 
 ### How can I get more credits?

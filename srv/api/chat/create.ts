@@ -17,6 +17,7 @@ export const createChat = handle(async ({ body, user, userId }) => {
       overrides: { '?': 'any?', kind: PERSONA_FORMATS, attributes: 'any' },
       useOverrides: 'boolean?',
       scenarioIds: ['string?'],
+      scenarioStates: ['string?'],
     },
     body
   )
@@ -30,14 +31,26 @@ export const createChat = handle(async ({ body, user, userId }) => {
   //     body.scenario = scene.prompt
   //   }
   // }
+  let scenarios: string[] = []
+  let states: string[] = []
+
+  if (character?.scenarioIds) {
+    scenarios = character.scenarioIds
+    states = ['novice', 'banana']
+  } else {
+    scenarios = body.scenarioIds ?? []
+  }
+
   const chat = await store.chats.create(body.characterId, {
     ...body,
+    scenarioIds: scenarios,
+    scenarioStates: states,
     greeting: body.greeting ?? character?.greeting,
     userId: user?.userId!,
   })
   return chat
 })
-
+// tes
 export const importChat = handle(async ({ body, userId }) => {
   assertValid(
     {

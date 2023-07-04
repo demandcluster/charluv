@@ -49,6 +49,7 @@ export async function create(
     | 'greeting'
     | 'scenario'
     | 'scenarioIds'
+    | 'scenarioStates'
     | 'sampleChat'
     | 'userId'
     | 'overrides'

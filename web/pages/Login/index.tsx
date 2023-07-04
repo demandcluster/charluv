@@ -89,7 +89,7 @@ const LoginPage: Component = () => {
             </p>
             <p>
               If you choose to register your data will be stored and accessible on any devices you
-              login with.
+              login with. If you lost your password, please contact us on Discord.
             </p>
           </div>
         </Show>
