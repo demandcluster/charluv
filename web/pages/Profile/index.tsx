@@ -1,5 +1,5 @@
 import { Save, X } from 'lucide-solid'
-import { Component, createEffect, createSignal } from 'solid-js'
+import { Component, Show, createEffect, createSignal, onMount } from 'solid-js'
 import AvatarIcon from '../../shared/AvatarIcon'
 import Button from '../../shared/Button'
 import FileInput, { FileInputResult } from '../../shared/FileInput'
@@ -9,7 +9,31 @@ import TextInput from '../../shared/TextInput'
 import { getStrictForm, setComponentPageTitle } from '../../shared/util'
 import { settingStore, toastStore, userStore } from '../../store'
 import { TitleCard } from '/web/shared/Card'
+import { rootModalStore } from '/web/store/root-modal'
 
+export const ProfileModal: Component = () => {
+  const state = userStore()
+  const [footer, setFooter] = createSignal<any>()
+
+  return (
+    <Modal
+      show={state.showProfile}
+      close={() => userStore.modal(false)}
+      footer={
+        <>
+          <Button schema="secondary" onClick={() => userStore.modal(false)}>
+            Close
+          </Button>
+          {footer()}
+        </>
+      }
+      fixedHeight
+      maxWidth="half"
+    >
+      <ProfilePage footer={setFooter} />
+    </Modal>
+  )
+}
 function timeStamp(timestamp: string) {
   const date = new Date(timestamp) // Create a new Date object with the timestamp
 
@@ -30,8 +54,9 @@ function timeStamp(timestamp: string) {
   if (dateString.includes('NaN')) return ''
   return dateString
 }
+const ProfilePage: Component<{ footer?: (children: any) => void }> = (props) => {
+  let formRef: HTMLFormElement
 
-const ProfilePage: Component = () => {
   setComponentPageTitle('My profile')
   const state = userStore()
   const [pass, setPass] = createSignal(false)
@@ -43,8 +68,8 @@ const ProfilePage: Component = () => {
     setAvatar(() => file.file)
   }
 
-  const submit = (ev: Event) => {
-    const body = getStrictForm(ev, { handle: 'string' })
+  const submit = () => {
+    const body = getStrictForm(formRef, { handle: 'string' })
     const payload = { handle: body.handle, avatar: avatar() }
     userStore.updateProfile(payload)
   }
@@ -54,10 +79,21 @@ const ProfilePage: Component = () => {
     userStore.getConfig()
   })
 
+  onMount(() => {
+    props.footer?.(footer)
+  })
+
+  const footer = (
+    <Button onClick={submit}>
+      <Save />
+      Update Profile
+    </Button>
+  )
+
   return (
     <>
       <PageHeader title="Your Profile" />
-      <form onSubmit={submit}>
+      <form ref={formRef!} onSubmit={submit}>
         <div class="flex flex-col gap-4">
           <div class="flex flex-col gap-2">
             <div class="flex flex-row gap-2">
@@ -67,11 +103,13 @@ const ProfilePage: Component = () => {
           </div>
 
           <TitleCard type="orange">
-            <div class="flex">
+            <div class="flex flex-wrap">
               You can{' '}
-              <Button class="mx-1" size="sm" onClick={() => settingStore.toggleImpersonate(true)}>
-                Impersonate
-              </Button>{' '}
+              <div class="inline">
+                <Button class="mx-1" size="sm" onClick={() => settingStore.toggleImpersonate(true)}>
+                  Impersonate
+                </Button>{' '}
+              </div>
               characters by clicking your name in the menu.
             </div>
           </TitleCard>
@@ -118,12 +156,9 @@ const ProfilePage: Component = () => {
             <Button onClick={() => setPass(true)}>Change Password</Button>
           </div>
 
-          <div class="mt-4 flex w-full justify-end">
-            <Button type="submit">
-              <Save />
-              Update Profile
-            </Button>
-          </div>
+          <Show when={!props.footer}>
+            <div class="mt-4 flex w-full justify-end">{footer}</div>
+          </Show>
         </div>
       </form>
       <PasswordModal show={pass()} close={() => setPass(false)} />
@@ -145,30 +180,45 @@ const PasswordModal: Component<{ show: boolean; close: () => void }> = (props) =
     userStore.changePassword(body.newPassword, props.close)
   }
 
-  return (
-    <Modal
-      show={props.show}
-      close={props.close}
-      title="Change Password"
-      footer={
-        <>
-          {' '}
-          <Button schema="secondary" onClick={props.close}>
-            <X /> Cancel
-          </Button>
-          <Button onClick={save}>
-            <Save /> Update
-          </Button>
-        </>
-      }
-    >
-      <div>
-        <form ref={ref} class="flex flex-col gap-2">
-          <div class="w-full justify-center">Update your password</div>
-          <TextInput type="password" fieldName="newPassword" required />
-          <TextInput type="password" fieldName="confirmPassword" required />
-        </form>
-      </div>
-    </Modal>
-  )
+  rootModalStore.addModal({
+    id: 'user-password-change',
+    element: (
+      <Modal
+        show={props.show}
+        close={props.close}
+        title="Change Password"
+        footer={
+          <>
+            {' '}
+            <Button schema="secondary" onClick={props.close}>
+              <X /> Cancel
+            </Button>
+            <Button onClick={save}>
+              <Save /> Update
+            </Button>
+          </>
+        }
+      >
+        <div>
+          <form ref={ref} class="flex flex-col gap-2">
+            <div class="w-full justify-center">Update your password</div>
+            <TextInput
+              type="password"
+              fieldName="newPassword"
+              required
+              placeholder="New Password"
+            />
+            <TextInput
+              type="password"
+              fieldName="confirmPassword"
+              required
+              placeholder="Repeat Password"
+            />
+          </form>
+        </div>
+      </Modal>
+    ),
+  })
+
+  return null
 }
