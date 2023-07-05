@@ -2,8 +2,8 @@ FROM node:18.15.0-bullseye-slim
 
 WORKDIR /app
 VOLUME [ "/app/db" ]
-VOLUME [ "/app/asset" ]
-VOLUME [ "/app/dist/asset" ]
+VOLUME [ "/app/assets" ]
+VOLUME [ "/app/dist/assets" ]
 VOLUME [ "/app/extras" ]
 
 RUN npm install pnpm@8.6.0 -g
@@ -20,13 +20,14 @@ ADD web/ ./web
 
 RUN pnpm run build:server && \
   sed -i "s/{{unknown}}/${SHA}/g" /app/web/index.html && \
-  pnpm run build && mkdir -p /app/assets && \
-  echo "${SHA}" > /app/version.txt
+  pnpm run build:prod && mkdir -p /app/assets 
+
+RUN node -pe "require('./package.json').version" > /app/version.txt
 
 ENV LOG_LEVEL=info \
   INITIAL_USER=administrator \
   DB_NAME=agnai \
-  ASSET_FOLDER=/app/dist/asset
+  ASSET_FOLDER=/app/dist/assets
 
 EXPOSE 3001
 EXPOSE 5001
