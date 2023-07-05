@@ -574,3 +574,7 @@ export function deepCloneAndRemoveFields<T, K extends keyof T>(
   })
   return clone as OmitKeys<T, K>
 }
+
+export function asyncFrame() {
+  return new Promise((resolve) => requestAnimationFrame(resolve))
+}

@@ -42,7 +42,7 @@ import logo from './asset/logo.png'
 import logoDark from './asset/logoDark.png'
 
 const MobileNavHeader = () => (
-  <div class="flex justify-between sm:hidden">
+  <div class="flex h-8 justify-between sm:hidden">
     <div class="w-8"></div>
     <div>
       {' '}

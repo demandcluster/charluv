@@ -117,6 +117,7 @@ export async function handleGuestInit() {
       !res.result.profile ||
       !res.result.presets ||
       !res.result.books ||
+      !res.result.scenario ||
       !res.result.characters ||
       !res.result.chats
     ) {
@@ -130,6 +131,7 @@ export async function handleGuestInit() {
       localStore.set('profile', res.result.profile)
       localStore.set('presets', res.result.presets)
       localStore.set('memory', res.result.books)
+      localStore.set('scenario', res.result.scenario)
       localStore.set('characters', res.result.characters)
       localStore.set('chats', res.result.chats)
       return res
@@ -160,10 +162,11 @@ function getGuestInitEntities() {
   const profile = localApi.loadItem('profile', true)
   const presets = localApi.loadItem('presets', true)
   const books = localApi.loadItem('memory', true)
+  const scenario = localApi.loadItem('scenario', true)
   const characters = localApi.loadItem('characters', true)
   const chats = localApi.loadItem('chats', true)
 
-  return { user, presets, profile, books, characters, chats }
+  return { user, presets, profile, books, scenario, characters, chats }
 }
 
 export async function saveMessages(chatId: string, messages: AppSchema.ChatMessage[]) {

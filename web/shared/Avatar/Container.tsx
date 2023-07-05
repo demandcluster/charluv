@@ -1,8 +1,9 @@
 import { Component, Show, createMemo, createSignal, onCleanup, onMount } from 'solid-js'
 import { EmoteType, FullSprite } from '/common/types/sprite'
-import { AvatarCanvasV2 } from './Canvas'
+import AvatarCanvas from './Canvas'
 import { getEmoteExpressions } from '/web/asset/sprite'
 import { calcBounds } from './hooks'
+import { asyncFrame, createDebounce } from '../util'
 
 const AvatarContainer: Component<{
   /**
@@ -14,21 +15,28 @@ const AvatarContainer: Component<{
   body?: FullSprite
   zoom?: number
 }> = (props) => {
-  let bound: HTMLDivElement = {} as any
   const [bounds, setBounds] = createSignal({ w: 0, h: 0 })
+
+  const [slowBounds, cleanup] = createDebounce(
+    (dims: { w: number; h: number }) => setBounds(dims),
+    50
+  )
+
   const [obs] = createSignal(
-    new ResizeObserver(() => {
-      setBounds({ w: props.container.clientWidth, h: props.container.clientHeight })
+    new ResizeObserver(async () => {
+      await asyncFrame()
+      slowBounds({ w: props.container.clientWidth, h: props.container.clientHeight })
     })
   )
 
   onMount(() => {
-    setBounds({ w: props.container.clientWidth, h: props.container.clientHeight })
+    slowBounds({ w: props.container.clientWidth, h: props.container.clientHeight })
     obs().observe(props.container)
   })
 
   onCleanup(() => {
     obs().disconnect()
+    cleanup()
   })
 
   const body = createMemo(() => {
@@ -56,17 +64,7 @@ const AvatarContainer: Component<{
 
   return (
     <Show when={props.body}>
-      <div
-        ref={bound!}
-        class={`relative mx-auto flex h-full w-full select-none justify-center`}
-        style={{ height: getStyle().height, 'grid-area': 'preview' }}
-        // style={{ width: props.container.clientWidth + 'px' }}
-      >
-        <div class="absolute left-0 right-0 top-0  mx-auto rounded-md" style={getStyle()} />
-        <AvatarCanvasV2 zoom={props.zoom} body={body()!} style={getStyle()} />
-
-        {/* <Draggable onChange={dragging} onDone={dragged}></Draggable> */}
-      </div>
+      <AvatarCanvas zoom={props.zoom} body={body()!} style={getStyle()} />
     </Show>
   )
 }

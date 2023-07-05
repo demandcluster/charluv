@@ -1,5 +1,5 @@
-import { Component, For, Match, Switch, createMemo } from 'solid-js'
-import { AdapterSetting, RegisteredAdapter } from '/common/adapters'
+import { Component, For, Match, Show, Switch, createMemo } from 'solid-js'
+import { AIAdapter, AdapterSetting, RegisteredAdapter } from '/common/adapters'
 import TextInput from '/web/shared/TextInput'
 import { Toggle } from '/web/shared/Toggle'
 import Select from '/web/shared/Select'
@@ -12,12 +12,14 @@ const RegisteredSettings: Component<{ service: RegisteredAdapter }> = (props) =>
     <>
       <For each={props.service.settings}>
         {(each) => (
-          <ServiceOption
-            service={props.service.name}
-            opt={each}
-            value={user?.[props.service.name]?.[each.field]}
-            config={user?.[props.service.name]}
-          />
+          <Show when={!each.setting.hidden}>
+            <ServiceOption
+              service={props.service.name}
+              opt={each}
+              value={user?.[props.service.name]?.[each.field]}
+              config={user?.[props.service.name]}
+            />
+          </Show>
         )}
       </For>
     </>
@@ -36,18 +38,25 @@ const ServiceOption: Component<{
   const options = createMemo(() =>
     props.opt.setting.type === 'list' ? props.opt.setting.options : []
   )
+
+  const isSet = createMemo(() => {
+    const prop = `${props.opt.field}Set`
+    return props.config?.[prop]
+  })
+
   const placeholder = createMemo(() => {
     if (props.opt.setting.type !== 'text') return
 
     if (props.opt.secret) {
-      const prop = `${props.opt.field}Set`
-      const isSet = props.config?.[prop]
-
-      if (isSet) return `Secret is set`
+      if (isSet()) return `Secret is set`
     }
 
     return props.opt.setting.placeholder
   })
+
+  const clearSecret = () => {
+    userStore.updateService(props.service as AIAdapter, { [props.opt.field]: '' })
+  }
 
   return (
     <Switch>
@@ -55,7 +64,18 @@ const ServiceOption: Component<{
         <TextInput
           fieldName={field()}
           label={props.opt.label}
-          helperText={props.opt.helperText}
+          helperText={
+            <>
+              <span>{props.opt.helperText}</span>
+              <Show when={isSet()}>
+                <div>
+                  <a class="link" onClick={clearSecret}>
+                    Clear secret
+                  </a>
+                </div>
+              </Show>
+            </>
+          }
           type={props.opt.secret ? 'password' : undefined}
           placeholder={placeholder()}
           value={props.value}

@@ -18,6 +18,7 @@ import { toastStore } from './toasts'
 import { UI } from '/common/types'
 import { defaultUIsettings } from '/common/types/ui'
 import type { FindUserResponse } from '/common/horde-gen'
+import { AIAdapter } from '/common/adapters'
 
 const BACKGROUND_KEY = 'ui-bg'
 
@@ -109,6 +110,15 @@ export const userStore = createStore<UserState>(
       if (res.error) toastStore.error(`Failed to update config: ${res.error}`)
       if (res.result) {
         toastStore.success(`Updated settings`)
+        return { user: res.result }
+      }
+    },
+
+    async updateService(_, service: AIAdapter, update: any) {
+      const res = await usersApi.updateServiceConfig(service, update)
+      if (res.error) toastStore.error(`Failed to update service config: ${res.error}`)
+      if (res.result) {
+        toastStore.success('Updated service settings')
         return { user: res.result }
       }
     },
@@ -398,7 +408,12 @@ function updateTheme(ui: UI.UISettings) {
   const mode = ui[ui.mode]
 
   const hex = mode.bgCustom || getSettingColor('--bg-800')
-  const colors = mode.bgCustom ? new Values(`${hex}`).all(12).map(({ hex }) => '#' + hex) : []
+  const colors = mode.bgCustom
+    ? new Values(`${hex}`)
+        .all(14)
+        .map(({ hex }) => '#' + hex)
+        .reverse()
+    : []
 
   if (ui.mode === 'dark') {
     colors.reverse()
