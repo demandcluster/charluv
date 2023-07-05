@@ -46,9 +46,19 @@ const MobileNavHeader = () => (
     <div class="w-8"></div>
     <div>
       {' '}
-      <span class="w-full text-center text-[1rem]">
-        Agn<span class="text-[var(--hl-500)]">ai</span>stic
-      </span>
+      <div
+        class="hidden w-full items-center justify-center sm:flex"
+        style={user.ui?.mode === 'light' ? 'background:#55b89cff;' : 'background:#1f4439ff;'}
+      >
+        <A href="/">
+          <img
+            width="180px"
+            class="px-0 py-2"
+            alt="Charluv"
+            src={user.ui?.mode === 'light' ? logoDark : logo}
+          />
+        </A>
+      </div>
     </div>
     <div class="w-8">
       <div class="icon-button">

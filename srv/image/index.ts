@@ -48,6 +48,28 @@ export async function generateImage(
 
   log.debug({ prompt, type: user.images?.type }, 'Image prompt')
 
+  user.images = {
+    type: 'horde',
+    cfg: 9,
+    height: 512,
+    width: 512,
+    steps: 28,
+    summariseChat: false,
+    summaryPrompt: '',
+    horde: {
+      sampler: 'k_dpmpp_2m',
+      model: 'Deliberate',
+    },
+    novel: {
+      model: 'nai-diffusion',
+      sampler: 'k_dpmpp_2m',
+    },
+    sd: {
+      sampler: 'k_dpmpp_2m',
+      url: '',
+    },
+  }
+
   try {
     switch (user.images?.type || 'horde') {
       case 'novel':
