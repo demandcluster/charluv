@@ -55,7 +55,7 @@ const MobileNavHeader = () => (
             width="180px"
             class="px-0 py-2"
             alt="Charluv"
-            src= logoDark}
+            src= {logoDark}
           />
         </A>
       </div>
