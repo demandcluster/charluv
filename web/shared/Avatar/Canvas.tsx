@@ -7,7 +7,7 @@ import { getImageData } from '/web/store/data/chars'
 
 export { AvatarCanvas as default }
 
-const BASE_URL = `https://agnai-assets.sgp1.digitaloceanspaces.com/sprites`
+const BASE_URL = `https://cdn.aivo.chat/sprites`
 const BLANK_IMG = `${BASE_URL}/blank.png`
 const CACHE_TTL_SECS = 60
 
