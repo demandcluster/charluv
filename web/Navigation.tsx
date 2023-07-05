@@ -48,14 +48,14 @@ const MobileNavHeader = () => (
       {' '}
       <div
         class="hidden w-full items-center justify-center sm:flex"
-        style={user.ui?.mode === 'light' ? 'background:#55b89cff;' : 'background:#1f4439ff;'}
+        style="background:#55b89cff;"
       >
         <A href="/">
           <img
             width="180px"
             class="px-0 py-2"
             alt="Charluv"
-            src={user.ui?.mode === 'light' ? logoDark : logo}
+            src= logoDark}
           />
         </A>
       </div>
