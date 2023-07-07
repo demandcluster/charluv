@@ -476,7 +476,7 @@ const Character: Component<{
           <Match when={props.char.visualType === 'sprite' && props.char.sprite}>
             <A
               href={`/character/${props.char._id}/chats`}
-              class="block h-32 w-full justify-center overflow-hidden rounded-lg"
+              class="block h-44 w-full justify-center overflow-hidden rounded-lg"
             >
               <AvatarContainer container={ref} body={props.char.sprite} />
             </A>
@@ -484,7 +484,7 @@ const Character: Component<{
           <Match when={props.char.avatar}>
             <A
               href={`/character/${props.char._id}/chats`}
-              class="block h-32 w-full justify-center overflow-hidden rounded-lg"
+              class="block h-44 w-full justify-center overflow-hidden rounded-lg"
             >
               <img
                 src={getAssetUrl(props.char.avatar!)}
@@ -504,7 +504,7 @@ const Character: Component<{
         </Switch>
       </div>
       <div class="h-18 w-full text-sm">
-        <div class="relative right-0 w-full px-2 text-right text-2xl text-white text-shadow md:right-1">
+        <div class="relative right-0 w-full px-2 text-right text-2xl text-white text-shadow md:right-1 overflow-x-hidden overflow-y-hidden h-8">
           <span class=" font-black ">{props.char?.name}</span>{' '}
           {props.char.persona?.attributes?.age
             ? props.char?.persona?.attributes?.age[0].split(' ')[0]
@@ -523,9 +523,9 @@ const Character: Component<{
             positioned, then DropMenu breaks because it relies on the nearest
             positioned parent to be the sitewide container */}
         <div
-          class="float-right mr-[3px] mt-[-149px] flex justify-end"
+          class="float-right mr-[4px] mt-[-248px] flex justify-end"
           onClick={() => setOpts(true)}
-        >
+          >
           <div class="rounded-md bg-[var(--bg-500)] p-[2px]">
             <Menu size={24} class="icon-button" color="var(--bg-100)" />
           </div>
