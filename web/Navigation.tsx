@@ -246,7 +246,13 @@ const UserNavigation: Component = () => {
         </Item>
       </Show>
 
-      <div class="flex flex-wrap justify-center gap-1 text-sm">
+      <Show when={user.user?.admin}>
+        <Item href="/admin/metrics">
+          <Activity /> Metrics
+        </Item>
+      </Show>
+
+      <div class="flex flex-wrap justify-center gap-[2px] text-sm">
         <Item href="/faq">
           <HelpCircle />
         </Item>
@@ -256,19 +262,7 @@ const UserNavigation: Component = () => {
             <ShoppingCart />
           </Item>
         </Show>
-
-        <Show when={user.user?.admin}>
-          <Item href="/admin/metrics">
-            <Activity />
-          </Item>
-        </Show>
-
-        <Item
-          onClick={() => {
-            settingStore.closeMenu()
-            settingStore.modal(true)
-          }}
-        >
+        <Item href="/settings">
           <Settings />
         </Item>
 
@@ -363,17 +357,12 @@ const GuestNavigation: Component = () => {
         </Show>
       </Show>
 
-      <div class="flex flex-wrap justify-center gap-1 text-sm">
+      <div class="flex flex-wrap justify-center gap-[2px] text-sm">
         <Item href="/faq">
           <HelpCircle />
         </Item>
 
-        <Item
-          onClick={() => {
-            settingStore.closeMenu()
-            settingStore.modal(true)
-          }}
-        >
+        <Item href="/settings">
           <Settings />
         </Item>
 

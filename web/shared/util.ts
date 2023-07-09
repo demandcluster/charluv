@@ -1,3 +1,4 @@
+import * as lf from 'localforage'
 import { UnwrapBody, Validator, assertValid } from '/common/valid'
 import { ADAPTER_LABELS, AIAdapter, PresetAISettings, adapterSettings } from '../../common/adapters'
 import type { Option } from './Select'
@@ -25,67 +26,63 @@ export function getMaxChatWidth(chatWidth: UserState['ui']['chatWidth']) {
   }
 }
 
-export const safeLocalStorage = {
+export const storage = {
   getItem,
-  key,
   setItem,
-  setItemUnsafe,
   removeItem,
-  removeItemUnsafe,
   clear,
-  clearUnsafe,
+
+  localGetItem,
+  localSetItem,
+  localRemoveItem,
+  localClear,
   test,
 }
 
-function getItem(key: string) {
+async function getItem(key: string): Promise<string | null> {
   try {
-    return localStorage.getItem(key)
+    return lf.getItem(key)
   } catch {
     return null
   }
 }
 
-function key(index: number) {
+async function setItem(key: string, value: string) {
   try {
-    return localStorage.key(index)
-  } catch {
-    return null
-  }
-}
-
-function setItem(key: string, value: string) {
-  try {
-    localStorage.setItem(key, value)
+    await lf.setItem(key, value)
   } catch (e: any) {
     console.warn('Failed to set local storage item', key, value, e)
   }
 }
 
-function setItemUnsafe(key: string, value: string) {
-  localStorage.setItem(key, value)
-}
-
-function removeItem(key: string) {
+async function removeItem(key: string) {
   try {
-    localStorage.removeItem(key)
+    await lf.removeItem(key)
   } catch (e: any) {
     console.warn('Failed to remove local storage item', key, e)
   }
 }
 
-function removeItemUnsafe(key: string) {
-  localStorage.removeItem(key)
-}
-
-function clear() {
+async function clear() {
   try {
-    localStorage.clear()
+    await lf.clear()
   } catch (e: any) {
     console.warn('Failed to clear local storage item', e)
   }
 }
+function localGetItem(key: string) {
+  return localStorage.getItem(key)
+}
 
-function clearUnsafe() {
+function localSetItem(key: string, value: string) {
+  localStorage.setItem(key, value)
+}
+
+function localRemoveItem(key: string) {
+  localStorage.removeItem(key)
+}
+
+function localClear() {
   localStorage.clear()
 }
 
@@ -133,7 +130,7 @@ export function getAssetUrl(filename: string) {
 }
 
 export function setAssetPrefix(prefix: string) {
-  safeLocalStorage.setItem(PREFIX_CACHE_KEY, prefix)
+  storage.setItem(PREFIX_CACHE_KEY, prefix)
   assetPrefix = prefix
 }
 
@@ -471,7 +468,7 @@ export function isDirty<T extends {}>(original: T, compare: T): boolean {
 
 export function serviceHasSetting(service: AIAdapter | undefined, prop: keyof PresetAISettings) {
   if (!service) return true
-  const { config } = settingStore()
+  const { config } = settingStore.getState()
   const base = adapterSettings[prop]
   const services = config.registered
     .filter((reg) => reg.options.includes(prop))

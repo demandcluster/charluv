@@ -25,6 +25,8 @@ export const handleHorde: ModelAdapter = async function* ({
       key = hordeKeyPremium
     }
 
+    yield { prompt }
+
     const result = await horde.generateText({ ...user, hordeKey: key }, gen, prompt)
     const sanitised = sanitise(result.text)
     const trimmed = trimResponseV2(sanitised, opts.replyAs, members, characters, ['END_OF_DIALOG'])
@@ -51,6 +53,9 @@ export const handleHorde: ModelAdapter = async function* ({
     yield trimmed || sanitised
   } catch (ex: any) {
     logger.error({ err: ex, body: ex.body }, `Horde request failed.`)
-    yield { error: `${ex.message}. ${ex?.body?.message}` }
+    let msg = [ex?.body?.message || '', JSON.stringify(ex?.body?.errors) || ''].filter(
+      (line) => !!line
+    )
+    yield { error: `${ex.message}. ${msg.join('. ')}` }
   }
 }
