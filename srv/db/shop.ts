@@ -29,7 +29,7 @@ export async function getShopOrder(id: string) {
 }
 
 export async function getItems() {
-  const items = await db('shop').find({ kind: 'shop' }).sort({ price: 1 }).toArray()
+  const items = await db('shop').find({ kind: 'shop' }).sort({ days: -1, price: 1 }).toArray()
 
   return items || []
 }

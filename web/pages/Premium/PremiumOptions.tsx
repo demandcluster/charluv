@@ -53,6 +53,7 @@ const PremiumOptions: Component = () => {
   })
 
   const addToCart = (item) => {
+    console.log('adding', item)
     cartStore.addToCart(item).then(() => {
       cartStore.getCartItems()
       setCartSignal(cartItems)
@@ -182,7 +183,6 @@ const Item: Component<{
       }`}
       onClick={() => {
         if (!isItemInCart()) {
-          console.log('adding to cart')
           props.addToCart(props.item)
         } else {
           props.removeFromCart(props.item)

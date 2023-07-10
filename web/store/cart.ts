@@ -30,9 +30,10 @@ export const cartStore = createStore<CartStore>('cart', {
     return { items: { list: [], loaded: true } }
   },
   async getCartItems() {
-    const cItems = loadItem('cartItems')
+    const cItems = await loadItem('cartItems')
+
     if (cItems) return { cartItems: { list: cItems, loaded: true } }
-    console.log('no citems', cartItems)
+
     return { cartItems: { list: [], loaded: true } }
   },
   async removeFromCart(cartItems, item: any) {
@@ -43,7 +44,7 @@ export const cartStore = createStore<CartStore>('cart', {
     return { cartItems: { list: updatedItems, loaded: true } }
   },
   async checkoutCart(service: string = '') {
-    const existingItems = loadItem('cartItems')
+    const existingItems = await loadItem('cartItems')
     const itemIds = existingItems.map((item) => item._id)
     const res = await api.post('/shop/checkout', {
       cart: JSON.stringify(itemIds),
@@ -65,13 +66,19 @@ export const cartStore = createStore<CartStore>('cart', {
   },
 
   async addToCart(cartItems, newItem: any) {
+    console.log('newItem', newItem)
     const existingItems = cartItems.cartItems?.list || []
     const isItemAlreadyInCart = existingItems.some((item) => item._id === newItem._id)
+
     if (isItemAlreadyInCart) {
+      console.log('already in cart')
+      console.log(cartItems)
       return cartItems // Return original cart items if item is already in cart
     }
+
     const newCart = [...existingItems, newItem]
     console.log('going to save', newCart)
+
     await localApi.saveCartItem(newCart)
     return { cartItems: { list: newCart, loaded: true } }
   },

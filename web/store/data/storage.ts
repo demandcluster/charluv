@@ -187,6 +187,7 @@ async function migrateLegacyItems() {
     'cartItems',
     'Match',
     'swipe',
+    'cartItems',
   ] as const
 
   for (const key of keys) {
@@ -271,12 +272,13 @@ export async function deleteChatMessages(chatId: string) {
 }
 
 export function loadCartItems<TKey extends keyof typeof KEYS>(key: TKey): LocalStorage[TKey] {
-  const item = localStorage.getItem(KEYS[key])
+  const item = loadItem(KEYS[key])
   if (item) return JSON.parse(item)
   return []
 }
 export function saveCartItem(state: AppSchema.ShopItem[]) {
-  localStorage.setItem(KEYS.cartItems, JSON.stringify(state))
+  console.log('saving...')
+  saveItem(KEYS.cartItems, state)
 }
 
 async function saveItem<TKey extends keyof typeof KEYS>(key: TKey, value: LocalStorage[TKey]) {
