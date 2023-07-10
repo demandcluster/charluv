@@ -42,6 +42,7 @@ export const KEYS = {
   memory: 'memory',
   cartItems: 'cartItems',
   scenario: 'scenario',
+  swipe: 'swipe',
 }
 
 type LocalStorage = {
@@ -184,6 +185,8 @@ async function migrateLegacyItems() {
     'characters',
     'chats',
     'cartItems',
+    'Match',
+    'swipe',
   ] as const
 
   for (const key of keys) {

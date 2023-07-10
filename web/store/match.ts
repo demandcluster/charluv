@@ -1,4 +1,4 @@
-import { AppSchema } from '../../srv/db/schema'
+import { AppSchema } from '../../common/types/schema'
 import { api } from './api'
 import { createStore } from './create'
 import { userStore } from './user'
@@ -49,13 +49,6 @@ export const matchStore = createStore<Matchesstate>('Match', {
           }
         }
 
-        if (ui.charAnime === false) {
-          res.result.characters = res.result.characters.filter((i) => i.anime === false)
-        }
-        if (ui.charRealistic === false) {
-          res.result.characters = res.result.characters.filter((i) => i.anime === true)
-        }
-
         return {
           characters: {
             // ids: res.result.characters.map((i) => i._id),
@@ -74,7 +67,6 @@ export const matchStore = createStore<Matchesstate>('Match', {
       if (res.error) toastStore.error('Failed to retrieve Match')
       else {
         const chx = res.result.characters.filter((i) => i._id === id)
-        console.log('chx', id)
 
         return { characters: { list: chx, loaded: true } }
       }
@@ -97,20 +89,21 @@ export const matchStore = createStore<Matchesstate>('Match', {
 
       if (res.error) toastStore.error(`Failed to create Match: ${res.error}`)
       if (res.result) {
-
         // const props = charsIds().list[charsIds().list.length - 1];
         // console.log(charsIds().list,this.id,charsIds().list[charsIds().list.length - 1],props);
 
-        return chatsApi.createChat(res.result._id, {
-          name: "First Chat",
-          schema: "wpp",
-          useOverrides:  false,
-        }).then((res) => {
-          if (res.error) toastStore.error(`Failed to create conversation: ${res.error}`)
-          if (res.result) {
-            onSuccess?.(`/chat/${res.result._id}`);
-          }
-        })
+        return chatsApi
+          .createChat(res.result._id, {
+            name: 'First Chat',
+            schema: 'wpp',
+            useOverrides: false,
+          })
+          .then((res) => {
+            if (res.error) toastStore.error(`Failed to create conversation: ${res.error}`)
+            if (res.result) {
+              onSuccess?.(`/chat/${res.result._id}`)
+            }
+          })
         toastStore.success(`Successfully created Match`)
         Matchestore.getMatches()
       }

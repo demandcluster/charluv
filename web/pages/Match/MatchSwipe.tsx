@@ -82,7 +82,8 @@ const MatchList: Component = () => {
   })
   createEffect(() => {
     curApiref = ''
-    swipeStore.getSwipe()
+    // swipteStore is fckd
+    // swipeStore.getSwipe()
     matchStore.getMatches(swipeCount.lastid)
     const next = {
       view: view(),
@@ -94,7 +95,7 @@ const MatchList: Component = () => {
   const tags = tagStore((s) => ({ filter: s.filter, hidden: s.hidden }))
   const [showGrouping, setShowGrouping] = createSignal(false)
   const cached = getListCache()
-  const [view, setView] = createSignal(cached.view)
+  const [view, setView] = createSignal('likes') //createSignal(cached.view)
   const [sortField, setSortField] = createSignal(cached.sort.field)
   const [sortDirection, setSortDirection] = createSignal(cached.sort.direction)
   const [search, setSearch] = createSignal('')
@@ -118,15 +119,15 @@ const MatchList: Component = () => {
 
   const createMatch = async (charId: string) => {
     const char = charsList().list.find((c) => c._id === charId)
-    await matchStore.createMatch(char,((s) => (navigate(s))))
+    await matchStore.createMatch(char, (s) => navigate(s))
   }
-  function fixcharlist(charsList){  
-    return charsList
-    .list.slice()
-    .filter((ch) => ch.name.toLowerCase().includes(search().toLowerCase()))
-    .filter((ch) => tags.filter.length === 0 || ch.tags?.some((t) => tags.filter.includes(t)))
-    .filter((ch) => !ch.tags || !ch.tags.some((t) => tags.hidden.includes(t)))
-    .sort(getSortFunction(sortField(), sortDirection()));
+  function fixcharlist(charsList) {
+    return charsList.list
+      .slice()
+      .filter((ch) => ch.name.toLowerCase().includes(search().toLowerCase()))
+      .filter((ch) => tags.filter.length === 0 || ch.tags?.some((t) => tags.filter.includes(t)))
+      .filter((ch) => !ch.tags || !ch.tags.some((t) => tags.hidden.includes(t)))
+      .sort(getSortFunction(sortField(), sortDirection()))
   }
   const SwipeDirection = 'right' | 'left'
   function swipeAction(direction) {
@@ -136,8 +137,8 @@ const MatchList: Component = () => {
     switch (direction) {
       case 'right':
         createMatch(this.id)
-        this.apiRef.remove();
-        
+        this.apiRef.remove()
+
         break
       case 'up':
         showProfile()
@@ -311,7 +312,7 @@ const MatchList: Component = () => {
     <>
       <div class="min-h-[455px] overflow-hidden">
         <PageHeader title="Likes" subtitle="" />
-        <Show when={!charsList().list}>
+        <Show when={!charsList().loaded}>
           <div>Loading ...{charsList()}</div>
         </Show>
         <Show when={charsList().list}>
@@ -319,15 +320,15 @@ const MatchList: Component = () => {
             class=" float-right -mt-16"
             schema="secondary"
             onClick={() => {
-              setView(getNextView())
+              //    setView(getNextView())
               endAllSwipes()
             }}
           >
             <Switch>
-              <Match when={getNextView() == 'list'}>
+              <Match when={getNextView() == '!list'}>
                 <span>Swipe View</span> <LayoutList />
               </Match>
-              <Match when={getNextView() == 'likes'}>
+              <Match when={getNextView() == '!likes'}>
                 <span>List View</span> <Image />
               </Match>
             </Switch>
@@ -395,7 +396,7 @@ const MatchList: Component = () => {
                 </For>
               </div>
               <Show when={charsList().list && charsList().list.length > 0}>
-                <div class=" mx-auto mt-3 mb-3 text-center md:w-[26rem] sm:mt-6 sm:mb-6">
+                <div class=" mx-auto mb-3 mt-3 text-center md:w-[26rem] sm:mb-6 sm:mt-6">
                   <button
                     onclick={() => buttonSwipe('left')}
                     class={`${
@@ -455,8 +456,7 @@ const DSwipeCard: Component<{ character: AppSchema.Character; match: Any }> = (p
   const apiRef: SwipeCardRef = {}
   apiRef.id = props.character._id
   props.totalSwipes[apiRef.id] = apiRef
-  
-  
+
   //map every id of an object to a new array
   const age = props.character.persona.attributes.age
     ? props.character.persona.attributes.age[0].split(' ')[0]
@@ -465,7 +465,7 @@ const DSwipeCard: Component<{ character: AppSchema.Character; match: Any }> = (p
     <div class="absolute w-full max-w-5xl">
       <SwipeCard
         zindex="5"
-        class="fixed right-[5%] left-[5%] m-auto h-96 max-h-[90%] w-96 max-w-[90%] rounded-lg border-[10px] border-solid border-[var(--bg-800)] bg-[var(--bg-800)] shadow-lg  md:right-[10%] md:left-[10%] md:border-[20px] sm:h-3/4  sm:max-h-[550px] sm:w-9/12 sm:max-w-[550px] lg:right-[calc(14%-18.5rem)]"
+        class="fixed left-[5%] right-[5%] m-auto h-96 max-h-[90%] w-96 max-w-[90%] rounded-lg border-[10px] border-solid border-[var(--bg-800)] bg-[var(--bg-800)] shadow-lg  md:left-[10%] md:right-[10%] md:border-[20px] sm:h-3/4  sm:max-h-[550px] sm:w-9/12 sm:max-w-[550px] lg:right-[calc(14%-18.5rem)]"
         threshold="300"
         rotationmultiplier="7.5"
         maxrotation="90"

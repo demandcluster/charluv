@@ -88,20 +88,17 @@ const App: Component = () => {
             component={lazy(() => import('./pages/Memory/Instructions'))}
           />
           <MatchRoutes />
-          <Route path="/shop" component={PremiumOptions} />
-          <Route path="/thankyou" component={ThankYou} />
-          <Route path="/shop/error" component={Error} />
-          <Route path="/premium" component={PremiumInfo} />
+         
           <Route
             path="/memory/instructions"
             component={lazy(() => import('./pages/Memory/Instructions'))}
           />
-          <MatchRoutes />
+
+          <Show when={state.loggedIn}>
           <Route path="/shop" component={PremiumOptions} />
           <Route path="/thankyou" component={ThankYou} />
           <Route path="/shop/error" component={Error} />
-
-          <Show when={state.loggedIn}>
+          <Route path="/premium" component={PremiumInfo} />
             <Route path="/invites" component={lazy(() => import('./pages/Invite/InvitesPage'))} />
             <Show when={state.user?.admin}>
               <Route
