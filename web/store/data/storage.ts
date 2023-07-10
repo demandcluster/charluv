@@ -183,6 +183,7 @@ async function migrateLegacyItems() {
     'scenario',
     'characters',
     'chats',
+    'cartItems',
   ] as const
 
   for (const key of keys) {

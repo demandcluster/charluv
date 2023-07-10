@@ -1,5 +1,5 @@
 import { HordeModel, HordeWorker } from '../../common/adapters'
-import { AppSchema } from '../../srv/db/schema'
+import { AppSchema } from '../../common/types/schema'
 import { api } from './api'
 import { createStore } from './create'
 import { toastStore } from './toasts'
@@ -23,17 +23,20 @@ export const cartStore = createStore<CartStore>('cart', {
   async getItems() {
     const res = await api.get('/shop')
     if (res.error) toastStore.error('Failed to fetch store items')
+
     if (res.result) {
       return { items: { list: res.result, loaded: true } }
     }
-    return items
+    return { items: { list: [], loaded: true } }
   },
   async getCartItems() {
     const cItems = loadItem('cartItems')
     if (cItems) return { cartItems: { list: cItems, loaded: true } }
-    return cartItems
+    console.log('no citems', cartItems)
+    return { cartItems: { list: [], loaded: true } }
   },
   async removeFromCart(cartItems, item: any) {
+    console.log('remove')
     const existingItems = cartItems.cartItems?.list || []
     const updatedItems = existingItems.filter((cartItem) => cartItem._id !== item._id)
     await localApi.saveCartItem(updatedItems)

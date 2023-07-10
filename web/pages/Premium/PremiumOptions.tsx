@@ -40,20 +40,17 @@ const PremiumOptions: Component = () => {
       .render(paypalButtons)
   }
 
-  createEffect(
-    () => {
-      cartStore.getItems()
-      cartStore.getCartItems()
-      loadScript({
-        'client-id':
-          'AcfzQbmT9qPEf7Ab8lTpKxLGkEI_EG_bmg5DyuECpcliXUjB4DhWEoK_76P_7sqp1GtnQkaqbXiqz7ik',
-        currency: 'EUR',
-      }).then((paypalObject) => {
-        setPaypal(paypalObject)
-      })
-    },
-    { on: cartItems }
-  )
+  createEffect(() => {
+    cartStore.getItems()
+    cartStore.getCartItems()
+    loadScript({
+      'client-id':
+        'AcfzQbmT9qPEf7Ab8lTpKxLGkEI_EG_bmg5DyuECpcliXUjB4DhWEoK_76P_7sqp1GtnQkaqbXiqz7ik',
+      currency: 'EUR',
+    }).then((paypalObject) => {
+      setPaypal(paypalObject)
+    })
+  })
 
   const addToCart = (item) => {
     cartStore.addToCart(item).then(() => {
@@ -69,14 +66,18 @@ const PremiumOptions: Component = () => {
     })
   }
 
-  const cartTotal = createMemo(() => {
-    if (!cartItems?.list || cartItems.list.length < 1) return 0.0
-    return cartItems.list
-      .reduce((total, item) => {
-        return total + item?.price
-      }, 0)
-      .toFixed(2)
-  }, [cartItems])
+  const cartTotal = createMemo(
+    () => {
+      if (!cartSignal().loaded || cartSignal().list?.length === 0) return 0.0
+
+      return cartSignal()
+        .reduce((total, item) => {
+          return total + item?.price
+        }, 0)
+        .toFixed(2)
+    },
+    { on: cartItems }
+  )
 
   const checkoutCart = (id) => {
     cartStore.checkoutCart().then(() => {
@@ -95,6 +96,7 @@ const PremiumOptions: Component = () => {
           None of our store options are reoccurring. Please renew yourself when you want to, they
           are not subscriptions.
         </h4>
+        <em>We slighty increased the monthly price, but have decreased the other prices.</em>
 
         <Show when={!orderId()}>
           <div class="grid columns-3 grid-cols-1 gap-x-6 gap-y-10 shadow sm:grid-cols-2 xl:grid-cols-4 xl:gap-x-8">
@@ -164,7 +166,11 @@ const Item: Component<{
   removeFromCart: any
 }> = (props) => {
   const isItemInCart = () => {
-    return props.cartItems.list?.some((cartItem) => cartItem._id === props.item._id)
+    return (
+      (Array.isArray(props.cartItems?.list) &&
+        props.cartItems?.list?.some((cartItem) => cartItem._id === props.item._id)) ||
+      false
+    )
   }
 
   return (

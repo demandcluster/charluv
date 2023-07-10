@@ -34,8 +34,8 @@ Since Matches have scripted scenarios (other than the self-made characters), we 
 The recharge rate for regular members is dynamic and based on the average total amount of users we have online. 
 |                   |  Regular   | Premium  |
 | ----------------- | ---------: | -------: |
-| Increase every    | 3 minutes  | 2 minutes |
-| Amount increase   | 10         | 20        |
+| Increase every    | 2 minutes  | 2 minutes |
+| Amount increase   | 5          | 20        |
 | Capped at*   | 200 | 1000|
 
 **Can be charged manual from shop to any amount*
