@@ -82,20 +82,19 @@ const MatchList: Component = () => {
   })
   createEffect(() => {
     curApiref = ''
-    // swipteStore is fckd
-    // swipeStore.getSwipe()
+    swipeStore.getSwipe()
     matchStore.getMatches(swipeCount.lastid)
     const next = {
       view: view(),
     }
-
     saveListCache(next)
   })
 
   const tags = tagStore((s) => ({ filter: s.filter, hidden: s.hidden }))
   const [showGrouping, setShowGrouping] = createSignal(false)
   const cached = getListCache()
-  const [view, setView] = createSignal('likes') //createSignal(cached.view)
+  console.log(cached);
+  const [view, setView] = createSignal(cached.view) //createSignal(cached.view)
   const [sortField, setSortField] = createSignal(cached.sort.field)
   const [sortDirection, setSortDirection] = createSignal(cached.sort.direction)
   const [search, setSearch] = createSignal('')
@@ -320,15 +319,15 @@ const MatchList: Component = () => {
             class=" float-right -mt-16"
             schema="secondary"
             onClick={() => {
-              //    setView(getNextView())
+              setView(getNextView())
               endAllSwipes()
             }}
           >
             <Switch>
-              <Match when={getNextView() == '!list'}>
+              <Match when={getNextView() == 'list'}>
                 <span>Swipe View</span> <LayoutList />
               </Match>
-              <Match when={getNextView() == '!likes'}>
+              <Match when={getNextView() == 'likes'}>
                 <span>List View</span> <Image />
               </Match>
             </Switch>

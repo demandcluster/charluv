@@ -56,6 +56,7 @@ type LocalStorage = {
   memory: AppSchema.MemoryBook[]
   cartItems: AppSchema.ShopItem[]
   scenario: AppSchema.ScenarioBook[]
+  swipe: string
 }
 
 const localStore = new Map<keyof LocalStorage, any>()
@@ -99,7 +100,7 @@ const fallbacks: { [key in StorageKey]: LocalStorage[key] } = {
   memory: [],
   cartItems: [],
   scenario: [],
-  swipe: [],
+  swipe: '',
 }
 
 export async function handleGuestInit() {
@@ -277,6 +278,10 @@ export function saveCartItem(state: AppSchema.ShopItem[]) {
   console.log('saving...')
   saveItem(KEYS.cartItems, state)
 }
+export function saveSwipe(state) {
+  console.log('saving saveSwipe...',KEYS.swipe, state)
+  saveItem(KEYS.swipe, state)
+}
 
 async function saveItem<TKey extends keyof typeof KEYS>(key: TKey, value: LocalStorage[TKey]) {
   if (SELF_HOSTING) {
@@ -351,6 +356,7 @@ export const localApi = {
   getMessages,
   saveCartItem,
   loadCartItems,
+  saveSwipe,
   KEYS,
   ID,
   error,
