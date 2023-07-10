@@ -69,9 +69,9 @@ const PremiumOptions: Component = () => {
 
   const cartTotal = createMemo(
     () => {
-      if (!cartSignal().loaded || cartSignal().list?.length === 0) return 0.0
+      if (!cartItems.loaded || cartItems.list?.length === 0) return 0.0
 
-      return cartSignal()
+      return cartItems.list
         .reduce((total, item) => {
           return total + item?.price
         }, 0)
