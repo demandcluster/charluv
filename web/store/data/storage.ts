@@ -99,6 +99,7 @@ const fallbacks: { [key in StorageKey]: LocalStorage[key] } = {
   memory: [],
   cartItems: [],
   scenario: [],
+  swipe: [],
 }
 
 export async function handleGuestInit() {
@@ -184,10 +185,6 @@ async function migrateLegacyItems() {
     'scenario',
     'characters',
     'chats',
-    'cartItems',
-    'Match',
-    'swipe',
-    'cartItems',
   ] as const
 
   for (const key of keys) {
