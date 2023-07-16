@@ -15,7 +15,7 @@ Premium members get their credits refilled upto **1,000 credits** and at a much 
 # Can I support you in other ways?
 
 Yes, you can! Tell everyone about us, Reddit, Twitter, YouTube, Facebook, Instagram, TikTok, whatever you use. The more people know about us, the more likely we will survive.
-We also looking for new characters that can be used as matches, if you created a character that you want to contribute, share the ID with us on [Discord](https://aivo.chat/discord) and if it passes moderation, we add it to the matches and reward you with 1,000 credits.
+We also looking for new characters that can be used as matches, if you created a character that you want to contribute, share the ID with us on [Discord](https://charluv.com/discord) and if it passes moderation, we add it to the matches and reward you with 1,000 credits.
 Since Matches have scripted scenarios (other than the self-made characters), we will do that step for you.
 
 ## Credits overview
@@ -43,7 +43,7 @@ The recharge rate for regular members is dynamic and based on the average total 
 ## Shop
 
 The [shop](/shop) is where you can buy credits and premium membership. 
-For support about the shop, please contact us on [Discord](https://aivo.chat/discord).
+For support about the shop, please contact us on [Discord](https://charluv.com/discord).
 Transactions are handled external by Paypal and you don't fill any details on our site, so it is safe.
 There is no subscriptions, you would have to renew your membership manually. We don't like subscriptions, you might forget about them and we don't want to charge you if you don't use our site.
 

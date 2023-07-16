@@ -34,7 +34,7 @@ If the character is accepted you will be rewarded between 1,000 and 5,000 credit
 
 You will see a notification on the profile of your character (edit it again so you can see the notification).
 If your character is declined you can always reset it and try again. 
-Visit [Discord](https://aivo.chat/discord) for more information if you don't know what you should improve.
+Visit [Discord](https://charluv.com/discord) for more information if you don't know what you should improve.
 
 ### What happens if my character is accepted for dating?
 
@@ -56,6 +56,6 @@ We will soon create UI for this feature.
 
 ### Where to get help?
 
-Visit [Discord](https://aivo.chat/discord) for more information.
+Visit [Discord](https://charluv.com/discord) for more information.
 
 `

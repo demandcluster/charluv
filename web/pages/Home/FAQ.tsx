@@ -43,10 +43,10 @@ Yes, In your **Settings -> Voice Settings**, you can enable speech-to-text.
 Yes, you can change some elements of Charluv in your **Settings -> UI Settings**.
 
 ### I forgot my password!
-Recovering your account is not guaranteed. You can try to contact us on [Discord](https://aivo.chat/discord) to try to recover your account.
+Recovering your account is not guaranteed. You can try to contact us on [Discord](https://charluv.com/discord) to try to recover your account.
 
 ### My question isn't answered here, where should I ask?
-The best place to get a quick answer is on [Discord](https://aivo.chat/discord).
+The best place to get a quick answer is on [Discord](https://charluv.com/discord).
 
 
 `

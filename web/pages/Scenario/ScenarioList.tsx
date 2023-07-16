@@ -37,6 +37,7 @@ const CreateScenario: Component = () => {
         title={
           <div class="flex w-full justify-between">
             <div>Scenarios</div>
+
             <div class="flex text-base">
               <div class="px-1">
                 <Button schema="secondary" onClick={() => setShowImport(true)}>
@@ -54,13 +55,16 @@ const CreateScenario: Component = () => {
           </div>
         }
       />
-
+      <div class="mt-16 flex w-full justify-center rounded-full text-sm">
+        Feature is under active development, timed events do not work yet.
+      </div>
       <Switch>
         <Match when={scenarioState.loading}>
           <div class="flex justify-center">
             <Loading />
           </div>
         </Match>
+
         <Match when={scenarioState.scenarios.length === 0}>
           <div class="mt-16 flex w-full justify-center rounded-full text-xl">
             You have no scenarios yet.
