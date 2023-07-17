@@ -161,7 +161,7 @@ const giveOrder = async (order: AppSchema.ShopOrder) => {
   if (!orderUser) return { error: 'User not found' }
   const userCredits = orderUser.credits || 0
   const userPremium = orderUser.premium || false
-  const userPremiumUntil = orderUser.premiumUntil || Date.now()
+  const userPremiumUntil = orderUser.premiumUntil > Date.now() ? orderUser.premiumUntil : Date.now()
   const totalCredits = items.reduce((acc, item) => acc + item.credits, 0)
   const totalDays = items.reduce((acc, item) => acc + item.days, 0)
   const newPremium = userPremium || totalDays > 0
