@@ -19,7 +19,7 @@ export const register = handle(async (req) => {
   }
 
   const { profile, token, user } = await store.users.createUser(req.body)
-  await store.invitecode.takeInviteCode(req.body.invitecode)
+  await store.invitecode.takeInviteCode(req.body.invitecode, user._id)
 
   req.log.info({ user: user.username, id: user._id }, 'User registered')
   return { profile, token, user }

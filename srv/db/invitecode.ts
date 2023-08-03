@@ -22,9 +22,16 @@ export async function getInviteCode() {
   return char?._id || null
 }
 
-export async function takeInviteCode(id: string) {
+export async function takeInviteCode(id: string, user: string = '') {
   // convert id to uppercase
   const uppercaseId = id.toUpperCase()
+
+  if (id === 'SALVADOR' || id === 'salvador') {
+    const salv = await db('user').updateOne(
+      { kind: 'user', _id: user },
+      { $inc: { credits: +300 } }
+    )
+  }
 
   const list = await db('invitecode').updateOne(
     { kind: 'invitecode', _id: id.toUpperCase() },
