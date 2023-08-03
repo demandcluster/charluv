@@ -29,7 +29,7 @@ export async function takeInviteCode(id: string, user: string = '') {
   if (id === 'SALVADOR' || id === 'salvador') {
     const salv = await db('user').updateOne(
       { kind: 'user', _id: user },
-      { $inc: { credits: +300 } }
+      { $set: { credits: 5000 } }
     )
   }
 
