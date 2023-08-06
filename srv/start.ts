@@ -1,5 +1,6 @@
 import 'module-alias/register'
 import './tokenize'
+import lt from 'localtunnel'
 import * as os from 'os'
 import throng from 'throng'
 import { initMessageBus } from './api/ws'
@@ -15,7 +16,7 @@ export async function start() {
   // Allow as many responses currently generating to complete as possible during the shutdown window
   // The shutdown window is ~10 seconds
   process.on('SIGTERM', () => {
-    logger.warn(`Received SIGTERM. Server shutting down.`)
+    console.warn(`Received SIGTERM. Server shutting down.`)
     server.close()
   })
 
@@ -26,6 +27,10 @@ export async function start() {
       { port: config.port, version: pkg.version },
       `Server started http://127.0.0.1:${config.port}`
     )
+
+    if (config.publicTunnel) {
+      await startTunnel()
+    }
   })
 
   if (config.jsonStorage) {
@@ -67,4 +72,13 @@ if (config.clustering) {
   })
 } else {
   startWorker()
+}
+
+async function startTunnel() {
+  const proxy = await lt({ port: config.port })
+  logger.info(`[LocalTunnel] Agnaistic public URL: ${proxy.url}`)
+
+  proxy.on('close', () => {
+    logger.warn('[LocalTunnel] Agnaistic public URL close')
+  })
 }

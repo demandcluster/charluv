@@ -4,17 +4,16 @@ import { AppSchema } from '../../common/types/schema'
 import { EVENTS, events } from '../emitter'
 import type { ChatModal } from '../pages/Chat/ChatOptions'
 import { clearDraft } from '../shared/hooks'
-import { storage } from '../shared/util'
+import { storage, toMap } from '../shared/util'
 import { api } from './api'
 import { createStore, getStore } from './create'
 import { AllChat, chatsApi } from './data/chats'
 import { msgsApi } from './data/messages'
-import { pipelineApi } from './data/pipeline'
-import { replace } from './data/storage'
 import { usersApi } from './data/user'
 import { msgStore } from './message'
 import { subscribe } from './socket'
 import { toastStore } from './toasts'
+import { replace } from '/common/util'
 
 export { AllChat }
 
@@ -24,6 +23,7 @@ export type ChatState = {
   loaded: boolean
   // All user chats a user owns or is a member of
   allChats: AllChat[]
+  allChars: { map: Record<string, AppSchema.Character>; list: AppSchema.Character[] }
   // All chats for a particular character
   char?: {
     chats: AppSchema.Chat[]
@@ -51,7 +51,7 @@ export type ChatState = {
   promptHistory: Record<string, any>
 }
 
-export type ChatRightPane = 'character' | 'preset'
+export type ChatRightPane = 'character' | 'preset' | 'participants' | 'ui' | 'chat-settings'
 
 export type ImportChat = {
   name: string
@@ -78,6 +78,7 @@ const initState: ChatState = {
   lastChatId: null,
   loaded: false,
   allChats: [],
+  allChars: { map: {}, list: [] },
   char: undefined,
   active: undefined,
 
@@ -107,6 +108,7 @@ export const chatStore = createStore<ChatState>('chat', {
   lastChatId: storage.localGetItem('lastChatId'),
   loaded: false,
   allChats: [],
+  allChars: { map: {}, list: [] },
   chatProfiles: [],
   memberIds: {},
   opts: {
@@ -129,6 +131,13 @@ export const chatStore = createStore<ChatState>('chat', {
     if (init.chats) {
       chatStore.setState({ allChats: init.chats })
     }
+  })
+
+  events.on(EVENTS.charUpdated, (char: AppSchema.Character) => {
+    const { active } = get()
+    if (active?.char?._id !== char._id) return
+
+    set({ active: { ...active, char } })
   })
 
   return {
@@ -170,8 +179,10 @@ export const chatStore = createStore<ChatState>('chat', {
         },
       }
     },
-    async *getChat(prev, id: string) {
-      yield { loaded: false, active: undefined }
+    async *getChat(prev, id: string, clear = true) {
+      if (clear) {
+        yield { loaded: false, active: undefined }
+      }
       msgStore.setState({
         msgs: [],
         activeChatId: id,
@@ -183,7 +194,7 @@ export const chatStore = createStore<ChatState>('chat', {
 
       if (res.error) toastStore.error(`Failed to retrieve conversation: ${res.error}`)
       if (res.result) {
-        pipelineApi.memoryEmbed(res.result.chat, res.result.messages)
+        // pipelineApi.chatEmbed(res.result.chat, res.result.messages)
 
         storage.localSetItem('lastChatId', id)
 
@@ -274,31 +285,7 @@ export const chatStore = createStore<ChatState>('chat', {
         }
       }
     },
-    async *editChatGenSettings(
-      { active },
-      chatId: string,
-      settings: AppSchema.Chat['genSettings'],
-      onSucces?: () => void
-    ) {
-      const res = await chatsApi.editChatGenSettings(chatId, settings)
-      if (res.error) {
-        toastStore.error(`Failed to update generation settings: ${res.error}`)
-        return
-      }
 
-      if (res.result) {
-        if (active?.chat._id === chatId) {
-          yield {
-            active: {
-              ...active,
-              chat: { ...active.chat, genSettings: settings, genPreset: undefined },
-            },
-          }
-          toastStore.success('Updated chat generation settings')
-          onSucces?.()
-        }
-      }
-    },
     async *editChatGenPreset({ active }, chatId: string, preset: string, onSucces?: () => void) {
       const res = await chatsApi.editChatGenPreset(chatId, preset)
       if (res.error) toastStore.error(`Failed to update generation settings: ${res.error}`)
@@ -320,8 +307,12 @@ export const chatStore = createStore<ChatState>('chat', {
       }
 
       if (res.result) {
-        events.emit(EVENTS.charsReceived, res.result.characters)
-        return { allChats: res.result.chats.sort(sortDesc) }
+        events.emit(EVENTS.allChars, res.result.characters)
+        const allChars = {
+          map: toMap(res.result.characters),
+          list: res.result.characters,
+        }
+        return { allChats: res.result.chats.sort(sortDesc), allChars }
       }
     },
     getBotChats: async (_, characterId: string) => {
@@ -383,6 +374,39 @@ export const chatStore = createStore<ChatState>('chat', {
       }
     },
 
+    async *upsertTempCharacter(
+      { active, allChats },
+      chatId: string,
+      char: Omit<AppSchema.Character, '_id' | 'kind' | 'createdAt' | 'updatedAt' | 'userId'> & {
+        _id?: string
+      },
+      onSuccess?: () => void
+    ) {
+      const res = await chatsApi.upsertTempCharacter(chatId, char)
+      if (res.result) {
+        const char = res.result.char
+
+        onSuccess?.()
+        if (active?.chat._id === chatId) {
+          yield {
+            active: {
+              ...active,
+              chat: replaceTemp(active.chat, char),
+            },
+          }
+        }
+
+        const nextChats = allChats.map((chat) =>
+          chat._id === chatId ? replaceTemp(chat, char) : chat
+        )
+        yield { allChats: nextChats }
+      }
+
+      if (res.error) {
+        toastStore.error(`Failed to create temp character: ${res.error}`)
+      }
+    },
+
     async *removeCharacter(_, chatId: string, charId: string, onSuccess?: () => void) {
       const res = await chatsApi.removeCharacter(chatId, charId)
       if (res.error) return toastStore.error(`Failed to remove character: ${res.error}`)
@@ -410,6 +434,17 @@ export const chatStore = createStore<ChatState>('chat', {
         }
 
         onSuccess?.()
+      }
+    },
+
+    async restartChat(_, chatId: string) {
+      const res = await chatsApi.restartChat(chatId)
+      if (res.result) {
+        chatStore.getChat(chatId, false)
+      }
+
+      if (res.error) {
+        toastStore.error(`Could not reset chat: ${res.error}`)
       }
     },
 
@@ -443,11 +478,19 @@ export const chatStore = createStore<ChatState>('chat', {
       const entities = await msgsApi.getPromptEntities()
 
       const encoder = await getEncoder()
+      const replyAs = active.replyAs?.startsWith('temp-')
+        ? entities.chat.tempCharacters![active.replyAs]
+        : entities.characters[active.replyAs ?? active.char._id]
+
       const prompt = createPrompt(
         {
           ...entities,
-          replyAs: entities.characters[active.replyAs ?? active.char._id],
+          lastMessage: entities.lastMessage?.date || '',
+          replyAs,
+          sender: entities.profile,
           messages: msgs.filter((m) => m.createdAt < msg.createdAt),
+          chatEmbeds: [],
+          userEmbeds: [],
         },
         encoder
       )
@@ -629,6 +672,38 @@ subscribe('service-prompt', { id: 'string', prompt: 'any' }, (body) => {
   const { promptHistory } = chatStore.getState()
 
   chatStore.setState({
-    promptHistory: Object.assign({}, promptHistory, { [body.id]: body.prompt }),
+    promptHistory: Object.assign({}, promptHistory, {
+      [body.id]: body.prompt,
+      partial: body.prompt,
+    }),
   })
 })
+
+subscribe('chat-temp-character', { chatId: 'string', character: 'any' }, (body) => {
+  const { active, allChats } = chatStore.getState()
+  const nextChats = allChats.map((chat) => {
+    if (chat._id !== body.chatId) return chat
+    return replaceTemp(chat, body.character)
+  })
+
+  chatStore.setState({ allChats: nextChats })
+
+  if (!active || active.chat._id !== body.chatId) return
+
+  chatStore.setState({
+    active: {
+      ...active,
+      chat: replaceTemp(active.chat, body.character),
+    },
+  })
+})
+
+function replaceTemp(chat: AppSchema.Chat, char: AppSchema.Character): AppSchema.Chat {
+  const temp = chat.tempCharacters || {}
+  temp[char._id] = char
+
+  return {
+    ...chat,
+    tempCharacters: { ...temp },
+  }
+}

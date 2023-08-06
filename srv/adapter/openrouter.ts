@@ -5,9 +5,11 @@ import { registerAdapter } from './register'
 import { ModelAdapter } from './type'
 import { sanitiseAndTrim } from '../api/chat/common'
 import { AppLog } from '../logger'
+import { OpenRouterModel } from '/common/adapters'
 
 const baseUrl = 'https://openrouter.ai/api/v1'
 const chatUrl = `${baseUrl}/chat/completions`
+let modelCache: OpenRouterModel[]
 
 export const handleOpenRouter: ModelAdapter = async function* (opts) {
   const { user, guest } = opts
@@ -29,15 +31,12 @@ export const handleOpenRouter: ModelAdapter = async function* (opts) {
     stop: [`${handle}:`],
   }
 
-  const format = user.adapterConfig?.openrouter?.format || 'chat'
-
-  if (format === 'chat') {
-    payload.messages = toChatCompletionPayload(opts, payload.max_tokens)
-    yield { prompt: payload.messages }
-  } else {
-    payload.prompt = opts.prompt
-    yield { prompt: opts.prompt }
+  if (opts.gen.openRouterModel?.id) {
+    payload.model = opts.gen.openRouterModel.id
   }
+
+  payload.messages = toChatCompletionPayload(opts, payload.max_tokens)
+  yield { prompt: payload.messages }
 
   const headers = {
     Authorization: `Bearer ${guest ? key : decryptText(key)}`,
@@ -118,18 +117,6 @@ registerAdapter('openrouter', handleOpenRouter, {
       secret: true,
       setting: { type: 'text', placeholder: 'E.g. sk-or-v1-2v6few...' },
     },
-    {
-      field: 'format',
-      label: 'Prompt format. Use "chat completion" for OpenAI models.',
-      secret: false,
-      setting: {
-        type: 'list',
-        options: [
-          { label: 'Plain text', value: 'plain' },
-          { label: 'Chat Completion', value: 'chat' },
-        ],
-      },
-    },
   ],
   options: ['temp', 'maxTokens'],
 })
@@ -162,3 +149,21 @@ function getResponseText(resp: any, log: AppLog) {
 
   return message.content as string
 }
+
+export async function getOpenRouterModels(): Promise<OpenRouterModel[]> {
+  if (modelCache) return modelCache
+
+  try {
+    const res = await needle('get', 'https://openrouter.ai/api/v1/models', {}, { json: true })
+    if (res.body) {
+      modelCache = res.body.data
+    }
+
+    return modelCache
+  } catch (ex) {
+    return modelCache || []
+  }
+}
+
+setInterval(getOpenRouterModels, 60000 * 2)
+getOpenRouterModels()

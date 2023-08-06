@@ -1,17 +1,16 @@
 import { assertValid } from '/common/valid'
-import { chatGenSettings } from '../../../common/presets'
 import { config } from '../../config'
 import { store } from '../../db'
-import { errors, handle } from '../wrap'
+import { StatusError, errors, handle } from '../wrap'
 import { sendMany } from '../ws'
 import { personaValidator } from './common'
 import { AppSchema } from '/common/types'
 
-export const updateChat = handle(async ({ params, body, user }) => {
+export const updateChat = handle(async ({ params, body, user, userId }) => {
   assertValid(
     {
       name: 'string',
-      mode: ['standard', 'adventure'],
+      mode: ['standard', 'adventure', 'companion'],
       adapter: ['default', ...config.adapters] as const,
       greeting: 'string?',
       scenario: 'string?',
@@ -20,6 +19,8 @@ export const updateChat = handle(async ({ params, body, user }) => {
       overrides: { '?': 'any?', ...personaValidator },
       scenarioIds: ['string?'],
       useOverrides: 'boolean?',
+      userEmbedId: 'string?',
+      scenarioStates: ['string?'],
     },
     body,
     true
@@ -29,12 +30,23 @@ export const updateChat = handle(async ({ params, body, user }) => {
   const prev = await store.chats.getChatOnly(id)
   if (!prev || prev?.userId !== user?.userId) throw errors.Forbidden
 
+  if (body.scenarioIds) {
+    const scenarios = await store.scenario.getScenariosById(body.scenarioIds)
+    for (const scenario of scenarios) {
+      if (scenario.userId !== userId) {
+        throw new StatusError('You do not have access to this scenario', 403)
+      }
+    }
+  }
+
   const update: PartialUpdate<AppSchema.Chat> = {
     name: body.name ?? prev.name,
     mode: body.mode ?? prev.mode,
     adapter: body.adapter ?? prev.adapter,
     memoryId: body.memoryId ?? prev.memoryId,
-    scenarioIds: body.scenarioIds ?? [],
+    userEmbedId: body.userEmbedId ?? prev.userEmbedId,
+    scenarioIds: body.scenarioIds ?? prev.scenarioIds,
+    scenarioStates: body.scenarioStates ?? prev.scenarioStates,
   }
 
   if (body.useOverrides === false) {
@@ -55,6 +67,9 @@ export const updateChat = handle(async ({ params, body, user }) => {
   return chat
 })
 
+/**
+ * @deprecated
+ */
 export const updateMessage = handle(async ({ body, params, userId }) => {
   assertValid({ message: 'string' }, body)
   const prev = await store.chats.getMessageAndChat(params.id)
@@ -62,7 +77,7 @@ export const updateMessage = handle(async ({ body, params, userId }) => {
   if (!prev || !prev.chat) throw errors.NotFound
   if (prev.chat?.userId !== userId) throw errors.Forbidden
 
-  const message = await store.msgs.editMessage(params.id, { msg: body.message })
+  const message = await store.msgs.editMessage(params.id, { msg: body.message, state: 'edited' })
 
   sendMany(prev.chat?.memberIds.concat(prev.chat.userId), {
     type: 'message-edited',
@@ -73,16 +88,37 @@ export const updateMessage = handle(async ({ body, params, userId }) => {
   return message
 })
 
-export const updateChatGenSettings = handle(async ({ params, userId, body }) => {
-  const chatId = params.id
-  assertValid(chatGenSettings, body)
+export const updateMessageProps = handle(async ({ body, params, userId }) => {
+  assertValid({ imagePrompt: 'string?', msg: 'string?' }, body)
 
-  const chat = await store.chats.getChatOnly(chatId)
-  if (chat?.userId !== userId) {
-    throw errors.Forbidden
+  const prev = await store.chats.getMessageAndChat(params.id)
+
+  if (!prev || !prev.chat) throw errors.NotFound
+  if (prev.chat?.userId !== userId) throw errors.Forbidden
+
+  const update: Partial<AppSchema.ChatMessage> = {
+    imagePrompt: body.imagePrompt || prev.msg.imagePrompt,
+    msg: body.msg ?? prev.msg.msg,
   }
 
-  await store.presets.updateGenSetting(chatId, body)
+  const message = await store.msgs.editMessage(params.id, {
+    ...update,
+    state: body.msg === undefined ? prev.msg.state : 'edited',
+  })
+
+  sendMany(prev.chat?.memberIds.concat(prev.chat.userId), {
+    type: 'message-edited',
+    messageId: params.id,
+    imagePrompt: body.imagePrompt || prev.msg.imagePrompt,
+    message: body.msg || prev.msg.msg,
+  })
+
+  return message
+})
+
+export const restartChat = handle(async (req) => {
+  const chatId = req.params.id
+  await store.chats.restartChat(req.userId, chatId)
   return { success: true }
 })
 

@@ -11,6 +11,7 @@ import * as matches from './matches'
 import * as credits from './credits'
 import * as scenario from './scenario'
 import * as invitecode from './invitecode'
+import * as oauth from './oauth'
 
 export { db } from './client'
 
@@ -28,4 +29,5 @@ export const store = {
   matches,
   credits,
   scenario,
+  oauth,
 }

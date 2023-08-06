@@ -84,6 +84,7 @@ const NavBar: Component = () => {
                   setModal={setModal}
                   togglePane={togglePane}
                   adapterLabel={adapterLabel()}
+                  close={() => setShowOpts(false)}
                 />
               </DropMenu>
             </div>

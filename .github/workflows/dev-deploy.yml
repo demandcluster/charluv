@@ -1,6 +1,9 @@
-name: Deploy to dev
+name: Deploy to DEV
 
 on: workflow_dispatch
+
+permissions:
+  contents: read
 
 env:
   IMAGE_NAME: agnaistic
@@ -40,11 +43,12 @@ jobs:
         env:
           INJECT_SCRIPT: ${{ secrets.INJECT_SCRIPT }}
         run: |
+          pnpm run build:server
           pnpm run build:prod
           cp dist/index.html dist/original.html
           node .github/inject.js
 
-      - name: Publish to Dev
+      - name: Publish to DEV
         uses: BetaHuhn/do-spaces-action@v2
         with:
           access_key: ${{ secrets.S3_ACCESS_KEY}}

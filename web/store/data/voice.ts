@@ -22,7 +22,10 @@ async function voicesList(ttsService: TTSService) {
   const user = getUserEntity()
   const res = await api.post<{ voices: AppSchema.VoiceDefinition[] }>(
     `/voice/${ttsService}/voices`,
-    { user, ttsService }
+    {
+      user,
+      ttsService,
+    }
   )
   return res
 }

@@ -1,6 +1,14 @@
-import type { AIAdapter, ChatAdapter, PersonaFormat, RegisteredAdapter } from '../adapters'
+import type {
+  AIAdapter,
+  ChatAdapter,
+  HordeModel,
+  HordeWorker,
+  OpenRouterModel,
+  PersonaFormat,
+  RegisteredAdapter,
+} from '../adapters'
 import type { GenerationPreset } from '../presets'
-import type { ImageSettings } from '../../srv/db/image-schema'
+import type { ImageSettings } from './image-schema'
 import type { TTSSettings, VoiceSettings } from './texttospeech-schema'
 import { UISettings } from './ui'
 import { FullSprite } from './sprite'
@@ -21,6 +29,16 @@ export type AllDoc =
   | AppSchema.InviteCode
   | AppSchema.ShopItem
   | AppSchema.ScenarioBook
+  | AppSchema.ApiKey
+
+export type OAuthScope = keyof typeof oauthScopes
+
+export const oauthScopes = ['characters', 'chats', 'presets', 'profile'] as const
+
+export type ChatBranch = {
+  parent: string
+  children: { [key: string]: number }
+}
 
 export namespace AppSchema {
   export interface AppConfig {
@@ -35,12 +53,12 @@ export namespace AppSchema {
     patreon?: boolean
     policies?: boolean
     flags?: string
-    slots: {
-      enabled: boolean
-      menu: string
-      menuLg: string
-      banner: string
-      mobile: string
+
+    pipelineProxyEnabled: boolean
+    authUrls: string[]
+    horde: {
+      models: HordeModel[]
+      workers: HordeWorker[]
     }
   }
 
@@ -90,7 +108,6 @@ export namespace AppSchema {
     nextCredits?: number
     thirdPartyPassword: string
     thirdPartyPasswordSet?: boolean
-    luminaiUrl: string
     oobaUrl: string
 
     oaiKey: string
@@ -132,15 +149,32 @@ export namespace AppSchema {
     ui?: UISettings
   }
 
+  export interface ApiKey {
+    _id: string
+    kind: 'apikey'
+
+    apikey: string
+    code: string
+
+    scopes: OAuthScope[]
+    challenge?: string
+    origin: string
+    userId: string
+    createdAt: string
+    enabled: boolean
+  }
+
   export interface Chat {
     _id: string
     kind: 'chat'
-    mode?: 'standard' | 'adventure'
+    mode?: 'standard' | 'adventure' | 'companion'
     userId: string
     memoryId?: string
+    userEmbedId?: string
 
     memberIds: string[]
     characters?: Record<string, boolean>
+    tempCharacters?: Record<string, AppSchema.Character>
 
     name: string
     characterId: string
@@ -160,6 +194,8 @@ export namespace AppSchema {
 
     scenarioIds?: string[]
     scenarioStates?: string[]
+
+    tree?: { [key: string]: ChatBranch }
   }
 
   export interface ChatMember {
@@ -180,8 +216,6 @@ export namespace AppSchema {
     characterId?: string
     userId?: string
 
-    // Only chat owners can rate messages for now
-    rating?: 'y' | 'n' | 'none'
     adapter?: string
     imagePrompt?: string
     actions?: ChatAction[]
@@ -193,6 +227,7 @@ export namespace AppSchema {
     system?: boolean
     meta?: any
     event?: EventTypes | undefined
+    state?: string
   }
 
   export type EventTypes = 'world' | 'character' | 'hidden' | 'ooc'
@@ -205,23 +240,27 @@ export namespace AppSchema {
       }
     | { kind: 'text'; attributes: { text: [string] } }
 
-  export interface Character {
+  export interface BaseCharacter {
     _id: string
-    kind: 'character'
-    userId: string
-
     name: string
     description?: string
     appearance?: string
-    culture?: string
-    tags?: string[]
+    avatar?: string
     persona: Persona
     greeting: string
     scenario: string
     sampleChat: string
+  }
+
+  export interface Character extends BaseCharacter {
+    kind: 'character'
+    userId: string
+
+    culture?: string
+    tags?: string[]
 
     visualType?: string
-    avatar?: string
+
     parent?: string
     match: boolean
     xp: number
@@ -347,8 +386,13 @@ export namespace AppSchema {
     penaltyAlpha?: number
     addBosToken?: boolean
     banEosToken?: boolean
+
     order?: number[]
+    disabledSamplers?: number[]
+
     skipSpecialTokens?: boolean
+    cfgScale?: number
+    cfgOppose?: string
 
     systemPrompt?: string
     ignoreCharacterSystemPrompt?: boolean
@@ -363,6 +407,10 @@ export namespace AppSchema {
     oaiModel?: string
     novelModel?: string
     claudeModel?: string
+    openRouterModel?: OpenRouterModel
+
+    thirdPartyUrl?: string
+    thirdPartyFormat?: 'kobold' | 'openai' | 'claude'
 
     replicateModelName?: string
     replicateModelType?: string
@@ -373,6 +421,9 @@ export namespace AppSchema {
     memoryDepth?: number
     memoryContextLimit?: number
     memoryReverseWeight?: boolean
+    memoryChatEmbedLimit?: number
+    memoryUserEmbedLimit?: number
+
     src?: string
 
     images?: {
@@ -431,16 +482,17 @@ export namespace AppSchema {
     overwriteCharacterScenario: boolean
     instructions?: string
     entries: ScenarioEvent[]
+    states: string[]
   }
 
-  export interface ScenarioEvent {
+  export interface ScenarioEvent<T extends ScenarioEventTrigger = ScenarioEventTrigger> {
     /** The state this  */
     name: string
     requires: string[]
     assigns: string[]
     type: EventTypes
     text: string
-    trigger: ScenarioEventTrigger
+    trigger: T
   }
 
   export type ScenarioEventTrigger =

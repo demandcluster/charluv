@@ -21,9 +21,11 @@ export const usersApi = {
   getOpenAIUsage,
   getProfile,
   updateConfig,
+  updatePartialConfig,
   updateProfile,
   updateUI,
   updateServiceConfig,
+  novelLogin,
 }
 
 export async function getInit() {
@@ -126,6 +128,19 @@ export async function updateProfile(handle: string, file?: File) {
 
 type ConfigUpdate = Partial<AppSchema.User> & { hordeModels?: string[] }
 
+export async function updatePartialConfig(config: ConfigUpdate) {
+  if (!isLoggedIn()) {
+    const prev = await localApi.loadItem('config')
+    const next: AppSchema.User = { ...prev, ...config }
+
+    await localApi.saveConfig(next)
+    return { result: next, error: undefined }
+  }
+
+  const res = await api.post('/user/config/partial', config)
+  return res
+}
+
 export async function updateConfig(config: ConfigUpdate) {
   if (!isLoggedIn()) {
     const prev = await localApi.loadItem('config')
@@ -215,4 +230,17 @@ async function getImageData(file?: File) {
       resolve(evt.target.result.toString())
     }
   })
+}
+
+async function novelLogin(key: string) {
+  const res = await api.post('/user/services/novel', { key })
+
+  if (!isLoggedIn() && res.result) {
+    const user = await localApi.loadItem('config')
+    const next = { ...user, ...res.result }
+    await localApi.saveConfig(next)
+    return localApi.result(next)
+  }
+
+  return res
 }

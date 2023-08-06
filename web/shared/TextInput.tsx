@@ -1,4 +1,4 @@
-import { Component, Show, createMemo, JSX, onMount, createEffect, createSignal } from 'solid-js'
+import { Component, Show, createMemo, JSX, createEffect, createSignal } from 'solid-js'
 import IsVisible from './IsVisible'
 import { AIAdapter, PresetAISettings } from '../../common/adapters'
 import { getAISettingServices } from './util'
@@ -8,7 +8,7 @@ const MIN_HEIGHT = 40
 
 const TextInput: Component<{
   fieldName: string
-  label?: string
+  label?: string | JSX.Element
   helperText?: string | JSX.Element
   placeholder?: string
   isMultiline?: boolean
@@ -52,18 +52,56 @@ const TextInput: Component<{
     props.value !== undefined ? props.value : (null as unknown as undefined)
   )
 
+  const updateCount = async () => {
+    if (!props.tokenCount) return
+    const tokenizer = await getEncoder()
+    const count = tokenizer(inputRef?.value || '')
+    setTokens(count)
+
+    if (typeof props.tokenCount === 'function') {
+      props.tokenCount(count)
+    }
+  }
+
+  const resize = () => {
+    if (inputRef?.value === '') {
+      inputRef.style.height = `${MIN_HEIGHT}px`
+      return
+    }
+
+    updateCount()
+
+    if (inputRef) {
+      const next = +inputRef.scrollHeight < MIN_HEIGHT ? MIN_HEIGHT : inputRef.scrollHeight
+      inputRef.style.height = `${next}px`
+    }
+  }
+
   createEffect(() => {
     if (props.value === undefined) return
-    if (inputRef.value !== props.value) inputRef.value = props.value.toString()
+    if (inputRef && inputRef.value !== props.value) inputRef.value = props.value.toString()
+    resize()
     updateCount()
   })
 
   createEffect(() => {
+    if (!inputRef) return
     if (props.isMultiline) {
       value()
       resize()
     }
   })
+
+  const onRef = (ref: any) => {
+    props.ref?.(ref)
+    setTimeout(() => {
+      inputRef = ref
+      if (props.value) {
+        ref.value = props.value
+      }
+      resize()
+    })
+  }
 
   const handleChange = async (
     ev: Event & { target: Element; currentTarget: HTMLTextAreaElement | HTMLInputElement }
@@ -78,37 +116,9 @@ const TextInput: Component<{
     props.onInput?.(ev)
   }
 
-  const updateCount = async () => {
-    if (!props.tokenCount) return
-    const tokenizer = await getEncoder()
-    const count = tokenizer(inputRef.value || '')
-    setTokens(count)
-
-    if (typeof props.tokenCount === 'function') {
-      props.tokenCount(count)
-    }
-  }
-
-  const resize = () => {
-    if (!inputRef) return
-
-    if (inputRef.value === '') {
-      inputRef.style.height = `${MIN_HEIGHT}px`
-      return
-    }
-
-    updateCount()
-    const next = +inputRef.scrollHeight < MIN_HEIGHT ? MIN_HEIGHT : inputRef.scrollHeight
-    inputRef.style.height = `${next}px`
-  }
-
   const hide = createMemo(() => {
     if (!props.service || !adapters()) return ''
     return adapters()!.includes(props.service) ? '' : ` hidden `
-  })
-
-  onMount(() => {
-    props.ref?.(inputRef)
   })
 
   return (
@@ -127,7 +137,7 @@ const TextInput: Component<{
             </div>
           </Show>
           <Show when={!!props.helperText}>
-            <p class="mt-[-0.125rem] pb-2 text-sm text-[var(--text-700)]">{props.helperText}</p>
+            <p class="mt-[-0.125rem] pb-1 text-sm text-[var(--text-700)]">{props.helperText}</p>
           </Show>
         </label>
       </Show>
@@ -141,7 +151,7 @@ const TextInput: Component<{
             required={props.required}
             placeholder={placeholder()}
             value={value()}
-            class={'form-field focusable-field w-full rounded-xl px-4 py-2 ' + props.class}
+            class={'form-field focusable-field w-full rounded-xl px-4 py-2 ' + (props.class || '')}
             onkeyup={(ev) => {
               updateCount()
               props.onKeyUp?.(ev)
@@ -154,20 +164,20 @@ const TextInput: Component<{
             pattern={props.pattern}
             spellcheck={props.spellcheck}
             lang={props.lang}
-            ref={inputRef}
+            ref={onRef}
           />
         }
       >
         <textarea
           id={props.fieldName}
           name={props.fieldName}
-          ref={inputRef}
+          ref={onRef}
           required={props.required}
           placeholder={placeholder()}
           value={value()}
           class={
             'form-field focusable-field text-900 min-h-[40px] w-full rounded-xl px-4 py-2 ' +
-            props.class
+            (props.class || '')
           }
           disabled={props.disabled}
           spellcheck={props.spellcheck}

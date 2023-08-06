@@ -278,7 +278,12 @@ body {
 
   .btn-clear {
     @apply btn-base;
-    @apply bg-transparent;
+    @apply border-[var(--bg-500)] bg-transparent;
+  }
+
+  .btn-bordered {
+    @apply btn-base;
+    @apply border-[1px] border-[var(--bg-700)] bg-transparent hover:bg-[var(--bg-700)];
   }
 
   /**
@@ -424,7 +429,7 @@ textarea:disabled {
 }
 
 .markdown ul > li {
-  @apply ml-5;
+  /* @apply ml-5; */
   list-style-type: disc;
 }
 

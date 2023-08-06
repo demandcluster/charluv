@@ -28,7 +28,7 @@ import { AutoPreset, getPresetOptions } from '../../shared/adapter'
 import { defaultPresets, isDefaultPreset } from '/common/presets'
 import ServiceWarning from '/web/shared/ServiceWarning'
 import { PresetSelect } from '/web/shared/PresetSelect'
-import { Card } from '/web/shared/Card'
+import { Card, TitleCard } from '/web/shared/Card'
 import { Toggle } from '/web/shared/Toggle'
 import Divider from '/web/shared/Divider'
 import PageHeader from '/web/shared/PageHeader'
@@ -65,10 +65,8 @@ const CreateChatForm: Component<{
   const currScenarios = createMemo(() => {
     if (!scenarios.length) return [{ value: '', label: 'You have no scenarios' }]
     return [
-      { value: '', label: "Use character's scenario" },
-      ...scenarios
-        .filter((scenario) => scenario?.public !== true)
-        .map((s) => ({ label: s.name, value: s._id })),
+      { value: '', label: 'None' },
+      ...scenarios.map((s) => ({ label: s.name, value: s._id })),
     ]
   })
 
@@ -89,7 +87,7 @@ const CreateChatForm: Component<{
     setScenario(scenarios.find((s) => s._id === scenarioId))
   }
 
-  const [presetId, setPresetId] = createSignal(user.defaultPreset)
+  const [presetId, setPresetId] = createSignal(user.defaultPreset || 'horde')
   const presets = presetStore((s) => s.presets)
 
   const presetOptions = createMemo(() => {
@@ -116,7 +114,7 @@ const CreateChatForm: Component<{
       scenario: 'string',
       sampleChat: 'string',
       schema: ['wpp', 'boostyle', 'sbf', 'text'],
-      mode: ['standard', 'adventure', null],
+      mode: ['standard', 'adventure', 'companion', null],
     } as const)
 
     const attributes = getAttributeMap(ref)
@@ -193,24 +191,33 @@ const CreateChatForm: Component<{
                 label="Character"
                 helperText="The conversation's main character"
                 onChange={(c) => setSelected(c?._id)}
+                ignoreActive
               />
             </Card>
           </Show>
+         
 
-          <Show when={selectedPreset()?.service === 'openai'}>
-            <Card>
-              <Select
-                fieldName="mode"
-                label="Chat Mode"
-                helperText="EXPERIMENTAL: This is only supported on OpenAI Turbo at the moment. This feature may not work "
-                items={[
-                  { label: 'Conversation', value: 'standard' },
-                  { label: 'Adventure (Experimental)', value: 'adventure' },
-                ]}
-                value={'standard'}
-              />
-            </Card>
-          </Show>
+          <Card>
+            <Select
+              fieldName="mode"
+              label="Chat Mode"
+              helperText={
+                <div class="flex flex-col gap-2">
+                  <TitleCard>
+                    <b>COMPANION:</b> Everything is permanent. You will not be able to: Edit Chat,
+                    Retry Message, Delete Messages, etc.
+                  </TitleCard>
+                </div>
+              }
+              items={[
+                { label: 'Conversation', value: 'standard' },
+
+                { label: 'Companion', value: 'companion' },
+              ]}
+              value={'standard'}
+            />
+          </Card>
+
           <Card>
             <TextInput
               class="text-sm"

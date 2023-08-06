@@ -42,7 +42,9 @@ export async function get<T = any>({ url, apikey, ...opts }: Omit<PostReq, 'body
   }
 
   const res = await needle('get', `${opts.host || baseUrl}${url}`, { json: true, headers }).catch(
-    (error) => ({ error })
+    (error) => ({
+      error,
+    })
   )
 
   if ('error' in res) {

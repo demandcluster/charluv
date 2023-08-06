@@ -7,7 +7,7 @@ import Button from '/web/shared/Button'
 import { Plus, Upload } from 'lucide-solid'
 import ImportScenarioModal from './components/ImportScenarioModal'
 
-const CreateScenario: Component = () => {
+const ScenarioList: Component = () => {
   const scenarioState = scenarioStore()
   const nav = useNavigate()
 
@@ -25,6 +25,7 @@ const CreateScenario: Component = () => {
         overwriteCharacterScenario: false,
         text: '',
         instructions: '',
+        states: [],
         entries: [],
       },
       (r) => nav(`/scenario/${r._id}`)
@@ -99,4 +100,4 @@ const CreateScenario: Component = () => {
   )
 }
 
-export default CreateScenario
+export default ScenarioList

@@ -9,20 +9,22 @@ import {
   Users,
   Camera,
   VenetianMask,
+  AlertTriangle,
 } from 'lucide-solid'
-import { Component, Show, createMemo, JSX } from 'solid-js'
+import { Component, Show, createMemo, JSX, createSignal } from 'solid-js'
 import Button, { ButtonSchema } from '../../shared/Button'
 import { Toggle } from '../../shared/Toggle'
 import { ChatRightPane, chatStore, settingStore, toastStore, userStore } from '../../store'
 import { domToPng } from 'modern-screenshot'
 import { getRootRgb } from '../../shared/util'
+import { ConfirmModal } from '/web/shared/Modal'
+import { Card, TitleCard } from '/web/shared/Card'
 
 export type ChatModal =
   | 'export'
   | 'settings'
   | 'invite'
   | 'memory'
-  | 'ui'
   | 'members'
   | 'delete'
   | 'updateGaslightToUseSystemPrompt'
@@ -32,6 +34,7 @@ const ChatOptions: Component<{
   adapterLabel: string
   setModal: (modal: ChatModal) => void
   togglePane: (pane: ChatRightPane) => void
+  close: () => void
 }> = (props) => {
   const chats = chatStore((s) => ({
     ...s.active,
@@ -39,8 +42,10 @@ const ChatOptions: Component<{
     members: s.chatProfiles,
   }))
   const user = userStore()
-  
+
   const cfg = settingStore()
+
+  const [restart, setRestart] = createSignal(false)
 
   const toggleOocMessages = () => {
     chatStore.option('hideOoc', !chats.opts.hideOoc)
@@ -54,7 +59,9 @@ const ChatOptions: Component<{
     chatStore.option('screenshot', value)
   }
 
-  const isOwner = createMemo(() => chats.chat?.userId === user.user?._id)
+  const isOwner = createMemo(
+    () => chats.chat?.userId === user.user?._id && chats.chat?.mode !== 'companion'
+  )
 
   const screenshotChat = async () => {
     if (chats.opts.screenshot) return
@@ -86,22 +93,26 @@ const ChatOptions: Component<{
   }
 
   return (
-    <div class="flex w-72 flex-col gap-2 p-2">
-      <Show when={chats.members.length > 1}>
-        <Option onClick={toggleOocMessages}>
-          <div class="flex w-full items-center justify-between">
-            <div>Hide OOC messages</div>
-            <Toggle
-              class="h-50 flex items-center"
-              fieldName="editChat"
-              value={chats.opts.hideOoc}
-              onChange={toggleOocMessages}
-            />
-          </div>
-        </Option>
+    <>
+      <Show when={chats.chat?.mode}>
+        <Card>Mode: {chats.chat?.mode}</Card>
       </Show>
-      <Show when={isOwner()}>
-        <Option onClick={toggleEditing}>
+      <div class="flex w-72 flex-col gap-2 p-2">
+        <Show when={chats.members.length > 1}>
+          <Option onClick={toggleOocMessages}>
+            <div class="flex w-full items-center justify-between">
+              <div>Hide OOC messages</div>
+              <Toggle
+                class="h-50 flex items-center"
+                fieldName="editChat"
+                value={chats.opts.hideOoc}
+                onChange={toggleOocMessages}
+              />
+            </div>
+          </Option>
+        </Show>
+
+        <Option onClick={toggleEditing} hide={!isOwner()}>
           <div class="flex w-full items-center justify-between">
             <div>Enable Chat Editing</div>
             <Toggle
@@ -113,75 +124,104 @@ const ChatOptions: Component<{
           </div>
         </Option>
 
-        <Option onClick={() => props.togglePane('character')}>
+        <Option onClick={() => props.togglePane('character')} hide={!isOwner()}>
           <User /> Character
         </Option>
-      
-        <Option onClick={() => props.setModal('members')}>
+
+        <Option onClick={() => props.togglePane('participants')} hide={!isOwner()}>
           <Users /> Participants
         </Option>
 
-        <MenuItemRow>
-          <MenuItem onClick={() => props.setModal('settings')} hide={!isOwner()}>
+        <Row>
+          <Item onClick={() => props.togglePane('chat-settings')} hide={!isOwner()}>
             <Settings /> Edit Chat
-          </MenuItem>
-         
-        </MenuItemRow>
-        <MenuItemRow>
-          <MenuItem onClick={screenshotChat}>
+          </Item>
+          <Item onClick={() => props.togglePane('preset')} hide={!isOwner()}>
+            <Sliders /> Preset
+          </Item>
+        </Row>
+        <Row>
+          <Item onClick={screenshotChat}>
             <Camera />
             <Show when={!chats.opts.screenshot}>Screenshot</Show>
             <Show when={chats.opts.screenshot}>
               <em>Loading, please wait...</em>
             </Show>
-          </MenuItem>
-          <MenuItem onClick={() => props.setModal('memory')}>
+          </Item>
+          <Item onClick={() => props.setModal('memory')} hide={!isOwner()}>
             <Book /> Memory
-          </MenuItem>
-        </MenuItemRow>
-      </Show>
+          </Item>
+        </Row>
 
-      <MenuItemRow>
-        <MenuItem
-          schema={cfg.anonymize ? 'primary' : undefined}
-          onClick={settingStore.toggleAnonymize}
-        >
-          <VenetianMask /> Anonymize
-        </MenuItem>
-        <MenuItem onClick={() => props.setModal('ui')}>
-          <Palette /> UI
-        </MenuItem>
-      </MenuItemRow>
+        <Row>
+          <Item
+            schema={cfg.anonymize ? 'primary' : undefined}
+            onClick={settingStore.toggleAnonymize}
+          >
+            <VenetianMask /> Anonymize
+          </Item>
+          <Item onClick={() => props.togglePane('ui')}>
+            <Palette /> UI
+          </Item>
+        </Row>
 
-      <MenuItemRow>
-        <MenuItem onClick={() => props.setModal('export')}>
-          <Download /> Export
-        </MenuItem>
-        <MenuItem onClick={() => props.setModal('delete')} hide={!isOwner()}>
-          <Trash /> Delete
-        </MenuItem>
-      </MenuItemRow>
-      <div class="flex justify-center">
-        <em class="text-sm">{props.adapterLabel}</em>
+        <Row>
+          <Item onClick={() => props.setModal('export')}>
+            <Download /> Export
+          </Item>
+          <Item onClick={() => props.setModal('delete')} hide={!isOwner()}>
+            <Trash /> Delete
+          </Item>
+        </Row>
+
+        <Show when={chats.chat}>
+          <Row>
+            <Item onClick={() => setRestart(true)} center hide={!isOwner()}>
+              <AlertTriangle /> Restart Chat <AlertTriangle />
+            </Item>
+          </Row>
+        </Show>
+        <div class="flex justify-center">
+          <em class="text-sm">{props.adapterLabel}</em>
+        </div>
       </div>
-    </div>
+      <ConfirmModal
+        message={
+          <TitleCard type="rose" class="flex flex-col gap-4">
+            <div class="flex justify-center font-bold">Are you sure?</div>
+            <div>This will delete ALL messages in this conversation.</div>
+          </TitleCard>
+        }
+        show={restart()}
+        close={() => setRestart(false)}
+        confirm={() => {
+          chatStore.restartChat(chats.chat!._id)
+          props.close()
+        }}
+      />
+    </>
   )
 }
 
-const MenuItemRow: Component<{ children: JSX.Element }> = (props) => (
-  <div class="flex gap-1">{props.children}</div>
+const Row: Component<{ children: JSX.Element; hide?: boolean }> = (props) => (
+  <Show when={!props.hide}>
+    <div class="flex gap-1">{props.children}</div>
+  </Show>
 )
 
-const MenuItem: Component<{
+const Item: Component<{
   onClick: () => void
   schema?: ButtonSchema
   hide?: boolean
   children: any
+  center?: boolean
 }> = (props) => (
   <Show when={!props.hide}>
     <Option
       onClick={props.onClick}
-      class="flex flex-1 justify-start gap-2 hover:bg-[var(--bg-700)]"
+      class={`flex flex-1 ${
+        props.center ? 'justify-center' : 'justify-start'
+      } gap-2 hover:bg-[var(--bg-700)]`}
       schema={props.schema}
     >
       {props.children}
@@ -195,21 +235,24 @@ const Option: Component<{
   schema?: ButtonSchema
   onClick: () => void
   close?: () => void
+  hide?: boolean
 }> = (props) => {
   const onClick = () => {
     props.onClick()
     props.close?.()
   }
   return (
-    <Button
-      schema={props.schema || 'secondary'}
-      size="sm"
-      onClick={onClick}
-      alignLeft
-      class={props.class}
-    >
-      {props.children}
-    </Button>
+    <Show when={!props.hide}>
+      <Button
+        schema={props.schema || 'secondary'}
+        size="sm"
+        onClick={onClick}
+        alignLeft
+        class={props.class}
+      >
+        {props.children}
+      </Button>
+    </Show>
   )
 }
 

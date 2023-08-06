@@ -125,7 +125,7 @@ const HomePage: Component = () => {
         <div class="home-cards">
           <TitleCard type="bg" title="Guides" class="" center>
             <div class="flex flex-wrap justify-center gap-2">
-              <A href="/memory/instructions">
+              <A href="/guides/memory">
                 <Pill>Memory Book</Pill>
               </A>
               <A href="/help">

@@ -44,6 +44,10 @@ import FAQ from './pages/Home/FAQ'
 import CreateChatForm from './pages/Chat/CreateChatForm'
 import Modal from './shared/Modal'
 import { ContextProvider } from './store/context'
+import PipelineGuide from './pages/Guides/Pipeline'
+import MemoryGuide from './pages/Guides/Memory'
+import NovelGuide from './pages/Guides/NovelAI'
+import { ImageModal } from './pages/Chat/ImageModal'
 
 const App: Component = () => {
   const state = userStore()
@@ -88,17 +92,22 @@ const App: Component = () => {
             component={lazy(() => import('./pages/Memory/Instructions'))}
           />
           <MatchRoutes />
-         
+
           <Route
             path="/memory/instructions"
             component={lazy(() => import('./pages/Memory/Instructions'))}
           />
-
+          <Route path="/privacy-policy" component={lazy(() => import('./pages/PrivacyPolicy'))} />
+          <Route path="/guides">
+            <Route path="/pipeline" component={PipelineGuide} />
+            <Route path="/memory" component={MemoryGuide} />
+            <Route path="/novel" component={NovelGuide} />
+          </Route>
           <Show when={state.loggedIn}>
-          <Route path="/shop" component={PremiumOptions} />
-          <Route path="/thankyou" component={ThankYou} />
-          <Route path="/shop/error" component={Error} />
-          <Route path="/premium" component={PremiumInfo} />
+            <Route path="/shop" component={PremiumOptions} />
+            <Route path="/thankyou" component={ThankYou} />
+            <Route path="/shop/error" component={Error} />
+            <Route path="/premium" component={PremiumInfo} />
             <Route path="/invites" component={lazy(() => import('./pages/Invite/InvitesPage'))} />
             <Show when={state.user?.admin}>
               <Route
@@ -212,6 +221,7 @@ const Layout: Component = () => {
         />
         <InfoModal />
         <ProfileModal />
+        <ImageModal />
         <For each={rootModals.modals}>{(modal) => modal.element}</For>
       </div>
     </ContextProvider>

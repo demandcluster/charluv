@@ -1,6 +1,7 @@
 import type { PromptParts } from '../../common/prompt'
 import { AppSchema } from '../../common/types/schema'
 import { AppLog } from '../logger'
+import { Memory } from '/common/types'
 
 export type GenerateRequestV2 = {
   requestId: string
@@ -33,6 +34,8 @@ export type GenerateRequestV2 = {
 
   /** Date ISO string */
   lastMessage?: string
+  chatEmbeds?: Array<Memory.UserEmbed<{ name: string }>>
+  userEmbeds?: Memory.UserEmbed[]
 }
 
 export type GenerateOptions = {
@@ -62,7 +65,7 @@ export type AdapterProps = {
 
   /** GenSettings mapped to an object for the target adapter */
   gen: Partial<AppSchema.GenSettings>
-  settings: any
+  mappedSettings: any
   guest?: string
   log: AppLog
   isThirdParty?: boolean

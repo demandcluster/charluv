@@ -5,6 +5,17 @@ import { normalizeUrl, sanitise, sanitiseAndTrim, trimResponseV2 } from '../api/
 import { ModelAdapter } from './type'
 import { needleToSSE } from './stream'
 
+/**
+ * Sampler order
+ * 0. Top K
+ * 1. Top A
+ * 2. Top P
+ * 3. Tail Free Sampling
+ * 4. Typical P
+ * 5. Temperature
+ * 6. Repetition Penalty
+ */
+
 const MIN_STREAMING_KCPPVERSION = '1.30'
 const REQUIRED_SAMPLERS = defaultPresets.basic.order
 
@@ -21,11 +32,11 @@ export const handleKobold: ModelAdapter = async function* ({
   characters,
   user,
   prompt,
-  settings,
+  mappedSettings,
   log,
   ...opts
 }) {
-  const body = { ...base, ...settings, prompt }
+  const body = { ...base, ...mappedSettings, prompt }
 
   const baseURL = `${normalizeUrl(user.koboldUrl)}`
 

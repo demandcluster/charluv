@@ -49,7 +49,6 @@ export const AI_ADAPTERS = [
   'novel',
   'ooba',
   'horde',
-  'luminai',
   'openai',
   'scale',
   'claude',
@@ -115,6 +114,7 @@ export const OPENAI_CHAT_MODELS: Record<string, boolean> = {
  */
 export const CLAUDE_MODELS = {
   ClaudeV1: 'claude-v1',
+  ClaudeV2: 'claude-2',
   ClaudeV1_100k: 'claude-v1-100k',
   ClaudeV1_0: 'claude-v1.0',
   ClaudeV1_2: 'claude-v1.2',
@@ -131,6 +131,7 @@ export const NOVEL_MODELS = {
   euterpe: 'euterpe-v2',
   krake: 'krake-v2',
   clio_v1: 'clio-v1',
+  kayra_v1: 'kayra-v1',
 } satisfies { [key: string]: string }
 
 export const REPLICATE_MODEL_TYPES = {
@@ -139,6 +140,12 @@ export const REPLICATE_MODEL_TYPES = {
   StableLM: 'stablelm',
   'Open Assistant': 'openassistant',
 } as const
+
+export type OpenRouterModel = {
+  id: string
+  pricing: { prompt: string; completion: string }
+  context_length: number
+}
 
 export type HordeModel = {
   name: string
@@ -183,14 +190,21 @@ export const ADAPTER_LABELS: { [key in AIAdapter]: string } = {
   horde: 'Charluv Horde',
   kobold: 'CharluvAI',
   novel: 'NovelAI',
-  ooba: 'TextGen',
-  luminai: 'LuminAI',
+  ooba: 'Textgen',
   openai: 'OpenAI',
   scale: 'Scale',
   claude: 'Claude',
   goose: 'Goose AI',
   replicate: 'Replicate',
   openrouter: 'OpenRouter',
+}
+
+export const INSTRUCT_SERVICES: { [key in AIAdapter]?: boolean } = {
+  openai: true,
+  openrouter: true,
+  claude: true,
+  scale: true,
+  novel: true,
 }
 
 export type PresetAISettings = Omit<
@@ -210,6 +224,8 @@ export const SUPPORTS_INSTRUCT: { [key in AIAdapter]?: (user: AppSchema.User) =>
   claude: () => true,
   openai: () => true,
   kobold: (opts) => opts.thirdPartyFormat !== 'kobold',
+  openrouter: () => true,
+  scale: () => true,
 }
 
 /**
@@ -218,7 +234,7 @@ export const SUPPORTS_INSTRUCT: { [key in AIAdapter]?: (user: AppSchema.User) =>
 export const adapterSettings: {
   [key in keyof PresetAISettings]: AIAdapter[]
 } = {
-  temp: ['kobold', 'novel', 'ooba', 'horde', 'luminai', 'openai', 'scale', 'claude', 'goose'],
+  temp: ['kobold', 'novel', 'ooba', 'horde', 'openai', 'scale', 'claude', 'goose'],
   maxTokens: AI_ADAPTERS.slice(),
   maxContextLength: AI_ADAPTERS.slice(),
   antiBond: ['openai', 'scale'],
@@ -238,21 +254,26 @@ export const adapterSettings: {
   ultimeJailbreak: ['openai', 'claude', 'kobold', 'scale', 'openrouter'],
   ignoreCharacterUjb: ['openai', 'claude', 'kobold', 'openrouter'],
 
-  topP: ['horde', 'kobold', 'claude', 'ooba', 'openai', 'novel', 'luminai'],
-  repetitionPenalty: ['horde', 'novel', 'kobold', 'ooba', 'luminai'],
-  repetitionPenaltyRange: ['horde', 'novel', 'kobold', 'luminai'],
-  repetitionPenaltySlope: ['horde', 'novel', 'kobold', 'luminai'],
-  tailFreeSampling: ['horde', 'novel', 'kobold', 'luminai'],
-  topA: ['horde', 'novel', 'kobold', 'luminai'],
-  topK: ['horde', 'novel', 'kobold', 'ooba', 'luminai', 'claude'],
-  typicalP: ['horde', 'novel', 'kobold', 'ooba', 'luminai'],
+  topP: ['horde', 'kobold', 'claude', 'ooba', 'openai', 'novel'],
+  repetitionPenalty: ['horde', 'novel', 'kobold', 'ooba'],
+  repetitionPenaltyRange: ['horde', 'novel', 'kobold'],
+  repetitionPenaltySlope: ['horde', 'novel', 'kobold'],
+  tailFreeSampling: ['horde', 'novel', 'kobold'],
+  topA: ['horde', 'novel', 'kobold'],
+  topK: ['horde', 'novel', 'kobold', 'ooba', 'claude'],
+  typicalP: ['horde', 'novel', 'kobold', 'ooba'],
+  cfgScale: ['novel'],
+  cfgOppose: ['novel'],
 
+  thirdPartyUrl: ['kobold', 'ooba'],
+  thirdPartyFormat: ['kobold'],
   claudeModel: ['claude', 'kobold'],
   novelModel: ['novel'],
   oaiModel: ['openai', 'kobold'],
   frequencyPenalty: ['openai', 'kobold', 'novel'],
   presencePenalty: ['openai', 'kobold', 'novel'],
   streamResponse: ['openai', 'kobold', 'novel', 'claude'],
+  openRouterModel: ['openrouter'],
 
   addBosToken: ['ooba'],
   banEosToken: ['ooba'],
@@ -269,4 +290,51 @@ export type RegisteredAdapter = {
   name: AIAdapter
   settings: AdapterSetting[]
   options: Array<keyof PresetAISettings>
+}
+
+export const settingLabels: { [key in keyof PresetAISettings]: string } = {
+  temp: 'Temperature',
+  maxTokens: 'Max Tokens (Response length)',
+  repetitionPenalty: 'Repetition Penalty',
+  repetitionPenaltyRange: 'Repetition Penality Range',
+  repetitionPenaltySlope: 'Repetition Penalty Slope',
+  tailFreeSampling: 'Tail Free Sampling',
+  topA: 'Top A',
+  topK: 'Top K',
+  topP: 'Top P',
+  typicalP: 'Typical P',
+  addBosToken: 'Add BOS Token',
+  antiBond: 'Anti-bond',
+  banEosToken: 'Ban EOS Token',
+  cfgOppose: 'CFG Opposing Prompt',
+  cfgScale: 'CFG Scale',
+  claudeModel: 'Claude Model',
+  encoderRepitionPenalty: 'Encoder Repetition Penalty',
+  frequencyPenalty: 'Frequency Penalty',
+  gaslight: 'Prompt Template',
+  ignoreCharacterSystemPrompt: 'Ignore Character System Prompt',
+  ignoreCharacterUjb: 'Ignore Character Jailbreak',
+  maxContextLength: 'Max Context Length',
+  memoryChatEmbedLimit: 'Memory: Chat Embed Context Limit',
+  memoryUserEmbedLimit: 'Memory: User-specific Embed Context Limit',
+  novelModel: 'NovelAI Model',
+  oaiModel: 'OpenAI Model',
+  openRouterModel: 'OpenRouter Model',
+  penaltyAlpha: 'Penalty Alpha',
+  presencePenalty: 'Presence Penalty',
+  replicateModelName: 'Replicate Model',
+  replicateModelType: 'Replicate Model Type',
+  replicateModelVersion: 'Replicate Model Version',
+  skipSpecialTokens: 'Skip Special Tokens',
+  streamResponse: 'Stream Response',
+  systemPrompt: 'System (Instruction) Prompt',
+  thirdPartyFormat: 'Third Party Format',
+  thirdPartyUrl: 'Third Party URL',
+  ultimeJailbreak: 'Jailbreak',
+  useTemplateParser: 'Use V2 Prompt Parser',
+}
+
+export const samplerOrders: { [key in AIAdapter]?: Array<keyof PresetAISettings> } = {
+  kobold: ['topK', 'topA', 'topP', 'tailFreeSampling', 'typicalP', 'temp', 'repetitionPenalty'],
+  novel: ['temp', 'topK', 'topP', 'tailFreeSampling', 'topA', 'typicalP', 'cfgScale'],
 }

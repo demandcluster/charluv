@@ -10,43 +10,39 @@ export const createChat = handle(async ({ body, user, userId }) => {
       genPreset: 'string?',
       characterId: 'string',
       name: 'string',
-      mode: ['standard', 'adventure', null],
+      mode: ['standard', 'adventure', 'companion', null],
       greeting: 'string?',
       scenario: 'string?',
       sampleChat: 'string?',
       overrides: { '?': 'any?', kind: PERSONA_FORMATS, attributes: 'any' },
       useOverrides: 'boolean?',
-      scenarioIds: ['string?'],
-      scenarioStates: ['string?'],
+      scenarioId: 'string?',
     },
     body
   )
 
+  if (body.scenarioId) {
+    const scenario = await store.scenario.getScenario(body.scenarioId)
+    if (scenario?.userId !== userId)
+      throw new StatusError('You do not have access to this scenario', 403)
+  }
+
   const character = await store.characters.getCharacter(userId, body.characterId)
 
-  // if (character) {
-  //   const scene = await store.scenario.getScenario(body.characterId, character)
-  //   if (scene) {
-  //     body.greeting = scene.greeting
-  //     body.scenario = scene.prompt
-  //   }
-  // }
   let scenarios: string[] = []
-  let states: string[] = []
 
   if (character?.scenarioIds) {
     scenarios = character.scenarioIds
-    states = ['novice', 'banana']
   } else {
-    scenarios = body.scenarioIds ?? []
+    scenarios = body.scenarioId !== undefined ? [body.scenarioId] : []
   }
 
   const chat = await store.chats.create(body.characterId, {
     ...body,
-    scenarioIds: scenarios,
-    scenarioStates: states,
+
     greeting: body.greeting ?? character?.greeting,
     userId: user?.userId!,
+    scenarioIds: scenarios,
   })
   return chat
 })
@@ -58,6 +54,7 @@ export const importChat = handle(async ({ body, userId }) => {
       name: 'string',
       greeting: 'string?',
       scenario: 'string?',
+      scenarioId: 'string?',
       messages: [
         {
           msg: 'string',
@@ -71,8 +68,15 @@ export const importChat = handle(async ({ body, userId }) => {
     body
   )
 
-  const character = await store.characters.getCharacter(userId!, body.characterId)
+  /** Do not throw on a bad scenario import */
+  if (body.scenarioId) {
+    const scenario = await store.scenario.getScenario(body.scenarioId)
+    if (scenario?.userId !== userId) {
+      body.scenarioId = undefined
+    }
+  }
 
+  const character = await store.characters.getCharacter(userId!, body.characterId)
   if (!character) {
     throw new StatusError(`Character not found`, 404)
   }
@@ -84,6 +88,7 @@ export const importChat = handle(async ({ body, userId }) => {
     overrides: character.persona,
     sampleChat: '',
     userId,
+    scenarioIds: body.scenarioId ? [body.scenarioId] : [],
   })
 
   const messages = body.messages.map<NewMessage>((msg) => ({

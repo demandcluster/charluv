@@ -22,6 +22,11 @@ export const createUserPreset = handle(async ({ userId, body }) => {
   assertValid(createPreset, body, true)
   const service = body.service as AIAdapter
 
+  if (body.novelModelOverride) {
+    body.novelModel = body.novelModelOverride
+    delete body.novelModelOverride
+  }
+
   if (body.chatId) {
     const res = await store.chats.getChat(body.chatId)
     if (res?.chat.userId !== userId) {
@@ -29,9 +34,11 @@ export const createUserPreset = handle(async ({ userId, body }) => {
     }
   }
 
-  const preset = { ...body, service }
-  if (!preset.order?.length) {
-    preset.order = undefined
+  const preset = {
+    ...body,
+    service,
+    order: body.order?.split(',').map((i) => +i),
+    disabledSamplers: body.disabledSamplers?.split(',').map((i) => +i),
   }
 
   const newPreset = await store.presets.createUserPreset(userId!, preset)
@@ -46,7 +53,17 @@ export const updateUserPreset = handle(async ({ params, body, userId }) => {
   assertValid(presetValidator, body, true)
   const service = body.service as AIAdapter
 
-  const preset = await store.presets.updateUserPreset(userId!, params.id, { ...body, service })
+  if (body.novelModelOverride) {
+    body.novelModel = body.novelModelOverride
+    delete body.novelModelOverride
+  }
+
+  const preset = await store.presets.updateUserPreset(userId!, params.id, {
+    ...body,
+    service,
+    order: body.order?.split(',').map((i) => +i),
+    disabledSamplers: body.disabledSamplers?.split(',').map((i) => +i),
+  })
   return preset
 })
 

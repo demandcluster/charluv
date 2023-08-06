@@ -14,7 +14,7 @@ import {
 } from '../../common/prompt'
 import { AppSchema } from '../../common/types/schema'
 import { AppLog } from '../logger'
-import { getEncoder } from '../tokenize'
+import { getTokenCounter } from '../tokenize'
 import { publishOne } from '../api/ws/handle'
 
 const baseUrl = `https://api.anthropic.com/v1/complete`
@@ -38,20 +38,20 @@ type CompletionGenerator = (
 ) => AsyncGenerator<{ error: string } | { token: string }, ClaudeCompletion | undefined>
 
 // There's no tokenizer for Claude, we use OpenAI's as an estimation
-const encoder = () => getEncoder('claude', '')
+const encoder = () => getTokenCounter('claude', '')
 
 export const handleClaude: ModelAdapter = async function* (opts) {
-  const { members, user, settings, log, guest, gen, isThirdParty } = opts
+  const { members, user, log, guest, gen, isThirdParty } = opts
   const base = getBaseUrl(user, isThirdParty)
   if (!user.claudeApiKey && !base.changed) {
     yield { error: `Claude request failed: Claude API key not set. Check your settings.` }
     return
   }
-  const claudeModel = settings.claudeModel ?? defaultPresets.claude.claudeModel
+  const claudeModel = gen.claudeModel ?? defaultPresets.claude.claudeModel
 
   const stops = new Set([`\n\nHuman:`, `\n\nAssistant:`])
 
-  const requestBody = {
+  const payload = {
     model: claudeModel,
     temperature: Math.min(1, Math.max(0, gen.temp ?? defaultPresets.claude.temp)),
     max_tokens_to_sample: gen.maxTokens ?? defaultPresets.claude.maxTokens,
@@ -59,7 +59,11 @@ export const handleClaude: ModelAdapter = async function* (opts) {
     stop_sequences: Array.from(stops),
     top_p: Math.min(1, Math.max(0, gen.topP ?? defaultPresets.claude.topP)),
     top_k: Math.min(1, Math.max(0, gen.topK ?? defaultPresets.claude.topK)),
-    // stream: (gen.streamResponse && opts.kind !== 'summary') ?? defaultPresets.claude.streamResponse,
+    stream: gen.streamResponse ?? defaultPresets.claude.streamResponse,
+  }
+
+  if (opts.kind === 'plain') {
+    payload.stream = false
   }
 
   const headers: any = {
@@ -79,13 +83,14 @@ export const handleClaude: ModelAdapter = async function* (opts) {
     headers['x-api-key'] = key
   }
 
-  log.debug({ ...requestBody, prompt: null }, 'Claude payload')
-  log.debug(`Prompt:\n{requestBody.prompt}`)
-  yield { prompt: requestBody.prompt }
+  log.debug({ ...payload, prompt: null }, 'Claude payload')
+  log.debug(`Prompt:\n${payload.prompt}`)
+  yield { prompt: payload.prompt }
 
-  const iterator = false // requestBody.stream
-    ? streamCompletion(base.url, requestBody, headers, opts.user._id, log)
-    : requestFullCompletion(base.url, requestBody, headers, opts.user._id, log)
+  const iterator = payload.stream
+    ? streamCompletion(base.url, payload, headers, opts.user._id, log)
+    : requestFullCompletion(base.url, payload, headers, opts.user._id, log)
+
   let acc = ''
   let resp: ClaudeCompletion | undefined
 
@@ -105,7 +110,7 @@ export const handleClaude: ModelAdapter = async function* (opts) {
     if ('token' in generated.value) {
       acc += generated.value.token
       yield {
-        partial: sanitiseAndTrim(acc, requestBody.prompt, opts.replyAs, opts.characters, members),
+        partial: sanitiseAndTrim(acc, payload.prompt, opts.replyAs, opts.characters, members),
       }
     }
   }
@@ -116,7 +121,7 @@ export const handleClaude: ModelAdapter = async function* (opts) {
       log.error({ body: resp }, 'Claude request failed: Empty response')
       yield { error: `Claude request failed: Received empty response. Try again.` }
     } else {
-      yield sanitiseAndTrim(completion, requestBody.prompt, opts.replyAs, opts.characters, members)
+      yield sanitiseAndTrim(completion, payload.prompt, opts.replyAs, opts.characters, members)
     }
   } catch (ex: any) {
     log.error({ err: ex }, 'Claude failed to parse')
@@ -222,6 +227,10 @@ const streamCompletion: CompletionGenerator = async function* (url, body, header
 }
 
 function createClaudePrompt(opts: AdapterProps): string {
+  if (opts.kind === 'plain') {
+    return `\n\nHuman: ${opts.prompt}\n\nAssistant:`
+  }
+
   const { parts, gen, replyAs } = opts
   const lines = opts.lines ?? []
 
@@ -242,7 +251,13 @@ function createClaudePrompt(opts: AdapterProps): string {
     }
   )
   const gaslightCost = encoder()('Human: ' + gaslight)
-  const ujb = parts.ujb ? `Human: <system_note>${parts.ujb}</system_note>` : ''
+  let ujb = parts.ujb ? `Human: <system_note>${parts.ujb}</system_note>` : ''
+  ujb = injectPlaceholders(ujb, {
+    opts,
+    parts,
+    encoder: encoder(),
+    characters: opts.characters || {},
+  })
 
   const maxBudget =
     maxContextLength -
@@ -306,6 +321,6 @@ function processLine(type: LineType, line: string) {
       return `Human:\n<example_dialogue>\n${mid}\n</example_dialogue>`
 
     case 'char':
-      return `Assistant: ${line}`
+      return `Assistant: ${line || ''}`
   }
 }

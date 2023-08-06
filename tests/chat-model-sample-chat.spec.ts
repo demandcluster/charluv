@@ -1,8 +1,12 @@
 import { expect } from 'chai'
 import './init'
 import { splitSampleChat } from '/srv/adapter/chat-completion'
+import { reset } from './util'
+import { neat } from '/common/util'
 
 describe('Chat Completion Example Dialogue::', () => {
+  before(reset)
+
   it('should properly convert <START> (case insensitive) and split basic messages', () => {
     const input = neat`<STaRT>
       Sam: hey there Vader!
@@ -71,6 +75,17 @@ describe('Chat Completion Example Dialogue::', () => {
       Sam: More interesting!`
     expect(testInput(input, 25)).to.matchSnapshot()
   })
+
+  it('should correctly separate out system messages it is explicitly handed, such as a post-sample marker string', () => {
+    const input = neat`Sam: hey
+      Vader: hi!
+      <START>
+      Vader: bye Sam
+      Sam: byebye Vader
+      System: New conversation started. Previous conversations are examples only.`
+    const output = testInput(input)
+    expect(output).toMatchSnapshot()
+  })
 })
 
 function testInput(input: string, budget?: number) {
@@ -86,15 +101,3 @@ function testInput(input: string, budget?: number) {
 
 const TEST_CHARACTER_NAME = 'Vader'
 const TEST_USER_NAME = 'Sam'
-
-function neat(params: TemplateStringsArray, ...rest: string[]) {
-  let str = ''
-  for (let i = 0; i < params.length; i++) {
-    str += params[i] + (rest[i] || '')
-  }
-
-  return str
-    .split('\n')
-    .map((line) => line.replace(/^[\t ]+/g, ''))
-    .join('\n')
-}

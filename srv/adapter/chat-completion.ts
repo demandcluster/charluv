@@ -1,7 +1,7 @@
-import { getEncoder } from '../tokenize'
+import { getTokenCounter } from '../tokenize'
 import { AdapterProps } from './type'
 import { OPENAI_MODELS } from '/common/adapters'
-import { adventureAmble, defaultPresets } from '/common/default-preset'
+import { defaultPresets } from '/common/default-preset'
 import { IMAGE_SUMMARY_PROMPT } from '/common/image'
 import {
   BOT_REPLACE,
@@ -25,7 +25,7 @@ type SplitSampleChatProps = {
 
 // We only ever use the OpenAI gpt-3 encoder
 // Don't bother passing it around since we know this already
-const encoder = () => getEncoder('openai', OPENAI_MODELS.Turbo)
+const encoder = () => getTokenCounter('openai', OPENAI_MODELS.Turbo)
 
 const sampleChatMarkerCompletionItem: CompletionItem = {
   role: 'system',
@@ -131,7 +131,7 @@ export function toChatCompletionPayload(opts: AdapterProps, maxTokens: number): 
 export function splitSampleChat(opts: SplitSampleChatProps) {
   const { sampleChat, char, sender, budget } = opts
   const regex = new RegExp(
-    `(?<=\\n)(?=${escapeRegex(char)}:|${escapeRegex(sender)}:|<start>)`,
+    `(?<=\\n)(?=${escapeRegex(char)}:|${escapeRegex(sender)}:|System:|<start>)`,
     'gi'
   )
   const additions: CompletionItem[] = []
@@ -154,7 +154,7 @@ export function splitSampleChat(opts: SplitSampleChatProps) {
       continue
     }
 
-    const sample = trimmed
+    const sample = trimmed.toLowerCase().startsWith('system:') ? trimmed.slice(7).trim() : trimmed
     const role = sample.startsWith(char + ':')
       ? 'assistant'
       : sample.startsWith(sender + ':')
@@ -181,10 +181,6 @@ function getPostInstruction(
   messages: CompletionItem[]
 ): CompletionItem | undefined {
   let prefix = opts.parts.ujb ? `${opts.parts.ujb}\n\n` : ''
-
-  if (opts.chat.mode === 'adventure') {
-    prefix = `${adventureAmble}\n\n${prefix}`
-  }
 
   prefix = injectPlaceholders(prefix, {
     opts,

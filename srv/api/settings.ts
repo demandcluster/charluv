@@ -8,6 +8,7 @@ import { handle } from './wrap'
 import { AppSchema } from '../../common/types/schema'
 import { store } from '../db'
 import { RegisteredAdapter } from '/common/adapters'
+import { getHordeWorkers, getHoredeModels } from './horde'
 
 const router = Router()
 
@@ -24,6 +25,8 @@ export default router
 
 export async function getAppConfig() {
   const canAuth = isConnected()
+  const workers = getHordeWorkers()
+  const models = getHoredeModels()
 
   if (!appConfig) {
     appConfig = {
@@ -39,8 +42,18 @@ export async function getAppConfig() {
       maintenance: config.ui.maintenance,
       patreon: config.ui.patreon,
       policies: config.ui.policies,
-      slots: config.slots,
+      authUrls: config.auth.urls,
+      pipelineProxyEnabled: config.pipelineProxy,
+      horde: {
+        models,
+        workers: workers.filter((w) => w.type === 'text'),
+      },
     }
+  }
+
+  appConfig.horde = {
+    models,
+    workers: workers.filter((w) => w.type === 'text'),
   }
 
   if (appConfig.version === '') {
@@ -58,10 +71,6 @@ async function update() {
 
     appConfig.maintenance = cfg.maintenance || appConfig.maintenance
     appConfig.patreon = cfg.patreon ?? appConfig.patreon
-    appConfig.slots.enabled = cfg.slots?.enabled ?? appConfig.slots.enabled
-    appConfig.slots.banner = cfg.slots?.banner || appConfig.slots.banner
-    appConfig.slots.menu = cfg.slots?.menu || appConfig.slots.menu
-    appConfig.slots.mobile = cfg.slots?.mobile || appConfig.slots.mobile
   } catch (ex) {}
 }
 

@@ -1,16 +1,14 @@
 import { expect } from 'chai'
 import './init'
-import { toBotMsg, toChar, toChat, toProfile, toUser, toUserMsg } from './util'
+import { reset, setRand, toBotMsg, toChar, toChat, toProfile, toUser, toUserMsg } from './util'
 import { getPromptParts } from '/common/prompt'
-import { ParseOpts, parseTemplate } from '/common/template-parser'
+import { TemplateOpts, parseTemplate } from '/common/template-parser'
 import { AppSchema } from '/common/types'
-import { getEncoder } from '/srv/tokenize'
-
-const encoder = getEncoder('openai', 'turbo')
+import { getTokenCounter } from '/srv/tokenize'
 
 const chars = [toChar('Robot'), toChar('Otherbot'), toChar('Thirdbot')]
 const char = chars[0]
-const user = toUser('sender')
+const { user } = toUser('sender')
 const characters = chars.reduce<Record<string, AppSchema.Character>>(
   (prev, curr) => Object.assign(prev, { [curr._id]: curr }),
   {}
@@ -28,6 +26,8 @@ const lines = history.map(
 )
 
 describe('Template parser tests', () => {
+  before(reset)
+
   it('will render a basic template', () => {
     const actual = test(`Scenario: {{scenario}}\nPersona: {{personality}}`)
     expect(actual).toMatchSnapshot()
@@ -81,18 +81,32 @@ Scenario: {{scenario}}
     )
     expect(actual).toMatchSnapshot()
   })
+
+  it('will render a random placeholder', () => {
+    {
+      setRand(1 / 3)
+      const actual = test(`Random {{random: one, two, three}}`)
+      expect(actual).to.equal('Random two')
+    }
+
+    {
+      setRand(2 / 3)
+      const actual = test(`Random {{random: one, two, three}}`)
+      expect(actual).to.equal('Random three')
+    }
+  })
 })
 
 function test(
   template: string,
-  overrides: Partial<ParseOpts> = {},
+  overrides: Partial<TemplateOpts> = {},
   charOverrides: Partial<AppSchema.Character> = {}
 ) {
   return parseTemplate(template, getParseOpts(overrides, charOverrides))
 }
 
 function getParseOpts(
-  overrides: Partial<ParseOpts> = {},
+  overrides: Partial<TemplateOpts> = {},
   charOverrides: Partial<AppSchema.Character> = {}
 ) {
   const overChat = overrides.char ? toChat(overrides.char) : chat
@@ -106,20 +120,21 @@ function getParseOpts(
       replyAs: overChar,
       user,
       kind: 'send',
+      sender: profile,
+      chatEmbeds: [],
+      userEmbeds: [],
     },
     lines,
-    encoder
+    getTokenCounter('openai', 'turbo')
   )
 
-  const base: ParseOpts = {
+  const base: TemplateOpts = {
     char,
     characters,
     chat: overChat,
     replyAs: char,
     lines,
-    members: [profile],
     parts,
-    user,
     sender: profile,
     lastMessage: '',
     ...overrides,

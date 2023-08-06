@@ -22,7 +22,7 @@ import GenerationSettings from '../../shared/GenerationSettings'
 import { getStrictForm } from '../../shared/util'
 import { chatStore, toastStore, userStore } from '../../store'
 import { presetStore } from '../../store'
-import { getAdapter } from '../../../common/prompt'
+import { getAdapter, getChatPreset } from '../../../common/prompt'
 import { AIAdapter, AI_ADAPTERS, adapterSettings } from '../../../common/adapters'
 import { AutoPreset, getClientPreset, getPresetOptions } from '../../shared/adapter'
 import ServiceWarning from '/web/shared/ServiceWarning'
@@ -33,7 +33,7 @@ import TextInput from '/web/shared/TextInput'
 
 const chatGenValidator = {
   ...chatGenSettings,
-  name: 'string?',
+  name: 'string',
   service: ['', ...AI_ADAPTERS],
 } as const
 
@@ -45,9 +45,10 @@ export const ChatGenSettings: Component<{
   let ref: any
   const user = userStore()
   const pane = usePane()
-  const state = presetStore(({ presets }) => ({
+  const state = presetStore(({ presets, openRouterModels }) => ({
     presets,
     options: presets.map((pre) => ({ label: pre.name, value: pre._id })),
+    openRouterModels,
   }))
 
   const presetOptions = createMemo(() =>
@@ -57,7 +58,11 @@ export const ChatGenSettings: Component<{
   const presets = createMemo(() => {
     const all: Partial<AppSchema.UserGenPreset>[] = state.presets
     const defaults = Object.entries(defaultPresets).map<Partial<AppSchema.UserGenPreset>>(
-      ([key, preset]) => ({ ...preset, _id: key, name: `Default - ${preset.name}` })
+      ([key, preset]) => ({
+        ...preset,
+        _id: key,
+        name: `Default - ${preset.name}`,
+      })
     )
 
     return all.concat(defaults)
@@ -79,7 +84,8 @@ export const ChatGenSettings: Component<{
       return { name: preset.name, preset, fallback: true }
     }
 
-    const adapter = genAdapter() || getAdapter(props.chat, user.user).adapter
+    const preset = getChatPreset(props.chat, user.user, state.presets)
+    const adapter = genAdapter() || getAdapter(props.chat, user.user, preset).adapter
 
     if (!user.user.defaultPresets) {
       const preset = getFallbackPreset(adapter)
@@ -88,9 +94,6 @@ export const ChatGenSettings: Component<{
     }
 
     const presetId = user.user.defaultPresets[adapter]
-    const preset = isDefaultPreset(presetId)
-      ? defaultPresets[presetId]
-      : state.presets.find((pre) => pre._id === presetId)
 
     if (!preset) return
     const fallback = isDefaultPreset(presetId)
@@ -106,17 +109,24 @@ export const ChatGenSettings: Component<{
 
     if (isDefaultPreset(preset)) {
       const original = defaultPresets[preset] as AppSchema.GenSettings
-      const update = getStrictForm(ref, chatGenValidator)
+      const update = getStrictForm(ref, { ...chatGenValidator, thirdPartyFormat: 'string?' })
+
+      update.thirdPartyFormat = update.thirdPartyFormat || (null as any)
 
       /**
        * The user has selected a default preset and it is unchanged
        * Assign it to the chat without creating a new preset
        */
-      if (!isPresetDirty(original, update)) {
+      if (!isPresetDirty(original, update as any)) {
         chatStore.editChatGenPreset(props.chat._id, preset, () => {
           toastStore.success('Switched preset')
         })
         return
+      }
+
+      if (update.openRouterModel) {
+        const actual = state.openRouterModels?.find((or) => or.id === update.openRouterModel)
+        update.openRouterModel = actual || undefined
       }
 
       /**
@@ -129,7 +139,7 @@ export const ChatGenSettings: Component<{
           chatId: props.chat._id,
           name: update.name || original.name,
           service: original.service,
-        },
+        } as any,
         (created) => {
           chatStore.setChat(props.chat._id, { genPreset: created._id })
           setSelected(created._id)
@@ -146,10 +156,16 @@ export const ChatGenSettings: Component<{
         }
       })
 
-      const update = getStrictForm(ref, chatGenValidator)
+      const update = getStrictForm(ref, { ...chatGenValidator, thirdPartyFormat: 'string?' })
+      update.thirdPartyFormat = update.thirdPartyFormat || (null as any)
       if (update.service === '') {
         toastStore.error(`You must select an AI service before saving`)
         return
+      }
+
+      if (update.openRouterModel) {
+        const actual = state.openRouterModels?.find((or) => or.id === update.openRouterModel)
+        update.openRouterModel = actual || undefined
       }
 
       presetStore.updatePreset(preset, update as any)
@@ -235,14 +251,13 @@ export const ChatGenSettings: Component<{
 
 function isPresetDirty(
   original: AppSchema.GenSettings,
-  compare: Omit<AppSchema.GenSettings, 'name' | 'service'>
+  compare: Omit<AppSchema.GenSettings, 'service'>
 ) {
   const svc = original.service
   for (const key in compare) {
     const prop = key as keyof AppSchema.GenSettings
 
     switch (prop) {
-      case 'name':
       case 'service':
         continue
     }

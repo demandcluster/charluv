@@ -12,7 +12,7 @@ export const charsApi = {
   deleteCharacter,
   editCharacter,
   createCharacter,
-  getImageBuffer,
+  getImageBuffer: getFileBuffer,
   setFavorite,
 }
 
@@ -171,6 +171,7 @@ export async function createCharacter(char: NewCharacter) {
     form.append('sampleChat', char.sampleChat)
     appendFormOptional(form, 'persona', char.persona, JSON.stringify)
     appendFormOptional(form, 'description', char.description)
+    appendFormOptional(form, 'appearance', char.appearance)
     appendFormOptional(form, 'culture', char.culture)
     appendFormOptional(form, 'voice', char.voice, JSON.stringify)
     appendFormOptional(form, 'tags', char.tags, JSON.stringify)
@@ -241,7 +242,7 @@ export async function getImageData(file?: File | Blob | string) {
   })
 }
 
-export async function getImageBuffer(file?: File) {
+export async function getFileBuffer(file?: File) {
   if (!file) return
   const reader = new FileReader()
 
@@ -249,7 +250,7 @@ export async function getImageBuffer(file?: File) {
     reader.readAsArrayBuffer(file)
 
     reader.onload = (evt) => {
-      if (!evt.target?.result) return reject(new Error(`Failed to process image`))
+      if (!evt.target?.result) return reject(new Error(`Failed to process file`))
       resolve(Buffer.from(evt.target.result as ArrayBuffer))
     }
   })

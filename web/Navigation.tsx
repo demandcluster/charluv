@@ -1,27 +1,25 @@
-import { A, useNavigate } from '@solidjs/router'
+import { A } from '@solidjs/router'
 import {
   Activity,
   Bell,
   Book,
-  Bot,
-  Github,
-  Heart,
-  Home,
   HeartHandshake,
+  Heart,
   HelpCircle,
   LogIn,
-  LogOut,
   MailPlus,
   MessageCircle,
   ShoppingCart,
   Moon,
+  Bot,
+  Plus,
+  Users,
+  Power,
   Settings,
   ShoppingBag,
+  Signal,
   Sliders,
   Sun,
-  Sword,
-  User,
-  Users,
   VenetianMask,
   X,
 } from 'lucide-solid'
@@ -32,6 +30,7 @@ import {
   createSignal,
   JSX,
   Match,
+  onMount,
   Show,
   Switch,
 } from 'solid-js'
@@ -45,14 +44,16 @@ import {
   userStore,
 } from './store'
 import Slot from './shared/Slot'
-import { useEffect, useWindowSize } from './shared/hooks'
+
 import logo from './asset/logo.png'
 import logoDark from './asset/logoDark.png'
+import { useEffect, useResizeObserver, useWindowSize } from './shared/hooks'
 import WizardIcon from './icons/WizardIcon'
 import Badge from './shared/Badge'
+import { pipelineApi } from './store/data/pipeline'
 
 const MobileNavHeader = () => (
-  <div class="flex h-8 justify-between sm:hidden">
+  <div class="flex min-h-[2rem] justify-between sm:hidden">
     <div class="w-8"></div>
     <div>
       {' '}
@@ -75,14 +76,8 @@ const Navigation: Component = () => {
   let content: any
   const state = settingStore()
   const user = userStore()
-  const chars = characterStore()
   const chat = chatStore()
-  const nav = useNavigate()
-
-  const logout = () => {
-    nav('/')
-    userStore.logout()
-  }
+  const size = useWindowSize()
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -101,7 +96,15 @@ const Navigation: Component = () => {
     return 'drawer--hide'
   })
 
-  const fullscreen = createMemo(() => (state.fullscreen ? 'hidden' : ''))
+  const fullscreen = createMemo(() => {
+    if (state.fullscreen) return 'hidden'
+
+    if (chat.opts.pane && size.width() <= 1200) {
+      return 'hidden'
+    }
+
+    return ''
+  })
 
   return (
     <>
@@ -130,50 +133,7 @@ const Navigation: Component = () => {
             <UserNavigation />
           </Show>
         </div>
-
-        <div class="absolute bottom-0 flex h-16 w-full flex-col items-center justify-between border-t-2 border-[var(--bg-700)] px-4">
-          <div class="ellipsis my-auto flex w-full items-center justify-between">
-            <div
-              class="flex max-w-[calc(100%-32px)] items-center gap-2"
-              onClick={() => {
-                settingStore.toggleImpersonate(true)
-                settingStore.closeMenu()
-              }}
-            >
-              <Switch>
-                <Match when={chars.impersonating}>
-                  <CharacterAvatar
-                    char={chars.impersonating!}
-                    format={{ corners: 'circle', size: 'md' }}
-                  />
-                </Match>
-
-                <Match when>
-                  <AvatarIcon
-                    avatarUrl={chars.impersonating?.avatar || user.profile?.avatar}
-                    format={{ corners: 'circle', size: 'md' }}
-                  />
-                </Match>
-              </Switch>
-              <div class="ellipsis flex cursor-pointer items-center justify-end rounded-lg bg-[var(--bg-700)] px-2 py-1">
-                <div class="ellipsis flex flex-col">
-                  <span>
-                    {chars.impersonating?.name || user.profile?.handle}
-                    {user.user?.premium ? ' ⭐' : ''}
-                  </span>
-                </div>
-                <Show when={!!chars.impersonating}>
-                  <VenetianMask size={16} class="ml-2" />
-                </Show>
-              </div>
-              <div id="credits" class="text-bold pr-2">
-                {user.user?.credits}
-              </div>
-            </div>
-            <div onClick={logout} class="icon-button cursor-pointer ">
-              <LogOut />
-            </div>
-          </div>
+        <div class="absolute bottom-0 flex h-4 w-full flex-col items-center justify-between px-4">
           <div class="text-500 mb-1 text-[0.6rem] italic">{state.config.version}</div>
         </div>
       </div>
@@ -196,21 +156,13 @@ const UserNavigation: Component = () => {
 
       </div> */}
 
-      <Item
-        onClick={() => {
-          settingStore.closeMenu()
-          userStore.modal(true)
-        }}
-      >
-        <User /> Profile
-      </Item>
+      <UserProfile />
       <Show when={user.loggedIn}>
         <Item href="/likes/list">
           <Users /> Likes
         </Item>
-        <Item href="/character/list">
-          <Heart /> Matches
-        </Item>
+      <CharacterLink />
+       
       </Show>
       <Show when={menu.flags.chub}>
         <Item href="/chub">
@@ -218,19 +170,13 @@ const UserNavigation: Component = () => {
           CHUB
         </Item>
       </Show>
+
+
       <Item href="/chats">
         <MessageCircle fill="var(--bg-100)" /> Chats
       </Item>
 
-      <Item href="/memory">
-        <Book /> Memory
-      </Item>
-
-      <Show when={menu.flags.events}>
-        <Item href="/scenario">
-          <Sword /> Scenario
-        </Item>
-      </Show>
+      <Library />
 
       <Item href="/invites">
         <MailPlus /> Invites <InviteBadge />
@@ -311,6 +257,7 @@ const GuestNavigation: Component = () => {
     config: s.config,
     guest: s.guestAccessAllowed,
     flags: s.flags,
+    pipelineOnline: s.pipelineOnline,
   }))
 
   return (
@@ -322,18 +269,10 @@ const GuestNavigation: Component = () => {
       </Show>
 
       <Show when={menu.guest}>
-        <Item
-          onClick={() => {
-            settingStore.closeMenu()
-            userStore.modal(true)
-          }}
-        >
-          <User /> Profile
-        </Item>
+        <UserProfile />
 
-        <Item href="/character/list">
-          <Bot /> Matches
-        </Item>
+        
+        <CharacterLink />
 
         <Show when={menu.flags.chub}>
           <Item href="/chub">
@@ -346,15 +285,7 @@ const GuestNavigation: Component = () => {
           <MessageCircle /> Chats
         </Item>
 
-        <Item href="/memory">
-          <Book /> Memory
-        </Item>
-
-        <Show when={menu.flags.events}>
-          <Item href="/scenario">
-            <Sword /> Scenario
-          </Item>
-        </Show>
+        <Library />
       </Show>
 
       <div class="flex flex-wrap justify-center gap-[2px] text-sm">
@@ -404,35 +335,6 @@ const GuestNavigation: Component = () => {
   )
 }
 
-const Slots: Component = (props) => {
-  const state = settingStore()
-  const page = useWindowSize()
-
-  const [rendered, setRendered] = createSignal(false)
-
-  createEffect(() => {
-    if (rendered()) return
-
-    if (state.showMenu) {
-      setTimeout(() => setRendered(true), 500)
-    }
-  })
-
-  return (
-    <Switch>
-      <Match when={page.width() < 900}>
-        <Show when={rendered()}>
-          <Slot slot="menu" />
-        </Show>
-      </Match>
-
-      <Match when={true}>
-        <Slot slot="menu" />
-      </Match>
-    </Switch>
-  )
-}
-
 const Item: Component<{ href?: string; children: string | JSX.Element; onClick?: () => void }> = (
   props
 ) => {
@@ -440,7 +342,7 @@ const Item: Component<{ href?: string; children: string | JSX.Element; onClick?:
     <>
       <Show when={!props.href}>
         <div
-          class="flex h-10 cursor-pointer items-center justify-start gap-4 rounded-lg px-2 hover:bg-[var(--bg-700)] sm:h-12"
+          class="flex min-h-[2.5rem] cursor-pointer items-center justify-start gap-4 rounded-lg px-2 hover:bg-[var(--bg-700)] sm:min-h-[2.5rem]"
           onClick={() => {
             if (props.onClick) props.onClick()
             else settingStore.closeMenu()
@@ -452,7 +354,7 @@ const Item: Component<{ href?: string; children: string | JSX.Element; onClick?:
       <Show when={props.href}>
         <A
           href={props.href!}
-          class="flex h-10 items-center justify-start gap-4 rounded-lg px-2 hover:bg-[var(--bg-700)] sm:h-12"
+          class="flex min-h-[2.5rem] items-center justify-start gap-4 rounded-lg px-2 hover:bg-[var(--bg-700)] sm:min-h-[2.5rem]"
           onClick={settingStore.closeMenu}
         >
           {props.children}
@@ -468,7 +370,9 @@ const InviteBadge: Component = () => {
   return (
     <>
       <Show when={inv.invites.length}>
-        <span class={`flex h-6 items-center justify-center rounded-xl bg-red-900 px-2 text-xs`}>
+        <span
+          class={`flex h-6 items-center justify-center rounded-xl bg-red-600 px-2 text-xs text-white`}
+        >
           {inv.invites.length}
         </span>
       </Show>
@@ -487,3 +391,109 @@ const ExternalLink: Component<{ href: string; newtab?: boolean; children?: any }
     {props.children}
   </a>
 )
+
+const Library = () => {
+  const cfg = settingStore()
+
+  return (
+    <div class="grid w-full gap-2">
+      <Item href="/memory">
+        <Book /> Library{' '}
+      </Item>
+     
+    </div>
+  )
+}
+
+const CharacterLink = () => {
+  return (
+    <div class="grid w-full gap-2" style={{ 'grid-template-columns': '1fr 30px' }}>
+      <Item href="/character/list">
+        <Heart /> Matches
+      </Item>
+      
+      <div class="flex items-center">
+        <A class="link" href="/editor">
+          <Plus />
+        </A>
+      </div>
+      
+    </div>
+  )
+}
+
+const UserProfile = () => {
+  const chars = characterStore()
+  const user = userStore()
+
+  return (
+    <>
+      <div
+        class="grid w-full items-center justify-between gap-2"
+        style={{
+          'grid-template-columns': '1fr 30px',
+        }}
+      >
+        <Item
+          onClick={() => {
+            settingStore.closeMenu()
+            userStore.modal(true)
+          }}
+        >
+          <Switch>
+            <Match when={chars?.impersonating}>
+              <CharacterAvatar
+                char={chars.impersonating!}
+                format={{ corners: 'circle', size: 'xs' }}
+              />
+            </Match>
+
+            <Match when>
+              <AvatarIcon
+                avatarUrl={chars.impersonating?.avatar || user.profile?.avatar}
+                format={{ corners: 'circle', size: 'xs' }}
+              />
+            </Match>
+          </Switch>
+          <span>{chars.impersonating?.name || user.profile?.handle}</span>
+        </Item>
+        <div class="flex items-center">
+          <a
+            class="link"
+            onClick={() => {
+              settingStore.toggleImpersonate(true)
+              settingStore.closeMenu()
+            }}
+          >
+            <VenetianMask />
+          </a>
+        </div>
+      </div>
+    </>
+  )
+}
+const Slots: Component = (props) => {
+  let ref: HTMLDivElement
+  const state = settingStore()
+  const { load } = useResizeObserver()
+
+  onMount(() => {
+    load(ref)
+  })
+
+  const [rendered, setRendered] = createSignal(false)
+
+  createEffect(() => {
+    if (rendered()) return
+
+    if (state.showMenu) {
+      setTimeout(() => setRendered(true), 500)
+    }
+  })
+
+  return (
+    <div ref={ref!} class="h-full w-full">
+      <Slot parent={ref!} slot="menu" />
+    </div>
+  )
+}

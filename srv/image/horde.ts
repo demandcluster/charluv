@@ -7,7 +7,7 @@ import { config } from '../config'
 export const handleHordeImage: ImageAdapter = async ({ user, prompt }, log, guestId) => {
   const key = user.premium ? config.hordeKeyImages : HORDE_GUEST_KEY
 
-  const { text: image } = await horde.generateImage({ ...user, hordeKey: key }, prompt)
+  const { text: image } = await horde.generateImage({ ...user, hordeKey: key }, prompt, log)
   const buffer = Buffer.from(image, 'base64')
   return { ext: 'png', content: buffer }
 }

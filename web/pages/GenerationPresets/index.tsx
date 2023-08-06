@@ -32,9 +32,10 @@ export const GenerationPresetsPage: Component = () => {
     nav(`/presets/${preset._id}`)
   }
 
-  const state = presetStore(({ presets, saving }) => ({
+  const state = presetStore(({ presets, saving, openRouterModels }) => ({
     saving,
     presets,
+    openRouterModels,
     items: presets.map<Option>((p) => ({ label: p.name, value: p._id })),
     editing: isDefaultPreset(query.preset)
       ? defaultPresets[query.preset]
@@ -105,8 +106,19 @@ export const GenerationPresetsPage: Component = () => {
 
   const onSave = (_ev: Event, force?: boolean) => {
     if (state.saving) return
-    const validator = { ...presetValidator, service: ['', ...AI_ADAPTERS] } as const
+    const validator = {
+      ...presetValidator,
+      service: ['', ...AI_ADAPTERS],
+      thirdPartyFormat: 'string?',
+    } as const
     const body = getStrictForm(ref, validator)
+
+    body.thirdPartyFormat = body.thirdPartyFormat || (null as any)
+
+    if (body.openRouterModel) {
+      const actual = state.openRouterModels?.find((or) => or.id === body.openRouterModel)
+      body.openRouterModel = actual || undefined
+    }
 
     if (body.service === '') {
       toastStore.error(`You must select an AI service before saving`)

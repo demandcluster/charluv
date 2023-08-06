@@ -3,6 +3,7 @@ import { v4 } from 'uuid'
 import { AppSchema } from '../../../common/types/schema'
 import { api, isLoggedIn } from '../api'
 import { loadItem, localApi, saveChats } from './storage'
+import { replace } from '/common/util'
 
 export type AllChat = AppSchema.Chat & { character?: { name: string } }
 
@@ -14,11 +15,12 @@ export const chatsApi = {
   getChat,
   getBotChats,
   editChatGenPreset,
-  editChatGenSettings,
   importChat,
   deleteChat,
   addCharacter,
+  upsertTempCharacter,
   removeCharacter,
+  restartChat,
 }
 
 export async function getChat(id: string) {
@@ -55,6 +57,40 @@ export async function getChat(id: string) {
   return localApi.result({ chat, character, messages, members: [profile], active: [], characters })
 }
 
+export async function restartChat(chatId: string) {
+  if (isLoggedIn()) {
+    const res = await api.method('post', `/chat/${chatId}/restart`)
+    return res
+  }
+
+  const chats = await loadItem('chats')
+  const chars = await loadItem('characters')
+
+  const chat = chats.find((ch) => ch._id === chatId)
+  if (!chat) return localApi.error('Chat not found')
+
+  const char = chars.find((ch) => ch._id === chat.characterId)
+  const greeting = char?.greeting
+
+  if (char && greeting) {
+    await localApi.saveMessages(chatId, [
+      {
+        _id: v4(),
+        kind: 'chat-message',
+        msg: greeting,
+        characterId: char._id,
+        chatId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ])
+  } else {
+    await localApi.saveMessages(chatId, [])
+  }
+
+  return localApi.result({ success: true })
+}
+
 export async function editChat(
   id: string,
   update: Partial<AppSchema.Chat> & { useOverrides: boolean | undefined }
@@ -77,7 +113,7 @@ export async function editChat(
     delete next.scenario
   }
 
-  await localApi.saveChats(localApi.replace(id, chats, next))
+  await localApi.saveChats(replace(id, chats, next))
   return localApi.result(next)
 }
 
@@ -200,26 +236,6 @@ export async function getBotChats(characterId: string) {
   return localApi.result({ character, chats })
 }
 
-export async function editChatGenSettings(chatId: string, settings: AppSchema.Chat['genSettings']) {
-  if (isLoggedIn()) {
-    const res = await api.method('put', `/chat/${chatId}/generation`, settings)
-    return res
-  }
-
-  const chats = await loadItem('chats')
-  const chat = chats.find((ch) => ch._id === chatId)
-  if (!chat) return localApi.error(`Chat not found`)
-
-  const next: AppSchema.Chat = {
-    ...chat,
-    genSettings: settings,
-    genPreset: undefined,
-    updatedAt: new Date().toISOString(),
-  }
-  await saveChats(localApi.replace(chatId, chats, next))
-  return localApi.result(next)
-}
-
 export async function editChatGenPreset(chatId: string, preset: string) {
   if (isLoggedIn()) {
     const res = await api.method('put', `/chat/${chatId}/preset`, { preset })
@@ -236,7 +252,7 @@ export async function editChatGenPreset(chatId: string, preset: string) {
     genPreset: preset,
     updatedAt: new Date().toISOString(),
   }
-  await saveChats(localApi.replace(chatId, chats, next))
+  await saveChats(replace(chatId, chats, next))
   return localApi.result(next)
 }
 
@@ -290,8 +306,37 @@ export async function addCharacter(chatId: string, charId: string) {
     characters: Object.assign(chat?.characters || {}, { [charId]: true }),
   }
 
-  await localApi.saveChats(localApi.replace(chatId, chats, next))
+  await localApi.saveChats(replace(chatId, chats, next))
   return localApi.result({ success: true, char })
+}
+
+export async function upsertTempCharacter(
+  chatId: string,
+  char: Omit<AppSchema.BaseCharacter, '_id'> & { _id?: string }
+) {
+  if (isLoggedIn()) {
+    const res = await api.post(`/chat/${chatId}/temp-character`, char)
+    return res
+  }
+
+  const chats = await localApi.loadItem('chats')
+  const chat = chats.find((ch) => ch._id === chatId)
+
+  if (!chat) return localApi.error(`Chat not found`)
+  const newchar: AppSchema.Character = {
+    _id: char._id || `temp-${v4().slice(0, 8)}`,
+    ...char,
+    userId: 'anon',
+    kind: 'character',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+  const temp = chat.tempCharacters || {}
+  temp[newchar._id] = newchar
+  chat.tempCharacters = temp
+
+  await localApi.saveChats(replace(chatId, chats, chat))
+  return localApi.result({ success: true, char: newchar })
 }
 
 export async function removeCharacter(chatId: string, charId: string) {
@@ -315,6 +360,6 @@ export async function removeCharacter(chatId: string, charId: string) {
     characters: Object.assign(chat?.characters || {}, { [charId]: false }),
   }
 
-  await localApi.saveChats(localApi.replace(chatId, chats, next))
+  await localApi.saveChats(replace(chatId, chats, next))
   return localApi.result({ success: true })
 }

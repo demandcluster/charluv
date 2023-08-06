@@ -11,6 +11,13 @@ export async function getScenarios(userId: string) {
   return books
 }
 
+export async function getScenariosById(ids: string[]) {
+  const books = await db('scenario')
+    .find({ _id: { $in: ids } })
+    .toArray()
+  return books
+}
+
 export async function createScenario(userId: string, scenario: NewScenario) {
   const newScenario: AppSchema.ScenarioBook = {
     _id: v4(),
@@ -29,6 +36,7 @@ export async function createScenario(userId: string, scenario: NewScenario) {
       text: entry.text,
       trigger: entry.trigger,
     })),
+    states: [],
   }
 
   await db('scenario').insertOne(newScenario)
@@ -46,6 +54,7 @@ export async function updateScenario(userId: string, scenarioId: string, scenari
         overwriteCharacterScenario: scenario.overwriteCharacterScenario,
         instructions: scenario.instructions,
         entries: scenario.entries,
+        states: scenario.states,
       },
     }
   )

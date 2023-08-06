@@ -1,25 +1,27 @@
 import needle from 'needle'
 import { decryptText } from '../db/util'
 import { sanitise, sanitiseAndTrim, trimResponseV2 } from '../api/chat/common'
-import { badWordIds, clioBadWordsId } from './novel-bad-words'
+import { badWordIds, clioBadWordsId, penaltyWhitelist } from './novel-bad-words'
 import { ModelAdapter } from './type'
 import { AppSchema } from '../../common/types/schema'
 import { NOVEL_MODELS } from '/common/adapters'
 import { needleToSSE } from './stream'
 import { AppLog } from '../logger'
+import { getEncoder } from '../tokenize'
 
 export const NOVEL_BASEURL = `https://api.novelai.net`
-const novelUrl = `${NOVEL_BASEURL}/ai/generate`
-const streamUrl = `${NOVEL_BASEURL}/ai/generate-stream`
+const novelUrl = (model: string) => `${getBaseUrl(model)}/ai/generate`
+const streamUrl = (model: string) => `${getBaseUrl(model)}/ai/generate-stream`
 
 /**
  * Samplers:
  * 0. Temperature
  * 1. Top K
- * 2. Nucleus Sampling
+ * 2. Nucleus Sampling (Top P)
  * 3. Tail Free Sampling
  * 4. Top A Sampling
  * 5. Typical Sampling
+ * 6. CFG Scale
  */
 
 const statuses: Record<number, string> = {
@@ -31,9 +33,8 @@ const statuses: Record<number, string> = {
 
 const base = {
   generate_until_sentence: true,
-  min_length: 8,
+  min_length: 1,
   prefix: 'vanilla',
-  stop_sequences: [[27]], // Stop on ':'
   use_cache: false,
   use_string: true,
   repetition_penalty_frequency: 0,
@@ -41,12 +42,17 @@ const base = {
   bad_words_ids: badWordIds,
 }
 
+const NEW_PARAMS: Record<string, boolean> = {
+  [NOVEL_MODELS.clio_v1]: true,
+  [NOVEL_MODELS.kayra_v1]: true,
+}
+
 export const handleNovel: ModelAdapter = async function* ({
   char,
   members,
   user,
   prompt,
-  settings,
+  mappedSettings,
   guest,
   log,
   ...opts
@@ -56,14 +62,65 @@ export const handleNovel: ModelAdapter = async function* ({
     return
   }
 
-  const model = opts.gen.novelModel || user.novelModel || NOVEL_MODELS.euterpe
+  const model = opts.gen.novelModel || user.novelModel || NOVEL_MODELS.clio_v1
 
   const processedPrompt = processNovelAIPrompt(prompt)
 
   const body = {
     model,
     input: processedPrompt,
-    parameters: model === NOVEL_MODELS.clio_v1 ? getClioParams(opts.gen) : { ...base, ...settings },
+    parameters: NEW_PARAMS[model] ? getModernParams(opts.gen) : { ...base, ...mappedSettings },
+  }
+
+  if (opts.kind === 'plain') {
+    body.parameters.prefix = 'special_instruct'
+    body.parameters.phrase_rep_pen = 'aggressive'
+  } else {
+    const { encode } = getEncoder('novel', model)
+    const stops: Array<number[]> = []
+    const biases: any[] = [
+      {
+        bias: -0.1,
+        ensure_sequence_finish: false,
+        generate_once: false,
+        sequence: encode('***'),
+      },
+      {
+        bias: -0.1,
+        ensure_sequence_finish: false,
+        generate_once: false,
+        sequence: encode('⁂'),
+      },
+    ]
+
+    const added = new Set<string>()
+
+    for (const [, char] of Object.entries(opts.characters || {})) {
+      if (added.has(char._id) || char._id === opts.replyAs?._id) continue
+      added.add(char._id)
+      const tokens = encode(`\n${char.name}:`)
+      stops.push(tokens)
+    }
+
+    for (const member of members) {
+      if (added.has(member._id)) continue
+      added.add(member._id)
+      const tokens = encode(`\n${member.handle}:`)
+      stops.push(tokens)
+    }
+
+    body.parameters.logit_bias_exp = biases
+    body.parameters.stop_sequences = stops
+  }
+
+  if (opts.gen.order && !opts.gen.disabledSamplers) {
+    body.parameters.order = opts.gen.order
+  }
+
+  if (opts.gen.order && opts.gen.disabledSamplers) {
+    body.parameters.order = opts.gen.order.filter(
+      (sampler) => !opts.gen.disabledSamplers?.includes(sampler)
+    )
   }
 
   yield { prompt: processedPrompt }
@@ -71,7 +128,16 @@ export const handleNovel: ModelAdapter = async function* ({
   const endTokens = ['***', 'Scenario:', '----', '⁂']
 
   log.debug(
-    { ...body, input: null, parameters: { ...body.parameters, bad_words_ids: null } },
+    {
+      ...body,
+      input: null,
+      parameters: {
+        ...body.parameters,
+        bad_words_ids: null,
+        repetition_penalty_whitelist: null,
+        stop_sequences: null,
+      },
+    },
     'NovelAI payload'
   )
   log.debug(`Prompt:\n${body.input}`)
@@ -109,17 +175,19 @@ export const handleNovel: ModelAdapter = async function* ({
 
   const parsed = sanitise(accum)
   const trimmed = trimResponseV2(parsed, opts.replyAs, members, opts.characters, endTokens)
+
   yield trimmed || parsed
 }
 
-function getClioParams(gen: Partial<AppSchema.GenSettings>) {
-  return {
+function getModernParams(gen: Partial<AppSchema.GenSettings>) {
+  const payload: any = {
     temperature: gen.temp,
     max_length: gen.maxTokens,
     min_length: 1,
     top_k: gen.topK,
     top_p: gen.topP,
     top_a: gen.topA,
+    typical_p: gen.typicalP,
     tail_free_sampling: gen.tailFreeSampling,
     repetition_penalty: gen.repetitionPenalty,
     repetition_penalty_range: gen.repetitionPenaltyRange,
@@ -130,14 +198,22 @@ function getClioParams(gen: Partial<AppSchema.GenSettings>) {
     use_cache: false,
     use_string: true,
     return_full_text: false,
-    prefix: 'vanilla',
+    prefix: 'special_instruct',
     order: gen.order,
     bad_words_ids: clioBadWordsId,
+    repetition_penalty_whitelist: penaltyWhitelist,
   }
+
+  if (gen.cfgScale) {
+    payload.cfg_scale = gen.cfgScale
+    payload.cfg_uc = gen.cfgOppose || ''
+  }
+
+  return payload
 }
 
 const streamCompletition = async function* (headers: any, body: any, _log: AppLog) {
-  const resp = needle.post(streamUrl, body, {
+  const resp = needle.post(streamUrl(body.model), body, {
     parse: false,
     json: true,
     headers: {
@@ -175,10 +251,10 @@ const streamCompletition = async function* (headers: any, body: any, _log: AppLo
 }
 
 const fullCompletition = async function* (headers: any, body: any, log: AppLog) {
-  const res = await needle('post', novelUrl, body, {
+  const res = await needle('post', novelUrl(body.model), body, {
     json: true,
     // timeout: 2000,
-    response_timeout: 15000,
+    response_timeout: 30000,
     headers,
   }).catch((err) => ({ err }))
 
@@ -214,4 +290,11 @@ const fullCompletition = async function* (headers: any, body: any, log: AppLog) 
 
 function processNovelAIPrompt(prompt: string) {
   return prompt.replace(/^\<START\>$/gm, '***')
+}
+
+function getBaseUrl(model: string) {
+  if (!model.includes('/')) return NOVEL_BASEURL
+  const url = model.split('/').slice(0, -1).join('/')
+  if (url.toLowerCase().startsWith('http')) return url
+  return `https://${url}`
 }

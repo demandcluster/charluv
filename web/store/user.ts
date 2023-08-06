@@ -119,6 +119,16 @@ export const userStore = createStore<UserState>(
       }
     },
 
+    async updatePartialConfig(_, config: ConfigUpdate) {
+      const res = await usersApi.updatePartialConfig(config)
+      if (res.error) toastStore.error(`Failed to update config: ${res.error}`)
+      if (res.result) {
+        window.usePipeline = res.result.useLocalPipeline
+        toastStore.success(`Updated settings`)
+        return { user: res.result }
+      }
+    },
+
     async updateService(_, service: AIAdapter, update: any, onDone?: (err?: any) => void) {
       const res = await usersApi.updateServiceConfig(service, update)
       if (res.error) {
@@ -142,7 +152,18 @@ export const userStore = createStore<UserState>(
       }
     },
 
-    async *login(_, username: string, password: string, onSuccess?: () => void) {
+    async remoteLogin(_, onSuccess: (token: string) => void) {
+      const res = await api.post('/user/login/callback')
+      if (res.result) {
+        onSuccess(res.result.token)
+      }
+
+      if (res.error) {
+        toastStore.error(`Could not authenticate: ${res.error}`)
+      }
+    },
+
+    async *login(_, username: string, password: string, onSuccess?: (token: string) => void) {
       yield { loading: true }
 
       const res = await api.post('/user/login', { username, password })
@@ -168,7 +189,7 @@ export const userStore = createStore<UserState>(
       // TODO: Work out why this is here
       events.emit(EVENTS.loggedOut)
 
-      onSuccess?.()
+      onSuccess?.(res.result.token)
       publish({ type: 'login', token: res.result.token })
     },
     async *register(
@@ -326,25 +347,32 @@ export const userStore = createStore<UserState>(
         toastStore.error(`Failed to reset guest state: ${e.message}`)
       }
     },
-    async *openaiUsage({ metadata, user }) {
-      yield { oaiUsageLoading: true }
-      const res = await api.post('/user/services/openai-usage', { key: user?.oaiKey })
-      yield { oaiUsageLoading: false }
-      if (res.error) {
-        toastStore.error(`Could not retrieve usage: ${res.error}`)
-        yield { metadata: { ...metadata, openaiUsage: -1 } }
+
+    async novelLogin(_, key: string, onComplete: (err?: boolean) => void) {
+      const res = await usersApi.novelLogin(key)
+      if (res.result) {
+        toastStore.success('Successfully authenticated with NovelAI')
+        onComplete()
+        return { user: res.result }
       }
 
-      if (res.result) {
-        yield {
-          metadata: {
-            ...metadata,
-            openaiUsage: res.result.total_usage,
-            openaiCosts: res.result.daily_costs,
-          },
-        }
+      if (res.error) {
+        onComplete(true)
+        toastStore.error(`NovelAI login failed: ${res.error}`)
       }
     },
+
+    async createApiKey(_, cb: (err: any, code?: string) => void) {
+      const res = await api.post('/user/code')
+      if (res.result) {
+        cb(null, res.result.code)
+      }
+
+      if (res.error) {
+        cb(res.error)
+      }
+    },
+
     async *hordeStats({ metadata, user }) {
       yield { hordeStatsLoading: true }
       const res = await api.post('/user/services/horde-stats', { key: user?.hordeKey })
@@ -461,6 +489,7 @@ async function updateTheme(ui: UI.UISettings) {
 
   setRootVariable('text-chatcolor', getSettingColor(mode.chatTextColor || 'text-800'))
   setRootVariable('text-emphasis-color', getSettingColor(mode.chatEmphasisColor || 'text-600'))
+  setRootVariable('text-quote-color', getSettingColor(mode.chatQuoteColor || 'text-800'))
   setRootVariable('bot-background', getSettingColor(mode.botBackground || 'bg-800'))
   root.style.setProperty(`--sitewide-font`, fontFaces[ui.font])
 }
@@ -481,6 +510,11 @@ function getUIsettings(guest = false) {
   }
 
   const ui = { ...UI.defaultUIsettings, ...settings }
+
+  if (!ui.dark.chatEmphasisColor) {
+    ui.dark.chatQuoteColor = UI.defaultUIsettings.dark.chatQuoteColor
+    ui.light.chatQuoteColor = UI.defaultUIsettings.light.chatQuoteColor
+  }
 
   return ui
 }

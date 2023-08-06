@@ -1,5 +1,10 @@
 import { v4 } from 'uuid'
-import { createPrompt, getChatPreset } from '../../../common/prompt'
+import {
+  createPrompt,
+  getChatPreset,
+  getLinesForPrompt,
+  getPromptParts,
+} from '../../../common/prompt'
 import { getEncoder } from '../../../common/tokenize'
 import { GenerateRequestV2 } from '../../../srv/adapter/type'
 import { AppSchema } from '../../../common/types/schema'
@@ -12,6 +17,11 @@ import { toastStore } from '../toasts'
 import { subscribe } from '../socket'
 import { getActiveBots, getBotsForChat } from '/web/pages/Chat/util'
 import { pipelineApi } from './pipeline'
+import { UserEmbed } from '/common/types/memory'
+import { settingStore } from '../settings'
+import { TemplateOpts, parseTemplate } from '/common/template-parser'
+import { replace } from '/common/util'
+import { toMap } from '/web/shared/util'
 
 export type PromptEntities = {
   chat: AppSchema.Chat
@@ -26,24 +36,56 @@ export type PromptEntities = {
   autoReplyAs?: string
   characters: Record<string, AppSchema.Character>
   impersonating?: AppSchema.Character
-  lastMessage: string
+  lastMessage?: { msg: string; date: string }
   scenarios?: AppSchema.ScenarioBook[]
 }
 
 export const msgsApi = {
   editMessage,
+  editMessageProps,
   getMessages,
   getPromptEntities,
   generateResponseV2,
   deleteMessages,
   basicInference,
   createActiveChatPrompt,
+  guidance,
+  guidanceAsync,
+  rerunGuidance,
+  generateActions,
+  getActiveTemplateParts,
 }
 
-type PlainOpts = { prompt: string; settings: Partial<AppSchema.GenSettings> }
+type InferenceOpts = {
+  prompt: string
+  settings?: Partial<AppSchema.GenSettings>
+  service?: string
+  maxTokens?: number
+}
+
+export async function generateActions() {
+  const { settings, impersonating, profile, user, messages } = await getPromptEntities()
+  const { prompt } = await createActiveChatPrompt({ kind: 'continue' }, 1024)
+
+  const last = messages.slice(-1)[0]
+
+  if (!last) {
+    toastStore.warn('Cannot generate actions: No messages')
+    return
+  }
+
+  await api.post<{ actions: AppSchema.ChatAction[] }>(`/chat/${last._id}/actions`, {
+    service: settings.service,
+    settings,
+    impersonating,
+    profile,
+    user,
+    lines: prompt.lines,
+  })
+}
 
 export async function basicInference(
-  { prompt, settings }: PlainOpts,
+  { prompt, settings }: InferenceOpts,
   onComplete: (err?: any, response?: string) => void
 ) {
   const requestId = v4()
@@ -68,14 +110,102 @@ export async function basicInference(
   }
 }
 
+export async function guidance<T = any>(
+  { prompt, service, maxTokens }: InferenceOpts,
+  onComplete?: (err: any | null, response?: { result: string; values: T }) => void
+): Promise<void> {
+  const requestId = v4()
+  const { user } = userStore.getState()
+
+  if (!user) {
+    toastStore.error(`Could not get user settings. Refresh and try again.`)
+    return
+  }
+
+  const res = await api.method('post', `/chat/guidance`, {
+    requestId,
+    user,
+    prompt,
+    service,
+    maxTokens,
+  })
+
+  if (res.error) {
+    onComplete?.(res.error)
+    if (!onComplete) {
+      throw new Error(`Guidance failed: ${res.error}`)
+    }
+  }
+
+  onComplete?.(null, res.result)
+}
+
+export async function guidanceAsync<T = any>(
+  opts: InferenceOpts
+): Promise<{ result: string; values: T }> {
+  return new Promise((resolve, reject) => {
+    guidance<T>(opts, (err, result) => {
+      if (err) return reject(err)
+      if (result) resolve(result)
+    })
+  })
+}
+
+export async function rerunGuidance<T = any>(
+  {
+    prompt,
+    service,
+    maxTokens,
+    rerun,
+    previous,
+  }: InferenceOpts & { previous?: any; rerun: string[] },
+  onComplete?: (err: any | null, response?: { result: string; values: T }) => void
+) {
+  const requestId = v4()
+  const { user } = userStore.getState()
+
+  if (!user) {
+    toastStore.error(`Could not get user settings. Refresh and try again.`)
+    return
+  }
+
+  const res = await api.method('post', `/chat/reguidance`, {
+    requestId,
+    user,
+    prompt,
+    service,
+    maxTokens,
+    rerun,
+    previous,
+  })
+  if (res.error) {
+    onComplete?.(res.error)
+    if (!onComplete) {
+      throw new Error(`Guidance failed: ${res.error}`)
+    }
+  }
+
+  if (res.result) {
+    onComplete?.(null, res.result)
+    return res.result
+  }
+}
+
 export async function editMessage(msg: AppSchema.ChatMessage, replace: string) {
+  return editMessageProps(msg, { msg: replace })
+}
+
+export async function editMessageProps(
+  msg: AppSchema.ChatMessage,
+  update: Partial<AppSchema.ChatMessage>
+) {
   if (isLoggedIn()) {
-    const res = await api.method('put', `/chat/${msg._id}/message`, { message: replace })
+    const res = await api.method('put', `/chat/${msg._id}/message-props`, update)
     return res
   }
 
   const messages = await localApi.getMessages(msg.chatId)
-  const next = localApi.replace(msg._id, messages, { msg: replace })
+  const next = replace(msg._id, messages, update)
   await localApi.saveMessages(msg.chatId, next)
   return localApi.result({ success: true })
 }
@@ -137,7 +267,20 @@ export async function generateResponseV2(opts: GenerateOpts) {
     return localApi.error(activePrompt.err.message || activePrompt.err)
   }
 
-  const { prompt, props, entities } = activePrompt
+  const { prompt, props, entities, chatEmbeds, userEmbeds } = activePrompt
+
+  const embedWarnings: string[] = []
+  if (chatEmbeds.length > 0 && prompt.parts.chatEmbeds.length === 0) embedWarnings.push('Chat')
+  if (userEmbeds.length > 0 && prompt.parts.userEmbeds.length === 0)
+    embedWarnings.push('User-created')
+
+  if (embedWarnings.length) {
+    toastStore.warn(
+      `Embedding from ${embedWarnings.join(
+        ' and '
+      )} did not fit in prompt. Check your Preset -> Memory Embed context limits.`
+    )
+  }
 
   if (ui?.logPromptsToBrowserConsole) {
     console.log(`=== Sending the following prompt: ===`)
@@ -167,23 +310,76 @@ export async function generateResponseV2(opts: GenerateOpts) {
     replyAs: removeAvatar(props.replyAs),
     impersonate: removeAvatar(props.impersonate),
     characters: removeAvatars(entities.characters),
-    lastMessage: entities.lastMessage,
-  }
-
-  const lastMsg = props.messages.slice(-1)[0]
-  const text = request.text || lastMsg?.msg
-  const created = request.text ? new Date().toISOString() : lastMsg?.createdAt
-
-  /**
-   * TESTING
-   * This will only be invoked
-   */
-  if (text) {
-    await pipelineApi.memoryRecall(entities.chat._id, text, created!)
+    lastMessage: entities.lastMessage?.date,
+    chatEmbeds,
+    userEmbeds,
   }
 
   const res = await api.post<{ requestId: string }>(`/chat/${entities.chat._id}/generate`, request)
   return res
+}
+
+async function getActiveTemplateParts() {
+  const { active } = chatStore.getState()
+
+  const { parts, entities } = await getActivePromptOptions({ kind: 'summary' })
+  const toLine = messageToLine({
+    chars: entities.characters,
+    members: entities.members,
+    sender: entities.profile,
+    impersonate: entities.impersonating,
+  })
+
+  const opts: TemplateOpts = {
+    chat: entities.chat,
+    replyAs: active?.replyAs ? entities.characters[active.replyAs] : entities.char,
+    char: entities.char,
+    characters: entities.characters,
+    lines: entities.messages.filter((msg) => msg.adapter !== 'image' && !msg.event).map(toLine),
+    parts,
+    sender: entities.profile,
+  }
+
+  return opts
+}
+
+async function getActivePromptOptions(
+  opts: Exclude<GenerateOpts, { kind: 'ooc' | 'send-noreply' }>
+) {
+  const { active } = chatStore.getState()
+
+  if (!active) {
+    throw new Error('No active chat. Try refreshing')
+  }
+
+  const props = await getGenerateProps(opts, active)
+  const entities = props.entities
+
+  const encoder = await getEncoder()
+
+  const promptOpts = {
+    kind: opts.kind,
+    char: entities.char,
+    characters: entities.characters,
+    chat: entities.chat,
+    sender: entities.profile,
+    members: entities.members,
+    replyAs: props.replyAs,
+    user: entities.user,
+    userEmbeds: [],
+    book: entities.book,
+    continue: props.continue,
+    impersonate: entities.impersonating,
+    chatEmbeds: [],
+    settings: entities.settings,
+    messages: entities.messages,
+    lastMessage: entities.lastMessage?.date || '',
+  }
+
+  const lines = getLinesForPrompt(promptOpts, encoder)
+  const parts = getPromptParts(promptOpts, lines, encoder)
+
+  return { lines, parts, entities, props }
 }
 
 async function createActiveChatPrompt(
@@ -191,7 +387,8 @@ async function createActiveChatPrompt(
   maxContext?: number
 ) {
   const { active } = chatStore.getState()
-  const { ui } = userStore.getState()
+  const { ui, user } = userStore.getState()
+  const { pipelineOnline } = settingStore.getState()
 
   if (!active) {
     throw new Error('No active chat. Try refreshing')
@@ -205,11 +402,43 @@ async function createActiveChatPrompt(
     scenario: resolveScenario(entities.chat.scenario || '', entities.scenarios || []),
   }
 
+  const chatEmbeds: UserEmbed<{ name: string }>[] = []
+  const userEmbeds: UserEmbed[] = []
+
+  const text =
+    opts.kind === 'send' ||
+    opts.kind === 'send-event:world' ||
+    opts.kind === 'send-event:character' ||
+    opts.kind === 'send-event:hidden'
+      ? opts.text
+      : entities.lastMessage?.msg
+
+  if (pipelineOnline && user?.useLocalPipeline) {
+    const created = text ? new Date().toISOString() : entities.messages.slice(-1)[0]?.createdAt
+    const chats = text
+      ? await pipelineApi.chatRecall(entities.chat._id, text, created || new Date().toISOString())
+      : null
+
+    const users =
+      text && entities.chat.userEmbedId
+        ? await pipelineApi.queryEmbedding(entities.chat.userEmbedId, text)
+        : null
+
+    if (chats) {
+      chatEmbeds.push(...chats)
+    }
+
+    if (users) {
+      userEmbeds.push(...users)
+    }
+  }
+
   const encoder = await getEncoder()
   const prompt = createPrompt(
     {
       kind: opts.kind,
       char: entities.char,
+      sender: entities.profile,
       chat,
       user: entities.user,
       members: entities.members.concat([entities.profile]),
@@ -221,13 +450,15 @@ async function createActiveChatPrompt(
       replyAs: props.replyAs,
       characters: entities.characters,
       impersonate: props.impersonate,
-      lastMessage: entities.lastMessage,
+      lastMessage: entities.lastMessage?.date || '',
       trimSentences: ui.trimSentences,
+      chatEmbeds,
+      userEmbeds,
     },
     encoder,
     maxContext
   )
-  return { prompt, props, entities }
+  return { prompt, props, entities, chatEmbeds, userEmbeds }
 }
 
 type GenerateProps = {
@@ -259,6 +490,10 @@ async function getGenerateProps(
 ): Promise<GenerateProps> {
   const entities = await getPromptEntities()
   const [secondLastMsg, lastMsg] = entities.messages.slice(-2)
+  const lastCharMsg = entities.messages.reduceRight<AppSchema.ChatMessage | void>((prev, curr) => {
+    if (prev) return prev
+    if (curr.characterId) return curr
+  }, undefined)
 
   const props: GenerateProps = {
     entities,
@@ -267,7 +502,24 @@ async function getGenerateProps(
     impersonate: entities.impersonating,
   }
 
-  const getBot = (id: string) => entities.chatBots.find((ch) => ch._id === id)!
+  if ('text' in opts) {
+    opts.text = parseTemplate(opts.text, {
+      char: active.char,
+      characters: entities.characters,
+      chat: active.chat,
+      lines: [],
+      parts: {} as any,
+      replyAs: props.replyAs,
+      sender: entities.profile,
+      impersonate: props.impersonate,
+      repeatable: true,
+    })
+  }
+
+  const getBot = (id: string) => {
+    if (id.startsWith('temp-')) return entities.chat.tempCharacters?.[id]!
+    return entities.chatBots.find((ch) => ch._id === id)!
+  }
 
   switch (opts.kind) {
     case 'retry': {
@@ -305,10 +557,10 @@ async function getGenerateProps(
     }
 
     case 'continue': {
-      if (!lastMsg.characterId) throw new Error(`Cannot continue user message`)
+      if (!lastCharMsg?.characterId) throw new Error(`Cannot continue user message`)
       props.continuing = lastMsg
-      props.replyAs = getBot(lastMsg.characterId)
-      props.continue = lastMsg.msg
+      props.replyAs = getBot(lastCharMsg?.characterId)
+      props.continue = lastCharMsg.msg
       break
     }
 
@@ -530,12 +782,30 @@ function removeAvatars(chars: Record<string, AppSchema.Character>) {
   return next
 }
 
+/**
+ *
+ */
 function getLastMessage(messages: AppSchema.ChatMessage[]) {
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i]
     if (!msg.userId) continue
-    return msg.createdAt
+    return { msg: msg.msg, date: msg.createdAt }
   }
+}
 
-  return ''
+function messageToLine(opts: {
+  chars: Record<string, AppSchema.Character>
+  sender: AppSchema.Profile
+  members: AppSchema.Profile[]
+  impersonate?: AppSchema.Character
+}) {
+  const map = toMap(opts.members)
+  return (msg: AppSchema.ChatMessage) => {
+    const entity =
+      (msg.characterId ? opts.chars[msg.characterId]?.name : map[msg.userId!]?.handle) ||
+      opts.impersonate?.name ||
+      opts.sender.handle ||
+      'You'
+    return `${entity}: ${msg.msg}`
+  }
 }

@@ -3,7 +3,7 @@ import { getCharacter } from './characters'
 import { db } from './client'
 import { AppSchema } from '../../common/types/schema'
 import { now } from './util'
-import { StatusError } from '../api/wrap'
+import { StatusError, errors } from '../api/wrap'
 
 export async function getChatOnly(id: string) {
   const chat = await db('chat').findOne({ _id: id })
@@ -80,6 +80,7 @@ export async function create(
     updatedAt: now(),
     genPreset: props.genPreset,
     messageCount: props.greeting ? 1 : 0,
+    tempCharacters: {},
   }
 
   await db('chat').insertOne(doc)
@@ -165,6 +166,7 @@ export async function getAllChats(userId: string) {
           updatedAt: 1,
           genPreset: 1,
           genSettings: 1,
+          // tempCharacters: 1,
           'character.name': 1,
         },
       },
@@ -187,4 +189,70 @@ export async function setChatCharacter(chatId: string, charId: string, state: bo
     { _id: chatId },
     { $set: { updatedAt: now(), [`characters.${charId}`]: state } }
   )
+}
+
+export async function restartChat(userId: string, chatId: string) {
+  const chat = await getChatOnly(chatId)
+  if (!chat) throw errors.NotFound
+
+  if (chat.userId !== userId) throw errors.Forbidden
+
+  await db('chat-message').deleteMany({ chatId })
+  const char = chat.characterId ? await db('character').findOne({ _id: chat.characterId }) : null
+  const greeting = char?.greeting
+
+  if (char && greeting) {
+    await db('chat-message').insertOne({
+      _id: v4(),
+      kind: 'chat-message',
+      chatId,
+      msg: greeting,
+      characterId: char._id,
+      createdAt: now(),
+      updatedAt: now(),
+    })
+  }
+}
+
+export async function createChatTree(chat: AppSchema.Chat) {
+  if (chat.tree) return chat
+
+  const messages = (await db('chat-message')
+    .find({ chatId: chat._id })
+    .project({ _id: 1, createdAt: 1 })
+    .sort({ createdAt: 'asc' })
+    .toArray()) as Array<{ _id: string; createdAt: string }>
+
+  const tree: AppSchema.Chat['tree'] = {}
+  let last: string = ''
+
+  for (const msg of messages) {
+    if (last) {
+      tree[last].children[msg._id] = 1
+    }
+    tree[msg._id] = { parent: last, children: {} }
+    last = msg._id
+  }
+
+  chat.tree = tree
+  await db('chat').updateOne({ _id: chat._id }, { $set: { tree } })
+  return tree
+}
+
+export async function assignMessageParent(opts: {
+  chatId: string
+  tree: AppSchema.Chat['tree']
+  parentId: string
+  messageId: string
+}) {
+  const { tree, parentId, messageId } = opts
+  if (!tree || !tree[parentId]) return tree
+
+  tree[parentId].children[messageId] = 1
+
+  await db('chat').updateOne(
+    { _id: opts.chatId },
+    { $set: { [`tree.${parentId}.children.${messageId}`]: 1 } }
+  )
+  return tree
 }

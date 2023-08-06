@@ -9,10 +9,35 @@ import { toastStore } from './toasts'
 import { subscribe } from './socket'
 import { FeatureFlags, defaultFlags } from './flags'
 import { ReplicateModel } from '/common/types/replicate'
+import { wait } from '/common/util'
 
-type SettingState = {
+type SlotSpec = {
+  id: string
+  size: string
+  calc?: { platform: 'container' | 'page'; height?: number; width?: number }
+}
+
+type SlotConfig = {
+  publisherId: string
+
+  /**
+   * Override SlotKinds
+   */
+  definitions: Record<string, { sm?: SlotSpec; lg?: SlotSpec; xl?: SlotSpec }>
+}
+
+const emptySlots: SlotConfig = {
+  publisherId: '',
+  definitions: {},
+}
+
+export type SettingState = {
   guestAccessAllowed: boolean
   initLoading: boolean
+  cfg: {
+    loading: boolean
+    ttl: number
+  }
   showMenu: boolean
   showImpersonate: boolean
   fullscreen: boolean
@@ -21,6 +46,7 @@ type SettingState = {
   workers: HordeWorker[]
   imageWorkers: HordeWorker[]
   anonymize: boolean
+  pipelineOnline: boolean
 
   init?: {
     profile: AppSchema.Profile
@@ -33,6 +59,9 @@ type SettingState = {
   flags: FeatureFlags
   replicate: Record<string, ReplicateModel>
   showSettings: boolean
+
+  slotsLoaded: boolean
+  slots: typeof emptySlots
 }
 
 const HORDE_URL = `https://horde.aivo.chat/api/v2`
@@ -44,12 +73,14 @@ const initState: SettingState = {
   anonymize: false,
   guestAccessAllowed: canUseStorage(),
   initLoading: true,
+  cfg: { loading: false, ttl: 0 },
   showMenu: false,
   showImpersonate: false,
   fullscreen: false,
   models: [],
   workers: [],
   imageWorkers: [],
+  pipelineOnline: false,
   config: {
     registered: [],
     adapters: [],
@@ -58,19 +89,24 @@ const initState: SettingState = {
     assetPrefix: '',
     selfhosting: false,
     imagesSaved: false,
-    slots: { banner: '', menu: '', mobile: '', menuLg: '', enabled: false },
+    pipelineProxyEnabled: false,
+    authUrls: ['https://chara.cards', 'https://dev.chara.cards'],
+    horde: { workers: [], models: [] },
   },
   replicate: {},
   flags: getFlags(),
   showSettings: false,
+  slotsLoaded: false,
+  slots: { ...emptySlots },
 }
 
 export const settingStore = createStore<SettingState>(
   'settings',
   initState
-)((_) => {
+)((get) => {
   events.on(EVENTS.loggedOut, () => {
-    settingStore.setState(initState)
+    const prev = get()
+    settingStore.setState({ ...initState, slots: prev.slots, slotsLoaded: prev.slotsLoaded })
     settingStore.init()
   })
 
@@ -125,8 +161,14 @@ export const settingStore = createStore<SettingState>(
     fullscreen(_, next: boolean) {
       return { fullscreen: next }
     },
-    async getConfig() {
+    async *getConfig({ cfg }) {
+      if (cfg.loading) return
+      if (Date.now() - cfg.ttl < 60000) return
+
+      yield { cfg: { loading: true, ttl: Date.now() } }
       const res = await api.get('/settings')
+      yield { cfg: { loading: false, ttl: Date.now() } }
+
       if (res.result) {
         return { config: res.result }
       }
@@ -169,6 +211,7 @@ export const settingStore = createStore<SettingState>(
     },
     flag({ flags }, flag: keyof FeatureFlags, value: boolean) {
       const nextFlags = { ...flags, [flag]: value }
+      window.flags = nextFlags
       saveFlags(nextFlags)
       return { flags: nextFlags }
     },
@@ -182,7 +225,6 @@ subscribe('connected', { uid: 'string' }, (body) => {
   settingStore.init()
 })
 
-window.flags = {}
 window.flag = function (flag: keyof FeatureFlags, value) {
   if (!flag) {
     const state = settingStore((s) => s.flags)
@@ -216,7 +258,10 @@ type FlagCache = { user: FeatureFlags; default: FeatureFlags }
 function getFlags(): FeatureFlags {
   try {
     const cache = localStorage.getItem(FLAG_KEY)
-    if (!cache) return defaultFlags
+    if (!cache) {
+      saveFlags(defaultFlags)
+      return defaultFlags
+    }
 
     const parsed = JSON.parse(cache) as FlagCache
 
@@ -239,9 +284,9 @@ function getFlags(): FeatureFlags {
     }
 
     saveFlags(flags)
-    window.flags = flags
     return flags
   } catch (ex) {
+    saveFlags(defaultFlags)
     return defaultFlags
   }
 }
@@ -266,4 +311,31 @@ function canUseStorage(noThrow?: boolean) {
   }
 
   return true
+}
+
+loadSlotConfig()
+
+async function loadSlotConfig() {
+  const slots: any = { ...emptySlots }
+
+  try {
+    const content = await fetch('/slots.txt').then((res) => res.text())
+    const config = JSON.parse(content)
+
+    for (const [prop, value] of Object.entries(config)) {
+      const key = prop as keyof typeof slots
+      slots[key] = value
+    }
+
+    if (config.inject) {
+      await wait(0.2)
+      const node = document.createRange().createContextualFragment(config.inject)
+      document.head.append(node)
+    }
+  } catch (ex: any) {
+    console.log(ex.message)
+  } finally {
+    await wait(0.01)
+    settingStore.setState({ slots, slotsLoaded: true })
+  }
 }

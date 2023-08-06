@@ -31,7 +31,7 @@ export function getClientPreset(chat?: AppSchema.Chat) {
     preset: presetLabel,
   } = getAdapter(chat, user.user, preset)
 
-  const name = 'name' in preset ? preset.name : ''
+  const name = preset && 'name' in preset ? preset.name : ''
   return { preset, adapter, model, isThirdParty, contextLimit, presetLabel, name }
 }
 

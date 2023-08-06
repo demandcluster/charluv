@@ -1,9 +1,33 @@
+import { AppSchema } from './types/schema'
+
+export function replace<T extends { _id: string }>(id: string, list: T[], item: Partial<T>) {
+  return list.map((li) => (li._id === id ? { ...li, ...item } : li))
+}
+
+export function findOne<T extends { _id: string }>(id: string, list: T[]): T | void {
+  for (const item of list) {
+    if (item._id === id) return item
+  }
+}
+
 export function toArray<T>(values?: T | T[]): T[] {
   if (values === undefined) return []
   if (Array.isArray(values)) return values
   return [values]
 }
 
+export function distinct<T extends { _id: string }>(values: T[]) {
+  const set = new Set<string>()
+  const next: T[] = []
+
+  for (const item of values) {
+    if (set.has(item._id)) continue
+    next.push(item)
+    set.add(item._id)
+  }
+
+  return next
+}
 export function wait(secs: number) {
   return new Promise((res) => setTimeout(res, secs * 1000))
 }
@@ -125,4 +149,26 @@ export function slugify(str: string) {
 // https://stackoverflow.com/a/3561711
 export function escapeRegex(string: string) {
   return string.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&')
+}
+
+export function getBotName(
+  chat: AppSchema.Chat,
+  msg: AppSchema.ChatMessage,
+  chars: Record<string, AppSchema.Character>,
+  replyAs: AppSchema.Character,
+  main: AppSchema.Character
+) {
+  if (!msg.characterId) return replyAs?.name || main.name
+  if (msg.characterId.startsWith('temp-')) {
+    const temp = chat.tempCharacters?.[msg.characterId]
+    if (!temp) return main.name
+    return temp.name
+  }
+
+  const char = chars[msg.characterId]
+  if (!char) {
+    return main.name
+  }
+
+  return char.name
 }

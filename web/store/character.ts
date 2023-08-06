@@ -4,9 +4,9 @@ import { EVENTS, events } from '../emitter'
 import { createStore } from './create'
 import { subscribe } from './socket'
 import { toastStore } from './toasts'
-import { charsApi } from './data/chars'
+import { charsApi, getImageData } from './data/chars'
 import { imageApi } from './data/image'
-import { getAssetUrl, storage } from '../shared/util'
+import { getAssetUrl, storage, toMap } from '../shared/util'
 import { toCharacterMap } from '../pages/Character/util'
 
 const IMPERSONATE_KEY = 'agnai-impersonate'
@@ -16,6 +16,10 @@ type CharacterState = {
   impersonating?: AppSchema.Character
   characters: {
     loaded: boolean
+    list: AppSchema.Character[]
+    map: Record<string, AppSchema.Character>
+  }
+  chatChars: {
     list: AppSchema.Character[]
     map: Record<string, AppSchema.Character>
   }
@@ -59,6 +63,7 @@ export type UpdateCharacter = Partial<
 const initState: CharacterState = {
   creating: false,
   characters: { loaded: false, list: [], map: {} },
+  chatChars: { list: [], map: {} },
   generate: {
     image: null,
     blob: null,
@@ -81,9 +86,8 @@ export const characterStore = createStore<CharacterState>(
       return
     }
 
-    characterStore.setState({
-      characters: { list: init.characters, map: toCharacterMap(init.characters), loaded: true },
-    })
+    const nextChars = receiveChars(characterStore.getState().characters.map, init.characters)
+    set({ characters: { ...nextChars, loaded: true } })
 
     const impersonateId = await storage.getItem(IMPERSONATE_KEY)
     if (!impersonateId) return
@@ -91,13 +95,11 @@ export const characterStore = createStore<CharacterState>(
     const impersonating = init.characters?.find(
       (ch: AppSchema.Character) => ch._id === impersonateId
     )
-    characterStore.setState({ impersonating })
+    set({ impersonating })
   })
 
   events.on(EVENTS.charsReceived, (chars: AppSchema.Character[]) => {
-    const { map, loaded } = get().characters
-    const next = receiveChars(map, chars)
-    set({ characters: { ...next, loaded } })
+    set({ chatChars: { list: chars, map: toMap(chars) } })
   })
 
   return {
@@ -112,11 +114,12 @@ export const characterStore = createStore<CharacterState>(
         return toastStore.error('Failed to retrieve characters')
       }
 
+      const next = receiveChars(state.characters.map, res.result.characters)
+
       if (res.result && state.impersonating) {
         return {
           characters: {
-            list: res.result.characters,
-            map: toCharacterMap(res.result.characters),
+            ...next,
             loaded: true,
           },
         }
@@ -128,8 +131,7 @@ export const characterStore = createStore<CharacterState>(
 
         return {
           characters: {
-            list: res.result.characters,
-            map: toCharacterMap(res.result.characters),
+            ...next,
             loaded: true,
           },
           impersonating,
@@ -175,6 +177,7 @@ export const characterStore = createStore<CharacterState>(
 
       if (res.error) toastStore.error(`Failed to create character: ${res.error}`)
       if (res.result) {
+        events.emit(EVENTS.charUpdated, res.result)
         toastStore.success(`Successfully updated character`)
         yield {
           characters: {
@@ -258,17 +261,29 @@ export const characterStore = createStore<CharacterState>(
     async *generateAvatar(
       { generate: prev },
       user: AppSchema.User,
-      persona: AppSchema.Persona | string
+      persona: AppSchema.Persona | string,
+      onDone?: (err: any, image?: string) => void
     ) {
       try {
-        const prompt =
-          typeof persona === 'string' ? persona : await createAppearancePrompt(user, { persona })
+        let prompt =
+          typeof persona === 'string'
+            ? `full body, ${persona}`
+            : await createAppearancePrompt(user, { persona })
+
+        prompt = prompt
+          .replace(/\n+/g, ', ')
+          .replace(/\./g, ',')
+          .replace(/,+/g, ', ')
+          .replace(/\s+/g, ' ')
         yield { generate: { image: null, loading: true, blob: null } }
         const res = await imageApi.generateImageWithPrompt(prompt, async (image) => {
           const file = await dataURLtoFile(image)
+          const data = await getImageData(file)
+          onDone?.(null, data)
           set({ generate: { image, loading: false, blob: file } })
         })
         if (res.error) {
+          onDone?.(res.error)
           yield { generate: { image: prev.image, loading: false, blob: prev.blob } }
         }
       } catch (ex: any) {
@@ -328,7 +343,7 @@ function receiveChars(
   current: Record<string, AppSchema.Character>,
   received: AppSchema.Character[]
 ) {
-  const next: Record<string, AppSchema.Character> = { ...current }
+  const next: Record<string, AppSchema.Character> = Object.assign({}, current)
   for (const char of received) {
     next[char._id] = char
   }

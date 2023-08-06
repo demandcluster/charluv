@@ -16,13 +16,12 @@ import {
 import OpenAISettings from './components/OpenAISettings'
 import ScaleSettings from './components/ScaleSettings'
 import NovelAISettings from './components/NovelAISettings'
-import LuminAISettings from './components/LuminAISettings'
 import KoboldAISettings from './components/KoboldAISettings'
 import OobaAISettings from './components/OobaAISettings'
 import ClaudeSettings from './components/ClaudeSettings'
 import { AutoPreset, getPresetOptions } from '../../shared/adapter'
 import RegisteredSettings from './components/RegisteredSettings'
-import { useSearchParams } from '@solidjs/router'
+import { A, useSearchParams } from '@solidjs/router'
 import { Toggle } from '/web/shared/Toggle'
 import OpenRouterOauth from './OpenRouterOauth'
 import { TitleCard } from '/web/shared/Card'
@@ -78,14 +77,22 @@ const AISettings: Component<{
           value={state.user?.defaultPreset || ''}
         />
 
-        <Show when={cfg.flags.pipeline}>
-          <Toggle
-            fieldName="useLocalPipeline"
-            label="Use Local Pipeline"
-            helperText="If available, use local Agnaistic pipeline features (summarization for images). This is extremely new and experimental. Expect this to change and improve in the near future."
-            value={state.user?.useLocalPipeline}
-          />
-        </Show>
+        <Toggle
+          fieldName="useLocalPipeline"
+          label="Use Local Pipeline"
+          helperText={
+            <>
+              <A class="link" href="/guides/pipeline">
+                Pipeline Guide.
+              </A>
+              &nbsp;If available, use local Agnaistic pipeline features (summarization for images).
+              This is extremely new and experimental. Expect this to change and improve in the near
+              future.
+              <span></span>
+            </>
+          }
+          value={state.user?.useLocalPipeline}
+        />
 
         <div class="my-2">
           <Tabs tabs={tabs()} selected={tab} select={setTab} />
@@ -117,10 +124,6 @@ const AISettings: Component<{
 
       <div class={currentTab() === 'novel' ? tabClass : 'hidden'}>
         <NovelAISettings />
-      </div>
-
-      <div class={currentTab() === 'luminai' ? tabClass : 'hidden'}>
-        <LuminAISettings />
       </div>
 
       <div class={currentTab() === 'claude' ? tabClass : 'hidden'}>

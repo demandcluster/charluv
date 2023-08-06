@@ -116,36 +116,90 @@ export const updateUI = handle(async ({ userId, body }) => {
   return { success: true }
 })
 
-export const updateConfig = handle(async ({ userId, body }) => {
+const validConfig = {
+  novelApiKey: 'string?',
+  novelModel: 'string?',
+  koboldUrl: 'string?',
+  useLocalPipeline: 'boolean?',
+  thirdPartyFormat: 'string?',
+  thirdPartyPassword: 'string?',
+  hordeUseTrusted: 'boolean?',
+  oobaUrl: 'string?',
+  hordeApiKey: 'string?',
+  hordeKey: 'string?',
+  hordeModel: 'string?',
+  hordeModels: ['string?'],
+  hordeWorkers: ['string'],
+  oaiKey: 'string?',
+  scaleUrl: 'string?',
+  scaleApiKey: 'string?',
+  claudeApiKey: 'string?',
+  elevenLabsApiKey: 'string?',
+  speechtotext: 'any?',
+  texttospeech: 'any?',
+  images: 'any?',
+  defaultPreset: 'string?',
+  adapterConfig: 'any?',
+} as const
+
+/**
+ * Just for updating keys at the moment
+ */
+export const updatePartialConfig = handle(async ({ userId, body }) => {
   assertValid(
     {
       novelApiKey: 'string?',
-      novelModel: 'string?',
-      koboldUrl: 'string?',
-      useLocalPipeline: 'boolean?',
-      thirdPartyFormat: 'string?',
       thirdPartyPassword: 'string?',
-      hordeUseTrusted: 'boolean?',
-      oobaUrl: 'string?',
-      hordeApiKey: 'string?',
       hordeKey: 'string?',
-      hordeModel: 'string?',
-      hordeModels: ['string?'],
-      luminaiUrl: 'string?',
-      hordeWorkers: ['string'],
       oaiKey: 'string?',
-      scaleUrl: 'string?',
       scaleApiKey: 'string?',
       claudeApiKey: 'string?',
       elevenLabsApiKey: 'string?',
-      speechtotext: 'any?',
-      texttospeech: 'any?',
-      images: 'any?',
-      defaultPreset: 'string?',
-      adapterConfig: 'any?',
     },
     body
   )
+
+  const update: Partial<AppSchema.User> = {}
+
+  if (body.novelApiKey) {
+    await verifyNovelKey(body.novelApiKey)
+    update.novelVerified = true
+    update.novelApiKey = encryptText(body.novelApiKey)
+  }
+
+  if (body.hordeKey) {
+    const username = await verifyHordeKey(body.hordeKey)
+    update.hordeName = username
+    update.hordeKey = encryptText(body.hordeKey)
+  }
+
+  if (body.oaiKey) {
+    update.oaiKey = encryptText(body.oaiKey)
+  }
+
+  if (body.scaleApiKey) {
+    update.scaleApiKey = encryptText(body.scaleApiKey)
+  }
+
+  if (body.claudeApiKey) {
+    update.claudeApiKey = encryptText(body.claudeApiKey)
+  }
+
+  if (body.elevenLabsApiKey) {
+    update.elevenLabsApiKey = encryptText(body.elevenLabsApiKey)
+  }
+
+  if (body.thirdPartyPassword) {
+    update.thirdPartyPassword = encryptText(body.thirdPartyPassword)
+  }
+
+  await store.users.updateUser(userId, update)
+  const next = await getSafeUserConfig(userId)
+  return next
+})
+
+export const updateConfig = handle(async ({ userId, body }) => {
+  assertValid(validConfig, body)
 
   const prevUser = await store.users.getUser(userId!)
   if (!prevUser) {
@@ -167,11 +221,8 @@ export const updateConfig = handle(async ({ userId, body }) => {
       body.hordeKey !== '' && body.hordeKey !== HORDE_GUEST_KEY && body.hordeKey !== prevKey
 
     if (isNewKey) {
-      const user = await findUser(incomingKey).catch(() => null)
-      if (!user) {
-        throw new StatusError('Cannot set Horde API Key: Could not validate API key', 400)
-      }
-      update.hordeName = user.result?.username
+      const user = await verifyHordeKey(incomingKey)
+      update.hordeName = user
     }
 
     update.hordeKey = encryptText(incomingKey)
@@ -194,7 +245,6 @@ export const updateConfig = handle(async ({ userId, body }) => {
 
   const validOobaUrl = await verifyOobaUrl(prevUser, body.oobaUrl)
   if (validOobaUrl !== undefined) update.oobaUrl = validOobaUrl
-  if (body.luminaiUrl !== undefined) update.luminaiUrl = body.luminaiUrl
 
   if (body.images) {
     update.images = body.images
@@ -303,7 +353,7 @@ export const updateProfile = handle(async (req) => {
 
 async function verifyKobldUrl(user: AppSchema.User, incomingUrl?: string) {
   if (!incomingUrl) return incomingUrl
-  if (user.koboldUrl === incomingUrl) return
+  if (user.koboldUrl === incomingUrl) return incomingUrl
 
   const url = incomingUrl.match(/(http(s{0,1})\:\/\/)([a-z0-9\.\-]+)(\:[0-9]+){0,1}/gm)
   if (!url || !url[0]) {
@@ -337,7 +387,8 @@ async function verifyOobaUrl(user: AppSchema.User, incomingUrl?: string) {
 
   return url[0]
 }
-async function verifyNovelKey(key: string) {
+
+export async function verifyNovelKey(key: string) {
   const res = await needle('get', `${NOVEL_BASEURL}/user/data`, {
     headers: { Authorization: `Bearer ${key}` },
     json: true,
@@ -347,50 +398,62 @@ async function verifyNovelKey(key: string) {
   return res.statusCode && res.statusCode <= 400
 }
 
+async function verifyHordeKey(key: string) {
+  const user = await findUser(key).catch(() => null)
+  if (!user) {
+    throw new StatusError('Cannot set Horde API Key: Could not validate API key', 400)
+  }
+  return user.result?.username
+}
+
 export async function getSafeUserConfig(userId: string) {
   const user = await store.users.getUser(userId!)
-  if (user) {
+  if (!user) return
+
+  if (user.novelApiKey) {
     user.novelApiKey = ''
-    user.hordeKey = ''
+  }
 
-    if (user.oaiKey) {
-      user.oaiKeySet = true
-      user.oaiKey = ''
-    }
+  user.hordeKey = ''
 
-    if (user.scaleApiKey) {
-      user.scaleApiKeySet = true
-      user.scaleApiKey = ''
-    }
+  if (user.oaiKey) {
+    user.oaiKeySet = true
+    user.oaiKey = ''
+  }
 
-    if (user.claudeApiKey) {
-      user.claudeApiKey = ''
-      user.claudeApiKeySet = true
-    }
+  if (user.scaleApiKey) {
+    user.scaleApiKeySet = true
+    user.scaleApiKey = ''
+  }
 
-    if (user.thirdPartyPassword) {
-      user.thirdPartyPassword = ''
-      user.thirdPartyPasswordSet = true
-    }
+  if (user.claudeApiKey) {
+    user.claudeApiKey = ''
+    user.claudeApiKeySet = true
+  }
 
-    if (user.elevenLabsApiKey) {
-      user.elevenLabsApiKey = ''
-      user.elevenLabsApiKeySet = true
-    }
+  if (user.thirdPartyPassword) {
+    user.thirdPartyPassword = ''
+    user.thirdPartyPasswordSet = true
+  }
 
-    for (const svc of getRegisteredAdapters()) {
-      if (!user.adapterConfig) break
-      if (!user.adapterConfig[svc.name]) continue
+  if (user.elevenLabsApiKey) {
+    user.elevenLabsApiKey = ''
+    user.elevenLabsApiKeySet = true
+  }
 
-      const secrets = svc.settings.filter((opt) => opt.secret)
+  for (const svc of getRegisteredAdapters()) {
+    if (!user.adapterConfig) break
+    if (!user.adapterConfig[svc.name]) continue
 
-      for (const secret of secrets) {
-        if (user.adapterConfig[svc.name]![secret.field]) {
-          user.adapterConfig[svc.name]![secret.field] = ''
-          user.adapterConfig[svc.name]![secret.field + 'Set'] = true
-        }
+    const secrets = svc.settings.filter((opt) => opt.secret)
+
+    for (const secret of secrets) {
+      if (user.adapterConfig[svc.name]![secret.field]) {
+        user.adapterConfig[svc.name]![secret.field] = ''
+        user.adapterConfig[svc.name]![secret.field + 'Set'] = true
       }
     }
   }
+
   return user
 }

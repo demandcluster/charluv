@@ -7,46 +7,33 @@ import {
   For,
   JSX,
   Match,
-  onCleanup,
   Show,
   Switch,
 } from 'solid-js'
-import { A, useNavigate, useParams } from '@solidjs/router'
-import { ArrowDownLeft, ArrowUpRight, ChevronLeft, Menu } from 'lucide-solid'
+import { A, useNavigate, useParams, useSearchParams } from '@solidjs/router'
+import { ArrowDownLeft, ArrowUpRight, ChevronLeft, Menu, VenetianMask } from 'lucide-solid'
 import ChatExport from './ChatExport'
 import { ADAPTER_LABELS } from '../../../common/adapters'
 import Button from '../../shared/Button'
 import { CharacterPill } from '../../shared/CharacterPill'
-import Modal from '../../shared/Modal'
-import { getAssetUrl, getMaxChatWidth, setComponentPageTitle } from '../../shared/util'
+import { getMaxChatWidth, setComponentPageTitle } from '../../shared/util'
 import { characterStore, ChatRightPane, chatStore, settingStore, userStore } from '../../store'
 import { msgStore } from '../../store'
-import { ChatGenSettings } from './ChatGenSettings'
-import ChatSettingsModal from './ChatSettings'
 import InputBar from './components/InputBar'
 import ChatMemoryModal from './components/MemoryModal'
 import Message from './components/Message'
 import PromptModal from './components/PromptModal'
 import DeleteMsgModal from './DeleteMsgModal'
 import { DropMenu } from '../../shared/DropMenu'
-import UISettings from '../Settings/UISettings'
 import { devCycleAvatarSettings, isDevCommand } from './dev-util'
 import ChatOptions, { ChatModal } from './ChatOptions'
-import MemberModal from './MemberModal'
-import { AppSchema } from '../../../common/types/schema'
-import { ImageModal } from './ImageModal'
 import { getClientPreset } from '../../shared/adapter'
 import ForcePresetModal from './ForcePreset'
 import DeleteChatModal from './components/DeleteChat'
-import { cycleArray, wait } from '/common/util'
+import { cycleArray } from '/common/util'
 import { HOLDERS } from '/common/prompt'
-import UpdateGaslightToUseSystemPromptModal from './UpdateGaslightToUseSystemPromptModal'
 import { getActiveBots, canConvertGaslightV2 } from './util'
-import { CreateCharacterForm } from '../Character/CreateCharacterForm'
-import { usePane } from '/web/shared/hooks'
-import CharacterSelect from '/web/shared/CharacterSelect'
-import Loading from '/web/shared/Loading'
-import Convertible from './Convertible'
+import { usePane, useResizeObserver } from '/web/shared/hooks'
 import {
   emptyMsg,
   getChatWidth,
@@ -59,13 +46,17 @@ import { useAutoExpression } from '/web/shared/Avatar/hooks'
 import { useChatAvatars } from './components/ChatAvatar'
 import AvatarContainer from '/web/shared/Avatar/Container'
 import { eventStore } from '/web/store/event'
+import Slot from '/web/shared/Slot'
+import ChatPanes from './components/ChatPanes'
 
 const ChatDetail: Component = () => {
   const { updateTitle } = setComponentPageTitle('Chat')
 
   let container: HTMLDivElement
+  let slotContainer: HTMLDivElement
 
   const params = useParams()
+  const [, setSearch] = useSearchParams()
   const nav = useNavigate()
   const user = userStore()
   const cfg = settingStore()
@@ -74,7 +65,9 @@ const ChatDetail: Component = () => {
     botMap: s.characters.map,
     impersonate: s.impersonating,
   }))
+
   const isPaneOrPopup = usePane()
+  const slots = useResizeObserver()
 
   const chats = chatStore((s) => ({
     ...(s.active?.chat._id === params.id ? s.active : undefined),
@@ -83,6 +76,7 @@ const ChatDetail: Component = () => {
     loaded: s.loaded,
     opts: s.opts,
     activeBots: getActiveBots(s.active?.chat!, chars.botMap),
+    tempBots: Object.values(s.active?.chat?.tempCharacters! || {}),
   }))
 
   const msgs = msgStore((s) => ({
@@ -95,7 +89,6 @@ const ChatDetail: Component = () => {
     retrying: s.retrying,
     inference: s.lastInference,
   }))
-  let connectEventProcessed = false
 
   const isGroupChat = createMemo(() => {
     if (!chats.participantIds?.length) return false
@@ -125,6 +118,7 @@ const ChatDetail: Component = () => {
   const botGreeting = createMemo(() => chats.char?.greeting || '')
   const altGreetings = createMemo(() => chats.char?.alternateGreetings ?? [])
 
+  let [evented, setEvented] = createSignal(false)
   const retries = createMemo(() => {
     const last = msgs.msgs.slice(-1)[0]
     if (!last && !isGreetingOnlyMsg()) return
@@ -133,39 +127,10 @@ const ChatDetail: Component = () => {
   })
 
   const [swipe, setSwipe] = createSignal(0)
-  const [paneFooter, setPaneFooter] = createSignal<JSX.Element>()
   const [removeId, setRemoveId] = createSignal('')
   const [showOpts, setShowOpts] = createSignal(false)
   const [ooc, setOoc] = createSignal<boolean>()
-  const [editId, setEditId] = createSignal('')
   const [showHiddenEvents, setShowHiddenEvents] = createSignal(false)
-
-  createEffect(() => {
-    setEditId(chats.char?._id ?? '')
-  })
-
-  const editableCharcters = createMemo(() => {
-    const ids = new Map<string, AppSchema.Character>()
-
-    if (chats.char) {
-      ids.set(chats.char._id, chats.char)
-    }
-
-    if (chars.impersonate) {
-      ids.set(chars.impersonate._id, chars.impersonate)
-    }
-
-    for (const bot of chats.activeBots) {
-      ids.set(bot._id, bot)
-    }
-
-    const editable = Array.from(ids.values())
-    return editable
-  })
-
-  const charBeingEdited = createMemo(() => {
-    return chars.chatBots.find((ch) => ch._id === editId())
-  })
 
   const chatMsgs = createMemo(() => {
     const messages = msgs.msgs
@@ -180,10 +145,12 @@ const ChatDetail: Component = () => {
 
   createEffect(() => {
     // On Connect Events
-    if (connectEventProcessed || !chats.chat || !chats.char) return
-    connectEventProcessed = true
+    if (evented() || !chats.chat || !chats.char) return
+    setEvented(true)
+
     const messages = msgs.msgs
-    if (messages.length === 0) {
+    const isNonEvent = !msgs.msgs[0]?.event
+    if (isNonEvent && messages.length <= 1) {
       eventStore.onGreeting(chats.chat)
     } else {
       eventStore.onChatOpened(chats.chat, new Date(messages[messages.length - 1].createdAt))
@@ -234,15 +201,7 @@ const ChatDetail: Component = () => {
   const togglePane = (paneType: ChatRightPane) => {
     setShowOpts(false)
     chatStore.option('pane', chats.opts.pane === paneType ? undefined : paneType)
-  }
-
-  const closePane = () => {
-    chatStore.option('pane', undefined)
-  }
-
-  const closeCharEditor = () => {
-    closePane()
-    setEditId(chats.char?._id || '')
+    setSearch({ pane: paneType })
   }
 
   const clickSwipe = (dir: -1 | 1) => () => {
@@ -303,16 +262,6 @@ const ChatDetail: Component = () => {
     }
   })
 
-  const changeEditingChar = async (char: AppSchema.Character | undefined) => {
-    const prev = editId()
-    if (prev === char?._id) return
-
-    setEditId('')
-    if (!char) return
-    await wait(0.2)
-    setEditId(char._id)
-  }
-
   createEffect(() => {
     if (isGreetingOnlyMsg() && botGreeting() && altGreetings().length > 0) {
       const currentChoice = msgs.msgs[0].msg
@@ -337,10 +286,6 @@ const ChatDetail: Component = () => {
     }
   })
 
-  onCleanup(() => {
-    closeCharEditor()
-  })
-
   const sendMessage = (message: string, ooc: boolean, onSuccess?: () => void) => {
     if (isDevCommand(message)) {
       switch (message) {
@@ -355,11 +300,11 @@ const ChatDetail: Component = () => {
     }
 
     // If the number of active bots is 1 or fewer then always request a response
-    const botMembers = Object.entries(chats.chat?.characters || {}).reduce(
-      (prev, [id, active]) => (active && id !== chats.chat?.characterId ? prev + 1 : prev),
-      0
-    )
-    const kind = ooc ? 'ooc' : chats.replyAs || botMembers === 0 ? 'send' : 'send-noreply'
+    const kind = ooc
+      ? 'ooc'
+      : chats.replyAs || chats.activeBots.length <= 1
+      ? 'send'
+      : 'send-noreply'
     if (!ooc) setSwipe(0)
     msgStore.send(chats.chat?._id!, message, kind, onSuccess)
     return
@@ -425,7 +370,7 @@ const ChatDetail: Component = () => {
               class={`hidden h-9 items-center  justify-between rounded-md sm:flex`}
               style={headerBg()}
             >
-              <Show when={!cfg.fullscreen && isOwner()}>
+              <Show when={isOwner()}>
                 <A
                   class="ellipsis flex max-w-full cursor-pointer flex-row items-center justify-between gap-4 text-lg font-bold"
                   href={`/character/${chats.char?._id}/chats`}
@@ -463,6 +408,7 @@ const ChatDetail: Component = () => {
                       adapterLabel={adapterLabel()}
                       setModal={setModal}
                       togglePane={togglePane}
+                      close={() => setShowOpts(false)}
                     />
                   </DropMenu>
                 </div>
@@ -486,6 +432,20 @@ const ChatDetail: Component = () => {
               style={contentStyles()}
             >
               <section class="flex h-full w-full flex-col justify-end gap-2">
+                <div
+                  ref={(ref) => {
+                    slotContainer = ref
+                    slots.load(ref)
+                  }}
+                  class="sticky top-0 flex h-fit w-full justify-center"
+                >
+                  <Switch>
+                    <Match when={slots.size().w === 0}>{null}</Match>
+                    <Match when={slotContainer!}>
+                      <Slot sticky="always" slot="content" parent={slotContainer!} />
+                    </Match>
+                  </Switch>
+                </div>
                 <Show when={user.ui.viewMode === 'split'}>
                   <section
                     data-avatar-container
@@ -503,7 +463,7 @@ const ChatDetail: Component = () => {
                     <Show when={chats.char?.visualType !== 'sprite' && chats.char?.avatar}>
                       <div class="flex h-full w-full justify-center">
                         <img
-                          src={getAssetUrl(chats.char?.avatar!)}
+                          src={chats.char?.avatar!}
                           class="flex h-full justify-center rounded-lg object-cover"
                         />
                       </div>
@@ -512,7 +472,7 @@ const ChatDetail: Component = () => {
                 </Show>
                 <section
                   data-messages
-                  class={`flex flex-col-reverse gap-4 overflow-y-auto ${msgsMaxWidth()} w-full`}
+                  class={`mx-auto flex flex-col-reverse gap-4 overflow-y-auto ${msgsMaxWidth()} w-full`}
                 >
                   <div id="chat-messages" class="flex w-full flex-col gap-2">
                     <Show when={chats.loaded && chatMsgs().length < 2 && chats.char?.description}>
@@ -528,6 +488,7 @@ const ChatDetail: Component = () => {
                         <Button onClick={generateFirst}>Generate Message</Button>
                       </div>
                     </Show>
+                    {/* Original Slot location */}
                     <InfiniteScroll />
                     <For each={chatMsgs()}>
                       {(msg, i) => (
@@ -575,70 +536,26 @@ const ChatDetail: Component = () => {
                 </section>
               </section>
 
-              <Show when={!!chats.opts.pane}>
-                <Switch>
-                  <Match when={chats.opts.pane === 'character'}>
-                    <Convertible
-                      kind="partial"
-                      title="Edit Character"
-                      close={closeCharEditor}
-                      footer={paneFooter()}
-                    >
-                      <Show when={editId() !== ''}>
-                        <CreateCharacterForm
-                          chat={chats.chat}
-                          editId={editId()}
-                          footer={setPaneFooter}
-                          close={closeCharEditor}
-                        >
-                          <Show when={editableCharcters().length > 1}>
-                            <CharacterSelect
-                              class="w-full"
-                              fieldName="editingId"
-                              items={editableCharcters()}
-                              value={charBeingEdited()}
-                              onChange={changeEditingChar}
-                            />
-                          </Show>
-                        </CreateCharacterForm>
-                      </Show>
-
-                      <Show when={editId() === ''}>
-                        <div class="flex h-full w-full items-center justify-center">
-                          <Loading />
-                        </div>
-                      </Show>
-                    </Convertible>
-                  </Match>
-
-                  <Match when={chats.opts.pane === 'preset'}>
-                    <Convertible
-                      kind="partial"
-                      title={'Preset Settings'}
-                      close={closePane}
-                      footer={paneFooter()}
-                    >
-                      <ChatGenSettings
-                        chat={chats.chat!}
-                        close={closePane}
-                        footer={setPaneFooter}
-                      />
-                    </Convertible>
-                  </Match>
-                </Switch>
-              </Show>
+              <ChatPanes setShowOpts={setShowOpts} />
             </section>
             <Show when={isSelfRemoved()}>
               <div class="flex w-full justify-center">
                 You have been removed from the conversation
               </div>
             </Show>
-            <Show when={isOwner() && chats.activeBots.length > 1}>
+            <Show when={isOwner() && (chats.activeBots.length > 1 || chats.tempBots.length > 0)}>
               <div
                 class={`flex justify-center gap-2 overflow-x-auto py-1 ${
                   msgs.waiting ? 'opacity-70 saturate-0' : ''
                 }`}
               >
+                <Button
+                  size="md"
+                  schema="bordered"
+                  onClick={() => settingStore.toggleImpersonate(true)}
+                >
+                  <VenetianMask size={16} />
+                </Button>
                 <For each={chats.activeBots}>
                   {(bot) => (
                     <CharacterPill
@@ -668,10 +585,6 @@ const ChatDetail: Component = () => {
         </main>
       </Show>
 
-      <Show when={chats.opts.modal === 'settings'}>
-        <ChatSettingsModal show={true} close={clearModal} />
-      </Show>
-
       <Show when={chats.opts.modal === 'memory'}>
         <ChatMemoryModal chat={chats.chat!} show={!!chats.chat} close={clearModal} />
       </Show>
@@ -688,29 +601,18 @@ const ChatDetail: Component = () => {
         <DeleteMsgModal show={!!removeId()} messageId={removeId()} close={() => setRemoveId('')} />
       </Show>
 
-      <Show when={chats.opts.modal === 'members'}>
-        <MemberModal show={true} close={clearModal} charId={chats?.char?._id!} />
+      <Show
+        when={
+          chats.chat &&
+          !chats.chat.genPreset &&
+          !chats.chat.genSettings &&
+          !user.user?.defaultPreset
+        }
+      >
+        <ForcePresetModal chat={chats.chat!} show={true} close={() => {}} />
       </Show>
-
-      <UpdateGaslightToUseSystemPromptModal
-        chat={chats.chat!}
-        show={chats.opts.modal === 'updateGaslightToUseSystemPrompt'}
-        close={clearModal}
-      />
-
-      <ImageModal />
 
       <PromptModal />
-      <Show when={chats.opts.modal === 'ui'}>
-        <Modal
-          show={true}
-          close={clearModal}
-          title="UI Settings"
-          footer={<Button onClick={clearModal}>Close</Button>}
-        >
-          <UISettings />
-        </Modal>
-      </Show>
     </>
   )
 }

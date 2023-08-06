@@ -3,13 +3,12 @@ import * as proc from 'child_process'
 import * as path from 'path'
 import * as os from 'os'
 import { mkdirpSync } from 'mkdirp'
-import { copyFileSync, readdirSync } from 'fs'
-
+import { copyFileSync, readdirSync, statSync } from 'fs'
 const argv = require('minimist')(process.argv.slice(2))
-const folders = getFolders()
 
 const pkg = require('../package.json')
 
+const folders = getFolders()
 const options: string[] = []
 
 const disableJson = flag(
@@ -21,12 +20,9 @@ const disableJson = flag(
 const debug = flag(`Enable debug logging. This will print payloads sent to the AI`, 'd', 'debug')
 const port = flag(`Choose the port to run the server on. Default: 3001`, 'p', 'port')
 
-/**
- * These are disabled until they are ready for release
- */
-const summarizer = false ?? flag(`Run the summarizer pipeline feature`, 's', 'summary')
-const memory = false ?? flag(`Run the long-term memory pipeline feature`, 'm', 'memory')
-const pipeline = false ?? flag('Enable all pipeline features', 'pipeline')
+const all = flag('Run Agnaistic and the Pipeline API', 'a', 'all')
+const pipeline = flag('Run the Pipeline API only', 'pipeline')
+const tunnel = flag('Expose your Agnai server using LocalTunnel', 't', 'tunnel')
 
 if (argv.help || argv.h) {
   help()
@@ -41,7 +37,6 @@ const jsonLocation = flag(
   'f',
   'files'
 )
-
 const assets = flag(
   `Provide a location for the assets (images) folder. Defaults to: ${folders.assets}`,
   'a',
@@ -110,9 +105,18 @@ function help(code = 0) {
   process.exit(code)
 }
 
-require('./start')
+start()
 
-runPipeline()
+async function start() {
+  if (tunnel) {
+    process.env.PUBLIC_TUNNEL = 'true'
+  }
+  const runApi = all || !pipeline
+  const runPipeline = all || pipeline
+
+  if (runPipeline) await startPipeline()
+  if (runApi) require('./start')
+}
 
 function getFolders() {
   const home = path.resolve(os.homedir(), '.agnai')
@@ -174,23 +178,14 @@ function getFileList(dir: string) {
   }
 }
 
-function pathExists(path: string) {
-  try {
-    readdirSync(path)
-    return true
-  } catch (ex) {
-    return false
-  }
-}
-
-async function runPipeline() {
-  if (!pipeline || !memory || !summarizer) return
+async function startPipeline() {
+  process.env.PIPELINE_PROXY = 'true'
 
   const pip = path.resolve(folders.pipeline, 'bin/pip')
   const poetry = path.resolve(folders.pipeline, 'bin/poetry')
-  const pipelineExists = pathExists(folders.pipeline)
+  const poetryExists = fileExists(poetry)
 
-  if (!pipelineExists) {
+  if (!poetryExists) {
     console.log('Installing pipeline features... This may take some time')
     await execAsync(`python3 -m venv ${folders.pipeline}`)
     await execAsync(`${pip} install poetry==1.4.1`)
@@ -200,8 +195,8 @@ async function runPipeline() {
   // await execAsync(`${poetry} show`)
   await execAsync(`${poetry} install --no-interaction --no-ansi`)
 
-  console.log('starting API...')
-  execAsync(`${poetry} run python -m flask --app ${folders.root}/model/app.py run -p 5001`)
+  console.log('Starting Pipeline API...')
+  execAsync(`${poetry} run python ${folders.root}/model/app.py`)
 }
 
 async function execAsync(command: string) {
@@ -223,4 +218,14 @@ async function execAsync(command: string) {
       else resolve(code)
     })
   })
+}
+
+function fileExists(file: string) {
+  try {
+    const stat = statSync(file)
+    stat.isFile()
+    return true
+  } catch (ex) {
+    return false
+  }
 }

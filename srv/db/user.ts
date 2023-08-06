@@ -115,9 +115,8 @@ export async function createUser(newUser: NewUser, admin?: boolean) {
     defaultAdapter: 'horde',
     koboldUrl: '',
     thirdPartyFormat: 'kobold',
-    novelModel: NOVEL_MODELS.euterpe,
     thirdPartyPassword: '',
-    luminaiUrl: '',
+    novelModel: NOVEL_MODELS.euterpe,
     oobaUrl: '',
     hordeModel: 'any',
     hordeKey: '',
@@ -161,6 +160,26 @@ export async function createAccessToken(username: string, user: AppSchema.User) 
   const token = jwt.sign(payload, config.jwtSecret, {
     expiresIn: config.jwtExpiry,
   })
+  return token
+}
+
+export async function createRemoteAccessToken(username: string, user: AppSchema.User) {
+  const payload: Omit<AppSchema.Token, 'iat' | 'exp'> = {
+    userId: user._id,
+    username,
+    premium: !!user.premium,
+    admin: !!user.admin,
+  }
+
+  const key = getKey()
+  if (key.type !== 'pem') {
+    throw new StatusError('Unable to sign external JWTs', 500)
+  }
+
+  const token = jwt.sign(payload, key.key, {
+    algorithm: 'RS256',
+    expiresIn: config.jwtExpiry,
+  })
 
   return token
 }
@@ -170,4 +189,34 @@ export async function getProfiles(ownerId: string, userIds: string[]) {
     .find({ kind: 'profile', userId: { $in: userIds.concat(ownerId) } })
     .toArray()
   return list
+}
+
+function getKey() {
+  if (config.jwtPrivateKey) {
+    return {
+      type: 'pem',
+      key: config.jwtPrivateKey,
+    } as const
+  }
+
+  return {
+    type: 'sig',
+    key: config.jwtSecret,
+  } as const
+}
+
+export function verifyJwt(token: string): any {
+  try {
+    const payload = jwt.verify(token, config.jwtSecret)
+    return payload
+  } catch (ex) {}
+
+  if (config.jwtPrivateKey) {
+    try {
+      const payload = jwt.verify(token, config.jwtPrivateKey)
+      return payload
+    } catch (ex) {}
+  }
+
+  throw errors.Unauthorized
 }

@@ -1,4 +1,14 @@
-import { Component, createMemo, createSignal, For, JSX, Show } from 'solid-js'
+import Sorter from 'sortablejs'
+import {
+  Component,
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  JSX,
+  onMount,
+  Show,
+} from 'solid-js'
 import RangeInput from './RangeInput'
 import TextInput from './TextInput'
 import Select, { Option } from './Select'
@@ -11,17 +21,22 @@ import {
   AIAdapter,
   NOVEL_MODELS,
   REPLICATE_MODEL_TYPES,
-  OPENAI_CHAT_MODELS,
+  samplerOrders,
+  settingLabels,
 } from '../../common/adapters'
 import Divider from './Divider'
 import { Toggle } from './Toggle'
 import { Check, X } from 'lucide-solid'
-import { settingStore } from '../store'
+import { presetStore, settingStore } from '../store'
 import PromptEditor from './PromptEditor'
 import { Card } from './Card'
 import { FormLabel } from './FormLabel'
 import { serviceHasSetting } from './util'
 import { createStore } from 'solid-js/store'
+import { defaultTemplate } from '/common/templates'
+import Sortable, { SortItem } from './Sortable'
+import { HordeDetails } from '../pages/Settings/components/HordeAISettings'
+import Button from './Button'
 
 type Props = {
   inherit?: Partial<AppSchema.GenSettings>
@@ -82,7 +97,7 @@ const GenerationSettings: Component<Props> = (props) => {
 export default GenerationSettings
 
 export function CreateTooltip(adapters: string[] | readonly string[]): JSX.Element {
-  const allAdapaters = ['kobold', 'novel', 'ooba', 'horde', 'luminai', 'openai', 'scale']
+  const allAdapaters = ['kobold', 'novel', 'ooba', 'horde', 'openai', 'scale']
   return (
     <div>
       <For each={allAdapaters}>
@@ -108,11 +123,33 @@ export function CreateTooltip(adapters: string[] | readonly string[]): JSX.Eleme
 
 const GeneralSettings: Component<Props> = (props) => {
   const cfg = settingStore()
+  const presets = presetStore()
 
   const [replicate, setReplicate] = createStore({
     model: props.inherit?.replicateModelName,
     type: props.inherit?.replicateModelType,
     version: props.inherit?.replicateModelVersion,
+  })
+
+  const [tokens, setTokens] = createSignal(
+    props.inherit?.maxTokens || defaultPresets.basic.maxTokens
+  )
+
+  const [context, setContext] = createSignal(
+    props.inherit?.maxContextLength || defaultPresets.basic.maxContextLength
+  )
+
+  const openRouterModels = createMemo(() => {
+    if (!presets.openRouterModels) return []
+
+    const options = presets.openRouterModels.map((model) => ({
+      value: model.id,
+      label: model.id,
+    }))
+
+    options.unshift({ label: 'Default', value: '' })
+
+    return options
   })
 
   const replicateModels = createMemo(() => {
@@ -127,11 +164,74 @@ const GeneralSettings: Component<Props> = (props) => {
     return options
   })
 
+  const novelModels = createMemo(() => {
+    const base = modelsToItems(NOVEL_MODELS)
+      .map(({ value }) => ({ label: value, value }))
+      .concat({ value: '', label: 'Use service default' })
+
+    const match = base.find((b) => b.value === props.inherit?.novelModel)
+    const model = props.inherit?.novelModel || ''
+    if (model.length > 0 && !match) {
+      base.push({ value: model, label: `Custom (${model})` })
+    }
+
+    return base
+  })
+
+  onMount(() => {
+    presetStore.getOpenRouterModels()
+  })
+
   return (
     <div class="flex flex-col gap-2">
       <div class="text-xl font-bold">General Settings</div>
 
-      <Card class="flex flex-wrap gap-5">
+      <Show when={props.service === 'horde'}>
+        <Card>
+          <HordeDetails maxTokens={tokens()} maxContextLength={context()} />
+        </Card>
+      </Show>
+
+      <Card hide={!serviceHasSetting(props.service, 'thirdPartyUrl')}>
+        <TextInput
+          fieldName="thirdPartyUrl"
+          label="Third Party URL"
+          helperText="Typically a Kobold, Ooba, or other URL"
+          value={props.inherit?.thirdPartyUrl || ''}
+          disabled={props.disabled}
+          service={props.service}
+          aiSetting={'thirdPartyUrl'}
+        />
+
+        <Select
+          fieldName="thirdPartyFormat"
+          label="Kobold / 3rd-party Format"
+          helperText="Re-formats the prompt to the desired output format."
+          items={[
+            { label: 'None', value: '' },
+            { label: 'Kobold/Ooba', value: 'kobold' },
+            { label: 'OpenAI', value: 'openai' },
+            { label: 'Claude', value: 'claude' },
+          ]}
+          value={props.inherit?.thirdPartyFormat ?? ''}
+          service={props.service}
+          aiSetting={'thirdPartyFormat'}
+        />
+      </Card>
+
+      <Card
+        class="flex flex-wrap gap-5"
+        hide={
+          !serviceHasSetting(
+            props.service,
+            'oaiModel',
+            'openRouterModel',
+            'novelModel',
+            'claudeModel',
+            'replicateModelName'
+          )
+        }
+      >
         <Select
           fieldName="oaiModel"
           label="OpenAI Model"
@@ -144,18 +244,37 @@ const GeneralSettings: Component<Props> = (props) => {
         />
 
         <Select
-          fieldName="novelModel"
-          label="NovelAI Model"
-          items={[
-            ...modelsToItems(NOVEL_MODELS).map(({ value }) => ({ label: value, value })),
-            { value: '', label: 'Use service default' },
-          ]}
-          helperText="Which NovelAI model to use"
-          value={props.inherit?.novelModel || ''}
+          fieldName="openRouterModel"
+          label="OpenRouter Model"
+          items={openRouterModels()}
+          helperText="Which OpenRouter model to use"
+          value={props.inherit?.openRouterModel?.id || ''}
           disabled={props.disabled}
           service={props.service}
-          aiSetting={'novelModel'}
+          aiSetting={'openRouterModel'}
         />
+
+        <div class="flex flex-wrap gap-2">
+          <Select
+            fieldName="novelModel"
+            label="NovelAI Model"
+            items={novelModels()}
+            helperText="Which NovelAI model to use"
+            value={props.inherit?.novelModel || ''}
+            disabled={props.disabled}
+            service={props.service}
+            aiSetting={'novelModel'}
+          />
+          <Show when={cfg.flags.naiModel}>
+            <TextInput
+              fieldName="novelModelOverride"
+              helperText="Advanced: Use a custom NovelAI model"
+              label="NovelAI Model Override"
+              aiSetting={'novelModel'}
+              service={props.service}
+            />
+          </Show>
+        </div>
 
         <Select
           fieldName="claudeModel"
@@ -220,6 +339,7 @@ const GeneralSettings: Component<Props> = (props) => {
           step={1}
           value={props.inherit?.maxTokens || defaultPresets.basic.maxTokens}
           disabled={props.disabled}
+          onChange={(val) => setTokens(val)}
         />
         <RangeInput
           fieldName="maxContextLength"
@@ -247,6 +367,7 @@ const GeneralSettings: Component<Props> = (props) => {
           step={1}
           value={props.inherit?.maxContextLength || defaultPresets.basic.maxContextLength}
           disabled={props.disabled}
+          onChange={(val) => setContext(val)}
         />
       </Card>
       <Card hide={!serviceHasSetting(props.service, 'streamResponse')}>
@@ -268,12 +389,6 @@ function modelsToItems(models: Record<string, string>): Option<string>[] {
 }
 
 const PromptSettings: Component<Props> = (props) => {
-  const cfg = settingStore((cfg) => cfg.flags)
-
-  // Services that use chat completion cannot use the template parser
-  const canUseParser =
-    props.inherit?.service !== 'openai' && (props.inherit?.oaiModel || '') in OPENAI_CHAT_MODELS
-
   return (
     <div class="flex flex-col gap-4">
       <div class="text-xl font-bold">Prompt Settings</div>
@@ -291,6 +406,28 @@ const PromptSettings: Component<Props> = (props) => {
         />
 
         <RangeInput
+          fieldName="memoryChatEmbedLimit"
+          label="Memory: Chat Embedding Context Limit"
+          helperText="If available: The maximum context length (in tokens) for chat history embeddings."
+          min={1}
+          max={10000}
+          step={1}
+          value={props.inherit?.memoryChatEmbedLimit || defaultPresets.basic.memoryContextLimit}
+          disabled={props.disabled}
+        />
+
+        <RangeInput
+          fieldName="memoryUserEmbedLimit"
+          label="Memory: User-specified Embedding Context Limit"
+          helperText="If available: The maximum context length (in tokens) for user-specified embeddings."
+          min={1}
+          max={10000}
+          step={1}
+          value={props.inherit?.memoryUserEmbedLimit || defaultPresets.basic.memoryContextLimit}
+          disabled={props.disabled}
+        />
+
+        <RangeInput
           fieldName="memoryDepth"
           label="Memory: Chat History Depth"
           helperText="How far back in the chat history to look for keywords."
@@ -301,7 +438,21 @@ const PromptSettings: Component<Props> = (props) => {
           disabled={props.disabled}
         />
       </Card>
-      <Card class="flex flex-col gap-4">
+      <Card class="flex flex-col gap-4" hide={!serviceHasSetting(props.service, 'systemPrompt')}>
+        <FormLabel
+          label="System Prompt"
+          helperText="General instructions for how the AI should respond. This will be inserted into your Prompt Template."
+        />
+        <PromptEditor
+          fieldName="systemPrompt"
+          include={['char', 'user']}
+          placeholder="Write {{char}}'s next reply in a fictional chat between {{char}} and {{user}}. Write 1 reply only in internet RP style, italicize actions, and avoid quotation marks. Use markdown. Be proactive, creative, and drive the plot and conversation forward. Write at least 1 paragraph, up to 4. Always stay in character and avoid repetition."
+          value={props.inherit?.systemPrompt ?? ''}
+          disabled={props.disabled}
+        />
+      </Card>
+
+      <Card class="flex flex-col gap-4" hide={!serviceHasSetting(props.service, 'gaslight')}>
         <Toggle
           fieldName="useGaslight"
           label="Use Gaslight"
@@ -319,44 +470,27 @@ const PromptSettings: Component<Props> = (props) => {
           value={props.inherit?.useGaslight ?? false}
           disabled={props.disabled}
           service={props.service}
-          aiSetting={'gaslight'}
         />
       </Card>
-      <Card class="flex flex-col gap-4" hide={!serviceHasSetting(props.service, 'systemPrompt')}>
-        <FormLabel
-          label="System Prompt"
-          helperText="General instructions for how the AI should respond. This will be inserted into your Prompt Template."
-        />
-        <PromptEditor
-          fieldName="systemPrompt"
-          include={['char', 'user']}
-          placeholder="Write {{char}}'s next reply in a fictional chat between {{char}} and {{user}}. Write 1 reply only in internet RP style, italicize actions, and avoid quotation marks. Use markdown. Be proactive, creative, and drive the plot and conversation forward. Write at least 1 paragraph, up to 4. Always stay in character and avoid repetition."
-          value={props.inherit?.systemPrompt ?? ''}
-          disabled={props.disabled}
-          aiSetting="gaslight"
-        />
 
-        <Show when={cfg.parser && canUseParser}>
-          <Toggle
-            fieldName="useTemplateParser"
-            value={props.inherit?.useTemplateParser}
-            label="Use Template Parser (Experimental)"
-          />
-        </Show>
-
+      <Card class="flex flex-col gap-4">
         <PromptEditor
           fieldName="gaslight"
           value={props.inherit?.gaslight}
+          placeholder={defaultTemplate}
           exclude={['post', 'history', 'ujb']}
           disabled={props.disabled}
           showHelp
+          inherit={props.inherit}
+          v2
         />
         <TextInput
           fieldName="ultimeJailbreak"
           label="Jailbreak (UJB) Prompt (GPT-4 / Turbo / Claude)"
           helperText={
             <>
-              (Leave empty to disable)
+              (Typically used for Instruct models like Turbo, GPT-4, and Claude. Leave empty to
+              disable)
               <br /> Ultimate Jailbreak. If this option is enabled, the UJB prompt will sent as a
               system message at the end of the conversation before prompting OpenAI or Claude.
             </>
@@ -367,7 +501,7 @@ const PromptSettings: Component<Props> = (props) => {
           disabled={props.disabled}
           service={props.service}
           class="form-field focusable-field text-900 min-h-[8rem] w-full rounded-xl px-4 py-2 text-sm"
-          aiSetting={'gaslight'}
+          aiSetting={'ultimeJailbreak'}
         />
         <div class="flex flex-wrap gap-4">
           <Toggle
@@ -410,9 +544,12 @@ const PromptSettings: Component<Props> = (props) => {
 }
 
 const GenSettings: Component<Props> = (props) => {
+  const [_useV2, _setV2] = createSignal(props.inherit?.useTemplateParser ?? false)
+
   return (
     <div class="flex flex-col gap-4">
       <div class="text-xl font-bold">Generation Settings</div>
+
       <Card class="flex flex-col gap-4">
         <RangeInput
           fieldName="temp"
@@ -426,6 +563,49 @@ const GenSettings: Component<Props> = (props) => {
           service={props.service}
           aiSetting={'temp'}
         />
+
+        <RangeInput
+          fieldName="cfgScale"
+          label="CFG Scale (Clio only)"
+          helperText={
+            <>
+              Classifier Free Guidance. See{' '}
+              <a href="https://docs.novelai.net/text/cfg.html" target="_blank" class="link">
+                NovelAI's CFG docs
+              </a>{' '}
+              for more information.
+              <br />
+              Set to 1 to disable.
+            </>
+          }
+          min={1}
+          max={3}
+          step={0.05}
+          value={props.inherit?.cfgScale || 1}
+          disabled={props.disabled}
+          service={props.service}
+          aiSetting={'cfgScale'}
+        />
+
+        <TextInput
+          fieldName="cfgOppose"
+          label="CFG Opposing Prompt (Clio only)"
+          helperText={
+            <>
+              A prompt that would generate the opposite of what you want. Leave empty if unsure.
+              Classifier Free Guidance. See{' '}
+              <a href="https://docs.novelai.net/text/cfg.html" target="_blank" class="link">
+                NovelAI's CFG docs
+              </a>{' '}
+              for more information.
+            </>
+          }
+          value={props.inherit?.cfgOppose || ''}
+          disabled={props.disabled}
+          service={props.service}
+          aiSetting={'cfgScale'}
+        />
+
         <RangeInput
           fieldName="topP"
           label="Top P"
@@ -611,7 +791,109 @@ const GenSettings: Component<Props> = (props) => {
           service={props.service}
           aiSetting={'penaltyAlpha'}
         />
+
+        <SamplerOrder service={props.service} inherit={props.inherit} />
       </Card>
+    </div>
+  )
+}
+
+const SamplerOrder: Component<{
+  service?: AIAdapter
+  inherit?: Partial<AppSchema.GenSettings>
+}> = (props) => {
+  const [order, setOrder] = createSignal((props.inherit?.order || []).join(','))
+
+  const [value, setValue] = createSignal(order())
+  const [disabled, setDisabled] = createSignal(props.inherit?.disabledSamplers || [])
+  const [sorter, setSorter] = createSignal<Sorter>()
+
+  createEffect(() => {
+    // Try to detect if the inherited settings change
+    const inherited = (props.inherit?.order || []).join(',')
+    if (inherited !== order()) {
+      setOrder(inherited)
+      setValue(inherited)
+      setDisabled(props.inherit?.disabledSamplers || [])
+      resort()
+    }
+  })
+
+  const updateValue = (next: number[]) => {
+    setValue(next.join(','))
+  }
+
+  const toggleSampler = (id: number) => {
+    if (disabled().includes(id)) {
+      const next = disabled().filter((sampler) => sampler !== id)
+      setDisabled(next)
+      return
+    }
+    const next = disabled().concat(id)
+    setDisabled(next)
+  }
+
+  const items = createMemo(() => {
+    const list: SortItem[] = []
+    if (!props.service) return list
+
+    const order = samplerOrders[props.service]
+    if (!order) return []
+
+    let id = 0
+    for (const item of order) {
+      list.push({
+        id: id++,
+        label: settingLabels[item]!,
+      })
+    }
+
+    return list
+  })
+
+  const resort = () => {
+    const sort = sorter()
+    if (!sort) return
+
+    sort.sort(value().split(','))
+  }
+
+  return (
+    <div classList={{ hidden: items().length === 0 }}>
+      <Sortable
+        label="Sampler Order"
+        items={items()}
+        onChange={updateValue}
+        setSorter={(s) => {
+          setSorter(s)
+          resort()
+        }}
+      />
+
+      <Card hide={props.service !== 'novel'}>
+        <FormLabel
+          fieldName="disabledSamplers"
+          label="Enabled Samplers"
+          helperText="To disable a sampler, toggle it to grey."
+        />
+
+        <div class="flex flex-wrap gap-2">
+          <For each={items()}>
+            {(item) => (
+              <Button
+                size="sm"
+                schema={disabled().includes(+item.id) ? 'secondary' : 'success'}
+                onClick={() => toggleSampler(+item.id)}
+              >
+                {item.label}
+              </Button>
+            )}
+          </For>
+        </div>
+      </Card>
+
+      <TextInput fieldName="order" parentClass="hidden" value={value()} />
+      <TextInput fieldName="disabledSamplers" parentClass="hidden" value={disabled().join(',')} />
     </div>
   )
 }

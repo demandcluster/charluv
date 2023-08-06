@@ -38,7 +38,6 @@ export async function createChatMessage(creating: NewMessage, ephemeral?: boolea
   const doc: AppSchema.ChatMessage = {
     _id: creating._id || v4(),
     kind: 'chat-message',
-    rating: 'none',
     chatId,
     characterId,
     userId: senderId,
@@ -98,7 +97,7 @@ export async function deleteMessages(messageIds: string[]) {
 
 export async function editMessage(
   id: string,
-  update: Pick<AppSchema.ChatMessage, 'msg' | 'actions' | 'adapter' | 'meta'>
+  update: Partial<Pick<AppSchema.ChatMessage, 'msg' | 'actions' | 'adapter' | 'meta' | 'state'>>
 ) {
   const edit: any = { ...update, updatedAt: now() }
 

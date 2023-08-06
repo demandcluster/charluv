@@ -1,9 +1,11 @@
 import { formatCharacter } from './characters'
 import { grammar } from './grammar'
-import { PromptParts } from './prompt'
-import { AppSchema } from '/common/types'
+import { PromptParts, fillPromptWithLines } from './prompt'
+import { AppSchema, Memory } from '/common/types'
 import peggy from 'peggy'
 import { elapsedSince } from './util'
+import { TokenCounter } from './tokenize'
+import { v4 } from 'uuid'
 
 const parser = peggy.generate(grammar.trim(), {
   error: (stage, msg, loc) => {
@@ -11,11 +13,11 @@ const parser = peggy.generate(grammar.trim(), {
   },
 })
 
-type PNode =
-  | { kind: 'placeholder'; value: Holder; pipes?: string[] }
-  | { kind: 'if'; value: Holder; children: PNode[] }
-  | { kind: 'each'; value: IterableHolder; children: CNode[] }
-  | string
+type PNode = PlaceHolder | ConditionNode | IteratorNode | string
+
+type PlaceHolder = { kind: 'placeholder'; value: Holder; values?: any; pipes?: string[] }
+type ConditionNode = { kind: 'if'; value: Holder; values?: any; children: PNode[] }
+type IteratorNode = { kind: 'each'; value: IterableHolder; children: CNode[] }
 
 type CNode =
   | Exclude<PNode, { kind: 'each' }>
@@ -36,28 +38,93 @@ type Holder =
   | 'memory'
   | 'chat_age'
   | 'idle_duration'
+  | 'all_personalities'
+  | 'chat_embed'
+  | 'user_embed'
+  | 'impersonating'
+  | 'system_prompt'
+  | 'random'
+  | 'roll'
+
+type RepeatableHolder = Extract<
+  Holder,
+  'char' | 'user' | 'chat_age' | 'roll' | 'random' | 'idle_duration'
+>
+
+const repeatableHolders = new Set<RepeatableHolder>([
+  'char',
+  'user',
+  'chat_age',
+  'idle_duration',
+  'random',
+  'roll',
+])
 
 type IterableHolder = 'history' | 'bots'
 
 type HistoryProp = 'i' | 'message' | 'dialogue' | 'name' | 'isuser' | 'isbot'
 type BotsProp = 'i' | 'personality' | 'name'
 
-export type ParseOpts = {
-  replyAs: AppSchema.Character
-  members: AppSchema.Profile[]
-  impersonate?: AppSchema.Character
-  parts: PromptParts
+export type TemplateOpts = {
+  parts: Partial<PromptParts>
   chat: AppSchema.Chat
+
   char: AppSchema.Character
-  user: AppSchema.User
-  settings?: Partial<AppSchema.GenSettings>
+  replyAs: AppSchema.Character
+  impersonate?: AppSchema.Character
+  sender: AppSchema.Profile
+
   lines: string[]
   characters: Record<string, AppSchema.Character>
-  sender: AppSchema.Profile
   lastMessage?: string
+
+  chatEmbed?: Memory.UserEmbed<{ name: string }>[]
+  userEmbed?: Memory.UserEmbed[]
+
+  /** If present, history will be rendered last */
+  limit?: {
+    context: number
+    encoder: TokenCounter
+    output?: Record<string, string[]>
+  }
+
+  /**
+   * Only allow repeatable placeholders. Excludes iterators, conditions, and prompt parts.
+   */
+  repeatable?: boolean
 }
 
-export function parseTemplate(template: string, opts: ParseOpts) {
+export function parseTemplate(template: string, opts: TemplateOpts) {
+  if (opts.limit) {
+    opts.limit.output = {}
+  }
+
+  if (opts.parts.systemPrompt) {
+    opts.parts.systemPrompt = render(opts.parts.systemPrompt, opts)
+  }
+
+  if (opts.parts.ujb) {
+    opts.parts.ujb = render(opts.parts.ujb, opts)
+  }
+
+  let output = render(template, opts)
+
+  if (opts.limit && opts.limit.output) {
+    for (const [id, lines] of Object.entries(opts.limit.output)) {
+      const trimmed = fillPromptWithLines(
+        opts.limit.encoder,
+        opts.limit.context,
+        output,
+        lines
+      ).reverse()
+      output = output.replace(id, trimmed.join('\n'))
+    }
+  }
+
+  return render(output, opts)
+}
+
+function render(template: string, opts: TemplateOpts) {
   try {
     const ast = parser.parse(template, {}) as PNode[]
     const output: string[] = []
@@ -72,25 +139,25 @@ export function parseTemplate(template: string, opts: ParseOpts) {
   }
 }
 
-function renderNode(node: PNode, opts: ParseOpts) {
+function renderNode(node: PNode, opts: TemplateOpts) {
   if (typeof node === 'string') {
     return node
   }
 
   switch (node.kind) {
     case 'placeholder': {
-      return getPlaceholder(node.value, opts)
+      return getPlaceholder(node, opts)
     }
 
     case 'each':
       return renderIterator(node.value, node.children, opts)
 
     case 'if':
-      return renderCondition(node.value, node.children, opts)
+      return renderCondition(node, node.children, opts)
   }
 }
 
-function renderProp(node: CNode, opts: ParseOpts, entity: unknown, i: number) {
+function renderProp(node: CNode, opts: TemplateOpts, entity: unknown, i: number) {
   if (typeof node === 'string') return node
 
   switch (node.kind) {
@@ -117,11 +184,14 @@ function renderProp(node: CNode, opts: ParseOpts, entity: unknown, i: number) {
     case 'history-prop': {
       const line = entity as string
       switch (node.prop) {
-        case 'i':
+        case 'i': {
           return i.toString()
+        }
 
-        case 'message':
-          return entity as string
+        case 'message': {
+          const index = line.indexOf(':')
+          return line.slice(index + 1).trim()
+        }
 
         case 'name': {
           const index = line.indexOf(':')
@@ -134,19 +204,22 @@ function renderProp(node: CNode, opts: ParseOpts, entity: unknown, i: number) {
         }
 
         case 'isbot':
-        case 'isuser':
+        case 'isuser': {
           const index = line.indexOf(':')
           const name = line.slice(0, index)
-          const sender = opts.impersonate?.name ?? opts.sender.handle
+          const sender = opts.impersonate?.name ?? opts.sender?.handle
           const match = name === sender
           return node.prop === 'isuser' ? match : !match
+        }
       }
     }
   }
 }
 
-function renderCondition(holder: Holder, children: PNode[], opts: ParseOpts) {
-  const value = getPlaceholder(holder, opts)
+function renderCondition(node: ConditionNode, children: PNode[], opts: TemplateOpts) {
+  if (opts.repeatable) return ''
+
+  const value = getPlaceholder(node, opts)
   if (!value) return
 
   const output: string[] = []
@@ -158,7 +231,9 @@ function renderCondition(holder: Holder, children: PNode[], opts: ParseOpts) {
   return output.join('')
 }
 
-function renderIterator(holder: IterableHolder, children: CNode[], opts: ParseOpts) {
+function renderIterator(holder: IterableHolder, children: CNode[], opts: TemplateOpts) {
+  if (opts.repeatable) return ''
+
   const output: string[] = []
 
   const entities =
@@ -204,10 +279,16 @@ function renderIterator(holder: IterableHolder, children: CNode[], opts: ParseOp
     i++
   }
 
+  if (holder === 'history' && opts.limit) {
+    const id = '__' + v4() + '__'
+    opts.limit.output![id] = output
+    return id
+  }
+
   return output.join('\n')
 }
 
-function renderEntityCondition(nodes: CNode[], opts: ParseOpts, entity: unknown, i: number) {
+function renderEntityCondition(nodes: CNode[], opts: TemplateOpts, entity: unknown, i: number) {
   let result = ''
 
   for (const node of nodes) {
@@ -218,17 +299,15 @@ function renderEntityCondition(nodes: CNode[], opts: ParseOpts, entity: unknown,
   return result
 }
 
-function getPlaceholder(value: Holder, opts: ParseOpts) {
-  switch (value) {
+function getPlaceholder(node: PlaceHolder | ConditionNode, opts: TemplateOpts) {
+  if (opts.repeatable && !repeatableHolders.has(node.value as any)) return ''
+
+  switch (node.value) {
     case 'char':
       return opts.replyAs.name
 
     case 'user':
-      return (
-        opts.impersonate?.name ||
-        opts.members.find((m) => m.userId === opts.user._id)?.handle ||
-        'You'
-      )
+      return opts.impersonate?.name || opts.sender?.handle || 'You'
 
     case 'example_dialogue':
       return opts.parts.sampleChat?.join('\n') || ''
@@ -239,6 +318,9 @@ function getPlaceholder(value: Holder, opts: ParseOpts) {
     case 'memory':
       return opts.parts.memory || ''
 
+    case 'impersonating':
+      return opts.parts.impersonality || ''
+
     case 'personality':
       return opts.parts.persona
 
@@ -246,16 +328,47 @@ function getPlaceholder(value: Holder, opts: ParseOpts) {
       return opts.parts.ujb || ''
 
     case 'post':
-      return opts.parts.post.join('\n')
+      return opts.parts.post?.join('\n') || ''
 
-    case 'history':
+    case 'history': {
+      if (opts.limit) {
+        const id = `__${v4()}__`
+        opts.limit.output![id] = opts.lines
+        return id
+      }
+
       return opts.lines.join('\n')
+    }
 
     case 'chat_age':
       return elapsedSince(opts.chat.createdAt)
 
     case 'idle_duration':
       return lastMessage(opts.lastMessage || '')
+
+    case 'all_personalities':
+      return opts.parts.allPersonas?.join('\n') || ''
+
+    case 'chat_embed':
+      return opts.parts.chatEmbeds?.join('\n') || ''
+
+    case 'user_embed':
+      return opts.parts.userEmbeds?.join('\n') || ''
+
+    case 'system_prompt':
+      return opts.parts.systemPrompt || ''
+
+    case 'random': {
+      const values = node.values as string[]
+      const rand = Math.random() * values.length
+      return values[Math.floor(rand)]
+    }
+
+    case 'roll': {
+      const max = +node.values
+      const rand = Math.ceil(Math.random() * max)
+      return rand.toString()
+    }
   }
 }
 
