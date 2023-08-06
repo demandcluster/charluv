@@ -88,6 +88,7 @@ export default router
 
 function assertScenario(body: any) {
   assertValid(validScenario, body)
+  console.log('VALID****')
   body.entries = body.entries.map((entry: any) => ({
     ...entry,
     trigger: assertTrigger(entry.trigger),

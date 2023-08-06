@@ -209,7 +209,7 @@ const CreateScenario: Component = () => {
           break
       }
     }
-
+    console.log('update', ents)
     const update = { ...state.scenario, entries: ents }
     scenarioStore.update(state.scenario._id, update)
   }
