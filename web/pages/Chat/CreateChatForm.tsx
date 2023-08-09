@@ -195,7 +195,6 @@ const CreateChatForm: Component<{
               />
             </Card>
           </Show>
-         
 
           <Card>
             <Select
@@ -245,7 +244,7 @@ const CreateChatForm: Component<{
 
           <Divider />
 
-          <Show when={cfg.flags.events}>
+          <Show when={cfg.flags.events && !char()?.parent && char()?.name !== 'Aiva'}>
             <Select
               fieldName="scenarioId"
               label="Scenario"
@@ -255,7 +254,11 @@ const CreateChatForm: Component<{
               disabled={scenarios.length === 0}
             />
           </Show>
-
+          <Show when={char()?.scenarioIds}>
+            <Card class="text-md text-yellow-100">
+              {char()?.name} comes with a built-in progressive multi-step Charluv scenario!
+            </Card>
+          </Show>
           <Card>
             <TextInput
               isMultiline

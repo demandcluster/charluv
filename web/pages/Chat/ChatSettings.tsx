@@ -57,7 +57,7 @@ const ChatSettings: Component<{
   createEffect(() => {
     const currentText = scenarioText()
     const scenario = scenarioState.scenarios.find((s) => s._id === scenarioId())
-    if (scenario?.overwriteCharacterScenario && !state.chat?.scenarioIds?.includes(scenario._id)) {
+    if (scenario?.overwriteCharacterScenario && state.chat?.scenarioIds?.includes(scenario._id)) {
       setScenarioText(scenario.text)
     } else {
       setScenarioText(currentText)
@@ -207,17 +207,24 @@ const ChatSettings: Component<{
         <TextInput fieldName="name" class="text-sm" value={state.chat?.name} label="Chat name" />
       </Card>
       <Show when={!state.char?.parent}>
-      <Card>
-        <Toggle
-          fieldName="useOverrides"
-          value={useOverrides()}
-          onChange={(use) => setUseOverrides(use)}
-          label="Override Character Definitions"
-          helperText="Overrides apply to this chat only. If you want to edit the original character, open the 'Character' link in the Chat Menu instead."
-        />
-      </Card>
+        <Card>
+          <Toggle
+            fieldName="useOverrides"
+            value={useOverrides()}
+            onChange={(use) => setUseOverrides(use)}
+            label="Override Character Definitions"
+            helperText="Overrides apply to this chat only. If you want to edit the original character, open the 'Character' link in the Chat Menu instead."
+          />
+        </Card>
       </Show>
-      <Show when={cfg.flags.events && scenarios().length > 1}>
+      <Show
+        when={
+          cfg.flags.events &&
+          scenarios().length > 1 &&
+          !state.char?.parent &&
+          !state.char?.name === 'Aiva'
+        }
+      >
         <Card>
           <Select
             fieldName="scenarioId"

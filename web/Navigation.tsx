@@ -12,6 +12,7 @@ import {
   ShoppingCart,
   Moon,
   Bot,
+  Star,
   Plus,
   Users,
   Power,
@@ -161,8 +162,7 @@ const UserNavigation: Component = () => {
         <Item href="/likes/list">
           <Users /> Likes
         </Item>
-      <CharacterLink />
-       
+        <CharacterLink />
       </Show>
       <Show when={menu.flags.chub}>
         <Item href="/chub">
@@ -170,7 +170,6 @@ const UserNavigation: Component = () => {
           CHUB
         </Item>
       </Show>
-
 
       <Item href="/chats">
         <MessageCircle fill="var(--bg-100)" /> Chats
@@ -271,7 +270,6 @@ const GuestNavigation: Component = () => {
       <Show when={menu.guest}>
         <UserProfile />
 
-        
         <CharacterLink />
 
         <Show when={menu.flags.chub}>
@@ -400,7 +398,6 @@ const Library = () => {
       <Item href="/memory">
         <Book /> Library{' '}
       </Item>
-     
     </div>
   )
 }
@@ -411,13 +408,12 @@ const CharacterLink = () => {
       <Item href="/character/list">
         <Heart /> Matches
       </Item>
-      
+
       <div class="flex items-center">
         <A class="link" href="/editor">
           <Plus />
         </A>
       </div>
-      
     </div>
   )
 }
@@ -456,6 +452,13 @@ const UserProfile = () => {
             </Match>
           </Switch>
           <span>{chars.impersonating?.name || user.profile?.handle}</span>
+          <span class="float-right text-yellow-100"> {user.user?.credits || 0}</span>
+          <Show when={user.user?.premium || false}>
+            <span class="text-right text-xs text-yellow-300">
+              {' '}
+              <Star />
+            </span>
+          </Show>
         </Item>
         <div class="flex items-center">
           <a

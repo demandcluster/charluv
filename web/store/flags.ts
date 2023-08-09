@@ -7,6 +7,6 @@ export const defaultFlags = {
   events: true,
   reporting: false,
   naiModel: false,
-  actions: false,
-  regen: false,
+  actions: true,
+  regen: true,
 } satisfies { [key: string]: boolean }

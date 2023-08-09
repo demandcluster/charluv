@@ -17,14 +17,15 @@ export const createChat = handle(async ({ body, user, userId }) => {
       overrides: { '?': 'any?', kind: PERSONA_FORMATS, attributes: 'any' },
       useOverrides: 'boolean?',
       scenarioId: 'string?',
+      scenarioStates: 'string?',
     },
     body
   )
 
   if (body.scenarioId) {
     const scenario = await store.scenario.getScenario(body.scenarioId)
-    if (scenario?.userId !== userId)
-      throw new StatusError('You do not have access to this scenario', 403)
+    // if (scenario?.userId !== userId)
+    //   throw new StatusError('You do not have access to this scenario', 403)
   }
 
   const character = await store.characters.getCharacter(userId, body.characterId)
@@ -43,6 +44,7 @@ export const createChat = handle(async ({ body, user, userId }) => {
     greeting: body.greeting ?? character?.greeting,
     userId: user?.userId!,
     scenarioIds: scenarios,
+    scenarioStates: ['LEVEL1'],
   })
   return chat
 })

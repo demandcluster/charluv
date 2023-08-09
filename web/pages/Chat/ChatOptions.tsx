@@ -136,9 +136,6 @@ const ChatOptions: Component<{
           <Item onClick={() => props.togglePane('chat-settings')} hide={!isOwner()}>
             <Settings /> Edit Chat
           </Item>
-          <Item onClick={() => props.togglePane('preset')} hide={!isOwner()}>
-            <Sliders /> Preset
-          </Item>
         </Row>
         <Row>
           <Item onClick={screenshotChat}>

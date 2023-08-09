@@ -56,9 +56,7 @@ const ScenarioList: Component = () => {
           </div>
         }
       />
-      <div class="mt-16 flex w-full justify-center rounded-full text-sm">
-        Feature is under active development, timed events do not work yet.
-      </div>
+
       <Switch>
         <Match when={scenarioState.loading}>
           <div class="flex justify-center">

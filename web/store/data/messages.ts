@@ -589,6 +589,7 @@ async function getGenerateProps(
     }
   }
 
+  console.log('props', props, 'opts', opts)
   if (!props.replyAs) throw new Error(`Could not find character to reply as`)
 
   // Remove avatar from generate requests

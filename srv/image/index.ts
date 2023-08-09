@@ -177,7 +177,7 @@ async function createImageMessage(opts: {
 
     const credits = await store.credits.updateCredits(opts.userId!, -20)
 
-    sendOne(opts.userId!, { type: 'credits-updated', credits })
+    //sendOne(opts.userId!, { type: 'credits-updated', credits })
 
     return msg
   }

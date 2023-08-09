@@ -1,3 +1,5 @@
+
+
 const CHARLUV_CACHE = 'charluv-service-cache'
 
 self.addEventListener('activate', function (event) {

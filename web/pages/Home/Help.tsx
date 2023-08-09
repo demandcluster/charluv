@@ -4,19 +4,46 @@ import PageHeader from '../../shared/PageHeader'
 import Divider from '../../shared/Divider'
 import { setComponentPageTitle } from '../../shared/util'
 
+const LHCScript = () => {
+  var LHC_API = LHC_API || {}
+  LHC_API.args = {
+    mode: 'embed',
+    lhc_base_url: '//dc.lumolive.com/',
+    wheight: 450,
+    wwidth: 350,
+    pheight: 520,
+    pwidth: 500,
+    fresh: true,
+    leaveamessage: true,
+    check_messages: false,
+    lang: 'eng/',
+  }
+  !function () {
+    var po = document.createElement('script')
+    po.type = 'text/javascript'
+    po.setAttribute('crossorigin', 'anonymous')
+    po.async = true
+    var date = new Date()
+    po.src =
+      '//dc.lumolive.com/design/defaulttheme/js/widgetv2/index.js?' +
+      ('' + date.getFullYear() + date.getMonth() + date.getDate())
+    var s = document.getElementsByTagName('script')[0]
+    s.parentNode.insertBefore(po, s)
+  }
+}
+
 const Help: Component = () => {
   setComponentPageTitle('Helpdesk')
+
   return (
     <div class="container">
       <PageHeader title="Helpdesk" subtitle="" />
 
       <div class="markdown w-full" style={{ height: '500px' }}>
-        <iframe
-          src={`https://ora.sh/embed/60f0a599-3a63-437e-937e-512d6a0a72a6`}
-          width="100%"
-          height="100%"
-          style={{ border: '0', borderRadius: '4px' }}
-        />
+        <div id="lhc_status_container_page"></div>
+        <script>
+          <LHCScript />
+        </script>
       </div>
     </div>
   )

@@ -103,7 +103,7 @@ export const eventStore = createStore<ChatEventState>('events', { events: [], pr
           'onManualTrigger',
           states
         )
-
+        console.log('applicableEvents', applicableEvents)
         const selected = weightedRandom(applicableEvents, (e) => e.trigger.probability)
 
         if (!selected) {
@@ -183,12 +183,14 @@ export function selectOnChatOpenedEvent(
   const now = new Date()
   const diffInMilliseconds = now.getTime() - lastModified.getTime()
   const diffInHours = diffInMilliseconds / (1000 * 60 * 60)
+
   const applicableEvents = filterApplicableEvents<AppSchema.ScenarioOnChatOpened>(
     entries,
     'onChatOpened',
     states,
-    (e) => e.trigger.awayHours >= diffInHours
+    (e) => diffInHours >= e.trigger.awayHours // >= diffInHours
   )
+
   if (applicableEvents.length) {
     const entry = applicableEvents.reduce((prev, curr) =>
       prev.trigger.awayHours > curr.trigger.awayHours ? prev : curr

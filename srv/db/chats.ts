@@ -76,6 +76,7 @@ export async function create(
     scenario: props.scenario,
     overrides: props.overrides,
     scenarioIds: props.scenarioIds,
+    scenarioStates: props.scenarioStates || [],
     createdAt: now(),
     updatedAt: now(),
     genPreset: props.genPreset,

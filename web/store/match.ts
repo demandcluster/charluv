@@ -1,10 +1,14 @@
 import { AppSchema } from '../../common/types/schema'
+import { useNavigate } from '@solidjs/router'
 import { api } from './api'
 import { createStore } from './create'
 import { userStore } from './user'
 import { toastStore } from './toasts'
 import { data } from './data'
-import { chatsApi } from './data/chats'
+import { chatStore } from './chat'
+import { characterStore } from './character'
+
+//import { chatsApi } from './data/chats'
 type Matchesstate = {
   Matches: {
     loaded: boolean
@@ -71,41 +75,36 @@ export const matchStore = createStore<Matchesstate>('Match', {
         return { characters: { list: chx, loaded: true } }
       }
     },
-    createMatch: async (_, char: AppSchema.Character, onSuccess?: () => void) => {
+    createMatch: async (_, char: AppSchema.Character, navi) => {
       const form = new FormData()
-      form.append('name', char.name)
-      form.append('greeting', char.greeting)
-      form.append('scenario', char.scenario)
-      form.append('persona', JSON.stringify(char.persona))
-      form.append('sampleChat', char.sampleChat)
-      form.append('xp', 0)
-      form.append('premium', char.premium) //.toString()==="true")
-      form.append('anime', char.anime)
-      form.append('description', char.description)
-      form.append('match', 'false')
-      form.append('avatar', char.avatar)
 
-      const res = await api.post(`/match/${char._id}`, form)
+      const res = await api.post(`/match/${char._id}`)
+
+      toastStore.success(`Successfully created Match`)
+      console.log('this is res', res)
 
       if (res.error) toastStore.error(`Failed to create Match: ${res.error}`)
       if (res.result) {
         // const props = charsIds().list[charsIds().list.length - 1];
         // console.log(charsIds().list,this.id,charsIds().list[charsIds().list.length - 1],props);
+        const charId = res.result._id
+        matchStore.getMatches()
 
-        return chatsApi
-          .createChat(res.result._id, {
+        chatStore.createChat(
+          charId,
+          {
             name: 'First Chat',
             schema: 'wpp',
             useOverrides: false,
-          })
-          .then((res) => {
-            if (res.error) toastStore.error(`Failed to create conversation: ${res.error}`)
-            if (res.result) {
-              onSuccess?.(`/chat/${res.result._id}`)
-            }
-          })
-        toastStore.success(`Successfully created Match`)
-        Matchestore.getMatches()
+            scenarioId: '',
+            genPreset: 'horde',
+          },
+          (res) => {
+            chatStore.getChat(res)
+            characterStore.getCharacters()
+            navi(`/chat/${res}`)
+          }
+        )
       }
     },
   }

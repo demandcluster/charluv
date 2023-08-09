@@ -386,10 +386,10 @@ const Character: Component<{
             <Show when={!props.char.favorite}>
               <Star class="icon-button" onClick={() => props.toggleFavorite(true)} />
             </Show>
+            <A href={`/chats/create/${props.char._id}`}>
+              <MessageCircle class="icon-button" />
+            </A>
             <Show when={!props.char?.parent && props.char?.name !== 'Aiva'}>
-              <A href={`/chats/create/${props.char._id}`}>
-                <MessageCircle class="icon-button" />
-              </A>
               <a onClick={props.download}>
                 <Download class="icon-button" />
               </a>
@@ -504,7 +504,7 @@ const Character: Component<{
         </Switch>
       </div>
       <div class="h-18 w-full text-sm">
-        <div class="relative right-0 w-full px-2 text-right text-2xl text-white text-shadow md:right-1 overflow-x-hidden overflow-y-hidden h-8">
+        <div class="relative right-0 h-8 w-full overflow-x-hidden overflow-y-hidden px-2 text-right text-2xl text-white text-shadow md:right-1">
           <span class=" font-black ">{props.char?.name}</span>{' '}
           {props.char.persona?.attributes?.age
             ? props.char?.persona?.attributes?.age[0].split(' ')[0]
@@ -525,7 +525,7 @@ const Character: Component<{
         <div
           class="float-right mr-[4px] mt-[-248px] flex justify-end"
           onClick={() => setOpts(true)}
-          >
+        >
           <div class="rounded-md bg-[var(--bg-500)] p-[2px]">
             <Menu size={24} class="icon-button" color="var(--bg-100)" />
           </div>

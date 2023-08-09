@@ -336,7 +336,7 @@ export const generateMessageV2 = handle(async (req, res) => {
 
   const credits = await store.credits.updateCredits(userId!, -10)
   await store.scenario.updateCharXp(chat.characterId!, +1)
-  sendOne(userId!, { type: 'credits-updated', credits })
+  //sendOne(userId!, { type: 'credits-updated', credits })
 
   switch (body.kind) {
     case 'summary': {
