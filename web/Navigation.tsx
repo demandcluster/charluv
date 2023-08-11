@@ -48,6 +48,7 @@ import Slot from './shared/Slot'
 
 import logo from './asset/logo.png'
 import logoDark from './asset/logoDark.png'
+import logoIcon from './charluv192.png'
 import { useEffect, useResizeObserver, useWindowSize } from './shared/hooks'
 import WizardIcon from './icons/WizardIcon'
 import Badge from './shared/Badge'
@@ -58,9 +59,12 @@ const MobileNavHeader = () => (
     <div class="w-8"></div>
     <div>
       {' '}
-      <div class="hidden w-full items-center justify-center sm:flex" style="background:#55b89cff;">
+      <div
+        class="items-left w-full object-left px-2 pb-2 pt-0 sm:flex"
+        style="background:#55b89cff;"
+      >
         <A href="/">
-          <img width="180px" class="px-0 py-2" alt="Charluv" src={logoDark} />
+          <img width="30px" class="float-left py-0" alt="Charluv" src={logoIcon} /> Charluv
         </A>
       </div>
     </div>
