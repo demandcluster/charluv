@@ -277,7 +277,7 @@ export const CreateCharacterForm: Component<{
           subtitle={
             <div class="whitespace-normal">
               <em>You can only edit custom characters</em>
-              <hr/>
+              <hr />
               <em>
                 {totalTokens()} tokens, {totalPermanentTokens()} permanent
               </em>
@@ -306,7 +306,7 @@ export const CreateCharacterForm: Component<{
                   </em>
                 </div>
               </Show>
-            
+
               <Show when={props.temp}>
                 <TitleCard type="premium">
                   You are {props.editId ? 'editing' : 'creating'} a temporary character. A temporary
@@ -798,11 +798,10 @@ export const CreateCharacterForm: Component<{
                     />
                   </Card>
                 </div>
-
-                <Show when={!props.close}>
-                  <div class="flex w-full justify-end gap-2">{footer}</div>
-                </Show>
               </div>
+              <Show when={!props.close}>
+                <div class="flex w-full justify-end gap-2">{footer}</div>
+              </Show>
             </div>
           </Show>
         </div>

@@ -93,15 +93,9 @@ const ChatMemoryModal: Component<{
       <PageHeader
         title="Memory"
         subtitle={
-          <>
-            <A class="link" href="/guides/pipeline">
-              Pipeline Guide
-            </A>{' '}
-            |{' '}
-            <A class="link" href="/guides/memory">
-              Memory Guide
-            </A>
-          </>
+          <A class="link" href="/guides/memory">
+            Memory Guide
+          </A>
         }
       />
       <div class="flex flex-col gap-2">

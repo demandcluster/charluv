@@ -3,6 +3,7 @@ import { PERSONA_FORMATS } from '../../../common/adapters'
 import { store } from '../../db'
 import { NewMessage } from '../../db/messages'
 import { handle, StatusError } from '../wrap'
+import XPLevel from '../../../common/xplevel'
 
 export const createChat = handle(async ({ body, user, userId }) => {
   assertValid(
@@ -31,20 +32,23 @@ export const createChat = handle(async ({ body, user, userId }) => {
   const character = await store.characters.getCharacter(userId, body.characterId)
 
   let scenarios: string[] = []
-
+  let lvl: string[] = []
   if (character?.scenarioIds) {
     scenarios = character.scenarioIds
+    lvl.push(`LEVEL${XPLevel(character?.xp as number)}`)
+    if (user?.premium) {
+      lvl.push(`PREMIUM`)
+    }
   } else {
     scenarios = body.scenarioId !== undefined ? [body.scenarioId] : []
   }
 
   const chat = await store.chats.create(body.characterId, {
     ...body,
-
     greeting: body.greeting ?? character?.greeting,
     userId: user?.userId!,
     scenarioIds: scenarios,
-    scenarioStates: ['LEVEL1'],
+    scenarioStates: lvl,
   })
   return chat
 })

@@ -206,7 +206,7 @@ const ChatSettings: Component<{
       <Card>
         <TextInput fieldName="name" class="text-sm" value={state.chat?.name} label="Chat name" />
       </Card>
-      <Show when={!state.char?.parent}>
+      <Show when={!state.char?.parent && !state.char?.name === 'Aiva'}>
         <Card>
           <Toggle
             fieldName="useOverrides"
@@ -219,10 +219,11 @@ const ChatSettings: Component<{
       </Show>
       <Show
         when={
-          cfg.flags.events &&
-          scenarios().length > 1 &&
-          !state.char?.parent &&
-          !state.char?.name === 'Aiva'
+          1 === 1 ||
+          (cfg.flags.events &&
+            scenarios().length > 1 &&
+            !state.char?.parent &&
+            !state.char?.name === 'Aiva')
         }
       >
         <Card>

@@ -4,6 +4,13 @@ import { markdown } from '../../shared/markdown'
 import { setComponentPageTitle } from '../../shared/util'
 
 const text = `
+_9 August 2023_
+- Finished the scenario feature
+- Added first character with built-in scenarios (Julia)
+- Scenario progression for Matched characters
+- Overhauled the menu
+- Made it easier to install on mobile devices
+
 _29 June 2023_
 - Add character "sprites". These are an alternative to avatar images.
 - "Trim Sentences" option in UI settings. This will trim incomplete sentences.

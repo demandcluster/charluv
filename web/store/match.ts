@@ -1,5 +1,4 @@
 import { AppSchema } from '../../common/types/schema'
-import { useNavigate } from '@solidjs/router'
 import { api } from './api'
 import { createStore } from './create'
 import { userStore } from './user'

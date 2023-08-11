@@ -39,12 +39,11 @@ const PromptModal: Component = () => {
               This is an approximation. It may differ from the prompt actually used at the time. For
               authenticated users, the prompt generated on the server may contain more context as it
               retrieves messages from the database until the 'history' portion of your prompt is
-              full. OpenAI Turbo has a different payload and is generated server-side only.
+              full.
             </div>
             <div>
               The entire 'budget' may not get used here as token counts may change due to
-              formatting. E.g. OpenAI Turbo payloads are split into multiple messages which
-              drastically alters token counts.
+              formatting.
             </div>
             <div class="font-bold">Est. tokens: {tokens()}</div>
           </div>
