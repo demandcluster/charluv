@@ -6,6 +6,6 @@ export const defaultFlags = {
   chub: false,
   reporting: false,
   naiModel: false,
-  actions: true,
+  actions: false,
   regen: true,
 } satisfies { [key: string]: boolean }
