@@ -432,7 +432,7 @@ const ChatDetail: Component = () => {
                     <Show when={chats.char?.visualType !== 'sprite' && chats.char?.avatar}>
                       <div class="flex h-full w-full justify-center">
                         <img
-                          src={`https://cdn.charluv.com${chats.char?.avatar!}`}
+                          src={`https://cdn.aivo.chat${chats.char?.avatar!}`}
                           class="flex h-full justify-center rounded-lg object-cover"
                         />
                       </div>
