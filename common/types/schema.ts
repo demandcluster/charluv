@@ -15,6 +15,7 @@ import { FullSprite } from './sprite'
 
 export type AllDoc =
   | AppSchema.Chat
+  | AppSchema.ChatTree
   | AppSchema.ChatMessage
   | AppSchema.Character
   | AppSchema.User
@@ -164,6 +165,15 @@ export namespace AppSchema {
     enabled: boolean
   }
 
+  export interface ChatTree {
+    _id: string
+    kind: 'chat-tree'
+    chatId: string
+    userId: string
+
+    tree: Record<string, ChatBranch>
+  }
+
   export interface Chat {
     _id: string
     kind: 'chat'
@@ -195,7 +205,7 @@ export namespace AppSchema {
     scenarioIds?: string[]
     scenarioStates?: string[]
 
-    tree?: { [key: string]: ChatBranch }
+    treeLeafId?: string
   }
 
   export interface ChatMember {
@@ -399,6 +409,7 @@ export namespace AppSchema {
     gaslight?: string
     useGaslight?: boolean
     ultimeJailbreak?: string
+    prefill?: string
     ignoreCharacterUjb?: boolean
     antiBond?: boolean
 

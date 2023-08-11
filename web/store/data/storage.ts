@@ -4,7 +4,8 @@ import { defaultChars } from '../../../common/characters'
 import { AppSchema } from '../../../common/types/schema'
 import { api } from '../api'
 import { toastStore } from '../toasts'
-import { storage } from '/web/shared/util'
+import { storage, toMap } from '/web/shared/util'
+import { resolveTreePath } from '/common/chat'
 
 type StorageKey = keyof typeof KEYS
 
@@ -48,6 +49,7 @@ export const KEYS = {
   cartItems: 'cartItems',
   scenario: 'scenario',
   swipe: 'swipe',
+  trees: 'chat-trees',
 }
 
 type LocalStorage = {
@@ -62,6 +64,7 @@ type LocalStorage = {
   cartItems: AppSchema.ShopItem[]
   scenario: AppSchema.ScenarioBook[]
   swipe: string
+  trees: AppSchema.ChatTree[]
 }
 
 const localStore = new Map<keyof LocalStorage, any>()
@@ -105,6 +108,7 @@ const fallbacks: { [key in StorageKey]: LocalStorage[key] } = {
   cartItems: [],
   scenario: [],
   swipe: '',
+  trees: [],
 }
 
 export async function handleGuestInit() {
@@ -179,10 +183,11 @@ async function getGuestInitEntities() {
   const scenario = await localApi.loadItem('scenario', true)
   const characters = await localApi.loadItem('characters', true)
   const chats = await localApi.loadItem('chats', true)
+  const trees = await localApi.loadItem('trees', true)
 
   user._id = 'anon'
 
-  return { user, presets, profile, books, scenario, characters, chats }
+  return { user, presets, profile, books, scenario, characters, chats, trees }
 }
 
 async function migrateLegacyItems() {
@@ -245,6 +250,16 @@ export async function getMessages(
   return JSON.parse(messages) as AppSchema.ChatMessage[]
 }
 
+export async function getChatMessages(tree: AppSchema.ChatTree, leafId: string) {
+  const all = await getMessages(tree.chatId)
+  const messages = resolveTreePath(tree, toMap(all), leafId)
+  return messages
+}
+
+export async function saveTrees(state: AppSchema.ChatTree[]) {
+  await saveItem('trees', state)
+}
+
 export async function saveChars(state: AppSchema.Character[]) {
   await saveItem('characters', state)
 }
@@ -287,7 +302,7 @@ export function saveCartItem(state: AppSchema.ShopItem[]) {
   saveItem(KEYS.cartItems, state)
 }
 export function saveSwipe(state) {
-  console.log('saving saveSwipe...',KEYS.swipe, state)
+  console.log('saving saveSwipe...', KEYS.swipe, state)
   saveItem(KEYS.swipe, state)
 }
 
@@ -353,12 +368,14 @@ export const localApi = {
   saveProfile,
   saveBooks,
   saveScenarios,
+  saveTrees,
   deleteChatMessages,
   loadItem,
   getMessages,
   saveCartItem,
   loadCartItems,
   saveSwipe,
+  getChatMessages,
   KEYS,
   ID,
   error,

@@ -15,14 +15,7 @@ import Select from '../../shared/Select'
 import PersonaAttributes, { getAttributeMap } from '../../shared/PersonaAttributes'
 import TextInput from '../../shared/TextInput'
 import { getStrictForm } from '../../shared/util'
-import {
-  characterStore,
-  chatStore,
-  presetStore,
-  scenarioStore,
-  settingStore,
-  userStore,
-} from '../../store'
+import { characterStore, chatStore, presetStore, scenarioStore, userStore } from '../../store'
 import CharacterSelect from '../../shared/CharacterSelect'
 import { AutoPreset, getPresetOptions } from '../../shared/adapter'
 import { defaultPresets, isDefaultPreset } from '/common/presets'
@@ -49,7 +42,6 @@ const CreateChatForm: Component<{
   const params = useParams()
   let ref: any
 
-  const cfg = settingStore()
   const nav = useNavigate()
   const scenarios = scenarioStore((s) => s.scenarios)
   const user = userStore((s) => ({ ...s.user }))
@@ -244,7 +236,7 @@ const CreateChatForm: Component<{
 
           <Divider />
 
-          <Show when={cfg.flags.events && !char()?.parent && char()?.name !== 'Aiva'}>
+          <Show when={!char()?.parent && char()?.name !== 'Aiva'}>
             <Select
               fieldName="scenarioId"
               label="Scenario"
