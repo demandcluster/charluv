@@ -35,6 +35,7 @@
     "prebuild": "npm run clean",
     "build": "parcel build web/index.html --no-optimize --detailed-report",
     "build:prod": "NODE_ENV=production parcel build web/index.html --detailed-report",
+    "build:offline": "parcel build web/offline.html --no-optimize --detailed-report",
     "build:win": "parcel build web/index.html --no-optimize --detailed-report",
     "build:all": "npm run build && npm run build:server",
     "build:all:win": "npm run build:win && npm run build:server",

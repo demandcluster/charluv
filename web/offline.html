@@ -15,24 +15,18 @@
       content="AI Dating platform. Date an AI."
     />
     <link href='https://fonts.googleapis.com/css?family=Bai Jamjuree' rel='stylesheet'>
-    <link href="./tailwind.css" rel="stylesheet" />
+    
     <link
       href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400&display=block"
       rel="stylesheet"
     />
-    <link rel="icon" href="./favicon.ico" />
-    <link rel="manifest" href="./site.webmanifest"></link>
+   
+    
     <title>Charluv</title>
   </head>
-  <body>
-    <div id="root"><!-- TODO(11b): Fallback when no JS. --></div>
-    <script type="module" src="./index.tsx"></script>
-    <script type="module">
-        if (typeof navigator.serviceWorker !== 'undefined') {
-          navigator.serviceWorker.register( new URL('serviceWorker.js', import.meta.url));
-     }
-      window.agnai_version = '{{unknown}}';
-      console.log(window.agnai_version);
-    </script>
+  <body style="background:#55b89cff;color: #ffffff;">
+   <h1>You are not online</h1><h2>You need an internet connection to use Charluv</h2>
+   
+  
   </body>
 </html>
