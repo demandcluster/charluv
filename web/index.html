@@ -29,7 +29,7 @@
     <script type="module" src="./index.tsx"></script>
     <script type="module">
         if (typeof navigator.serviceWorker !== 'undefined') {
-          navigator.serviceWorker.register( new URL('serviceWorker.js', import.meta.url));
+          navigator.serviceWorker.register( new URL('serviceWorker.ts', import.meta.url));
      }
       window.agnai_version = '{{unknown}}';
       console.log(window.agnai_version);
