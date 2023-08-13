@@ -3,12 +3,12 @@
   "short_name": "Charluv",
   "icons": [
     {
-      "src": "/charluv192.png",
+      "src": "./charluv192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/charluv512.png",
+      "src": "./charluv512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
