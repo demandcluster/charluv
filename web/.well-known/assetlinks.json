@@ -1,0 +1,8 @@
+[{
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.charluv.twa",
+      "sha256_cert_fingerprints": ["23:6F:B2:DD:24:21:04:61:DB:2E:8C:22:D0:A4:08:65:7D:81:4C:85:75:13:E6:B6:FF:49:B3:4E:6F:EE:A1:1D"]
+    }
+  }]
