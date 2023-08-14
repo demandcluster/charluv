@@ -23,6 +23,7 @@ RUN pnpm run build:server && \
   pnpm run build:prod && mkdir -p /app/assets 
 
 RUN node -pe "require('./package.json').version" > /app/version.txt
+COPY /app/web/.well-known/assetlinks.json /app/dist/.well-known/assetlinks.json
 
 ENV LOG_LEVEL=info \
   INITIAL_USER=administrator \
