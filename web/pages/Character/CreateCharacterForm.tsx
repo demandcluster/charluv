@@ -477,10 +477,8 @@ export const CreateCharacterForm: Component<{
                       Open Character Builder
                     </Button>
                   </Match>
-                  
                 </Switch>
                 <div></div>
-                
               </Card>
 
               <Card>
@@ -608,204 +606,114 @@ export const CreateCharacterForm: Component<{
                 Advanced options
               </h2>
               <div class={`flex flex-col gap-3 ${advancedVisibility()}`}>
-                <Card class="flex flex-col gap-3">
-                  <TextInput
-                    fieldName="scenario"
-                    label="Scenario"
-                    helperText="The current circumstances and context of the conversation and the characters."
-                    placeholder="E.g. {{char}} is in their office working. {{user}} opens the door and walks in."
-                    value={editor.state.scenario}
-                    isMultiline
-                    tokenCount={(v) => setTokens((prev) => ({ ...prev, scenario: v }))}
-                  />
-                </Card>
-                <Card class="flex flex-col gap-3">
-                  <TextInput
-                    isMultiline
-                    fieldName="greeting"
-                    label="Greeting"
-                    helperText="The first message from your character. It is recommended to provide a lengthy first message to encourage the character to give longer responses."
-                    placeholder={
-                      "E.g. *I smile as you walk into the room* Hello, {{user}}! I can't believe it's lunch time already! Where are we going?"
-                    }
-                    value={editor.state.greeting}
-                    class="h-60"
-                    tokenCount={(v) => setTokens((prev) => ({ ...prev, greeting: v }))}
-                  />
-                  <AlternateGreetingsInput
-                    greetings={editor.state.alternateGreetings}
-                    setGreetings={(next) => editor.update({ alternateGreetings: next })}
-                  />
-                </Card>
-                <Card class="flex flex-col gap-3">
-                  <div>
-                    <FormLabel
-                      label="Persona Schema"
-                      helperText={
-                        <>
-                          <p>If you do not know what this mean, you can leave this as-is.</p>
-                          <p class="font-bold">
-                            WARNING: "Plain Text" and "Non-Plain Text" schemas are not compatible.
-                            Changing between them will cause data loss.
-                          </p>
-                          <p>Format to use for the character's format</p>
-                        </>
-                      }
-                    />
-                    <RadioGroup
-                      name="kind"
-                      horizontal
-                      options={options}
-                      value={editor.state.personaKind}
-                      onChange={(kind) => editor.update({ personaKind: kind as any })}
-                    />
-                  </div>
-
-                  <PersonaAttributes
-                    value={editor.state.persona.attributes}
-                    plainText={editor.state.personaKind === 'text'}
-                    schema={editor.state.personaKind}
-                    tokenCount={(v) => setTokens((prev) => ({ ...prev, persona: v }))}
-                    form={ref}
+                <Card>
+                  <MemoryBookPicker
+                    setBundledBook={(book) => editor.update('book', book)}
+                    bundledBook={editor.state.book}
                   />
                 </Card>
                 <Card>
                   <TextInput
-                    isMultiline
-                    fieldName="sampleChat"
-                    label="Sample Conversation"
-                    helperText={
-                      <span>
-                        Example chat between you and the character. This section is very important
-                        for teaching your character should speak.
-                      </span>
-                    }
-                    placeholder="{{user}}: Hello! *waves excitedly* \n{{char}}: *smiles and waves back* Hello! I'm so happy you're here!"
-                    value={editor.state.sampleChat}
-                    tokenCount={(v) => setTokens((prev) => ({ ...prev, sample: v }))}
+                    fieldName="creator"
+                    label="Creator (optional)"
+                    placeholder="e.g. John1990"
+                    value={editor.state.creator}
                   />
                 </Card>
-                <h2
-                  class={`mt-3 flex cursor-pointer gap-3 text-lg font-bold ${
-                    showAdvanced() ? '' : 'mb-12'
-                  }`}
-                  onClick={toggleShowAdvanced}
-                >
-                  <div class="relative top-[2px] inline-block">
-                    {showAdvanced() ? <ChevronUp /> : <ChevronDown />}
+                <Card>
+                  <TextInput
+                    fieldName="characterVersion"
+                    label="Character Version (optional)"
+                    placeholder="any text e.g. 1, 2, v1, v1fempov..."
+                    value={editor.state.characterVersion}
+                  />
+                </Card>
+                <Show when={!!user.admin}>
+                  <Card>
+                    <ToggleButtons
+                      label="Match"
+                      helperText="Is this a matchable character?"
+                      fieldName="match"
+                      items={[
+                        { value: true, label: 'Matchable (public)' },
+                        { value: false, label: 'Not Matchable (private)' },
+                      ]}
+                      onChange={(opt) => editor.update('match', opt.value)}
+                      selected={editor.state.match}
+                    />
+                  </Card>
+                  <Card>
+                    <ToggleButtons
+                      label="Premium"
+                      fieldName="premium"
+                      items={[
+                        { value: false, label: 'FREE' },
+                        { value: true, label: 'PREMIUM' },
+                      ]}
+                      onChange={(opt) => editor.update('premium', opt.value)}
+                      selected={editor.state.premium}
+                    />
+                  </Card>
+                </Show>
+                <Card>
+                  <h4 class="text-md font-bold">Share</h4>
+                  <h5 class="pb-2 text-sm">
+                    Submit your character to be considered for dating and get rewarded if it is
+                    accepted!
+                  </h5>
+                  <div>
+                    <Show when={editor.state.share !== 'declined'}>
+                      <ToggleButtons
+                        fieldName="share"
+                        items={[
+                          { value: 'private', label: 'Not suitable for dating' },
+                          { value: 'submitted', label: 'Submit for DATING' },
+                        ]}
+                        onChange={(opt) => editor.update('share', opt.value)}
+                        selected={editor.state.share}
+                      />
+                    </Show>
+                    <Show when={editor.state.share === 'declined'}>
+                      <div class="text-bold text-red-500">Not accepted for dating.</div>
+                      <ToggleButtons
+                        fieldName="share"
+                        items={[
+                          { value: 'private', label: 'Select to reset' },
+                          { value: 'declined', label: 'Declined' },
+                        ]}
+                        onChange={(opt) => editor.update('share', opt.value)}
+                        selected={editor.state.share}
+                      />
+                    </Show>
                   </div>
-                  Advanced options
-                </h2>
-                <div class={`flex flex-col gap-3 ${advancedVisibility()}`}>
-                  <Card>
-                    <MemoryBookPicker
-                      setBundledBook={(book) => editor.update('book', book)}
-                      bundledBook={editor.state.book}
+                </Card>
+                <Card class="flex flex-col gap-3">
+                  <h4 class="text-md font-bold">Voice</h4>
+                  <div>
+                    <VoicePicker
+                      value={editor.state.voice}
+                      culture={editor.state.culture}
+                      onChange={(voice) => editor.update('voice', voice)}
                     />
-                  </Card>
-                  <Card>
-                    <TextInput
-                      fieldName="creator"
-                      label="Creator (optional)"
-                      placeholder="e.g. John1990"
-                      value={editor.state.creator}
-                    />
-                  </Card>
-                  <Card>
-                    <TextInput
-                      fieldName="characterVersion"
-                      label="Character Version (optional)"
-                      placeholder="any text e.g. 1, 2, v1, v1fempov..."
-                      value={editor.state.characterVersion}
-                    />
-                  </Card>
-                  <Show when={!!user.admin}>
-                    <Card>
-                      <ToggleButtons
-                        label="Match"
-                        helperText="Is this a matchable character?"
-                        fieldName="match"
-                        items={[
-                          { value: true, label: 'Matchable (public)' },
-                          { value: false, label: 'Not Matchable (private)' },
-                        ]}
-                        onChange={(opt) => editor.update('match', opt.value)}
-                        selected={editor.state.match}
-                      />
-                    </Card>
-                    <Card>
-                      <ToggleButtons
-                        label="Premium"
-                        fieldName="premium"
-                        items={[
-                          { value: false, label: 'FREE' },
-                          { value: true, label: 'PREMIUM' },
-                        ]}
-                        onChange={(opt) => editor.update('premium', opt.value)}
-                        selected={editor.state.premium}
-                      />
-                    </Card>
-                  </Show>
-                  <Card>
-                    <h4 class="text-md font-bold">Share</h4>
-                    <h5 class="pb-2 text-sm">
-                      Submit your character to be considered for dating and get rewarded if it is
-                      accepted!
-                    </h5>
-                    <div>
-                      <Show when={editor.state.share !== 'declined'}>
-                        <ToggleButtons
-                          fieldName="share"
-                          items={[
-                            { value: 'private', label: 'Not suitable for dating' },
-                            { value: 'submitted', label: 'Submit for DATING' },
-                          ]}
-                          onChange={(opt) => editor.update('share', opt.value)}
-                          selected={editor.state.share}
-                        />
-                      </Show>
-                      <Show when={editor.state.share === 'declined'}>
-                        <div class="text-bold text-red-500">Not accepted for dating.</div>
-                        <ToggleButtons
-                          fieldName="share"
-                          items={[
-                            { value: 'private', label: 'Select to reset' },
-                            { value: 'declined', label: 'Declined' },
-                          ]}
-                          onChange={(opt) => editor.update('share', opt.value)}
-                          selected={editor.state.share}
-                        />
-                      </Show>
-                    </div>
-                  </Card>
-                  <Card class="flex flex-col gap-3">
-                    <h4 class="text-md font-bold">Voice</h4>
-                    <div>
-                      <VoicePicker
-                        value={editor.state.voice}
-                        culture={editor.state.culture}
-                        onChange={(voice) => editor.update('voice', voice)}
-                      />
-                    </div>
-                    <Select
-                      fieldName="culture"
-                      label="Language"
-                      helperText={`The language this character speaks and understands.${
-                        editor.state.culture.startsWith('en') ?? true
-                          ? ''
-                          : ' NOTE: You need to also translate the preset gaslight to use a non-english language.'
-                      }`}
-                      value={editor.state.culture}
-                      items={CultureCodes}
-                      onChange={(option) => editor.update('culture', option.value)}
-                    />
-                  </Card>
-                </div>
+                  </div>
+                  <Select
+                    fieldName="culture"
+                    label="Language"
+                    helperText={`The language this character speaks and understands.${
+                      editor.state.culture.startsWith('en') ?? true
+                        ? ''
+                        : ' NOTE: You need to also translate the preset gaslight to use a non-english language.'
+                    }`}
+                    value={editor.state.culture}
+                    items={CultureCodes}
+                    onChange={(option) => editor.update('culture', option.value)}
+                  />
+                </Card>
               </div>
-              <Show when={!props.close}>
-                <div class="flex w-full justify-end gap-2">{footer}</div>
-              </Show>
             </div>
+            <Show when={!props.close}>
+              <div class="flex w-full justify-end gap-2">{footer}</div>
+            </Show>
           </Show>
         </div>
       </form>
