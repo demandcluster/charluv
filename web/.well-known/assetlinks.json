@@ -3,6 +3,6 @@
     "target": {
       "namespace": "android_app",
       "package_name": "com.charluv.twa",
-      "sha256_cert_fingerprints": ["23:6F:B2:DD:24:21:04:61:DB:2E:8C:22:D0:A4:08:65:7D:81:4C:85:75:13:E6:B6:FF:49:B3:4E:6F:EE:A1:1D"]
+      "sha256_cert_fingerprints": ["10:4E:F5:19:28:A7:8E:04:A7:50:1B:EC:54:E9:2B:6E:60:46:1C:6D:4D:C0:5B:40:91:64:5B:82:FA:4E:5A:D5"]
     }
   }]
