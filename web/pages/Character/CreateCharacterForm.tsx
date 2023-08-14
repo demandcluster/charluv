@@ -363,7 +363,7 @@ export const CreateCharacterForm: Component<{
                           Service performs the generation in the Dropdown.
                         </p>
                         <p>
-                          <em>Note: Kobold and Novel character generation are experimental</em>
+                          <em>Note: Character generation is experimental</em>
                         </p>
                       </Show>
                     </div>
@@ -472,12 +472,15 @@ export const CreateCharacterForm: Component<{
                       </Button>
                     </div>
                   </Match>
-                  <Match when={state.avatar.loading}>
-                    <div class="flex w-[80px] items-center justify-center">
-                      <Loading />
-                    </div>
+                  <Match when={true}>
+                    <Button class="w-fit" onClick={() => setShowBuilder(true)}>
+                      Open Character Builder
+                    </Button>
                   </Match>
+                  
                 </Switch>
+                <div></div>
+                
               </Card>
 
               <Card>
