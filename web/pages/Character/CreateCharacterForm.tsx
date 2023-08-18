@@ -659,7 +659,7 @@ export const CreateCharacterForm: Component<{
                   <h4 class="text-md font-bold">Share</h4>
                   <h5 class="pb-2 text-sm">
                     Submit your character to be considered for dating and get rewarded if it is
-                    accepted!
+                    accepted! Make sure to use W++ as the character kind.
                   </h5>
                   <div>
                     <Show when={editor.state.share === 'submitted'}>
