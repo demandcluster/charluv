@@ -48,6 +48,22 @@ export const adminStore = createStore<AdminState>('admin', { users: [] })((_) =>
       if (res.error) toastStore.error(`Failed to get submitted characters: ${res.error}`)
       if (res.result) return { shared: res.result }
     },
+    async declineShared(_, body: string) {
+      const res = await api.post('/admin/submitted/declined', body)
+      if (res.result?.error) {
+        toastStore.error(`Failed to decline character: ${res.result.error}`)
+      }
+      if (res.result?.success) toastStore.success(`Update Decline Reason`)
+      onSucces?.()
+    },
+    async acceptShared(_, body: string) {
+      const res = await api.post('/admin/submitted/accept', body)
+      if (res.result?.error) {
+        toastStore.error(`Failed to accept character: ${res.result.error}`)
+      }
+      if (res.result?.success) toastStore.success(`Rewarded User`)
+      onSucces?.()
+    },
     async getMetrics() {
       const res = await api.get('/admin/metrics')
       if (res.result) {

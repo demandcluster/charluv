@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { loggedIn } from '../auth'
+import { loggedIn, isPremium } from '../auth'
 import { changePassword, createApiKey, login, register, remoteLogin, verifyOauthKey } from './auth'
 import { createUserPreset, getUserPresets, updateUserPreset, deleteUserPreset } from './presets'
 import { hordeStats, novelLogin, openRouterModels, openaiUsage, updateService } from './services'
@@ -50,7 +50,7 @@ router.post('/ui', loggedIn, updateUI)
 router.post('/config/partial', loggedIn, updatePartialConfig)
 router.post('/config', loggedIn, updateConfig)
 router.post('/profile', loggedIn, updateProfile)
-router.post('/presets', loggedIn, createUserPreset)
-router.post('/presets/:id', loggedIn, updateUserPreset)
+router.post('/presets', isPremium, createUserPreset)
+router.post('/presets/:id', isPremium, updateUserPreset)
 
 export default router

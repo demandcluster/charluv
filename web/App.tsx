@@ -109,7 +109,7 @@ const App: Component = () => {
             <Route path="/shop/error" component={Error} />
             <Route path="/premium" component={PremiumInfo} />
             <Route path="/invites" component={lazy(() => import('./pages/Invite/InvitesPage'))} />
-            <Show when={state.user?.admin}>
+            <Show when={state.user?.premium}>
               <Route
                 path="/presets/:id"
                 component={lazy(() => import('./pages/GenerationPresets'))}
@@ -118,7 +118,8 @@ const App: Component = () => {
                 path="/presets"
                 component={lazy(() => import('./pages/GenerationPresets/PresetList'))}
               />
-
+            </Show>
+            <Show when={state.user?.admin}>
               <Route
                 path="/admin/metrics"
                 component={lazy(() => import('./pages/Admin/Metrics'))}
@@ -126,6 +127,10 @@ const App: Component = () => {
               <Route
                 path="/admin/users"
                 component={lazy(() => import('./pages/Admin/UsersPage'))}
+              />
+              <Route
+                path="/admin/shared"
+                component={lazy(() => import('./pages/Admin/SharePage'))}
               />
             </Show>
           </Show>

@@ -187,7 +187,7 @@ const UserNavigation: Component = () => {
           <HeartHandshake /> Premium
         </Item>
       </Show>
-      <Show when={user.user?.admin}>
+      <Show when={user.user?.admin || user.user?.premium}>
         <Item href="/presets">
           <Sliders /> Presets
         </Item>
@@ -403,16 +403,19 @@ const Library = () => {
 }
 
 const CharacterLink = () => {
+  const user = userStore()
   return (
     <MultiItem>
       <Item href="/character/list">
         <Heart /> Matches
       </Item>
-      <EndItem>
-        <A class="icon-button" href="/editor">
-          <Plus />
-        </A>
-      </EndItem>
+      <Show when={user.loggedIn}>
+        <EndItem>
+          <A class="icon-button" href="/editor">
+            <Plus />
+          </A>
+        </EndItem>
+      </Show>
     </MultiItem>
   )
 }
@@ -466,9 +469,9 @@ const UserProfile = () => {
             </Match>
           </Switch>
           <span>{chars.impersonating?.name || user.profile?.handle}</span>
-          <span class="float-right text-yellow-100"> {user.user?.credits || 0}</span>
+          <span class="float-right text-yellow-500"> {user.user?.credits || 0}</span>
           <Show when={user.user?.premium || false}>
-            <span class="text-right text-xs text-yellow-300">
+            <span class="text-right text-xs text-yellow-500">
               {' '}
               <Star />
             </span>

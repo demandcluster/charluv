@@ -2,7 +2,8 @@ import './home.scss'
 import { Component, Match, createEffect, Show, Switch, createSignal } from 'solid-js'
 import PageHeader from '../../shared/PageHeader'
 import { adaptersToOptions, setComponentPageTitle } from '../../shared/util'
-import { settingStore } from '../../store'
+import { toArray } from '../../../common/util'
+import { settingStore, userStore } from '../../store'
 import { A } from '@solidjs/router'
 import Divider from '../../shared/Divider'
 import Button from '../../shared/Button'
@@ -79,7 +80,7 @@ function toItem(model: HordeModel) {
 const HomePage: Component = () => {
   setComponentPageTitle('Virtual Date an AI')
   const [sub, setSub] = createSignal(Sub.None)
-
+  const user = userStore()
   const closeSub = () => setSub(Sub.None)
   const cfg = settingStore((cfg) => ({
     adapters: adaptersToOptions(cfg.config.adapters),
@@ -101,14 +102,6 @@ const HomePage: Component = () => {
         }
       />
 
-      <Show when={!cfg.guest}>
-        <div class="flex text-orange-500">
-          <AlertTriangle class="mb-2 mr-2" />
-          We have become too busy to allow guest access. You will need to login/register to use
-          Charluv.
-        </div>
-      </Show>
-
       <div class="flex flex-col gap-4 text-lg">
         <div class="flex justify-center text-6xl" style="background: #55b89cff;">
           <img src={logoDark} alt="Charluv Virtual Dating" class="w-4/12 p-8" />
@@ -121,7 +114,20 @@ const HomePage: Component = () => {
             you invite them to your chat.
           </div>
         </Card>
-
+        <Show when={!cfg.guest && !user?.loggedIn}>
+          <Card class="flex">
+            <div class="flex text-orange-500">
+              <AlertTriangle class="mb-2 mr-2" />
+              We have become too busy to allow guest access. No worries it is FREE and no details
+              are needed, use code AIVOFOUNDER
+            </div>
+            <div class="flex">
+              <A href="/register">
+                <Button>REGISTER</Button>
+              </A>
+            </div>
+          </Card>
+        </Show>
         <div class="home-cards">
           <TitleCard type="bg" title="Guides" class="" center>
             <div class="flex flex-wrap justify-center gap-2">

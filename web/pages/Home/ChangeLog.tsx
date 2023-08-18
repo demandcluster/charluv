@@ -4,6 +4,13 @@ import { markdown } from '../../shared/markdown'
 import { setComponentPageTitle } from '../../shared/util'
 
 const text = `
+_17 August 2023_
+- Added Presets feature for premium users
+- Shut down guest use due to too many guest users at any one time that cause larger queues
+
+_16 August 2023_
+- Added admin interface for faster processing of submitted characters.
+
 _9 August 2023_
 - Finished the scenario feature
 - Added first character with built-in scenarios (Julia)

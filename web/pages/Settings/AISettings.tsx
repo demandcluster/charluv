@@ -69,37 +69,41 @@ const AISettings: Component<{
       </Show>
 
       <Show when={ready()}>
+        <Show when={!state.user?.premium}>
+          Creation of Presets is only available to premium members.
+        </Show>
         <Select
           fieldName="defaultPreset"
           items={presetOptions()}
           label="Default Preset"
-          helperText="The default preset your chats will use. If your preset is not in this list, it needs to be assigned an AI SERVICE."
+          helperText="The default preset your chats will use."
           value={state.user?.defaultPreset || ''}
         />
+        <div class="hidden">
+          <Toggle
+            fieldName="useLocalPipeline"
+            label="Use Local Pipeline"
+            helperText={
+              <>
+                <A class="link" href="/guides/pipeline">
+                  Pipeline Guide.
+                </A>
+                &nbsp;If available, use local Agnaistic pipeline features (summarization for
+                images). This is extremely new and experimental. Expect this to change and improve
+                in the near future.
+                <span></span>
+              </>
+            }
+            value={state.user?.useLocalPipeline}
+          />
 
-        <Toggle
-          fieldName="useLocalPipeline"
-          label="Use Local Pipeline"
-          helperText={
-            <>
-              <A class="link" href="/guides/pipeline">
-                Pipeline Guide.
-              </A>
-              &nbsp;If available, use local Agnaistic pipeline features (summarization for images).
-              This is extremely new and experimental. Expect this to change and improve in the near
-              future.
-              <span></span>
-            </>
-          }
-          value={state.user?.useLocalPipeline}
-        />
-
-        <div class="my-2">
-          <Tabs tabs={tabs()} selected={tab} select={setTab} />
+          <div class="my-2">
+            <Tabs tabs={tabs()} selected={tab} select={setTab} />
+          </div>
         </div>
       </Show>
 
-      <div class={currentTab() === 'horde' ? tabClass : 'hidden'}>
+      <div class={currentTab() === 'hordex' ? tabClass : 'hidden'}>
         <HordeAISettings
           onHordeWorkersChange={props.onHordeWorkersChange}
           onHordeModelsChange={props.onHordeModelsChange}

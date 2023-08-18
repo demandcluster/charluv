@@ -58,11 +58,13 @@ export function getPresetOptions(
     custom: true,
   }))
 
-  const defaults = Object.entries(defaultPresets).map(([_id, preset]) => ({
-    ...preset,
-    _id,
-    name: preset.name,
-  }))
+  const defaults = Object.entries(defaultPresets)
+    .filter(([key]) => key === 'basic')
+    .map(([_id, preset]) => ({
+      ...preset,
+      _id,
+      name: preset.name,
+    }))
 
   if (includes.builtin) {
     const builtinOptions = defaults.map((preset) => ({

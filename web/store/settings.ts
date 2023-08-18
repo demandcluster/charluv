@@ -51,7 +51,7 @@ const FLAG_KEY = 'agnai-flags'
 
 const initState: SettingState = {
   anonymize: false,
-  guestAccessAllowed: canUseStorage(),
+  guestAccessAllowed: false,
   initLoading: true,
   cfg: { loading: false, ttl: 0 },
   showMenu: false,
@@ -299,8 +299,8 @@ async function loadSlotConfig() {
   const slots: any = { publisherId: '' }
 
   try {
- //   const content = await fetch('/slots.txt').then((res) => res.text())
- const content = {}
+    //   const content = await fetch('/slots.txt').then((res) => res.text())
+    const content = {}
     const config = JSON.parse(content)
 
     for (const [prop, value] of Object.entries(config)) {

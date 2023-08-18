@@ -3,7 +3,7 @@ import { assertValid } from '/common/valid'
 import { store } from '../db'
 import { isAdmin, loggedIn } from './auth'
 import { handle } from './wrap'
-import { getLiveCounts, sendAll } from './ws/bus'
+import { getLiveCounts, sendAll, sendOne } from './ws/bus'
 
 const router = Router()
 
@@ -29,9 +29,39 @@ const getUserInfo = handle(async ({ params }) => {
 
 const getSubmitted = handle(async () => {
   const submitted = await store.characters.getSubmitted()
-  console.log(submitted)
+
   return submitted
 })
+const declineSubmitted = handle(async (req) => {
+  const body = req.body || false
+
+  //assertValid({ characterId: 'string', reason: 'string', userId: 'string' }, body)
+  const char = await store.characters.getCharacter(body?.userId, body?.characterId)
+  if (!char) return { error: 'Character not found' }
+  await store.characters.declineSubmitted(body?.characterId, body?.userId, body?.reason)
+
+  sendOne(body?.userId, {
+    type: 'admin-notification',
+    message: `Your character ${char?.name} has been declined, reason: ${body?.reason}`,
+  })
+  return { success: true }
+})
+
+const acceptSubmitted = handle(async (req) => {
+  const body = req.body || false
+
+  //assertValid({ characterId: 'string', reason: 'string', userId: 'string' }, body)
+  const char = await store.characters.getCharacter(body?.userId, body?.characterId)
+  if (!char) return { error: 'Character not found' }
+  await store.characters.acceptSubmitted(body?.characterId, body?.userId, body?.amount)
+
+  sendOne(body?.userId, {
+    type: 'admin-notification',
+    message: `Your character ${char?.name} has been accepted and copied! Reward: ${body?.amount}`,
+  })
+  return { success: true }
+})
+
 const notifyAll = handle(async ({ body }) => {
   assertValid({ message: 'string' }, body)
   sendAll({ type: 'admin-notification', message: body.message })
@@ -57,6 +87,8 @@ const getMetrics = handle(async () => {
 router.post('/users', searchUsers)
 router.get('/metrics', getMetrics)
 router.get('/submitted', getSubmitted)
+router.post('/submitted/declined', declineSubmitted)
+router.post('/submitted/accept', acceptSubmitted)
 router.get('/users/:id/info', getUserInfo)
 router.post('/user/password', setUserPassword)
 router.post('/notify', notifyAll)

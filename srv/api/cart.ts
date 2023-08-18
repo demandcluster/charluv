@@ -162,7 +162,7 @@ const giveOrder = async (order: AppSchema.ShopOrder) => {
   const userCredits = orderUser.credits || 0
   const userPremium = orderUser.premium || false
   const userPremiumUntil =
-    orderUser?.premiumUntil || 0 > Date.now() ? orderUser?.premiumUntil : Date.now()
+    (orderUser?.premiumUntil || 0) > Date.now() ? orderUser?.premiumUntil : Date.now()
   const totalCredits = items.reduce((acc, item) => acc + item.credits, 0)
   const totalDays = items.reduce((acc, item) => acc + item.days, 0)
   const newPremium = userPremium || totalDays > 0
@@ -179,6 +179,10 @@ const giveOrder = async (order: AppSchema.ShopOrder) => {
   order.status = 'completed'
   const updateOrder = await store.shop.updateShopOrder(order)
   sendOne(userId, { type: 'credits-updated', newCredits })
+  sendOne(userId, {
+    type: 'admin-notification',
+    message: 'Your order has been completed. Thank you so much!',
+  })
 }
 const checkOut = handle(async ({ body, userId, user, ip }) => {
   const items = await store.shop.getItems()

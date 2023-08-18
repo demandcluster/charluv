@@ -662,7 +662,20 @@ export const CreateCharacterForm: Component<{
                     accepted!
                   </h5>
                   <div>
-                    <Show when={editor.state.share !== 'declined'}>
+                    <Show when={editor.state.share === 'submitted'}>
+                      <div class="text-bold text-green-500">
+                        After Update, wait till it gets accepted or rejected.
+                      </div>
+                    </Show>
+                    <Show when={editor.state.share === 'accepted'}>
+                      <div class="text-bold text-md text-green-500">
+                        Congrats! Your character is accepted and copied.
+                      </div>
+                    </Show>
+
+                    <Show
+                      when={editor.state.share !== 'declined' && editor.state.share !== 'accepted'}
+                    >
                       <ToggleButtons
                         fieldName="share"
                         items={[
@@ -673,8 +686,10 @@ export const CreateCharacterForm: Component<{
                         selected={editor.state.share}
                       />
                     </Show>
-                    <Show when={editor.state.share === 'declined'}>
-                      <div class="text-bold text-red-500">Not accepted for dating.</div>
+                    <Show when={editor.state.share.includes('declined')}>
+                      <div class="text-bold text-red-500">
+                        Not accepted for dating, {editor.state.share}{' '}
+                      </div>
                       <ToggleButtons
                         fieldName="share"
                         items={[
@@ -682,7 +697,7 @@ export const CreateCharacterForm: Component<{
                           { value: 'declined', label: 'Declined' },
                         ]}
                         onChange={(opt) => editor.update('share', opt.value)}
-                        selected={editor.state.share}
+                        selected={editor.state.share.includes('declined') ? 'declined' : 'private'}
                       />
                     </Show>
                   </div>

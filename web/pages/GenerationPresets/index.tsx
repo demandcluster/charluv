@@ -142,6 +142,7 @@ export const GenerationPresetsPage: Component = () => {
   }
 
   if (params.id && !state.editing) {
+    console.log(params, state)
     return (
       <>
         <PageHeader title="Generation Presets" />

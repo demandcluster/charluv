@@ -15,7 +15,7 @@ export const getUserPresets = handle(async ({ userId }) => {
 })
 
 export const getBasePresets = handle(async () => {
-  return { presets: defaultPresets }
+  return { presets: { ...defaultPresets.horde, ...defaultPresets.basic } }
 })
 
 export const createUserPreset = handle(async ({ userId, body }) => {

@@ -34,6 +34,9 @@ const MetricsPage: Component = () => {
         <A href="/admin/users">
           <Button>User Management</Button>
         </A>
+        <A href="/admin/shared">
+          <Button>Shared Characters Management</Button>
+        </A>
         <Button onClick={adminStore.getMetrics}>Refresh</Button>
       </div>
 
@@ -55,10 +58,11 @@ const MetricsPage: Component = () => {
           label="Registered Users"
           helperText={state.metrics?.totalUsers || '...'}
         />
+
         <FormLabel
           fieldName="shared"
           label="Shared Characters"
-          helperText={state.shared || '...'}
+          helperText={state?.shared?.length || '...'}
         />
         <FormLabel fieldName="services" label="Services" helperText={state.metrics?.each.length} />
 

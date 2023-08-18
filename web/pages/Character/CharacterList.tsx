@@ -272,6 +272,8 @@ const Characters: Component<{
           <Show when={props.user.user?._id === 'anon'}>
             <div class="gap-2 p-4 text-lg font-bold">
               You are not <a href="/login">registered</a>. You can only chat with the helpdesk bot.
+              Registration is totally free and does not require any private information! When
+              registered you can Match, Like and Create characters.
             </div>
           </Show>
           <Show when={props.user.user?._id !== 'anon'}>
@@ -400,9 +402,9 @@ const Character: Component<{
                 <Copy class="icon-button" />
               </A>
             </Show>
-            <Show when={props.char?.name !== 'Aiva'}>
-              <Trash class="icon-button" onClick={props.delete} />
-            </Show>
+
+            <Trash class="icon-button" onClick={props.delete} />
+
             <Show when={props.char?.parent}>
               <User class="icon-button" onClick={() => nav(`/likes/${props.char._id}/profile`)} />
             </Show>

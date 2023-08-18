@@ -22,6 +22,6 @@ const builtinPresets = {
 } satisfies Record<string, Partial<AppSchema.GenSettings>>
 
 export const defaultPresets = {
-  ...builtinPresets,
+ ...builtinPresets,
   goose: { ...builtinPresets.basic, service: 'goose' },
 } satisfies Record<string, Partial<AppSchema.GenSettings>>

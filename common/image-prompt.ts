@@ -57,7 +57,7 @@ export async function createImagePrompt(opts: ImagePromptOpts) {
 
   const lines: string[] = []
   let tokens = 0
-
+  console.log(opts.char.tags, opts.characters, opts.chatBots)
   for (const { msg, userId, adapter } of opts.messages.slice().reverse()) {
     if (adapter === 'image') continue
     const indexes = tokenizeMessage(msg)

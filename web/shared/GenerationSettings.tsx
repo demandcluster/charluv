@@ -27,7 +27,7 @@ import {
 import Divider from './Divider'
 import { Toggle } from './Toggle'
 import { Check, X } from 'lucide-solid'
-import { presetStore, settingStore } from '../store'
+import { presetStore, settingStore, userStore } from '../store'
 import PromptEditor from './PromptEditor'
 import { Card } from './Card'
 import { FormLabel } from './FormLabel'
@@ -67,7 +67,7 @@ const GenerationSettings: Component<Props> = (props) => {
   return (
     <>
       <div class="flex flex-col gap-6">
-        <Card>
+        <Card class="hidden">
           <Select
             fieldName="service"
             label="AI Service"
@@ -192,7 +192,7 @@ const GeneralSettings: Component<Props> = (props) => {
         </Card>
       </Show>
 
-      <Card hide={!serviceHasSetting(props.service, 'thirdPartyUrl')}>
+      <Card hide={!serviceHasSetting(props.service, 'thirdPartyUrl') || 1 === 1}>
         <TextInput
           fieldName="thirdPartyUrl"
           label="Third Party URL"
@@ -335,7 +335,7 @@ const GeneralSettings: Component<Props> = (props) => {
           label="Max New Tokens"
           helperText="Number of tokens the AI should generate. Higher numbers will take longer to generate. This value is subtracted from your context limit."
           min={16}
-          max={1024}
+          max={180}
           step={1}
           value={props.inherit?.maxTokens || defaultPresets.basic.maxTokens}
           disabled={props.disabled}
@@ -353,7 +353,7 @@ const GeneralSettings: Component<Props> = (props) => {
             </>
           }
           min={16}
-          max={props.service === 'claude' ? 100000 : 32000}
+          max={props.service === 'claude' ? 100000 : 2048}
           step={1}
           value={props.inherit?.maxContextLength || defaultPresets.basic.maxContextLength}
           disabled={props.disabled}

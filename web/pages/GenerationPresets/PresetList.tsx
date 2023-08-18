@@ -3,6 +3,7 @@ import { Copy, Plus, Trash } from 'lucide-solid'
 import { Component, createSignal, For, onMount } from 'solid-js'
 import Button from '../../shared/Button'
 import { ConfirmModal } from '../../shared/Modal'
+import { Card } from '../../shared/Card'
 import PageHeader from '../../shared/PageHeader'
 import { defaultPresets } from '../../../common/presets'
 import { presetStore } from '../../store'
@@ -17,8 +18,10 @@ const PresetList: Component = () => {
       .map((pre) => ({ ...pre, label: `[${getServiceName(pre.service)}] ${pre.name}` }))
       .sort(sortByLabel),
   }))
+  // filter out the default with key basic
 
   const defaults = Object.entries(defaultPresets)
+    .filter(([key]) => key === 'basic')
     .map(([id, cfg]) => ({ ...cfg, label: `[${cfg.service}] ${cfg.name}`, _id: id }))
     .sort(sortByLabel)
   const [deleting, setDeleting] = createSignal<string>()
@@ -38,13 +41,17 @@ const PresetList: Component = () => {
   return (
     <>
       <PageHeader title="Generation Presets" />
+      <Card class="text-gray-500">
+        This is a premium feature. You will not loose your presets when your membership expires.
+        Thank you for supporting us.
+      </Card>
       <div class="mb-4 flex w-full justify-end">
-        <A href="/presets/new">
+        {/* <A href="/presets/new">
           <Button>
             <Plus />
             New Preset
           </Button>
-        </A>
+        </A> */}
       </div>
 
       <div class="flex flex-col items-center gap-2">

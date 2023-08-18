@@ -71,7 +71,7 @@ const Settings: Component<{ footer?: (children: any) => void }> = (props) => {
   const [workers, setWorkers] = createSignal<string[]>(toArray(state.user?.hordeWorkers))
   const [models, setModels] = createSignal<string[]>(toArray(state.user?.hordeModel))
 
-  const tabs: Tab[] = ['ui', 'voice']
+  const tabs: Tab[] = ['ui', 'ai', 'voice']
   if (!state.loggedIn) tabs.push('guest')
 
   const currentTab = createMemo(() => tabs[tab()])

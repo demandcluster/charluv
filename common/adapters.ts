@@ -258,8 +258,8 @@ export const adapterSettings: {
   cfgScale: ['novel'],
   cfgOppose: ['novel'],
 
-  thirdPartyUrl: ['kobold', 'ooba'],
-  thirdPartyFormat: ['kobold'],
+  thirdPartyUrl: ['kobold', 'ooba', 'horde'],
+  thirdPartyFormat: ['kobold', 'horde'],
   claudeModel: ['claude', 'kobold'],
   novelModel: ['novel'],
   oaiModel: ['openai', 'kobold'],

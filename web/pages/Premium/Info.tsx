@@ -9,8 +9,7 @@ const text = `
 
 # Why get premium?
 
-Premium members get their credits refilled upto **1,000 credits** and at a much faster rate than regular members do. Their messages are handled with higher priority (they skip the queue if there is one). They also get access to some premium characters that have custom ElevenLabs voices *(more to premium characters to be added)*. Most features are available for free members and if you have the patience there is no need to pay. However we can not survive if everybody has patience.
-*At this time, we do not have enough premium members to cover the costs...*
+Premium members get their credits continously refilled to **1,000 credits** (instead of 200) and at a much faster rate than regular members do. Their messages are handled with higher priority (they skip the queue if there is one). They also get access to some premium characters that have custom ElevenLabs voices *(more premium characters to be added)*. **NEW FEATURE FOR PREMIUM:** Premium users can now create presets and change most of the AI settings.
 
 # Can I support you in other ways?
 
