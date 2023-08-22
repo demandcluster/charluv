@@ -11,6 +11,8 @@ import { FeatureFlags, defaultFlags } from './flags'
 import { ReplicateModel } from '/common/types/replicate'
 import { wait } from '/common/util'
 
+import { Performance } from '../../common/performance'
+
 export type SettingState = {
   guestAccessAllowed: boolean
   initLoading: boolean
@@ -28,6 +30,8 @@ export type SettingState = {
   anonymize: boolean
   pipelineOnline: boolean
 
+  showPerformance: boolean
+  performance: Performance
   init?: {
     profile: AppSchema.Profile
     user: AppSchema.User
@@ -45,7 +49,7 @@ export type SettingState = {
 }
 
 const HORDE_URL = `https://horde.aivo.chat/api/v2`
-const IMAGE_URL = `https://stablehorde.net/api/v2`
+const IMAGE_URL = `https://horde.aivo.chat/api/v2`
 
 const FLAG_KEY = 'agnai-flags'
 
@@ -56,9 +60,25 @@ const initState: SettingState = {
   cfg: { loading: false, ttl: 0 },
   showMenu: false,
   showImpersonate: false,
+  showPerformance: false,
   fullscreen: false,
   models: [],
   workers: [],
+  performance: {
+    queued_requests: 0,
+    queued_text_requests: 0,
+    worker_count: 0,
+    text_worker_count: 0,
+    thread_count: 0,
+    text_thread_count: 0,
+    queued_megapixelsteps: 0.0,
+    past_minute_megapixelsteps: 0.0,
+    queued_forms: 0,
+    interrogator_count: 0,
+    interrogator_thread_count: 0,
+    queued_tokens: 0.0,
+    past_minute_tokens: 0.0,
+  },
   imageWorkers: [],
   pipelineOnline: false,
   config: {
@@ -138,6 +158,9 @@ export const settingStore = createStore<SettingState>(
     toggleImpersonate: ({ showImpersonate }, show?: boolean) => {
       return { showImpersonate: show ?? !showImpersonate }
     },
+    togglePerformance: ({ showPerformance }, show?: boolean) => {
+      return { showPerformance: show ?? !showPerformance }
+    },
     fullscreen(_, next: boolean) {
       return { fullscreen: next }
     },
@@ -158,6 +181,13 @@ export const settingStore = createStore<SettingState>(
       if (res.result) {
         return { models: res.result.models }
       }
+    },
+    async getHordePerformance() {
+      const res = await api.get<{ performance: Performance }>('/horde/performance')
+      if (res.result) {
+        return { performance: res.result.performance }
+      }
+      console.log('----------------------')
     },
     async getHordeWorkers() {
       try {

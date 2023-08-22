@@ -48,6 +48,7 @@ import PipelineGuide from './pages/Guides/Pipeline'
 import MemoryGuide from './pages/Guides/Memory'
 import NovelGuide from './pages/Guides/NovelAI'
 import { ImageModal } from './pages/Chat/ImageModal'
+import PerformanceModal from './pages/Settings/PerformanceModal'
 
 const App: Component = () => {
   const state = userStore()
@@ -169,6 +170,7 @@ const Layout: Component = () => {
   createEffect(() => {
     settingStore.init()
     settingStore.getConfig()
+    settingStore.getHordePerformance()
   })
 
   const isChat = createMemo(() => {
@@ -223,6 +225,10 @@ const Layout: Component = () => {
         <ImpersonateModal
           show={cfg.showImpersonate}
           close={() => settingStore.toggleImpersonate(false)}
+        />
+        <PerformanceModal
+          show={cfg.showPerformance}
+          close={() => settingStore.togglePerformance(false)}
         />
         <InfoModal />
         <ProfileModal />

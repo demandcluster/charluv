@@ -225,6 +225,20 @@ const UserNavigation: Component = () => {
 
         <Item
           onClick={() => {
+            settingStore.togglePerformance(true)
+            settingStore.closeMenu()
+          }}
+        >
+          <Show when={menu.performance?.text_worker_count > 0}>
+            <Signal color="green" />
+          </Show>
+          <Show when={menu.performance?.text_worker_count === 0}>
+            <Signal color="red" />
+          </Show>
+        </Item>
+
+        <Item
+          onClick={() => {
             settingStore.closeMenu()
             toastStore.modal(true)
           }}

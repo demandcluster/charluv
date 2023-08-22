@@ -1,6 +1,10 @@
 {
   "name": "Charluv Virtual Dating",
   "short_name": "Charluv",
+  "launch_handler": {
+    "client_mode": ["navigate-existing", "auto"]
+   },
+  "id": "/",
   "icons": [
       {
         "src":"./icons/windows11/SmallTile.scale-100.png",
@@ -466,10 +470,11 @@
   ],
   "categories": [
     "entertainment",
-    "games"
+    "games",
+    "simulation"
   ],
   "dir": "ltr",
-  "scope": "https://charluv.com",
+  "scope": "/",
   "edge_side_panel": {
     "preferred_width": 0
   },
@@ -477,17 +482,20 @@
     {
       "name": "Matches",
       "url": "/character/list",
-      "description": ""
+      "description": "The list of characters you have Matched with",
+      "icons": [{"src":"./icons/windows11/Square44x44Logo.targetsize-96.png","size": "96x96"}]
     },
     {
       "name": "Likes",
-      "url": "https://charluv.com/likes/list",
-      "description": "The characters you can match with"
+      "url": "/likes/list",
+      "description": "The characters you can match with",
+      "icons": [{"src":"./icons/windows11/Square44x44Logo.targetsize-96.png","size": "96x96"}]
     },
     {
       "name": "Chats",
-      "url": "https://charluv.com/chats",
-      "description": "Your chats"
+      "url": "/chats",
+      "description": "Your chats",
+      "icons": [{"src":"./icons/windows11/Square44x44Logo.targetsize-96.png","size": "96x96"}]
     }
   ],
   "prefer_related_applications": false
