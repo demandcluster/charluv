@@ -4,6 +4,9 @@ import { markdown } from '../../shared/markdown'
 import { setComponentPageTitle } from '../../shared/util'
 
 const text = `
+_28 August 2023_
+- Fixed temporary character creation
+
 _17 August 2023_
 - Added Presets feature for premium users
 - Shut down guest use due to too many guest users at any one time that cause larger queues

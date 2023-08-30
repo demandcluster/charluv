@@ -23,6 +23,7 @@ export const handleHorde: ModelAdapter = async function* ({
 
     if (user.premium) {
       key = hordeKeyPremium
+      user.hordeKey = key
     }
 
     yield { prompt }

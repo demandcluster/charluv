@@ -224,11 +224,14 @@ const CreateChatForm: Component<{
           </Card>
 
           <Card>
+            <Show class="font-semibold" when={!user?.premium}>
+              Premium members can override any character.
+            </Show>
             <Toggle
               fieldName="useOverrides"
               value={useOverrides()}
               onChange={(use) => setUseOverrides(use)}
-              disabled={char()?.parent || char()?.name === 'Aiva'}
+              disabled={!user?.premium && (char()?.parent || char()?.name === 'Aiva')}
               label="Override Character Definitions"
               helperText="Overrides will only apply to the newly created conversation."
             />

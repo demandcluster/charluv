@@ -222,8 +222,9 @@ export const CreateCharacterForm: Component<{
 
   const onSubmit = async (ev: Event) => {
     const payload = editor.payload(ref)
+    console.log('payload', payload)
     payload.avatar = state.avatar.blob || editor.state.avatar
-
+    payload.xp = editor.state.xp || '0'
     if (props.temp && props.chat) {
       if (payload.avatar) {
         const data = await getImageData(payload.avatar)
@@ -278,6 +279,7 @@ export const CreateCharacterForm: Component<{
             <div class="whitespace-normal">
               <em>You can only edit custom characters</em>
               <hr />
+
               <em>
                 {totalTokens()} tokens, {totalPermanentTokens()} permanent
               </em>
@@ -628,7 +630,7 @@ export const CreateCharacterForm: Component<{
                     value={editor.state.characterVersion}
                   />
                 </Card>
-                <Show when={!!user.admin}>
+                <Show when={user?.user?.admin}>
                   <Card>
                     <ToggleButtons
                       label="Match"
