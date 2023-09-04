@@ -74,7 +74,7 @@ const ScenarioList: Component = () => {
         <Match when={scenarioState.scenarios.length > 0}>
           <Show when={userState.user?.admin}>
             <div class="mt-16 flex w-full justify-center rounded-full text-xl">
-              Public Scenarios
+              <div class="flex w-full">Public Scenarios</div>
               <div class="flex flex-col gap-2">
                 <For each={scenarioState.scenarios.filter((scenario) => scenario?.public == true)}>
                   {(scenario) => (
@@ -98,6 +98,7 @@ const ScenarioList: Component = () => {
                   )}
                 </For>
               </div>
+              <hr />
             </div>
           </Show>
           <div class="flex flex-col gap-2">
