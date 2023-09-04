@@ -1,5 +1,5 @@
 import { Component, For, Match, Show, Switch, createSignal, onMount } from 'solid-js'
-import { scenarioStore } from '../../store'
+import { scenarioStore, userStore } from '../../store'
 import { A, useNavigate } from '@solidjs/router'
 import PageHeader from '../../shared/PageHeader'
 import Loading from '/web/shared/Loading'
@@ -9,6 +9,7 @@ import ImportScenarioModal from './components/ImportScenarioModal'
 
 const ScenarioList: Component = () => {
   const scenarioState = scenarioStore()
+  const userState = userStore()
   const nav = useNavigate()
 
   const [showImport, setShowImport] = createSignal(false)
@@ -31,7 +32,7 @@ const ScenarioList: Component = () => {
       (r) => nav(`/scenario/${r._id}`)
     )
   }
-
+  console.log(userState)
   return (
     <>
       <PageHeader
@@ -69,7 +70,36 @@ const ScenarioList: Component = () => {
             You have no scenarios yet.
           </div>
         </Match>
+
         <Match when={scenarioState.scenarios.length > 0}>
+          <Show when={userState.user?.admin}>
+            <div class="mt-16 flex w-full justify-center rounded-full text-xl">
+              Public Scenarios
+              <div class="flex flex-col gap-2">
+                <For each={scenarioState.scenarios.filter((scenario) => scenario?.public == true)}>
+                  {(scenario) => (
+                    <div class="flex w-full justify-between gap-2 rounded-lg bg-[var(--bg-800)] p-1 hover:bg-[var(--bg-700)]">
+                      <A
+                        class="flex w-full cursor-pointer gap-2"
+                        href={`/scenario/${scenario._id}`}
+                      >
+                        <div class="flex flex-col justify-center gap-0 p-2">
+                          <div class="overflow-hidden text-ellipsis whitespace-nowrap font-bold leading-5">
+                            {scenario.name || 'Unnamed Scenario'}
+                          </div>
+                          <Show when={scenario.description}>
+                            <div class="overflow-hidden text-ellipsis whitespace-nowrap text-sm leading-4">
+                              {scenario.description}
+                            </div>
+                          </Show>
+                        </div>
+                      </A>
+                    </div>
+                  )}
+                </For>
+              </div>
+            </div>
+          </Show>
           <div class="flex flex-col gap-2">
             <For each={scenarioState.scenarios.filter((scenario) => scenario?.public !== true)}>
               {(scenario) => (
