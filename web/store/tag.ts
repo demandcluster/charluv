@@ -17,7 +17,17 @@ type TagsState = {
   hidden: Tag[]
 }
 
-const defaultTags: Tag[] = ['nsfw', 'anime', 'realistic', 'male', 'female', 'trans', 'archived']
+const defaultTags: Tag[] = [
+  'nsfw',
+  'anime',
+  'realistic',
+  'male',
+  'female',
+  'trans',
+  'lore+',
+  'imported',
+  'archived',
+]
 const defaultHidden: Tag[] = ['archived']
 
 const initialState: TagsState = {
@@ -28,7 +38,8 @@ const initialState: TagsState = {
     { tag: 'male', count: 0 },
     { tag: 'female', count: 0 },
     { tag: 'trans', count: 0 },
-    //  { tag: 'imported', count: 0 },
+    { tag: 'lore+', count: 0 },
+    { tag: 'imported', count: 0 },
     { tag: 'archived', count: 0 },
   ],
   filter: [],

@@ -4,6 +4,11 @@ import { markdown } from '../../shared/markdown'
 import { setComponentPageTitle } from '../../shared/util'
 
 const text = `
+_29 September 2023_
+- Added lore+ tag for characters that have several scenarios and a memorybook
+- Added "lore+" and "imported" filters to the character filter
+- Fixed image download for TavernAI export
+
 _28 August 2023_
 - Fixed temporary character creation
 

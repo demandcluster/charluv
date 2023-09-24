@@ -223,8 +223,11 @@ export const ALLOWED_TYPES = new Map([
 export async function getImageData(file?: File | Blob | string) {
   if (!file) return
 
+  const headers = new Headers()
+  headers.append('Cache-Control', 'no-cache')
+
   if (typeof file === 'string') {
-    const image = await fetch(getAssetUrl(file)).then((res) => res.blob())
+    const image = await fetch(getAssetUrl(file), { headers }).then((res) => res.blob())
     const ext = file.split('.').slice(-1)[0]
     const mimetype = ALLOWED_TYPES.get(ext) || 'image/png'
     file = new File([image], 'downloaded.png', { type: mimetype })

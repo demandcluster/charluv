@@ -395,7 +395,7 @@ export const CreateCharacterForm: Component<{
 
               <Card>
                 <TagInput
-                  availableTags={tagState.tags.map((t) => t.tag)}
+                  availableTags={tagState.tags.map((t) => t.tag).filter((t) => t !== 'lore+')}
                   value={editor.state.tags}
                   fieldName="tags"
                   label="Tags"
