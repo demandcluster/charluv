@@ -93,7 +93,7 @@ const MatchList: Component = () => {
   const tags = tagStore((s) => ({ filter: s.filter, hidden: s.hidden }))
   const [showGrouping, setShowGrouping] = createSignal(false)
   const cached = getListCache()
-  console.log(cached);
+  
   const [view, setView] = createSignal(cached.view) //createSignal(cached.view)
   const [sortField, setSortField] = createSignal(cached.sort.field)
   const [sortDirection, setSortDirection] = createSignal(cached.sort.direction)
