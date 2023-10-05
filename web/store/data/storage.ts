@@ -93,7 +93,7 @@ const fallbacks: { [key in StorageKey]: LocalStorage[key] } = {
     oaiKey: '',
     novelModel: NOVEL_MODELS.euterpe,
     hordeKey: '',
-    hordeModel: 'pyg/charluv_4bit-128g-13B',
+    hordeModel: 'any',
     defaultAdapter: 'horde',
     koboldUrl: '',
     premium: false,
