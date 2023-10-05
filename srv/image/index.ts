@@ -58,7 +58,7 @@ export async function generateImage(
     summaryPrompt: '',
     horde: {
       sampler: 'k_dpmpp_2m',
-      model: 'Deliberate',
+      model: 'Deliberate 3.0',
     },
     novel: {
       model: 'nai-diffusion',

@@ -109,7 +109,7 @@ export async function generateImage(user: AppSchema.User, prompt: string, log: A
     },
     censor_nsfw: false,
     nsfw: true,
-    models: [settings.model || 'Deliberate'],
+    models: [],
     r2: false,
     replacement_filter: true,
     trusted_workers: user.hordeUseTrusted ?? false,
