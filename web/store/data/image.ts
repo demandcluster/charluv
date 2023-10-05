@@ -67,6 +67,7 @@ export async function generateImageWithPrompt(prompt: string, onDone: (image: st
 const SUMMARY_BACKENDS: { [key in AIAdapter]?: (opts: PromptEntities) => boolean } = {
   openai: () => true,
   novel: () => true,
+  horde: () => true,
 }
 
 async function createSummarizedImagePrompt(opts: PromptEntities) {
@@ -82,7 +83,8 @@ async function createSummarizedImagePrompt(opts: PromptEntities) {
     : (_opts: any) => false
 
   const canUseService = handler?.(opts) ?? false
-  if (canUseService && opts.user.images?.summariseChat) {
+  if (canUseService) {
+    // && opts.user.images?.summariseChat) {
     console.log('Using', opts.settings?.service, 'to summarise')
 
     const summary = await getChatSummary(opts.settings.service!)

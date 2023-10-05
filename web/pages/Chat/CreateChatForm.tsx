@@ -204,6 +204,7 @@ const CreateChatForm: Component<{
                 { label: 'Conversation', value: 'standard' },
 
                 { label: 'Companion', value: 'companion' },
+                { label: 'Adventure', value: 'adventure' },
               ]}
               value={'standard'}
             />

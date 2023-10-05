@@ -4,6 +4,9 @@ import { markdown } from '../../shared/markdown'
 import { setComponentPageTitle } from '../../shared/util'
 
 const text = `
+_5 October 2023_
+- Switched to new model!
+
 _29 September 2023_
 - Added lore+ tag for characters that have several scenarios and a memorybook
 - Added "lore+", "fantasy" and "imported" filters to the character filter

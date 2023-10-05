@@ -358,7 +358,7 @@ export const CreateCharacterForm: Component<{
                         A description, label, or notes for your character. This is will not
                         influence your character in any way.
                       </span>
-                      <Show when={editor.canGuidance}>
+                      <Show when={editor.canGuidance && true == false}>
                         <p>
                           To generate a character, describe the character below then click{' '}
                           <b>Generate</b>. It can take 30-60 seconds. You can choose which AI
@@ -378,7 +378,7 @@ export const CreateCharacterForm: Component<{
                     parentClass="w-full"
                     value={editor.state.description}
                   />
-                  <Show when={editor.canGuidance}>
+                  <Show when={editor.canGuidance && true == false}>
                     <div class="flex justify-end gap-2 sm:justify-start">
                       <Select
                         fieldName="chargenService"
@@ -399,9 +399,9 @@ export const CreateCharacterForm: Component<{
                     .map((t) => t.tag)
                     .filter((t) => {
                       if (user?.user?.admin) {
-                        return t !== false;
+                        return t !== false
                       } else {
-                        return t !== 'lore+';
+                        return t !== 'lore+'
                       }
                     })}
                   value={editor.state.tags}

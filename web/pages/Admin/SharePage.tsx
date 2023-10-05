@@ -70,7 +70,7 @@ const SharePage: Component = () => {
               <div class="w-2/12 px-4 text-xs">{shared._id}</div>
               <div class="w-2/12 px-4">{shared.name}</div>
 
-              <div class="flex w-4/12 justify-center">
+              <div class="flex w-2/12 justify-center">
                 <img src={getAssetUrl(shared?.avatar)} height="64px" />
               </div>
 

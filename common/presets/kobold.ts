@@ -10,7 +10,7 @@ export const koboldPresets = {
     repetitionPenalty: 1.15,
     repetitionPenaltySlope: 0.9,
     repetitionPenaltyRange: 1024,
-    temp: 0.67,
+    temp: 0.85,
     topK: 0,
     topP: 0.9,
     typicalP: 1,
@@ -19,14 +19,33 @@ export const koboldPresets = {
     order: [6, 0, 1, 2, 3, 4, 5],
     frequencyPenalty: 0.7,
     presencePenalty: 0.7,
-    gaslight: '',
+    gaslight: `{{system_prompt}}
+    
+    <|system|>Below is an instruction that describes a task. Write a response that appropriately completes the request.
+
+    Write {{char}}'s next reply in a fictional roleplay chat between {{#each bot}}{{.name}}, {{/each}}{{char}}.
+    
+    {{char}}'s Persona: {{personality}}
+    
+    This is the scenario of the conversation: {{scenario}}
+    
+    This is how {{char}} should talk: {{example_dialogue}}
+    
+    Facts: {{memory}}
+    
+    Then the roleplay chat between {{#each bot}}{{.name}}, {{/each}}{{char}} begins.
+    
+    {{#each msg}}{{#if .isbot}}<|model|>{{/if}}{{#if .isuser}}<|user|>{{/if}}{{.name}}: {{.msg}}
+    {{/each}}
+    {{#if ujb}}<|system|>{{ujb}}{{/if}}
+    <|model|>{{post}}`,
     ultimeJailbreak: '',
     oaiModel: OPENAI_MODELS.Turbo,
     streamResponse: false,
     memoryDepth: 50,
     memoryContextLimit: 256,
     memoryReverseWeight: false,
-    useGaslight: false,
+    useGaslight: true,
     antiBond: false,
   },
 } satisfies Record<string, Partial<AppSchema.GenSettings>>
