@@ -83,8 +83,7 @@ async function createSummarizedImagePrompt(opts: PromptEntities) {
     : (_opts: any) => false
 
   const canUseService = handler?.(opts) ?? false
-  if (canUseService) {
-    // && opts.user.images?.summariseChat) {
+  if (canUseService && opts.user.images?.summariseChat) {
     console.log('Using', opts.settings?.service, 'to summarise')
 
     const summary = await getChatSummary(opts.settings.service!)
