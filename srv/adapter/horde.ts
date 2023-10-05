@@ -33,6 +33,7 @@ export const handleHorde: ModelAdapter = async function* ({
     const trimmed = trimResponseV2(sanitised, opts.replyAs, members, characters, [
       'END_OF_DIALOG',
       '<|user|>',
+      '<|model|>',
     ])
 
     // This is a temporary measure to help users provide more info when reporting instances of 'cut off' responses
