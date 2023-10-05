@@ -127,6 +127,7 @@ function getSummaryTemplate(service: AIAdapter) {
     case 'openai':
     case 'openrouter':
     case 'claude':
+    case 'horde':
     case 'scale':
       return neat`
       {{personality}}
@@ -134,8 +135,7 @@ function getSummaryTemplate(service: AIAdapter) {
       (System note: Start of conversation)
       {{history}}
       
-      {{ujb}}
-      (System: Write an image caption of the current scene including the character's appearance)
+      <|system|> Write an image caption of the current scene including the character's appearance)
       Image caption: [summary]
       `
   }
