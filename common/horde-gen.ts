@@ -14,7 +14,7 @@ const hordeUrl = 'https://horde.aivo.chat/api/v2'
 const defaults = {
   image: {
     sampler: SD_SAMPLER['DPM++ 2M'],
-    model: 'Deliberate',
+    model: 'Deliberate 3.0',
     negative: `disfigured, ugly, deformed, poorly, censor, censored, blurry, underage,child,lowres, fused, malformed, watermark, misshapen, duplicated, grainy, distorted, signature`,
   },
 }
@@ -62,7 +62,6 @@ if (typeof window !== 'undefined') {
 }
 
 async function useFetch<T = any>(opts: FetchOpts) {
-  console.log('fetch', opts)
   const res = await fetcher<T>(opts).catch((error) => ({ error }))
   if ('error' in res) {
     throw new Error(`Horde request failed: ${res.error}`)
