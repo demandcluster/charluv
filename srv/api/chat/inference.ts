@@ -89,7 +89,7 @@ export const generateActions = wrap(async ({ userId, log, body, socketId, params
 
 export const guidance = wrap(async ({ userId, log, body, socketId }) => {
   assertValid({ ...validInference, placeholders: 'any?' }, body)
-
+  console.log('body', body)
   if (userId) {
     const user = await store.users.getUser(userId)
     if (!user) throw errors.Unauthorized
@@ -97,6 +97,7 @@ export const guidance = wrap(async ({ userId, log, body, socketId }) => {
   }
 
   const infer = async (text: string, tokens?: number) => {
+    console.log('infer', text)
     const inference = await inferenceAsync({
       user: body.user,
       log,

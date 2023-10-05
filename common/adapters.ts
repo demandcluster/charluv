@@ -204,6 +204,7 @@ export const INSTRUCT_SERVICES: { [key in AIAdapter]?: boolean } = {
   openrouter: true,
   claude: true,
   scale: true,
+  horde: true,
   novel: true,
 }
 
@@ -231,7 +232,17 @@ export const adapterSettings: {
   maxContextLength: AI_ADAPTERS.slice(),
   antiBond: ['openai', 'scale'],
 
-  gaslight: ['openai', 'novel', 'scale', 'kobold', 'claude', 'ooba', 'goose', 'openrouter'],
+  gaslight: [
+    'openai',
+    'novel',
+    'scale',
+    'horde',
+    'kobold',
+    'claude',
+    'ooba',
+    'goose',
+    'openrouter',
+  ],
   systemPrompt: ['openai', 'novel', 'scale', 'kobold', 'claude', 'ooba', 'goose', 'openrouter'],
   ignoreCharacterSystemPrompt: [
     'openai',
@@ -245,7 +256,7 @@ export const adapterSettings: {
   ],
   ultimeJailbreak: ['openai', 'claude', 'kobold', 'scale', 'openrouter', 'novel'],
   prefill: ['claude'],
-  ignoreCharacterUjb: ['openai', 'claude', 'kobold', 'openrouter'],
+  ignoreCharacterUjb: ['openai', 'claude', 'kobold', 'horde', 'openrouter'],
 
   topP: ['horde', 'kobold', 'claude', 'ooba', 'openai', 'novel'],
   repetitionPenalty: ['horde', 'novel', 'kobold', 'ooba'],

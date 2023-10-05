@@ -62,6 +62,7 @@ if (typeof window !== 'undefined') {
 }
 
 async function useFetch<T = any>(opts: FetchOpts) {
+  console.log('fetch', opts)
   const res = await fetcher<T>(opts).catch((error) => ({ error }))
   if ('error' in res) {
     throw new Error(`Horde request failed: ${res.error}`)

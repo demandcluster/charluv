@@ -130,7 +130,9 @@ export async function createInferenceStream(opts: InferenceRequest) {
       case 'openai':
         settings.oaiModel = model
         break
-
+      case 'horde':
+        console.log('settings:', settings)
+        break
       case 'claude':
         settings.claudeModel = model
         break
@@ -289,6 +291,7 @@ export async function getResponseEntities(
   }
 
   const { adapter, model } = getAdapter(chat, user, gen)
+  console.log('getAdapter')
   const genSettings = await getGenerationSettings(user, chat, adapter)
   const settings = mapPresetsToAdapter(genSettings, adapter)
 
