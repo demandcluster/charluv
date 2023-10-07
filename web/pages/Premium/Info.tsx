@@ -14,7 +14,7 @@ Premium members get their credits continously refilled to **1,000 credits** (ins
 # Can I support you in other ways?
 
 Yes, you can! Tell everyone about us, Reddit, Twitter, YouTube, Facebook, Instagram, TikTok, whatever you use. The more people know about us, the more likely we will survive.
-We also looking for new characters that can be used as matches, if you created a character that you want to contribute, share the ID with us on [Discord](https://charluv.com/discord) and if it passes moderation, we add it to the matches and reward you with upto 1,000 credits.
+We also looking for new characters that can be used as matches, if you created a character that you want to contribute, share the ID with us on [Discord](https://charluv.com/discord) and if it passes moderation, we add it to the matches and reward you with 1,000 credits.
 Since Matches have scripted scenarios (other than the self-made characters), we will do that step for you.
 
 ## Credits overview
