@@ -130,13 +130,9 @@ export async function createInferenceStream(opts: InferenceRequest) {
       case 'openai':
         settings.oaiModel = model
         break
-      case 'horde':
-        console.log('settings:', settings)
-        break
       case 'claude':
         settings.claudeModel = model
         break
-
       case 'novel':
         settings.novelModel = model
         break

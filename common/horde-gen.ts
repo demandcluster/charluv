@@ -14,7 +14,7 @@ const hordeUrl = 'https://horde.aivo.chat/api/v2'
 const defaults = {
   image: {
     sampler: SD_SAMPLER['DPM++ 2M'],
-    model: 'Deliberate 3.0',
+    model: [],
     negative: `disfigured, ugly, deformed, poorly, censor, censored, blurry, underage,child,lowres, fused, malformed, watermark, misshapen, duplicated, grainy, distorted, signature`,
   },
 }
