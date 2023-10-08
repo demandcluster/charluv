@@ -25,18 +25,26 @@ export const imageApi = {
 export async function generateImage({ chatId, messageId, onDone, ...opts }: GenerateOpts) {
   const entities = await getPromptEntities()
   const prompt = opts.prompt ? opts.prompt : await createSummarizedImagePrompt(entities)
+  console.log('entities', entities)
+  const charType = entities.char.tags.includes('anime')
+    ? '(anime style:0.9) '
+    : '(realistic style:0.9) '
 
   const max = getMaxImageContext(entities.user)
   const trimmed = await encode(prompt)
-    .then((tokens) => tokens.slice(0, max))
+    .then((tokens) => tokens.slice(0, max - 100))
     .then(decode)
+  const looks = ', Looks: ' + entities.char?.persona?.attributes?.appearance.join() || ''
+
+  const newPrompt = charType + looks + ', ' + trimmed + ' ' + charType
 
   if (!isLoggedIn()) {
     return { error: "Sorry, members only.. don't worry it is free!" }
   }
-
+  console.log(trimmed)
+  debugger
   const res = await api.post<{ success: boolean }>(`/chat/${chatId || entities.chat._id}/image`, {
-    prompt: trimmed,
+    prompt: newPrompt,
     user: entities.user,
     messageId,
     ephemeral: opts.ephemeral,

@@ -15,7 +15,7 @@ const defaults = {
   image: {
     sampler: SD_SAMPLER['DPM++ 2M'],
     model: [],
-    negative: `disfigured, ugly, deformed, poorly, censor, censored, blurry, underage,child,lowres, fused, malformed, watermark, misshapen, duplicated, grainy, distorted, signature`,
+    negative: `underage,child`,
   },
 }
 
