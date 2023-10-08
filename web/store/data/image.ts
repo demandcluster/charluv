@@ -41,8 +41,7 @@ export async function generateImage({ chatId, messageId, onDone, ...opts }: Gene
   if (!isLoggedIn()) {
     return { error: "Sorry, members only.. don't worry it is free!" }
   }
-  console.log(trimmed)
-  debugger
+
   const res = await api.post<{ success: boolean }>(`/chat/${chatId || entities.chat._id}/image`, {
     prompt: newPrompt,
     user: entities.user,
