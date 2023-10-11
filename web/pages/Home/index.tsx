@@ -111,9 +111,9 @@ const HomePage: Component = () => {
         </Card>
         <Card border>
           <div class="text-xl leading-6 text-orange-500">
-            We recently updated to a new 20B language model (october 11th). It seems to cause some
-            issues with older chats (no response even after waiting a minute). Please start a new
-            chat with the character if you experience issues.
+            We are investigating an issue in which a chat becomes unresponsive. If this happens to
+            you and you an idea what it could be, please report it on our Discord. There is more
+            than enough server/GPU power, so that is not the issue. Keep you posted.
           </div>
         </Card>
         <Show when={!cfg.guest && !user?.loggedIn}>
