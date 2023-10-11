@@ -211,13 +211,13 @@ const HomePage: Component = () => {
             <a href="https://github.com/demandcluster/aivohorde" class="link" target="_blank">
               own AI Horde
             </a>{' '}
-            on a massive fine-tuned 13B model{' '}
+            on a massive fine-tuned 20B model{' '}
             <a
-              href="https://huggingface.co/dcbv/pyg_charluv_4bit-128g-13B"
+              href="[https://huggingface.co/TheBloke/MLewd-ReMM-L2-Chat-20B-GGUF"
               class="link"
               target="_blank"
             >
-              pyg/charluv-13B
+              MLewd-ReMM-L2-Chat-20B
             </a>
             !<br />
             The software we use for the Horde is made possible by{' '}
