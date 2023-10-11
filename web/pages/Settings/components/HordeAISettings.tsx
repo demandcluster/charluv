@@ -157,6 +157,7 @@ export const HordeDetails: Component<{ maxTokens: number; maxContextLength: numb
         ? [user.user?.hordeModel]
         : []
     )
+
     const w = new Set(user.user?.hordeWorkers || [])
 
     let excluded = 0
