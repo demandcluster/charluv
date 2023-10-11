@@ -32,7 +32,9 @@ export async function generateImage({ chatId, messageId, onDone, ...opts }: Gene
 
   const max = getMaxImageContext(entities.user)
   const trimmed = await encode(prompt)
-    .then((tokens) => tokens.slice(0, max - (entities.char?.persona?.attributes?.appearance.length+44||0))
+    .then((tokens) =>
+      tokens.slice(0, max - (entities.char?.persona?.attributes?.appearance.length + 44 || 0))
+    )
     .then(decode)
   const looks = ', Looks: ' + entities.char?.persona?.attributes?.appearance.join() || ''
 
