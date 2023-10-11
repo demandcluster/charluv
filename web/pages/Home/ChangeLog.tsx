@@ -4,6 +4,9 @@ import { markdown } from '../../shared/markdown'
 import { setComponentPageTitle } from '../../shared/util'
 
 const text = `
+_11 October 2023_
+- New 20B language model
+
 _5 October 2023_
 - Switched to new model!
 

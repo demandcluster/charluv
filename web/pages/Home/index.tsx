@@ -55,17 +55,12 @@ You can perform an action by placing the action in between asterisks \*action\*.
 If you don't like a reply, you can just reroll it and get another reply. You can even edit the reply to be exactly as you like. This will take away the fun for a large part, so in order to access the edit feaetures, you first have to toggle the switch on top of the chat window to activate them.
 
 
-### Survival Goals
-
-In order to survive as a website we need ***€800,--*** before summer 2023. So far we got ***€78,--***. 
-All proceeds will be used to pay for the server and the AI. We will not take any money out of this project.
-
 ### Credits
 
 Our app is based on [AgnAIstic](https://github.com/luminai-companion/agn-ai).
 The source code for our version can be found [here](https://github.com/demandcluster/charluv)
 
-We run our [own AI Horde](https://github.com/demandcluster/aivohorde) on a massive fine-tuned 13B model [pyg/charluv-13B](https://huggingface.co/dcbv/pyg_charluv_4bit-128g-13B)!
+We run our [own AI Horde](https://github.com/demandcluster/aivohorde) on a massive 20B model [ReMM](https://huggingface.co/TheBloke/MLewd-ReMM-L2-Chat-20B-GGUF)!
 
 The software we use for the Horde is made possible by [db0](https://dbzer0.com/).
 
@@ -112,6 +107,13 @@ const HomePage: Component = () => {
             characters. Membership is free, premium membership gives you priority and near unlimited
             messages. Your conversations are completely private and never shared with anyone unless
             you invite them to your chat.
+          </div>
+        </Card>
+        <Card border>
+          <div class="text-xl leading-6 text-orange-500">
+            We recently updated to a new 20B language model (october 11th). It seems to cause some
+            issues with older chats (no response even after waiting a minute). Please start a new
+            chat with the character if you experience issues.
           </div>
         </Card>
         <Show when={!cfg.guest && !user?.loggedIn}>
