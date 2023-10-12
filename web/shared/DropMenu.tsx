@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronUp } from 'lucide-solid'
 import { Component, createMemo, createSignal, Show } from 'solid-js'
+import { useEffect } from './hooks'
 
 export const Dropup: Component<{ children: any }> = (props) => {
   const [show, setShow] = createSignal(false)
@@ -51,10 +52,15 @@ export const DropMenu: Component<{
   customPosition?: string
   class?: string
 }> = (props) => {
+  let ref: HTMLDivElement
   const [auto, setAuto] = createSignal<{ horz?: Horz; vert?: Vert }>()
+  const [opened, setOpened] = createSignal(false)
 
   const onRef = (el: HTMLDivElement) => {
     const rect = el.getBoundingClientRect()
+    setTimeout(() => {
+      setOpened(true)
+    }, 1)
 
     if (props.customPosition) {
       setAuto()
@@ -83,6 +89,28 @@ export const DropMenu: Component<{
     return setAuto({ vert, horz })
   }
 
+  useEffect(() => {
+    const handler = (event: MouseEvent | TouchEvent) => {
+      if (!opened()) return
+      if (!ref) return
+
+      if (event.target instanceof Element && !ref.contains(event.target) && event.target !== ref) {
+        event.preventDefault()
+        event.stopPropagation()
+        setOpened(false)
+        props.close()
+      }
+    }
+
+    window.addEventListener('click', handler)
+    window.addEventListener('touchend', handler)
+
+    return () => {
+      window.removeEventListener('click', handler)
+      window.removeEventListener('touchend', handler)
+    }
+  })
+
   const position = createMemo(() => {
     if (props.customPosition) return props.customPosition
 
@@ -94,13 +122,7 @@ export const DropMenu: Component<{
 
   return (
     <>
-      <Show when={props.show}>
-        <div
-          class="absolute bottom-0 left-0 right-0 top-0 z-10 h-[100vh] w-full bg-black bg-opacity-5"
-          onClick={props.close}
-        ></div>
-      </Show>
-      <div class="relative z-50 text-sm">
+      <div ref={ref!} class="relative z-50 text-sm">
         <Show when={props.show}>
           <div
             ref={onRef}

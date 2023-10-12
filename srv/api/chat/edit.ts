@@ -21,6 +21,8 @@ export const updateChat = handle(async ({ params, body, user, userId }) => {
       useOverrides: 'boolean?',
       userEmbedId: 'string?',
       scenarioStates: ['string?'],
+      systemPrompt: 'string?',
+      postHistoryInstructions: 'string?',
     },
     body,
     true
@@ -54,6 +56,8 @@ export const updateChat = handle(async ({ params, body, user, userId }) => {
     update.greeting = null
     update.scenario = null
     update.sampleChat = null
+    update.systemPrompt = null
+    update.postHistoryInstructions = null
   }
 
   if (body.useOverrides === true) {
@@ -61,6 +65,8 @@ export const updateChat = handle(async ({ params, body, user, userId }) => {
     update.scenario = body.scenario || ''
     update.sampleChat = body.sampleChat || ''
     update.overrides = body.overrides
+    update.systemPrompt = body.systemPrompt || ''
+    update.postHistoryInstructions = body.postHistoryInstructions || ''
   }
 
   const chat = await store.chats.update(id, update)
@@ -89,7 +95,7 @@ export const updateMessage = handle(async ({ body, params, userId }) => {
 })
 
 export const updateMessageProps = handle(async ({ body, params, userId }) => {
-  assertValid({ imagePrompt: 'string?', msg: 'string?' }, body)
+  assertValid({ imagePrompt: 'string?', msg: 'string?', extras: ['string?'] }, body)
 
   const prev = await store.chats.getMessageAndChat(params.id)
 
@@ -99,6 +105,7 @@ export const updateMessageProps = handle(async ({ body, params, userId }) => {
   const update: Partial<AppSchema.ChatMessage> = {
     imagePrompt: body.imagePrompt || prev.msg.imagePrompt,
     msg: body.msg ?? prev.msg.msg,
+    extras: body.extras || prev.msg.extras,
   }
 
   const message = await store.msgs.editMessage(params.id, {
@@ -111,6 +118,7 @@ export const updateMessageProps = handle(async ({ body, params, userId }) => {
     messageId: params.id,
     imagePrompt: body.imagePrompt || prev.msg.imagePrompt,
     message: body.msg || prev.msg.msg,
+    extras: body.extras || prev.msg.extras,
   })
 
   return message

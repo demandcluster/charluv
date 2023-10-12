@@ -12,7 +12,7 @@ const KoboldAISettings: Component = () => {
       <TextInput
         fieldName="koboldUrl"
         label="Kobold-compatible or 3rd-party URL"
-        helperText="Fully qualified URL. Typically for Kobold, Oobabooga Textgen, or OpenAI compatible APIs. This URL must be publicly accessible."
+        helperText="Fully qualified URL. Typically for Kobold, Textgen, Llama.cpp, or OpenAI compatible APIs. This URL must be publicly accessible."
         placeholder="E.g. https://local-tunnel-url-10-20-30-40.loca.lt"
         value={state.user?.koboldUrl}
       />
@@ -22,8 +22,10 @@ const KoboldAISettings: Component = () => {
         helperText="Re-formats the prompt to the desired output format."
         items={[
           { label: 'Kobold', value: 'kobold' },
+          { label: 'Textgen (Ooba)', value: 'ooba' },
           { label: 'OpenAI', value: 'openai' },
           { label: 'Claude', value: 'claude' },
+          { label: 'Llama.cpp', value: 'llamacpp' },
         ]}
         value={state.user?.thirdPartyFormat ?? 'kobold'}
       />

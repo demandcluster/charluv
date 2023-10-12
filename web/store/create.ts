@@ -51,7 +51,13 @@ export function getStore<TKey extends keyof StoreMap>(name: TKey): StoreMap[TKey
   return stores[name] as any
 }
 
-function send(name: string, action: any, state: any) {
+let lastState: any
+export function send(name: string, action: any, state: any) {
+  if (state) {
+    lastState = state
+  }
+
+  state = state || lastState
   const print = name
 
   if (name.startsWith('[ IN]') || name.startsWith('[OUT]')) {
@@ -65,7 +71,9 @@ function send(name: string, action: any, state: any) {
     next[name] = store.getState()
   }
 
-  next[name] = state
+  if (name in next) {
+    next[name] = state
+  }
   devTools.send({ ...action, type: `${print.padEnd(15, '.')}.${action.type}` }, next)
 }
 
@@ -116,13 +124,13 @@ export function createStore<State extends {}>(name: string, init: State) {
         }
 
         if (isGenerator<State>(result)) {
-          let next = { ...getter() }
+          // let next = { ...getter() }
 
           do {
             const { done, value: nextState } = await result.next()
             if (done === undefined) return
             if (!nextState) return
-            next = { ...getter(), ...nextState }
+            const next = { ...getter(), ...nextState }
             send(`[OUT] ${name}`, { type: key, args }, next)
             setter(next)
             if (done) return

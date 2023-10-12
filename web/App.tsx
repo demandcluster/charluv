@@ -3,7 +3,7 @@ import './tailwind.css'
 import './app.css'
 import './dots.css'
 import '@melloware/coloris/dist/coloris.css'
-import { Component, createEffect, createMemo, JSX, Show, lazy } from 'solid-js'
+import { Component, createMemo, JSX, Show, lazy, onMount } from 'solid-js'
 import { Outlet, Route, Router, Routes, useLocation } from '@solidjs/router'
 import NavBar from './shared/NavBar'
 import Toasts from './Toasts'
@@ -39,7 +39,7 @@ import { chatStore } from './store'
 import { usePane } from './shared/hooks'
 import { rootModalStore } from './store/root-modal'
 import { For } from 'solid-js'
-import { getMaxChatWidth } from './shared/util'
+import { css, getMaxChatWidth } from './shared/util'
 import FAQ from './pages/Home/FAQ'
 import CreateChatForm from './pages/Chat/CreateChatForm'
 import Modal from './shared/Modal'
@@ -49,6 +49,7 @@ import MemoryGuide from './pages/Guides/Memory'
 import NovelGuide from './pages/Guides/NovelAI'
 import { ImageModal } from './pages/Chat/ImageModal'
 import PerformanceModal from './pages/Settings/PerformanceModal'
+import { CheckoutCancel, CheckoutSuccess } from './pages/Profile/Checkout'
 
 const App: Component = () => {
   const state = userStore()
@@ -83,7 +84,7 @@ const App: Component = () => {
           <Route path="/terms" component={lazy(() => import('./pages/Home/terms'))} />
           <Route path="/share" component={lazy(() => import('./pages/Home/Share'))} />
 
-          <Route path="/memory" component={lazy(() => import('./pages/Memory'))} />
+          <Route path="/memory" component={lazy(() => import('./pages/Memory/Library'))} />
           <Route
             path="/memory/:id"
             component={lazy(() => import('./pages/Memory/EditMemoryPage'))}
@@ -98,6 +99,10 @@ const App: Component = () => {
             path="/memory/instructions"
             component={lazy(() => import('./pages/Memory/Instructions'))}
           />
+          <Route path="/checkout">
+            <Route path="/success" component={CheckoutSuccess} />
+            <Route path="/cancel" component={CheckoutCancel} />
+          </Route>
           <Route path="/privacy-policy" component={lazy(() => import('./pages/PrivacyPolicy'))} />
           <Route path="/guides">
             <Route path="/pipeline" component={PipelineGuide} />
@@ -133,6 +138,22 @@ const App: Component = () => {
                 path="/admin/shared"
                 component={lazy(() => import('./pages/Admin/SharePage'))}
               />
+              <Route
+                path="/admin/subscriptions"
+                component={lazy(() => import('./pages/Admin/SubscriptionList'))}
+              />
+              <Route
+                path="/admin/subscriptions/:id"
+                component={lazy(() => import('./pages/Admin/Subscription'))}
+              />
+              <Route
+                path={['/admin/announcements', '/admin/announcements/:id']}
+                component={lazy(() => import('./pages/Admin/Announcements'))}
+              />
+              <Route
+                path="/admin/tiers/:id"
+                component={lazy(() => import('./pages/Admin/Tiers'))}
+              />
             </Show>
           </Show>
           <Show when={cfg.config.canAuth}>
@@ -167,7 +188,7 @@ const Layout: Component = () => {
     settingStore.init()
   }
 
-  createEffect(() => {
+  onMount(() => {
     settingStore.init()
     settingStore.getConfig()
     settingStore.getHordePerformance()
@@ -191,14 +212,17 @@ const Layout: Component = () => {
 
   return (
     <ContextProvider>
+      <style>{css}</style>
       <div class="scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-[var(--hl-900)] app flex flex-col justify-between">
         <NavBar />
         <div class="flex w-full grow flex-row overflow-y-hidden">
           <Navigation />
           <div class="w-full overflow-y-auto" data-background style={bg()}>
             <div
-              class={`mx-auto h-full min-h-full w-full ${maxW()} px-2 sm:px-3`}
-              classList={{ 'content-background': !isChat() }}
+              class={`mx-auto h-full min-h-full ${isChat() ? maxW() : 'max-w-8xl'} px-2 sm:px-3`}
+              classList={{
+                'content-background': !isChat(),
+              }}
             >
               <Show when={cfg.init}>
                 <Outlet />
@@ -235,6 +259,12 @@ const Layout: Component = () => {
         <ImageModal />
         <For each={rootModals.modals}>{(modal) => modal.element}</For>
       </div>
+
+      <div
+        class="absolute bottom-0 left-0 right-0 top-0 z-10 h-[100vh] w-full bg-black bg-opacity-5"
+        classList={{ hidden: !cfg.overlay }}
+        onClick={() => settingStore.toggleOverlay(false)}
+      ></div>
     </ContextProvider>
   )
 }

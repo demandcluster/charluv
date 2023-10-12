@@ -7,9 +7,8 @@ import {
   createEffect,
   createMemo,
   createSignal,
-  onMount,
 } from 'solid-js'
-import { NewCharacter, characterStore, userStore } from '../../store'
+import { NewCharacter, characterStore, chatStore, userStore } from '../../store'
 import { tagStore } from '../../store'
 import PageHeader from '../../shared/PageHeader'
 import Select, { Option } from '../../shared/Select'
@@ -47,6 +46,7 @@ import Gauge from '../../shared/Gauge'
 import TagSelect from '../../shared/TagSelect'
 import AvatarContainer from '/web/shared/Avatar/Container'
 import { DownloadModal } from './DownloadModal'
+
 const CACHE_KEY = 'agnai-charlist-cache'
 
 type ViewTypes = 'list' | 'cards'
@@ -72,7 +72,12 @@ const CharacterList: Component = () => {
 
   const [query, setQuery] = useSearchParams()
 
-  const state = characterStore((s) => ({ ...s.characters, loading: s.loading }))
+  const user = userStore()
+  const state = chatStore((s) => ({
+    list: s.allChars.list.filter((ch) => ch.userId === user.user?._id),
+    loading: s.allLoading,
+    loaded: s.loaded,
+  }))
 
   const cached = getListCache()
   const [view, setView] = createSignal(cached.view || 'list')
@@ -100,11 +105,8 @@ const CharacterList: Component = () => {
 
   const getNextView = () => (view() === 'list' ? 'cards' : 'list')
 
-  onMount(() => {
-    characterStore.getCharacters()
-  })
-
   createEffect(() => {
+    if (!state.list.length) return
     tagStore.updateTags(state.list)
   })
 
@@ -202,7 +204,7 @@ const CharacterList: Component = () => {
       <Characters
         characters={state.list}
         loading={state.loading || false}
-        loaded={state.loaded}
+        loaded={!!state.loaded}
         type={view()}
         user={user}
         filter={search()}
@@ -332,13 +334,42 @@ const Characters: Component<{
                   </>
                 )}
               </For>
-            </Show>
+            </div>
+          </Show>
+
+          <Show when={props.type === 'cards'}>
+            <For each={groups()}>
+              {(group) => (
+                <>
+                  <Show when={showGrouping()}>
+                    <h2 class="text-xl font-bold">{group.label}</h2>
+                  </Show>
+                  <div class="grid w-full grid-cols-[repeat(auto-fit,minmax(140px,1fr))] flex-row flex-wrap justify-start gap-2 py-2">
+                    <For each={group.list}>
+                      {(char) => (
+                        <Character
+                          type={props.type}
+                          char={char}
+                          delete={() => setDelete(char)}
+                          download={() => setDownload(char)}
+                          toggleFavorite={(value) => toggleFavorite(char._id, value)}
+                        />
+                      )}
+                    </For>
+                    <Show when={group.list.length < 4}>
+                      <For each={new Array(4 - group.list.length)}>{() => <div></div>}</For>
+                    </Show>
+                  </div>
+                  <Divider />
+                </>
+              )}
+            </For>
           </Show>
         </Match>
       </Switch>
 
       <Show when={download()}>
-        <DownloadModal show close={() => setDownload()} char={download()!} />
+        <DownloadModal show close={() => setDownload()} charId={download()!._id} />
       </Show>
       <DeleteCharacterModal
         char={showDelete()}

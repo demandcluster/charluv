@@ -1,5 +1,5 @@
 import { AppSchema } from './types/schema'
-import { AIAdapter, AI_ADAPTERS, ChatAdapter } from './adapters'
+import { AIAdapter, AI_ADAPTERS, ChatAdapter, THIRDPARTY_FORMATS } from './adapters'
 import { defaultPresets } from './default-preset'
 
 export { defaultPresets }
@@ -8,8 +8,9 @@ export type GenerationPreset = keyof typeof defaultPresets
 
 export type GenMap = { [key in keyof Omit<AppSchema.GenSettings, 'name'>]: string }
 
-export const chatGenSettings = {
+export const presetValidator = {
   service: AI_ADAPTERS,
+  name: 'string',
   temp: 'number',
   maxTokens: 'number',
   maxContextLength: 'number?',
@@ -26,12 +27,16 @@ export const chatGenSettings = {
   topP: 'number',
   topK: 'number',
   topA: 'number',
+
   tailFreeSampling: 'number',
   encoderRepitionPenalty: 'number?',
   addBosToken: 'boolean?',
   banEosToken: 'boolean?',
   skipSpecialTokens: 'boolean?',
+  doSample: 'boolean?',
   penaltyAlpha: 'number?',
+  earlyStopping: 'boolean?',
+  numBeams: 'number?',
 
   frequencyPenalty: 'number',
   presencePenalty: 'number',
@@ -42,22 +47,26 @@ export const chatGenSettings = {
   oaiModel: 'string',
   openRouterModel: 'any?',
 
+  topG: 'number?',
+  mirostatTau: 'number?',
+  mirostatLR: 'number?',
   cfgScale: 'number?',
   cfgOppose: 'string?',
+  phraseRepPenalty: 'string?',
 
+  stopSequences: ['string?'],
   thirdPartyUrl: 'string?',
-  thirdPartyFormat: ['kobold', 'openai', 'claude', null],
+  thirdPartyFormat: [...THIRDPARTY_FORMATS, null],
+  thirdPartyUrlNoSuffix: 'boolean?',
 
   novelModel: 'string?',
   novelModelOverride: 'string?',
 
   claudeModel: 'string',
   streamResponse: 'boolean?',
-  useGaslight: 'boolean?',
   ultimeJailbreak: 'string?',
   prefill: 'string?',
   antiBond: 'boolean?',
-  useTemplateParser: 'boolean?',
 
   replicateModelType: 'string?',
   replicateModelVersion: 'string?',
@@ -65,11 +74,7 @@ export const chatGenSettings = {
 
   order: 'string?',
   disabledSamplers: 'string?',
-} as const
-
-export const presetValidator = {
-  name: 'string',
-  ...chatGenSettings,
+  registered: 'any?',
 } as const
 
 const disabledValues: { [key in keyof GenMap]?: AppSchema.GenSettings[key] } = {
@@ -170,12 +175,15 @@ export const serviceGenMap: Record<Exclude<ChatAdapter, 'default'>, GenMap> = {
     temp: 'temperature',
     typicalP: 'typical_p',
     repetitionPenalty: 'repetition_penalty',
+    doSample: 'do_sample',
     encoderRepitionPenalty: 'encoder_repetition_penalty',
     topK: 'top_k',
     penaltyAlpha: 'penalty_alpha',
     addBosToken: 'add_bos_token',
     banEosToken: 'ban_eos_token',
     skipSpecialTokens: 'skip_special_tokens',
+    earlyStopping: 'early_stopping',
+    numBeams: 'num_beams',
     topA: '',
     order: '',
     repetitionPenaltyRange: '',
@@ -299,6 +307,57 @@ export const serviceGenMap: Record<Exclude<ChatAdapter, 'default'>, GenMap> = {
     frequencyPenalty: '',
     gaslight: '',
   },
+  mancer: {
+    maxTokens: 'max_new_tokens',
+    topP: 'top_p',
+    temp: 'temperature',
+    typicalP: 'typical_p',
+    repetitionPenalty: 'repetition_penalty',
+    encoderRepitionPenalty: 'encoder_repetition_penalty',
+    topK: 'top_k',
+    penaltyAlpha: 'penalty_alpha',
+    addBosToken: 'add_bos_token',
+    banEosToken: 'ban_eos_token',
+    skipSpecialTokens: 'skip_special_tokens',
+    topA: '',
+    order: '',
+    repetitionPenaltyRange: '',
+    repetitionPenaltySlope: '',
+    tailFreeSampling: '',
+  },
+  petals: {
+    maxTokens: '',
+    repetitionPenalty: '',
+    repetitionPenaltyRange: '',
+    repetitionPenaltySlope: '',
+    tailFreeSampling: '',
+    temp: '',
+    topK: '',
+    topP: '',
+    typicalP: '',
+    topA: '',
+    gaslight: '',
+    claudeModel: '',
+  },
+  agnaistic: {
+    maxTokens: 'max_tokens',
+    temp: 'temperature',
+    repetitionPenalty: '',
+    repetitionPenaltyRange: '',
+    repetitionPenaltySlope: '',
+    tailFreeSampling: '',
+    topA: '',
+    topK: '',
+    topP: '',
+    typicalP: '',
+    addBosToken: '',
+    antiBond: '',
+    banEosToken: '',
+    claudeModel: '',
+    encoderRepitionPenalty: '',
+    frequencyPenalty: '',
+    gaslight: '',
+  },
 }
 
 export function isDefaultPreset(value?: string): value is GenerationPreset {
@@ -308,12 +367,16 @@ export function isDefaultPreset(value?: string): value is GenerationPreset {
 
 export function getFallbackPreset(adapter: AIAdapter): Partial<AppSchema.GenSettings> {
   switch (adapter) {
+    case 'petals':
     case 'horde':
       return defaultPresets.horde
 
     case 'kobold':
     case 'ooba':
       return defaultPresets.basic
+
+    case 'agnaistic':
+      return defaultPresets.agnai
 
     case 'openai':
       return defaultPresets.openai
@@ -336,6 +399,9 @@ export function getFallbackPreset(adapter: AIAdapter): Partial<AppSchema.GenSett
     /** TODO: Create default preset for OpenRouter... */
     case 'openrouter':
       return defaultPresets.openai
+
+    case 'mancer':
+      return defaultPresets.mancer
   }
 }
 
@@ -345,8 +411,12 @@ export function getInferencePreset(
   model?: string
 ): Partial<AppSchema.GenSettings> {
   switch (adapter) {
+    case 'petals':
     case 'horde':
       return defaultPresets.horde
+
+    case 'agnaistic':
+      return defaultPresets.agnai
 
     case 'kobold':
     case 'ooba':
@@ -375,5 +445,8 @@ export function getInferencePreset(
     /** TODO: Create default preset for OpenRouter... */
     case 'openrouter':
       return defaultPresets.openai
+
+    case 'mancer':
+      return defaultPresets.mancer
   }
 }

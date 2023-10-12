@@ -12,12 +12,12 @@ describe('Prompt building', () => {
 
   it('will build a basic prompt', () => {
     const actual = build([botMsg('FIRST'), toMsg('SECOND')])
-    expect(actual.template).toMatchSnapshot()
+    expect(actual.template.parsed).toMatchSnapshot()
   })
 
   it('will build a continue prompt', () => {
     const actual = build([botMsg('FIRST')], { continue: 'ORIGINAL', replyAs: main })
-    expect(actual.template).toMatchSnapshot()
+    expect(actual.template.parsed).toMatchSnapshot()
   })
 
   // i dont understand this test. @malfoyslastname 2023-06-07
@@ -30,10 +30,9 @@ describe('Prompt building', () => {
         gaslight: `{{char}}'s Persona: {{personality}}
 Scenario: {{scenario}}
 This is how {{char}} should talk: {{example_dialogue}}`,
-        useGaslight: true,
       },
     })
-    expect(actual.template).toMatchSnapshot()
+    expect(actual.template.parsed).toMatchSnapshot()
   })
 
   it('will include sample chat when gaslight does not contain sample chat placeholder', () => {
@@ -42,12 +41,12 @@ This is how {{char}} should talk: {{example_dialogue}}`,
       chat,
       settings: { service: 'openai', oaiModel: OPENAI_MODELS.Turbo, gaslight: 'Gaslight' },
     })
-    expect(actual.template).toMatchSnapshot()
+    expect(actual.template.parsed).toMatchSnapshot()
   })
 
   it('will include will two memories by weight when triggered', () => {
     const actual = build([botMsg('FIRST'), toMsg('10-TRIGGER'), toMsg('1-TRIGGER')])
-    expect(actual.template).toMatchSnapshot()
+    expect(actual.template.parsed).toMatchSnapshot()
   })
 
   it('will exclude lowest priority memory to fit in budget', () => {
@@ -58,7 +57,7 @@ This is how {{char}} should talk: {{example_dialogue}}`,
         settings: { memoryContextLimit: limit },
       }
     )
-    expect(actual.template).toMatchSnapshot()
+    expect(actual.template.parsed).toMatchSnapshot()
   })
 
   it('will order by trigger position when weight tie occurs', () => {
@@ -68,7 +67,7 @@ This is how {{char}} should talk: {{example_dialogue}}`,
       toMsg('TIE-TRIGGER'),
       toMsg('20-TRIGGER'),
     ])
-    expect(actual.template).toMatchSnapshot()
+    expect(actual.template.parsed).toMatchSnapshot()
   })
 
   it('will exclude matches that are not a whole word match', () => {
@@ -76,7 +75,7 @@ This is how {{char}} should talk: {{example_dialogue}}`,
       settings: { memoryDepth: 2 },
     })
 
-    expect(actual.template).toMatchSnapshot()
+    expect(actual.template.parsed).toMatchSnapshot()
   })
 
   it('will exclude memories triggered outside of memory depth', () => {
@@ -87,18 +86,18 @@ This is how {{char}} should talk: {{example_dialogue}}`,
       }
     )
 
-    expect(actual.template).toMatchSnapshot()
+    expect(actual.template.parsed).toMatchSnapshot()
   })
 
   it('will include gaslight for non-turbo adapter', () => {
     const actual = build(
       [botMsg('FIRST'), toMsg('1-TRIGGER'), toMsg('TIE-TRIGGER'), toMsg('20-TRIGGER')],
       {
-        settings: { gaslight: 'GASLIGHT {{user}}', useGaslight: true },
+        settings: { gaslight: 'GASLIGHT {{user}}' },
       }
     )
 
-    expect(actual.template).toMatchSnapshot()
+    expect(actual.template.parsed).toMatchSnapshot()
   })
 
   it('will include placeholders in the gaslight', () => {
@@ -107,12 +106,11 @@ This is how {{char}} should talk: {{example_dialogue}}`,
       {
         settings: {
           gaslight: 'GASLIGHT\n{{user}}\n{{char}}\nFacts:{{memory}}',
-          useGaslight: true,
         },
       }
     )
 
-    expect(actual.template).toMatchSnapshot()
+    expect(actual.template.parsed).toMatchSnapshot()
   })
 
   it('will not use the gaslight when set to false', () => {
@@ -121,12 +119,11 @@ This is how {{char}} should talk: {{example_dialogue}}`,
       {
         settings: {
           gaslight: 'GASLIGHT\n{{user}}\n{{char}}\nFacts: {{memory}}',
-          useGaslight: false,
         },
       }
     )
 
-    expect(actual.template).toMatchSnapshot()
+    expect(actual.template.parsed).toMatchSnapshot()
   })
 
   it('uses the correct replaces for all instances of {{char}}, {{user}}, <BOT>, and <USER>, case insensitive', () => {
@@ -140,7 +137,7 @@ This is how {{char}} should talk: {{example_dialogue}}`,
 
   it('will use correct placeholders in scenario and sample chat', () => {
     const actual = build([], { replyAs, char: main, chat: toChat(main) })
-    expect(actual.template).toMatchSnapshot()
+    expect(actual.template.parsed).toMatchSnapshot()
   })
 
   it('will omit sample chat when replyAs has no samplechat', () => {
@@ -149,34 +146,58 @@ This is how {{char}} should talk: {{example_dialogue}}`,
       char: main,
       chat: toChat(main),
     })
-    expect(actual.template).toMatchSnapshot()
+    expect(actual.template.parsed).toMatchSnapshot()
   })
 
-  it('will include example dialogue with omitted from template', () => {
+  it('will include example dialogue with omitted from template (no longer true)', () => {
     const actual = build(
       [botMsg('FIRST'), toMsg('1-TRIGGER'), toMsg('TIE-TRIGGER'), toMsg('20-TRIGGER')],
       {
         char: { ...main, sampleChat: 'Bot: Example_Dialogue' },
         settings: {
           gaslight: 'GASLIGHT\n{{user}}\n{{char}}\nFacts: {{memory}}',
-          useGaslight: false,
         },
       }
     )
 
-    expect(actual.template).toMatchSnapshot()
+    expect(actual.template.parsed).toMatchSnapshot()
   })
 
   it('will include ujb when omitted from gaslight', () => {
     const actual = build([botMsg('bot response')], {
       char: main,
       settings: {
-        useGaslight: true,
         gaslight: `GASLIGHT TEMPLATE\n{{user}}\n{{char}}\nAuto-injected text:`,
         ultimeJailbreak: '!!UJB_PROMPT!!',
       },
     })
     expect(actual).to.matchSnapshot()
+  })
+
+  it('will exclude scenario when empty in condition', () => {
+    const actual = build([botMsg('first')], {
+      char: { ...main, scenario: '' },
+      chat: toChat(main, { scenario: '' }),
+      settings: {
+        gaslight: `Roleplay instructions\n{{#if scenario}}Scenario: {{scenario}}{{/if}}`,
+      },
+    })
+
+    expect(actual.template.parsed.includes('Scenario')).to.equal(false)
+    expect(actual.template.parsed).toMatchSnapshot()
+  })
+
+  it('will include scenario when populated in condition', () => {
+    const actual = build([botMsg('first')], {
+      char: { ...main, scenario: 'Populated scenario' },
+      chat: toChat(main, { overrides: undefined }),
+      settings: {
+        gaslight: `Roleplay instructions\n{{#if scenario}}Scenario: {{scenario}}{{/if}}`,
+      },
+    })
+
+    expect(actual.template.parsed.includes('Populated scenario')).to.equal(true)
+    expect(actual.template.parsed).toMatchSnapshot()
   })
 })
 

@@ -6,6 +6,7 @@ import type {
   OpenRouterModel,
   PersonaFormat,
   RegisteredAdapter,
+  ThirdPartyFormat,
 } from '../adapters'
 import type { GenerationPreset } from '../presets'
 import type { ImageSettings } from './image-schema'
@@ -14,6 +15,7 @@ import { UISettings } from './ui'
 import { FullSprite } from './sprite'
 
 export type AllDoc =
+  | AppSchema.Announcement
   | AppSchema.Chat
   | AppSchema.ChatTree
   | AppSchema.ChatMessage
@@ -24,6 +26,8 @@ export type AllDoc =
   | AppSchema.ChatMember
   | AppSchema.ChatInvite
   | AppSchema.UserGenPreset
+  | AppSchema.SubscriptionPreset
+  | AppSchema.SubscriptionTier
   | AppSchema.MemoryBook
   | AppSchema.ShopOrder
   | AppSchema.OrderCount
@@ -31,6 +35,7 @@ export type AllDoc =
   | AppSchema.ShopItem
   | AppSchema.ScenarioBook
   | AppSchema.ApiKey
+  | AppSchema.PromptTemplate
 
 export type OAuthScope = keyof typeof oauthScopes
 
@@ -42,6 +47,47 @@ export type ChatBranch = {
 }
 
 export namespace AppSchema {
+  export interface Announcement {
+    kind: 'announcement'
+    _id: string
+
+    title: string
+    content: string
+
+    /** Date ISO string */
+    showAt: string
+    hide: boolean
+
+    createdAt: string
+    updatedAt: string
+    deletedAt?: string
+  }
+
+  export interface SubscriptionTier {
+    kind: 'subscription-tier'
+    _id: string
+
+    productId: string
+    priceId: string
+
+    name: string
+    description: string
+    cost: number
+    level: number
+    enabled: boolean
+    disableSlots?: boolean
+    createdAt: string
+    deletedAt?: string
+    updatedAt: string
+  }
+
+  export interface SubscriptionOption {
+    _id: string
+    name: string
+    level: number
+    service: AIAdapter
+  }
+
   export interface AppConfig {
     adapters: AIAdapter[]
     version: string
@@ -61,6 +107,8 @@ export namespace AppSchema {
       models: HordeModel[]
       workers: HordeWorker[]
     }
+    openRouter: { models: OpenRouterModel[] }
+    subs: Array<SubscriptionOption>
   }
 
   export type ChatMode = 'standard' | 'adventure'
@@ -80,7 +128,6 @@ export namespace AppSchema {
     userId: string
     handle: string
     avatar?: string
-    persona?: Persona
   }
 
   export interface User {
@@ -101,7 +148,7 @@ export namespace AppSchema {
     useLocalPipeline: boolean
 
     koboldUrl: string
-    thirdPartyFormat: 'kobold' | 'openai' | 'claude'
+    thirdPartyFormat: ThirdPartyFormat
 
     premium: boolean
     credits: number
@@ -148,6 +195,21 @@ export namespace AppSchema {
     adapterConfig?: { [key in AIAdapter]?: Record<string, any> }
 
     ui?: UISettings
+
+    sub?: {
+      tierId: string
+      level: number
+      last?: string
+    }
+
+    billing?: {
+      status: 'active' | 'cancelled'
+      cancelling?: boolean
+      validUntil: string
+      lastRenewed: string
+      customerId: string
+      subscriptionId: string
+    }
   }
 
   export interface ApiKey {
@@ -194,6 +256,8 @@ export namespace AppSchema {
     greeting?: string
     scenario?: string
     sampleChat?: string
+    systemPrompt?: string
+    postHistoryInstructions?: string
     overrides?: Persona
 
     createdAt: string
@@ -223,6 +287,7 @@ export namespace AppSchema {
     kind: 'chat-message'
     chatId: string
     msg: string
+    extras?: string[]
     characterId?: string
     userId?: string
 
@@ -281,6 +346,7 @@ export namespace AppSchema {
 
     createdAt: string
     updatedAt: string
+    deletedAt?: string
 
     favorite?: boolean
 
@@ -292,6 +358,7 @@ export namespace AppSchema {
     extensions?: Record<string, any>
     systemPrompt?: string
     postHistoryInstructions?: string
+    insert?: { depth: number; prompt: string }
     creator?: string
     characterVersion?: string
   }
@@ -375,11 +442,23 @@ export namespace AppSchema {
     incart: false
   }
 
+  export interface SubscriptionPreset extends GenSettings {
+    _id: string
+    kind: 'subscription-setting'
+    subLevel: number
+    subModel: string
+    subApiKey: string
+    subApiKeySet?: boolean
+    subServiceUrl?: string
+    subDisabled: boolean
+    allowGuestUsage?: boolean
+    isDefaultSub?: boolean
+    deletedAt?: string
+  }
+
   export interface GenSettings {
     name: string
     service?: AIAdapter
-
-    useTemplateParser?: boolean
 
     temp: number
     maxTokens: number
@@ -391,23 +470,32 @@ export namespace AppSchema {
     topP: number
     topK: number
     topA: number
+    topG?: number
+    mirostatTau?: number
+    mirostatLR?: number
     tailFreeSampling: number
     encoderRepitionPenalty?: number
+    doSample?: boolean
     penaltyAlpha?: number
+    numBeams?: number
     addBosToken?: boolean
     banEosToken?: boolean
+    earlyStopping?: boolean
+    stopSequences?: string[]
 
     order?: number[]
     disabledSamplers?: number[]
 
     skipSpecialTokens?: boolean
+
+    phraseBias?: Array<{ bias: number; seq: string }>
+    phraseRepPenalty?: string
     cfgScale?: number
     cfgOppose?: string
 
     systemPrompt?: string
     ignoreCharacterSystemPrompt?: boolean
     gaslight?: string
-    useGaslight?: boolean
     ultimeJailbreak?: string
     prefill?: string
     ignoreCharacterUjb?: boolean
@@ -421,7 +509,8 @@ export namespace AppSchema {
     openRouterModel?: OpenRouterModel
 
     thirdPartyUrl?: string
-    thirdPartyFormat?: 'kobold' | 'openai' | 'claude'
+    thirdPartyFormat?: 'kobold' | 'openai' | 'claude' | 'ooba' | 'llamacpp'
+    thirdPartyUrlNoSuffix?: boolean
 
     replicateModelName?: string
     replicateModelType?: string
@@ -440,6 +529,20 @@ export namespace AppSchema {
     images?: {
       adapter: string
     }
+
+    temporary?: Record<string, any>
+    registered?: { [key in AIAdapter]?: Record<string, any> }
+  }
+
+  export interface PromptTemplate {
+    kind: 'prompt-template'
+    _id: string
+    name: string
+    template: string
+    userId: string
+    public?: boolean
+    createdAt: string
+    updatedAt: string
   }
 
   export interface MemoryBook {

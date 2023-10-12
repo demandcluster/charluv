@@ -10,23 +10,14 @@ import { store } from '../db'
 import { AppSchema } from '../../common/types/schema'
 import { AppLog, logger } from '../logger'
 import { errors, StatusError } from '../api/wrap'
-import { handleHorde } from './horde'
-import { handleKobold } from './kobold'
-import { handleNovel } from './novel'
-import { handleOoba } from './ooba'
-import { handleOAI } from './openai'
-import { handleClaude } from './claude'
-import { GenerateRequestV2, ModelAdapter } from './type'
+import { GenerateRequestV2 } from './type'
 import { createPromptWithParts, getAdapter, getPromptParts } from '../../common/prompt'
-import { handleScale } from './scale'
 import { configure } from '../../common/horde-gen'
 import needle from 'needle'
 import { HORDE_GUEST_KEY } from '../api/horde'
 import { getTokenCounter } from '../tokenize'
-import { handleGooseAI } from './goose'
-import { handleReplicate } from './replicate'
 import { getAppConfig } from '../api/settings'
-import { handleOpenRouter } from './openrouter'
+import { getHandlers, getSubscriptionPreset, handlers } from './agnaistic'
 
 let version = ''
 
@@ -48,23 +39,11 @@ configure(async (opts) => {
   return { body: res.body, statusCode: res.statusCode, statusMessage: res.statusMessage }
 }, logger)
 
-const handlers: { [key in AIAdapter]: ModelAdapter } = {
-  novel: handleNovel,
-  kobold: handleKobold,
-  ooba: handleOoba,
-  horde: handleHorde,
-  openai: handleOAI,
-  scale: handleScale,
-  claude: handleClaude,
-  goose: handleGooseAI,
-  replicate: handleReplicate,
-  openrouter: handleOpenRouter,
-}
-
 type InferenceRequest = {
   prompt: string
   guest?: string
   user: AppSchema.User
+  settings?: Partial<AppSchema.UserGenPreset>
 
   /** Follows the formats:
    * - [service]/[model] E.g. novel/krake-v2
@@ -121,9 +100,9 @@ export async function inferenceAsync(opts: InferenceRequest) {
   throw new Error(`Could not complete inference: Max retries exceeded`)
 }
 
-export async function createInferenceStream(opts: InferenceRequest) {
+async function createInferenceStream(opts: InferenceRequest) {
   const [service, model] = opts.service.split('/')
-  const settings = getInferencePreset(opts.user, service as AIAdapter, model)
+  const settings = opts.settings || getInferencePreset(opts.user, service as AIAdapter, model)
 
   if (model) {
     switch (service as AIAdapter) {
@@ -136,11 +115,16 @@ export async function createInferenceStream(opts: InferenceRequest) {
       case 'novel':
         settings.novelModel = model
         break
+
+      case 'agnaistic': {
+        if (!settings.registered) settings.registered = {}
+        if (!settings.registered.agnaistic) settings.registered.agnaistic = {}
+        settings.registered.agnaistic.subscriptionId = model
+      }
     }
   }
 
   settings.maxTokens = opts.maxTokens ? opts.maxTokens : 1024
-  settings.streamResponse = false
   settings.temp = opts.temp ?? 0.5
 
   if (settings.service === 'openai') {
@@ -149,7 +133,15 @@ export async function createInferenceStream(opts: InferenceRequest) {
     settings.presencePenalty = 0
   }
 
-  const handler = handlers[settings.service!]
+  if (settings.thirdPartyUrl) {
+    opts.user.koboldUrl = settings.thirdPartyUrl
+  }
+
+  if (opts.settings?.thirdPartyFormat) {
+    opts.user.thirdPartyFormat = opts.settings.thirdPartyFormat
+  }
+
+  const handler = getHandlers(settings)
   const stream = handler({
     kind: 'plain',
     requestId: '',
@@ -187,6 +179,8 @@ export async function createTextStreamV2(
    */
   if (!guestSocketId) {
     const entities = await getResponseEntities(opts.chat, opts.sender.userId, opts.settings)
+    entities.gen.temporary = opts.settings?.temporary
+
     const { adapter, model } = getAdapter(opts.chat, entities.user, entities.gen)
     const encoder = getTokenCounter(adapter, model)
     opts.parts = getPromptParts(
@@ -223,15 +217,46 @@ export async function createTextStreamV2(
     opts.settings = {}
   }
 
-  if (opts.kind.startsWith('send-event:')) {
-    opts.settings!.useTemplateParser = true
+  if (opts.settings.stopSequences) {
+    opts.settings.stopSequences = opts.settings.stopSequences
+      .map((stop) => stop.replace(/\\n/g, '\n'))
+      .filter((stop) => !!stop)
   }
 
+  if (opts.settings.phraseBias) {
+    opts.settings.phraseBias = opts.settings.phraseBias
+      .map(({ seq, bias }) => ({ seq: seq.replace(/\\n/g, '\n'), bias }))
+      .filter((pb) => !!pb.seq)
+  }
+
+  const subscription = await getSubscriptionPreset(opts.user, !!guestSocketId, opts.settings)
   const { adapter, isThirdParty, model } = getAdapter(opts.chat, opts.user, opts.settings)
   const encoder = getTokenCounter(adapter, model)
   const handler = handlers[adapter]
 
+  /**
+   * Context limits set by the subscription need to be present before the prompt is finalised.
+   * We never need to use the users context length here as the subscription should contain the maximum possible context length.
+   */
+  const subContextLimit = subscription?.preset?.maxContextLength
+  if (subContextLimit) {
+    opts.settings.maxContextLength = subContextLimit
+  }
+
   const prompt = createPromptWithParts(opts, opts.parts, opts.lines, encoder)
+
+  const size = encoder(
+    [
+      opts.parts.sampleChat,
+      opts.parts.scenario,
+      opts.parts.memory,
+      opts.parts.systemPrompt,
+      opts.parts.ujb,
+      opts.parts.persona,
+    ]
+      .filter((l) => !!l)
+      .join('\n')
+  )
 
   if (opts.impersonate) {
     Object.assign(opts.characters, { impersonated: opts.impersonate })
@@ -259,9 +284,10 @@ export async function createTextStreamV2(
     characters: opts.characters,
     impersonate: opts.impersonate,
     lastMessage: opts.lastMessage,
+    subscription,
   })
 
-  return { stream, adapter, settings: gen, user: opts.user }
+  return { stream, adapter, settings: gen, user: opts.user, size }
 }
 
 export async function getResponseEntities(

@@ -25,6 +25,7 @@ import { wait } from '/common/util'
 import CharacterSelect from '/web/shared/CharacterSelect'
 import { isValid } from '/common/valid'
 import ChatSettings from '../ChatSettings'
+import ChatMemoryModal from './MemoryModal'
 
 export { ChatPanes as default }
 
@@ -53,7 +54,12 @@ const ChatPanes: Component<{
   const [editId, setEditId] = createSignal<string>()
 
   onMount(() => {
-    if (isValid({ pane: ['character', 'preset', 'participants', 'ui', 'chat-settings'] }, search)) {
+    if (
+      isValid(
+        { pane: ['character', 'preset', 'participants', 'ui', 'chat-settings', 'memory'] },
+        search
+      )
+    ) {
       togglePane(search.pane)
     }
   })
@@ -78,6 +84,8 @@ const ChatPanes: Component<{
     }
 
     for (const bot of chats.activeBots) {
+      if (bot.deletedAt) continue
+      if (bot._id.startsWith('temp-') && bot.favorite === false) continue
       ids.set(bot._id, bot)
     }
 
@@ -155,13 +163,14 @@ const ChatPanes: Component<{
         </Match>
 
         <Match when={chats.opts.pane === 'preset'}>
-          <Convertible
-            kind="partial"
-            title={'Preset Settings'}
-            close={closePane}
-            footer={paneFooter()}
-          >
+          <Convertible kind="partial" close={closePane} footer={paneFooter()}>
             <ChatGenSettings chat={chats.chat!} close={closePane} footer={setPaneFooter} />
+          </Convertible>
+        </Match>
+
+        <Match when={chats.opts.pane === 'memory'}>
+          <Convertible kind="partial" close={closePane} footer={paneFooter()}>
+            <ChatMemoryModal chat={chats.chat!} close={closePane} footer={setPaneFooter} />
           </Convertible>
         </Match>
 

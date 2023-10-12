@@ -21,6 +21,7 @@ export { AllChat }
 export type ChatState = {
   lastChatId: string | null
   lastFetched: number
+  allLoading: boolean
   loaded: boolean
   // All user chats a user owns or is a member of
   allChats: AllChat[]
@@ -52,7 +53,13 @@ export type ChatState = {
   promptHistory: Record<string, any>
 }
 
-export type ChatRightPane = 'character' | 'preset' | 'participants' | 'ui' | 'chat-settings'
+export type ChatRightPane =
+  | 'character'
+  | 'preset'
+  | 'participants'
+  | 'ui'
+  | 'chat-settings'
+  | 'memory'
 
 export type ImportChat = {
   name: string
@@ -78,6 +85,7 @@ const initState: ChatState = {
   lastFetched: 0,
   lastChatId: null,
   loaded: false,
+  allLoading: false,
   allChats: [],
   allChars: { map: {}, list: [] },
   char: undefined,
@@ -107,6 +115,7 @@ const EDITING_KEY = 'chat-detail-settings'
 export const chatStore = createStore<ChatState>('chat', {
   lastFetched: 0,
   lastChatId: storage.localGetItem('lastChatId'),
+  allLoading: false,
   loaded: false,
   allChats: [],
   allChars: { map: {}, list: [] },
@@ -129,16 +138,45 @@ export const chatStore = createStore<ChatState>('chat', {
   })
 
   events.on(EVENTS.init, (init) => {
+    chatStore.setState({
+      allChats: [],
+      allChars: { map: {}, list: [] },
+      loaded: false,
+      lastFetched: 0,
+      lastChatId: null,
+    })
+
     if (init.chats) {
-      chatStore.setState({ allChats: init.chats })
+      chatStore.getAllChats()
+    } else {
+      chatStore.getAllChats()
     }
   })
 
-  events.on(EVENTS.charUpdated, (char: AppSchema.Character) => {
-    const { active } = get()
-    if (active?.char?._id !== char._id) return
+  events.on(EVENTS.loggedIn, () => {})
 
-    set({ active: { ...active, char } })
+  events.on(EVENTS.charUpdated, (char: AppSchema.Character, action: 'created' | 'updated') => {
+    const { active, allChars } = get()
+    const list =
+      action === 'created'
+        ? allChars.list.concat(char)
+        : allChars.list.map((ch) => (ch._id === char._id ? char : ch))
+
+    const map = Object.assign({}, allChars.map, { [char._id]: char })
+    if (active?.char?._id !== char._id) {
+      set({ allChars: { list, map } })
+      return
+    }
+
+    set({ active: { ...active, char }, allChars: { list, map } })
+  })
+
+  events.on(EVENTS.charDeleted, (id: string) => {
+    const { allChars } = get()
+    const list = allChars.list.filter((ch) => ch._id !== id)
+    const map = Object.assign({}, allChars.map, { [id]: undefined })
+
+    set({ allChars: { list, map } })
   })
 
   return {
@@ -202,10 +240,16 @@ export const chatStore = createStore<ChatState>('chat', {
           messages: res.result.messages,
         })
 
-        const isMultiChars =
-          res.result.chat.characters && Object.keys(res.result.chat.characters).length
+        const tempCount = Object.keys(res.result.chat.tempCharacters || {}).length
+        const charCount = Object.keys(res.result.chat.characters || {}).length
 
-        events.emit(EVENTS.charsReceived, res.result.characters)
+        const isMultiChars = charCount > 0 || tempCount > 0
+
+        events.emit(
+          EVENTS.charsReceived,
+          res.result.characters,
+          Object.values(res.result.chat.tempCharacters || {})
+        )
 
         yield {
           lastChatId: id,
@@ -293,12 +337,16 @@ export const chatStore = createStore<ChatState>('chat', {
       }
     },
     async *getAllChats({ allChats, lastFetched }) {
+      yield { allLoading: true }
       const diff = Date.now() - lastFetched
-      if (diff < 30000) return
+      if (diff < 30000) {
+        yield { allLoading: false }
+        return
+      }
 
       yield { loaded: false }
       const res = await chatsApi.getAllChats()
-      yield { lastFetched: Date.now(), loaded: true }
+      yield { lastFetched: Date.now(), loaded: true, allLoading: false }
       if (res.error) {
         toastStore.error(`Could not retrieve chats: ${res.error}`)
         return { allChats }
@@ -378,24 +426,24 @@ export const chatStore = createStore<ChatState>('chat', {
       char: Omit<AppSchema.Character, '_id' | 'kind' | 'createdAt' | 'updatedAt' | 'userId'> & {
         _id?: string
       },
-      onSuccess?: () => void
+      onSuccess?: (char: AppSchema.Character) => void
     ) {
       const res = await chatsApi.upsertTempCharacter(chatId, char)
       if (res.result) {
         const char = res.result.char
 
-        onSuccess?.()
+        onSuccess?.(char)
         if (active?.chat._id === chatId) {
           yield {
             active: {
               ...active,
-              chat: replaceTemp(active.chat, char),
+              chat: Object.assign({}, replaceTemp(active.chat, char)),
             },
           }
         }
 
         const nextChats = allChats.map((chat) =>
-          chat._id === chatId ? replaceTemp(chat, char) : chat
+          chat._id === chatId ? Object.assign({}, replaceTemp(chat, char)) : chat
         )
         yield { allChats: nextChats }
       }
@@ -478,7 +526,7 @@ export const chatStore = createStore<ChatState>('chat', {
       const encoder = await getEncoder()
       const replyAs = active.replyAs?.startsWith('temp-')
         ? entities.chat.tempCharacters![active.replyAs]
-        : entities.characters[active.replyAs ?? active.char._id]
+        : entities.characters[active.replyAs!] || active.char
 
       const prompt = createPrompt(
         {
@@ -649,6 +697,8 @@ subscribe(
         },
       },
     })
+
+    events.emit(EVENTS.charAdded, body.character)
   }
 )
 

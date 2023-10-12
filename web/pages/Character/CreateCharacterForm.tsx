@@ -8,7 +8,7 @@ import {
   Show,
   Switch,
 } from 'solid-js'
-import { MinusCircle, Plus, Save, X, ChevronUp, ChevronDown, Import, Download } from 'lucide-solid'
+import { MinusCircle, Plus, Save, X, Import, Download } from 'lucide-solid'
 import Button from '../../shared/Button'
 import PageHeader from '../../shared/PageHeader'
 import TextInput from '../../shared/TextInput'
@@ -36,7 +36,7 @@ import { AppSchema } from '../../../common/types/schema'
 import Loading from '/web/shared/Loading'
 import { JSX, For } from 'solid-js'
 import { BUNDLED_CHARACTER_BOOK_ID, emptyBookWithEmptyEntry } from '/common/memory'
-import { Card, SolidCard, TitleCard } from '../../shared/Card'
+import { Card, Pill, SolidCard, TitleCard } from '../../shared/Card'
 import { usePane, useRootModal } from '../../shared/hooks'
 import Modal from '/web/shared/Modal'
 import EditMemoryForm, { EntrySort, getBookUpdate } from '../Memory/EditMemory'
@@ -45,16 +45,19 @@ import AvatarBuilder from '../../shared/Avatar/Builder'
 import { FullSprite } from '/common/types/sprite'
 import { getRandomBody } from '../../asset/sprite'
 import AvatarContainer from '../../shared/Avatar/Container'
-import { useCharEditor } from './editor'
+import { CharEditor, useCharEditor } from './editor'
 import { downloadCharacterHub, jsonToCharacter } from './port'
 import { DownloadModal } from './DownloadModal'
 import ImportCharacterModal from './ImportCharacter'
 import { GenField } from './generate-char'
+import Tabs, { useTabs } from '/web/shared/Tabs'
+import RangeInput from '/web/shared/RangeInput'
 
 const options = [
   { id: 'wpp', label: 'W++' },
   { id: 'boostyle', label: 'Boostyle' },
   { id: 'sbf', label: 'SBF' },
+  { id: 'attributes', label: 'Attributes' },
   { id: 'text', label: 'Plain Text' },
 ]
 
@@ -67,6 +70,7 @@ export const CreateCharacterForm: Component<{
   temp?: boolean
   footer?: (children: JSX.Element) => void
   close?: () => void
+  onSuccess?: (char: AppSchema.Character) => void
 }> = (props) => {
   let ref: any
   const nav = useNavigate()
@@ -91,14 +95,12 @@ export const CreateCharacterForm: Component<{
   const tagState = tagStore()
   const user = userStore()
   const state = characterStore((s) => {
-    const edit = s.characters.list.find((ch) => ch._id === srcId())
-    const tempChar =
-      props.temp && props.editId ? props.chat?.tempCharacters?.[props.editId] : undefined
+    const edit = s.editing
 
     return {
       avatar: s.generate,
       creating: s.creating,
-      edit: props.temp ? tempChar : forceNew() ? undefined : edit,
+      edit: forceNew() ? undefined : edit,
       list: s.characters.list,
       loaded: s.characters.loaded,
     }
@@ -117,9 +119,6 @@ export const CreateCharacterForm: Component<{
   const [showBuilder, setShowBuilder] = createSignal(false)
   const [converted, setConverted] = createSignal<AppSchema.Character>()
   const [showImport, setImport] = createSignal(false)
-  const [showAdvanced, setShowAdvanced] = createSignal(false)
-  const toggleShowAdvanced = () => setShowAdvanced(!showAdvanced())
-  const advancedVisibility = createMemo(() => (showAdvanced() ? '' : 'hidden'))
 
   const totalTokens = createMemo(() => {
     const t = tokens()
@@ -134,25 +133,27 @@ export const CreateCharacterForm: Component<{
   const generateCharacter = async (fields?: GenField[]) => {
     setCreating(true)
     try {
-      await editor.generateCharacter(ref, genService(), fields)
+      await editor.generateCharacter(genService(), fields)
     } finally {
       setCreating(false)
     }
   }
 
   onMount(async () => {
-    /**
-     * Character importing from CharacterHub
-     */
     characterStore.clearGeneratedAvatar()
-    characterStore.getCharacters()
+    characterStore.clearCharacter()
 
+    if (srcId()) {
+      characterStore.getCharacter(srcId(), props.chat)
+    }
+
+    /* Character importing from CharacterHub */
     if (!query.import) return
     try {
       const { file, json } = await downloadCharacterHub(query.import)
       const imageData = await getImageData(file)
       const char = jsonToCharacter(json)
-      editor.load(ref, char)
+      editor.load(char)
       editor.update({
         book: json.characterBook,
         alternateGreetings: json.alternateGreetings || [],
@@ -173,8 +174,6 @@ export const CreateCharacterForm: Component<{
     // We know we're waiting for a character to edit, so let's just wait
     if (!state.edit && srcId()) return
 
-    editor.update('editId', srcId())
-
     // If this is our first pass: load something no matter what
     if (!editor.original()) {
       if (!srcId()) {
@@ -185,7 +184,7 @@ export const CreateCharacterForm: Component<{
       // We have a `srcId`, we need to wait to receive the character we're editing
       if (!state.edit) return
 
-      editor.load(ref, state.edit)
+      editor.load(state.edit)
       setImage(state.edit?.avatar)
       return
     }
@@ -194,8 +193,9 @@ export const CreateCharacterForm: Component<{
     // We want to avoid unnecessarily clearing/reseting state due to a websocket reconnect
 
     if (!state.edit) return
-    if (editor.state.editId !== state.edit._id) {
-      editor.load(ref, state.edit)
+    if (editor.state.editId !== state.edit._id && state.edit._id === srcId()) {
+      editor.update('editId', srcId())
+      editor.load(state.edit)
       setImage(state.edit?.avatar)
       return
     }
@@ -221,8 +221,7 @@ export const CreateCharacterForm: Component<{
   }
 
   const onSubmit = async (ev: Event) => {
-    const payload = editor.payload(ref)
-    console.log('payload', payload)
+    const payload = editor.payload()
     payload.avatar = state.avatar.blob || editor.state.avatar
     payload.xp = editor.state.xp || '0'
     if (props.temp && props.chat) {
@@ -230,8 +229,9 @@ export const CreateCharacterForm: Component<{
         const data = await getImageData(payload.avatar)
         payload.avatar = data
       }
-      chatStore.upsertTempCharacter(props.chat._id, { ...payload, _id: props.editId }, () => {
-        props.close?.()
+      chatStore.upsertTempCharacter(props.chat._id, { ...payload, _id: props.editId }, (result) => {
+        props.onSuccess?.(result)
+        if (paneOrPopup() === 'popup') props.close?.()
       })
     } else if (!forceNew() && props.editId) {
       characterStore.editCharacter(props.editId, payload, () => {
@@ -266,6 +266,8 @@ export const CreateCharacterForm: Component<{
     () => !!props.chat?.overrides && props.chat.characterId === props.editId
   )
 
+  const tabs = useTabs(['Basic', 'Advanced'], 0)
+
   let spriteRef: any
 
   return (
@@ -287,7 +289,14 @@ export const CreateCharacterForm: Component<{
           }
         />
       </Show>
-      <form class="text-base" onSubmit={onSubmit} ref={ref}>
+      <form
+        class="relative text-base"
+        onSubmit={onSubmit}
+        ref={(form) => {
+          ref = form
+          editor.prepare(form)
+        }}
+      >
         <div class="flex flex-col gap-4">
           <Show when={!isPage}>
             <div> {props.children} </div>
@@ -309,35 +318,43 @@ export const CreateCharacterForm: Component<{
                 </div>
               </Show>
 
-              <Show when={props.temp}>
-                <TitleCard type="premium">
-                  You are {props.editId ? 'editing' : 'creating'} a temporary character. A temporary
-                  character exist within your current chat only.
-                </TitleCard>
-              </Show>
+          <div class={`flex grow flex-col justify-between gap-2 pl-2 pr-3 `}>
+            <Show when={!isPage && paneOrPopup() === 'popup'}>
+              <div>
+                <em>
+                  ({totalTokens()} tokens, {totalPermanentTokens()} permanent)
+                </em>
+              </div>
+            </Show>
 
               <div class="flex gap-2 text-[1em]">
                 <Button onClick={() => setImport(true)}>
                   <Import /> Import
                 </Button>
 
-                <Button onClick={() => setConverted(editor.convert(ref))}>
-                  <Download /> Export
+            <div class="flex justify-end gap-2 text-[1em]">
+              <Button onClick={() => setImport(true)}>
+                <Import /> Import
+              </Button>
+
+              <Button onClick={() => setConverted(editor.convert())}>
+                <Download /> Export
+              </Button>
+
+              <Show when={state.edit}>
+                <Button
+                  onClick={() => {
+                    setForceNew(true)
+                    editor.clear()
+                  }}
+                >
+                  <Plus />
+                  New
                 </Button>
 
-                <Show when={state.edit}>
-                  <Button
-                    onClick={() => {
-                      setForceNew(true)
-                      editor.clear(ref)
-                    }}
-                  >
-                    <Plus />
-                    New
-                  </Button>
-                </Show>
-              </div>
+            <Tabs select={tabs.select} selected={tabs.selected} tabs={tabs.tabs} />
 
+            <div class="flex flex-col gap-2" classList={{ hidden: tabs.current() !== 'Basic' }}>
               <Card>
                 <TextInput
                   fieldName="name"
@@ -358,16 +375,6 @@ export const CreateCharacterForm: Component<{
                         A description, label, or notes for your character. This is will not
                         influence your character in any way.
                       </span>
-                      <Show when={editor.canGuidance && true == false}>
-                        <p>
-                          To generate a character, describe the character below then click{' '}
-                          <b>Generate</b>. It can take 30-60 seconds. You can choose which AI
-                          Service performs the generation in the Dropdown.
-                        </p>
-                        <p>
-                          <em>Note: Character generation is experimental</em>
-                        </p>
-                      </Show>
                     </div>
                   }
                 />
@@ -378,7 +385,25 @@ export const CreateCharacterForm: Component<{
                     parentClass="w-full"
                     value={editor.state.description}
                   />
-                  <Show when={editor.canGuidance && true == false}>
+                  <Show when={editor.canGuidance}>
+                    <TitleCard class="text-sm" type="hl">
+                      <div class="font-bold">AI Generated Characters</div>
+                      1. Fill out the <Pill small>Description</Pill> field
+                      <br />
+                      2. Select the Service you wish to use
+                      <br />
+                      3. Click{' '}
+                      <Pill inverse type="hl" small>
+                        Generate
+                      </Pill>
+                      &nbsp;- It may take 30-60 seconds to generate.
+                      <br />
+                      4. Adjust the <Pill small>Description</Pill> and click{' '}
+                      <Pill type="hl" inverse small>
+                        Regenerate
+                      </Pill>
+                      &nbsp;to regenerate a specific field.
+                    </TitleCard>
                     <div class="flex justify-end gap-2 sm:justify-start">
                       <Select
                         fieldName="chargenService"
@@ -395,15 +420,7 @@ export const CreateCharacterForm: Component<{
 
               <Card>
                 <TagInput
-                  availableTags={tagState.tags
-                    .map((t) => t.tag)
-                    .filter((t) => {
-                      if (user?.user?.admin) {
-                        return t !== false
-                      } else {
-                        return t !== 'lore+'
-                      }
-                    })}
+                  availableTags={tagState.tags.map((t) => t.tag)}
                   value={editor.state.tags}
                   fieldName="tags"
                   label="Tags"
@@ -446,49 +463,48 @@ export const CreateCharacterForm: Component<{
                     onChange={(opt) => editor.update('visualType', opt.value)}
                     selected={editor.state.visualType}
                   />
-                </div>
-              </Card>
 
-              <Card class="flex w-full flex-col gap-4 sm:flex-row">
-                <Switch>
-                  <Match when={editor.state.visualType === 'avatar'}>
-                    <FileInput
-                      class="w-full"
-                      fieldName="avatar"
-                      label="Avatar"
-                      accept="image/png,image/jpeg,image/apng"
-                      onUpdate={updateFile}
-                    />
-                    <div class="flex w-full flex-col gap-2 sm:flex-row">
-                      <TextInput
-                        isMultiline
-                        parentClass="w-full"
-                        fieldName="appearance"
-                        label={
-                          <>
-                            <Regenerate
-                              fields={['appearance']}
-                              regen={generateCharacter}
-                              allowed={editor.canGuidance}
-                            />
-                          </>
-                        }
-                        helperText={`Leave the prompt empty to use your character's W++ "looks" / "appearance" attributes`}
-                        placeholder="Appearance"
-                        value={editor.state.appearance}
+                  <Switch>
+                    <Match when={editor.state.visualType === 'avatar'}>
+                      <FileInput
+                        class="w-full"
+                        fieldName="avatar"
+                        label="Avatar"
+                        accept="image/png,image/jpeg,image/apng"
+                        onUpdate={updateFile}
                       />
-                      <Button class="w-fit self-end" onClick={() => editor.createAvatar(ref)}>
-                        Generate
+                      <div class="flex w-full flex-col gap-2 sm:flex-row">
+                        <TextInput
+                          isMultiline
+                          parentClass="w-full"
+                          fieldName="appearance"
+                          label={
+                            <>
+                              <Regenerate
+                                fields={['appearance']}
+                                service={genService()}
+                                editor={editor}
+                                allowed={editor.canGuidance}
+                              />
+                            </>
+                          }
+                          helperText={`Leave the prompt empty to use your character's W++ "looks" / "appearance" attributes`}
+                          placeholder="Appearance"
+                          value={editor.state.appearance}
+                        />
+                        <Button class="w-fit self-end" onClick={() => editor.createAvatar()}>
+                          Generate
+                        </Button>
+                      </div>
+                    </Match>
+                    <Match when={true}>
+                      <Button class="w-fit" onClick={() => setShowBuilder(true)}>
+                        Open Character Builder
                       </Button>
-                    </div>
-                  </Match>
-                  <Match when={true}>
-                    <Button class="w-fit" onClick={() => setShowBuilder(true)}>
-                      Open Character Builder
-                    </Button>
-                  </Match>
-                </Switch>
-                <div></div>
+                    </Match>
+                  </Switch>
+                  <div></div>
+                </div>
               </Card>
 
               <Card>
@@ -499,7 +515,8 @@ export const CreateCharacterForm: Component<{
                       Scenario{' '}
                       <Regenerate
                         fields={['scenario']}
-                        regen={generateCharacter}
+                        service={genService()}
+                        editor={editor}
                         allowed={editor.canGuidance}
                       />
                     </>
@@ -512,6 +529,108 @@ export const CreateCharacterForm: Component<{
                 />
               </Card>
               <Card class="flex flex-col gap-3">
+                <TextInput
+                  isMultiline
+                  fieldName="greeting"
+                  label={
+                    <>
+                      Greeting{' '}
+                      <Regenerate
+                        fields={['greeting']}
+                        service={genService()}
+                        editor={editor}
+                        allowed={editor.canGuidance}
+                      />
+                    </>
+                  }
+                  helperText="The first message from your character. It is recommended to provide a lengthy first message to encourage the character to give longer responses."
+                  placeholder={
+                    "E.g. *I smile as you walk into the room* Hello, {{user}}! I can't believe it's lunch time already! Where are we going?"
+                  }
+                  value={editor.state.greeting}
+                  class="h-60"
+                  tokenCount={(v) => setTokens((prev) => ({ ...prev, greeting: v }))}
+                />
+                <AlternateGreetingsInput
+                  greetings={editor.state.alternateGreetings}
+                  setGreetings={(next) => editor.update({ alternateGreetings: next })}
+                />
+              </Card>
+              <Card class="flex flex-col gap-3">
+                <div>
+                  <FormLabel
+                    label={
+                      <>
+                        Persona Schema{' '}
+                        <Regenerate
+                          fields={['personality', 'behaviour', 'speech']}
+                          service={genService()}
+                          editor={editor}
+                          allowed={editor.canGuidance}
+                        />{' '}
+                      </>
+                    }
+                    helperText={
+                      <>
+                        <p>If you do not know what this mean, you can leave this as-is.</p>
+                        <p class="font-bold">
+                          WARNING: "Plain Text" and "Non-Plain Text" schemas are not compatible.
+                          Changing between them will cause data loss.
+                        </p>
+                        <p>Format to use for the character's format</p>
+                      </>
+                    }
+                  />
+                  <RadioGroup
+                    name="kind"
+                    horizontal
+                    options={options}
+                    value={editor.state.personaKind}
+                    onChange={(kind) => editor.update({ personaKind: kind as any })}
+                  />
+                </div>
+
+                <PersonaAttributes
+                  value={editor.state.persona.attributes}
+                  plainText={editor.state.personaKind === 'text'}
+                  schema={editor.state.personaKind}
+                  tokenCount={(v) => setTokens((prev) => ({ ...prev, persona: v }))}
+                  form={ref}
+                />
+              </Card>
+              <Card>
+                <TextInput
+                  isMultiline
+                  fieldName="sampleChat"
+                  label={
+                    <>
+                      Sample Conversation{' '}
+                      <Regenerate
+                        fields={['example1', 'example2', 'example3']}
+                        service={genService()}
+                        editor={editor}
+                        allowed={editor.canGuidance}
+                      />
+                    </>
+                  }
+                  helperText={
+                    <span>
+                      Example chat between you and the character. This section is very important for
+                      teaching your character should speak.
+                    </span>
+                  }
+                  placeholder="{{user}}: Hello! *waves excitedly* \n{{char}}: *smiles and waves back* Hello! I'm so happy you're here!"
+                  value={editor.state.sampleChat}
+                  tokenCount={(v) => setTokens((prev) => ({ ...prev, sample: v }))}
+                />
+              </Card>
+            </div>
+
+            <div
+              class={`flex flex-col gap-2`}
+              classList={{ hidden: tabs.current() !== 'Advanced' }}
+            >
+              <Card class="flex flex-col gap-2">
                 <TextInput
                   isMultiline
                   fieldName="greeting"
@@ -533,9 +652,34 @@ export const CreateCharacterForm: Component<{
                   class="h-60"
                   tokenCount={(v) => setTokens((prev) => ({ ...prev, greeting: v }))}
                 />
-                <AlternateGreetingsInput
-                  greetings={editor.state.alternateGreetings}
-                  setGreetings={(next) => editor.update({ alternateGreetings: next })}
+                <TextInput
+                  isMultiline
+                  class="min-h-[80px]"
+                  fieldName="insertPrompt"
+                  label="Insert / Depth Prompt"
+                  helperMarkdown={`A.k.a. Author's note. Prompt to be placed near the bottom of the chat history, **Insert Depth** messages from the bottom.`}
+                  placeholder={`E.g. ### Instruction: Write like James Joyce.`}
+                  value={editor.state.insert?.prompt}
+                />
+                <RangeInput
+                  fieldName="insertDepth"
+                  label="Insert Depth"
+                  helperText={
+                    <>
+                      The number of messages that should exist below the <b>Insert Prompt</b>.
+                      Between 1 and 5 is recommended.
+                    </>
+                  }
+                  min={0}
+                  max={10}
+                  step={1}
+                  value={editor.state.insert?.depth ?? 3}
+                />
+              </Card>
+              <Card>
+                <MemoryBookPicker
+                  setBundledBook={(book) => editor.update('book', book)}
+                  bundledBook={editor.state.book}
                 />
               </Card>
               <Card class="flex flex-col gap-3">
@@ -755,13 +899,18 @@ export const CreateCharacterForm: Component<{
       </Show>
 
       <Show when={converted()}>
-        <DownloadModal show close={() => setConverted(undefined)} char={converted()!} />
+        <DownloadModal
+          show
+          close={() => setConverted(undefined)}
+          char={converted()!}
+          charId={converted()!._id}
+        />
       </Show>
       <ImportCharacterModal
         show={showImport()}
         close={() => setImport(false)}
         onSave={(char, imgs) => {
-          editor.load(ref, char[0])
+          editor.load(char[0])
           editor.update('avatar', imgs[0])
           setImage(imgs[0] as any)
           setImport(false)
@@ -773,21 +922,31 @@ export const CreateCharacterForm: Component<{
 }
 
 const Regenerate: Component<{
+  service: string
   fields: GenField[]
-  regen: (fields: GenField[]) => any
+  editor: CharEditor
   allowed: boolean
 }> = (props) => {
-  const flags = settingStore((s) => s.flags)
   return (
-    <>
-      <Show when={props.allowed && flags.regen}>
-        (
-        <span class="link" onClick={() => props.regen(props.fields)}>
+    <Switch>
+      <Match when={!props.allowed}>{null}</Match>
+      <Match when={props.editor.generating()}>
+        <span
+          class="cursor-not-allowed text-[var(--hl-700)]"
+          onClick={() => props.editor.generateCharacter(props.service, props.fields)}
+        >
+          Regenerating...
+        </span>
+      </Match>
+      <Match when={props.allowed && !props.editor.generating()}>
+        <span
+          class="link"
+          onClick={() => props.editor.generateCharacter(props.service, props.fields)}
+        >
           Regenerate
         </span>
-        )
-      </Show>
-    </>
+      </Match>
+    </Switch>
   )
 }
 

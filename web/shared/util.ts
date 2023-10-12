@@ -1,9 +1,21 @@
+import { createHooks, recommended } from '@css-hooks/solid'
 import * as lf from 'localforage'
 import { UnwrapBody, Validator, assertValid } from '/common/valid'
-import { ADAPTER_LABELS, AIAdapter, PresetAISettings, adapterSettings } from '../../common/adapters'
+import {
+  ADAPTER_LABELS,
+  AIAdapter,
+  PresetAISettings,
+  ThirdPartyFormat,
+  adapterSettings,
+} from '../../common/adapters'
 import type { Option } from './Select'
 import { createEffect, onCleanup } from 'solid-js'
-import { UserState, settingStore } from '../store'
+import { UserState, settingStore, userStore } from '../store'
+import { AppSchema } from '/common/types'
+
+const [css, hooks] = createHooks(recommended)
+
+export { hooks, css }
 
 export function getMaxChatWidth(chatWidth: UserState['ui']['chatWidth']) {
   switch (chatWidth) {
@@ -109,8 +121,8 @@ export function getAssetPrefix() {
 }
 
 export function getAssetUrl(filename: string) {
-  if (!filename) return ''
-  if (filename.startsWith('http:') || filename.startsWith('https:')) return filename
+  if (filename.startsWith('http:') || filename.startsWith('https:') || filename.startsWith('data:'))
+    return filename
 
   const isFile =
     filename.startsWith('/assets') ||
@@ -402,11 +414,7 @@ export function toMap<T extends { _id: string }>(list: T[]): Record<string, T> {
   return map
 }
 
-export const alphaCaseInsensitiveSort = (
-  a: string,
-  b: string,
-  direction: 'asc' | 'desc' = 'asc'
-) => {
+export function alphaCaseInsensitiveSort(a: string, b: string, direction: 'asc' | 'desc' = 'asc') {
   const modifier = direction === 'asc' ? 1 : -1
   if (a.toLowerCase() < b.toLowerCase()) {
     return -1 * modifier
@@ -468,18 +476,17 @@ export function isDirty<T extends {}>(original: T, compare: T): boolean {
 
 export function serviceHasSetting(
   service: AIAdapter | undefined,
+  format: ThirdPartyFormat | undefined,
   ...props: Array<keyof PresetAISettings>
 ) {
-  if (!service) return true
-  const { config } = settingStore.getState()
+  if (!service) {
+    return true
+  }
 
   for (const prop of props) {
-    const base = adapterSettings[prop]
-    const services = config.registered
-      .filter((reg) => reg.options.includes(prop))
-      .map((reg) => reg.name)
-
-    if (base?.includes(service) || services.includes(service)) return true
+    if (isValidServiceSetting(service, format, prop)) {
+      return true
+    }
   }
 
   return false
@@ -489,9 +496,34 @@ export function getAISettingServices(prop?: keyof PresetAISettings) {
   if (!prop) return
   const cfg = settingStore((s) => s.config)
   const base = adapterSettings[prop]
-  const services = cfg.registered.filter((reg) => reg.options.includes(prop)).map((reg) => reg.name)
+  const names: Array<AIAdapter | ThirdPartyFormat> = []
+  for (const reg of cfg.registered) {
+    if (reg.options.includes(prop)) names.push(reg.name)
+  }
 
-  return base?.concat(services)
+  return base?.concat(names)
+}
+
+export function isValidServiceSetting(
+  service?: AIAdapter,
+  format?: AppSchema.GenSettings['thirdPartyFormat'],
+  prop?: keyof PresetAISettings
+) {
+  const services = getAISettingServices(prop)
+
+  // Setting does not declare itself as a service setting
+  if (!services || !service) return true
+
+  if (services.includes(service)) return true
+  if (!format) return false
+
+  if (service !== 'kobold') return false
+
+  for (const srv of services) {
+    if (srv === format) return true
+  }
+
+  return false
 }
 
 export function applyDotProperty<T>(obj: T, property: string, value: any) {
@@ -582,4 +614,68 @@ export function deepCloneAndRemoveFields<T, K extends keyof T>(
 
 export function asyncFrame() {
   return new Promise((resolve) => requestAnimationFrame(resolve))
+}
+
+export function getUsableServices() {
+  const { user } = userStore.getState()
+  const { config } = settingStore.getState()
+
+  const services: AIAdapter[] = []
+
+  for (const service of config.adapters) {
+    if (isUsable(service, config, user)) services.push(service)
+  }
+
+  return services
+}
+
+function isUsable(service: AIAdapter, config: AppSchema.AppConfig, user?: AppSchema.User) {
+  switch (service) {
+    case 'agnaistic': {
+      const level = user?.sub?.level ?? -1
+      const match = config.subs.some((sub) => sub.level <= level)
+      return match
+    }
+
+    case 'claude': {
+      return !!user?.claudeApiKeySet
+    }
+
+    case 'goose': {
+      return !!user?.adapterConfig?.goose?.apiKeySet
+    }
+
+    case 'mancer': {
+      return !!user?.adapterConfig?.mancer?.apiKeySet
+    }
+
+    case 'novel': {
+      return !!user?.novelVerified
+    }
+
+    case 'openai': {
+      return !!user?.oaiKeySet
+    }
+
+    case 'openrouter': {
+      return !!user?.adapterConfig?.openrouter?.apiKeySet
+    }
+
+    case 'replicate': {
+      return !!user?.adapterConfig?.replicate?.apiTokenSet
+    }
+
+    case 'scale': {
+      return !!user?.scaleApiKeySet
+    }
+
+    case 'horde':
+    case 'kobold':
+    case 'ooba':
+    case 'petals': {
+      return true
+    }
+  }
+
+  return false
 }

@@ -6,6 +6,7 @@ import { loadItem, localApi } from './storage'
 import { appendFormOptional, getAssetUrl, strictAppendFormOptional } from '/web/shared/util'
 
 export const charsApi = {
+  getCharacterDetail,
   getCharacters,
   removeAvatar,
   editAvatar,
@@ -16,6 +17,22 @@ export const charsApi = {
   setFavorite,
 }
 
+async function getCharacterDetail(charId: string) {
+  if (isLoggedIn()) {
+    const res = await api.get(`/character/${charId}`)
+    return res
+  }
+
+  const chars = await loadItem('characters')
+  const char = chars.find((ch) => ch._id === charId)
+
+  if (char) {
+    return localApi.result(char)
+  } else {
+    return localApi.error(`Character not found`)
+  }
+}
+
 export async function getCharacters() {
   if (isLoggedIn()) {
     const res = await api.get('/character')
@@ -23,7 +40,18 @@ export async function getCharacters() {
   }
 
   const characters = await localApi.loadItem('characters')
-  return localApi.result({ characters })
+  const result = characters.map((ch) => ({
+    _id: ch._id,
+    name: ch.name,
+    description: ch.description,
+    tags: ch.tags,
+    avatar: ch.avatar,
+    favorite: ch.favorite,
+    userId: ch.userId,
+    createdAt: ch.createdAt,
+    updatedAt: ch.updatedAt,
+  }))
+  return localApi.result({ characters: result })
 }
 
 export async function removeAvatar(charId: string) {
@@ -118,6 +146,7 @@ export async function editCharacter(charId: string, { avatar: file, ...char }: U
     appendFormOptional(form, 'alternateGreetings', char.alternateGreetings, JSON.stringify)
     appendFormOptional(form, 'characterBook', char.characterBook, JSON.stringify)
     appendFormOptional(form, 'extensions', char.extensions, JSON.stringify)
+    appendFormOptional(form, 'insert', char.insert, JSON.stringify)
     strictAppendFormOptional(form, 'systemPrompt', char.systemPrompt)
     strictAppendFormOptional(form, 'postHistoryInstructions', char.postHistoryInstructions)
     strictAppendFormOptional(form, 'creator', char.creator)
@@ -188,6 +217,7 @@ export async function createCharacter(char: NewCharacter) {
     appendFormOptional(form, 'alternateGreetings', char.alternateGreetings, JSON.stringify)
     appendFormOptional(form, 'characterBook', char.characterBook, JSON.stringify)
     appendFormOptional(form, 'extensions', char.extensions, JSON.stringify)
+    appendFormOptional(form, 'insert', char.insert, JSON.stringify)
     appendFormOptional(form, 'systemPrompt', char.systemPrompt)
     appendFormOptional(form, 'postHistoryInstructions', char.postHistoryInstructions)
     appendFormOptional(form, 'creator', char.creator)

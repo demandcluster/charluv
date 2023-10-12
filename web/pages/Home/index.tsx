@@ -1,18 +1,20 @@
 import './home.scss'
-import { Component, Match, createEffect, Show, Switch, createSignal } from 'solid-js'
-import PageHeader from '../../shared/PageHeader'
-import { adaptersToOptions, setComponentPageTitle } from '../../shared/util'
-import { toArray } from '../../../common/util'
-import { settingStore, userStore } from '../../store'
-import { A } from '@solidjs/router'
-import Divider from '../../shared/Divider'
-import Button from '../../shared/Button'
+import { Component, For, Match, Show, Switch, createSignal, onMount } from 'solid-js'
 import logoDark from '../../asset/logoDark.png'
 import logo from '../../asset/logo.png'
 import discordLogo from '../../asset/discord-logo-blue.svg'
-import { AlertTriangle } from 'lucide-solid'
+import PageHeader from '../../shared/PageHeader'
+import { adaptersToOptions, getAssetUrl, setComponentPageTitle } from '../../shared/util'
+import { announceStore, chatStore, settingStore } from '../../store'
+import { A, useNavigate } from '@solidjs/router'
+import { AlertTriangle, MoveRight, Plus, Settings } from 'lucide-solid'
 import { Card, Pill, SolidCard, TitleCard } from '/web/shared/Card'
 import Modal from '/web/shared/Modal'
+import AvatarIcon from '/web/shared/AvatarIcon'
+import { elapsedSince } from '/common/util'
+import { AppSchema } from '/common/types'
+import { markdown } from '/web/shared/markdown'
+import WizardIcon from '/web/icons/WizardIcon'
 
 const enum Sub {
   None,
@@ -82,6 +84,13 @@ const HomePage: Component = () => {
     guest: cfg.guestAccessAllowed,
     config: cfg.config,
   }))
+
+  const announce = announceStore()
+
+  onMount(() => {
+    announceStore.getAll()
+  })
+
   return (
     <div>
       <PageHeader
@@ -128,6 +137,13 @@ const HomePage: Component = () => {
             </div>
           </Card>
         </Show>
+
+        <RecentChats />
+
+        <Show when={announce.list.length > 0}>
+          <Announcements list={announce.list} />
+        </Show>
+
         <div class="home-cards">
           <TitleCard type="bg" title="Guides" class="" center>
             <div class="flex flex-wrap justify-center gap-2">
@@ -140,10 +156,10 @@ const HomePage: Component = () => {
             </div>
           </TitleCard>
 
-          <TitleCard type="bg" title="Useful Links" center>
+          <TitleCard type="bg" title="Links" center>
             <div class="flex flex-wrap justify-center gap-2">
               <a href="/discord" target="_blank">
-                <Pill inverse>Discord</Pill>
+                <Pill inverse>Agnaistic Discord</Pill>
               </a>
 
               <A class="link" href="/changelog">
@@ -245,6 +261,192 @@ const HomePage: Component = () => {
 
 export default HomePage
 
+const RecentChats: Component = (props) => {
+  const nav = useNavigate()
+  const state = chatStore((s) => ({
+    chars: s.allChars.list,
+    last: s.allChats
+      .slice()
+      .sort((l, r) => (r.updatedAt > l.updatedAt ? 1 : -1))
+      .slice(0, 4)
+      .map((chat) => ({ chat, char: s.allChars.map[chat.characterId] })),
+  }))
+
+  return (
+    <div class="flex flex-col">
+      <div class="text-lg font-bold">Recent Conversations</div>
+      <div
+        class="grid w-full grid-cols-2 gap-2 sm:grid-cols-4"
+        classList={{ hidden: state.last.length === 0 }}
+      >
+        <For each={state.last}>
+          {({ chat, char }) => (
+            <>
+              <div
+                class="bg-800 hover:bg-700 hidden h-24 w-full cursor-pointer rounded-md border-[1px] border-[var(--bg-700)] transition duration-300 sm:flex"
+                onClick={() => nav(`/chat/${chat._id}`)}
+              >
+                <Show when={char?.avatar}>
+                  <AvatarIcon
+                    noBorder
+                    class="flex items-center justify-center"
+                    format={{ corners: 'md', size: '3xl' }}
+                    avatarUrl={getAssetUrl(char?.avatar || '')}
+                  />
+                </Show>
+
+                <Show when={!char?.avatar}>
+                  <div class="flex h-24 w-24 items-center justify-center">
+                    <AvatarIcon
+                      noBorder
+                      format={{ corners: 'md', size: 'xl' }}
+                      avatarUrl={getAssetUrl(char?.avatar || '')}
+                    />
+                  </div>
+                </Show>
+
+                <div class="flex w-full flex-col justify-between text-sm">
+                  <div class="flex flex-col px-1">
+                    <div class="text-sm font-bold">{char.name}</div>
+                    <div class="text-500 text-xs">{elapsedSince(chat.updatedAt)} ago</div>
+                    <Show when={chat.name}>
+                      <p class="line-clamp-2 max-h-10 overflow-hidden text-ellipsis">{chat.name}</p>
+                    </Show>
+                  </div>
+                  <div class="flex max-h-10 w-full items-center justify-end px-2">
+                    {/* <div class="flex items-center"> */}
+                    <MoveRight size={14} />
+                    {/* </div> */}
+                  </div>
+                </div>
+              </div>
+
+              <div
+                class="bg-800 hover:bg-700 flex w-full cursor-pointer flex-col rounded-md border-[1px] border-[var(--bg-700)] transition duration-300 sm:hidden"
+                onClick={() => nav(`/chat/${chat._id}`)}
+              >
+                <div class="flex">
+                  <div class="flex items-center justify-center px-1 pt-1">
+                    <AvatarIcon
+                      noBorder
+                      format={{ corners: 'circle', size: 'md' }}
+                      avatarUrl={getAssetUrl(char?.avatar || '')}
+                    />
+                  </div>
+                  <div class="flex flex-col overflow-hidden text-ellipsis whitespace-nowrap px-1">
+                    <div class="overflow-hidden text-ellipsis text-sm font-bold">{char.name}</div>
+                    <div class="text-500 text-xs">{elapsedSince(chat.updatedAt)} ago</div>
+                  </div>
+                </div>
+
+                <div class="flex h-full w-full flex-col justify-between text-sm">
+                  <p class="line-clamp-2 max-h-10 overflow-hidden text-ellipsis px-1">
+                    {chat.name}
+                  </p>
+
+                  <div class="flex max-h-10 w-full items-center justify-end px-2">
+                    {/* <div class="flex items-center"> */}
+                    <MoveRight size={14} />
+                    {/* </div> */}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </For>
+        <Show when={state.last.length < 4}>
+          <BorderCard href="/chats/create">
+            <div>Start Conversation</div>
+            <Plus size={20} />
+          </BorderCard>
+        </Show>
+
+        <Show when={state.last.length < 3}>
+          <BorderCard href="/editor">
+            <div>Create a Character</div>
+            <WizardIcon size={20} />
+          </BorderCard>
+        </Show>
+
+        <Show when={state.last.length < 2}>
+          <BorderCard href="/settings">
+            <div class="flex w-full items-center justify-center text-center">
+              Configure your AI Services
+            </div>
+            <Settings size={20} />
+          </BorderCard>
+        </Show>
+      </div>
+    </div>
+  )
+}
+
+const BorderCard: Component<{ children: any; href: string }> = (props) => {
+  const nav = useNavigate()
+  return (
+    <div
+      class="bg-800 text-700 hover:bg-600 flex h-24 w-full cursor-pointer flex-col items-center justify-center border-[2px] border-dashed border-[var(--bg-700)] text-center transition duration-300"
+      onClick={() => nav(props.href)}
+    >
+      {props.children}
+    </div>
+  )
+}
+
+const Announcements: Component<{ list: AppSchema.Announcement[] }> = (props) => {
+  return (
+    <div>
+      <div class="font-bold">Latest News</div>
+      <For each={props.list}>
+        {(item) => (
+          <div class="rounded-md border-[1px] border-[var(--hl-500)]">
+            <div class="flex flex-col rounded-t-md bg-[var(--hl-800)] p-2">
+              <div class="text-lg font-bold">{item.title}</div>
+              <div class="text-700 text-xs">{elapsedSince(item.showAt)} ago</div>
+            </div>
+            <div
+              class="rendered-markdown bg-900 rounded-b-md p-2"
+              innerHTML={markdown.makeHtml(item.content)}
+            ></div>
+          </div>
+        )}
+      </For>
+    </div>
+  )
+}
+
+const Features: Component = () => (
+  <Card border>
+    <div class="flex justify-center text-xl font-bold">Notable Features</div>
+    <div class="flex flex-col gap-2 leading-6">
+      <p>
+        <b class="highlight">Agnaistic</b> is completely free to use. It is free to register. Your
+        data will be kept private and you can permanently delete your data at any time. We take your
+        privacy very seriously.
+      </p>
+      <p>
+        <b class="highlight">Register</b> to have your data available on all of your devices.
+      </p>
+      <p>Chat with multiple users and multiple characters at the same time</p>
+      <p>
+        Create <b class="highlight">Memory Books</b> to give your characters information about their
+        world.
+      </p>
+      <p>
+        <b class="highlight">Image generation</b> - Use Horde, NovelAI or your own Stable Diffusion
+        server.
+      </p>
+      <p>
+        <b class="highlight">Voice</b> - Give your characters a voice and speak back to them.
+      </p>
+      <p>
+        <b class="highlight">Custom Presets</b> - Completely customise the Generation settings used
+        to generate your responses.
+      </p>
+    </div>
+  </Card>
+)
+
 const HordeGuide: Component<{ close: () => void }> = (props) => (
   <Modal show close={props.close} title="Horde Guide" maxWidth="half">
     <div class="flex flex-col gap-2">
@@ -271,8 +473,8 @@ const HordeGuide: Component<{ close: () => void }> = (props) => (
         Using high values for 'Max New Tokens' is the main cause of timeouts and slow replies.
       </Card>
       <Card>
-        By default we use anonymous access and the <b>Pygmalion 6B</b> model. You can provide your
-        API key or change the model in the Settings page.
+        By default we use anonymous access. You can provide your API key or change the model in the
+        Settings page.
       </Card>
     </div>
   </Modal>

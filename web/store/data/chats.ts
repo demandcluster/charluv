@@ -200,7 +200,9 @@ export async function getAllChats() {
   if (!chats?.length) {
     const [char] = characters
     const { chat, msg } = createNewChat(char, {
-      ...char,
+      mode: 'standard',
+      scenarioIds: [],
+      name: 'Your first conversation',
       greeting: undefined,
       scenario: undefined,
       sampleChat: undefined,
@@ -324,8 +326,8 @@ export async function upsertTempCharacter(
 
   if (!chat) return localApi.error(`Chat not found`)
   const newchar: AppSchema.Character = {
-    _id: char._id || `temp-${v4().slice(0, 8)}`,
     ...char,
+    _id: char._id || `temp-${v4().slice(0, 8)}`,
     userId: 'anon',
     kind: 'character',
     createdAt: new Date().toISOString(),

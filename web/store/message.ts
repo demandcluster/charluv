@@ -169,6 +169,27 @@ export const msgStore = createStore<MsgState>(
       }
     },
 
+    async *removeMessageImage({ msgs }, msgId: string, position: number) {
+      const prev = msgs.find((m) => m._id === msgId)
+      if (!prev) return toastStore.error(`Cannot find message`)
+
+      const extras = (prev.extras || []).slice()
+
+      if (position === 0) {
+        if (!extras.length) {
+          msgStore.deleteMessages(msgId, true)
+          return
+        }
+
+        const msg = extras.shift()
+        msgStore.editMessageProp(msgId, { msg, extras })
+        return
+      }
+
+      extras.splice(position - 1, 1)
+      msgStore.editMessageProp(msgId, { extras })
+    },
+
     async *editMessage({ msgs }, msgId: string, msg: string, onSuccess?: Function) {
       const prev = msgs.find((m) => m._id === msgId)
       if (!prev) return toastStore.error(`Cannot find message`)
@@ -203,7 +224,7 @@ export const msgStore = createStore<MsgState>(
 
       addMsgToRetries(replace)
 
-      const res = await msgsApi.generateResponseV2({ kind: 'continue' })
+      const res = await msgsApi.generateResponse({ kind: 'continue' })
 
       if (res.error) {
         toastStore.error(`(Continue) Generation request failed: ${res.error}`)
@@ -221,7 +242,7 @@ export const msgStore = createStore<MsgState>(
       }
       yield { partial: undefined, waiting: { chatId, mode: 'request', characterId } }
 
-      const res = await msgsApi.generateResponseV2({ kind: 'request', characterId })
+      const res = await msgsApi.generateResponse({ kind: 'request', characterId })
 
       if (res.error) {
         toastStore.error(`(Bot) Generation request failed: ${res.error}`)
@@ -259,7 +280,7 @@ export const msgStore = createStore<MsgState>(
 
       if (replace) addMsgToRetries(replace)
 
-      const res = await msgsApi.generateResponseV2({ kind: 'retry', messageId })
+      const res = await msgsApi.generateResponse({ kind: 'retry', messageId })
 
       if (res.error) {
         toastStore.error(`(Retry) Generation request failed: ${res.error}`)
@@ -310,19 +331,19 @@ export const msgStore = createStore<MsgState>(
       switch (mode) {
         case 'self':
         case 'retry':
-          res = await msgsApi.generateResponseV2({ kind: mode })
+          res = await msgsApi.generateResponse({ kind: mode })
           break
 
         case 'send':
         case 'send-event:world':
         case 'send-event:character':
         case 'send-event:hidden':
-          res = await msgsApi.generateResponseV2({ kind: mode, text: message })
+          res = await msgsApi.generateResponse({ kind: mode, text: message })
           break
 
         case 'ooc':
         case 'send-noreply':
-          res = await msgsApi.generateResponseV2({ kind: mode, text: message })
+          res = await msgsApi.generateResponse({ kind: mode, text: message })
           yield { partial: undefined, waiting: undefined }
           break
 
@@ -428,19 +449,31 @@ export const msgStore = createStore<MsgState>(
         toastStore.error(`Failed to request text to speech: ${res.error}`)
       }
     },
-    async *createImage({ msgs, activeChatId, activeCharId }, messageId?: string) {
+    async *createImage(
+      { msgs, activeChatId, activeCharId, waiting },
+      messageId?: string,
+      append?: boolean
+    ) {
+      if (waiting) return
+
       const onDone = (image: string) => handleImage(activeChatId, image)
       yield { waiting: { chatId: activeChatId, mode: 'send', characterId: activeCharId } }
 
       const prev = messageId ? msgs.find((msg) => msg._id === messageId) : undefined
-      const res = await imageApi.generateImage({ messageId, prompt: prev?.imagePrompt, onDone })
+      const res = await imageApi.generateImage({
+        messageId,
+        prompt: prev?.imagePrompt,
+        append,
+        onDone,
+        source: 'summary',
+      })
       if (res.error) {
         yield { waiting: undefined }
         toastStore.error(`Failed to request image: ${res.error}`)
       }
     },
-    generateActions() {
-      msgsApi.generateActions()
+    async generateActions() {
+      await msgsApi.generateActions()
     },
   }
 })
@@ -581,6 +614,7 @@ subscribe(
     message: 'string',
     continue: 'boolean?',
     adapter: 'string',
+    extras: ['string?'],
     meta: 'any?',
     actions: [{ emote: 'string', action: 'string' }, '?'],
   },
@@ -618,6 +652,7 @@ subscribe(
       actions: body.actions,
       voiceUrl: undefined,
       meta: body.meta,
+      extras: body.extras || prev?.extras,
     }
 
     if (retrying?._id === body.messageId) {
@@ -773,6 +808,10 @@ subscribe('message-error', { error: 'any', chatId: 'string' }, (body) => {
   msgStore.setState({ partial: undefined, waiting: undefined, msgs: nextMsgs, retrying: undefined })
 })
 
+subscribe('message-warning', { warning: 'string' }, (body) => {
+  toastStore.warn(body.warning)
+})
+
 subscribe('messages-deleted', { ids: ['string'] }, (body) => {
   const ids = new Set(body.ids)
   const { msgs } = msgStore.getState()
@@ -781,7 +820,13 @@ subscribe('messages-deleted', { ids: ['string'] }, (body) => {
 
 subscribe(
   'message-edited',
-  { messageId: 'string', message: 'string?', imagePrompt: 'string?', actions: 'any?' },
+  {
+    messageId: 'string',
+    message: 'string?',
+    imagePrompt: 'string?',
+    actions: 'any?',
+    extras: ['string?'],
+  },
   (body) => {
     const { msgs } = msgStore.getState()
     const prev = findOne(body.messageId, msgs)
@@ -790,6 +835,7 @@ subscribe(
       msg: body.message || prev?.msg,
       actions: body.actions || prev?.actions,
       voiceUrl: undefined,
+      extras: body.extras || prev?.extras,
     })
 
     msgStore.setState({ msgs: nextMsgs })

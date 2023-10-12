@@ -1,9 +1,11 @@
 import needle from 'needle'
 import { defaultPresets } from '../../common/presets'
-import { logger } from '../logger'
+import { AppLog, logger } from '../logger'
 import { normalizeUrl, sanitise, sanitiseAndTrim, trimResponseV2 } from '../api/chat/common'
 import { ModelAdapter } from './type'
-import { needleToSSE } from './stream'
+import { requestStream } from './stream'
+import { getTextgenPayload, llamaStream } from './ooba'
+import { getStoppingStrings } from './prompt'
 
 /**
  * Sampler order
@@ -26,45 +28,34 @@ const base = {
   use_world_info: false,
 }
 
-export const handleKobold: ModelAdapter = async function* ({
-  char,
-  members,
-  characters,
-  user,
-  prompt,
-  mappedSettings,
-  log,
-  ...opts
-}) {
-  const body = { ...base, ...mappedSettings, prompt }
+export const handleKobold: ModelAdapter = async function* (opts) {
+  const { members, characters, user, prompt, mappedSettings } = opts
+
+  const body =
+    opts.gen.thirdPartyFormat === 'llamacpp'
+      ? getTextgenPayload(opts)
+      : { ...base, ...mappedSettings, prompt }
 
   const baseURL = `${normalizeUrl(user.koboldUrl)}`
 
   // Kobold has a stop requence parameter which automatically
   // halts generation when a certain token is generated
-  const stop_sequence = ['END_OF_DIALOG', 'You:']
+  if (opts.gen.thirdPartyFormat !== 'llamacpp') {
+    const stop_sequence = getStoppingStrings(opts).concat('END_OF_DIALOG')
+    body.stop_sequence = stop_sequence
 
-  for (const [id, char] of Object.entries(characters || {})) {
-    if (!char) continue
-    if (id === opts.replyAs._id) continue
-    stop_sequence.push(char.name + ':')
-  }
+    // Kobold sampler order parameter must contain all 6 samplers to be valid
+    // If the sampler order is provided, but incomplete, add the remaining samplers.
+    if (typeof body.sampler_order === 'string') {
+      body.sampler_order = (body.sampler_order as string).split(',').map((val) => +val)
+    }
 
-  for (const member of members) {
-    if (!member.handle) continue
-    if (member.handle === opts.replyAs.name) continue
-    stop_sequence.push(member.handle + ':')
-  }
+    if (body.sampler_order && body.sampler_order.length !== 6) {
+      for (const sampler of REQUIRED_SAMPLERS) {
+        if (body.sampler_order.includes(sampler)) continue
 
-  body.stop_sequence = stop_sequence
-
-  // Kobold sampler order parameter must contain all 6 samplers to be valid
-  // If the sampler order is provided, but incomplete, add the remaining samplers.
-  if (body.sampler_order && body.sampler_order.length !== 6) {
-    for (const sampler of REQUIRED_SAMPLERS) {
-      if (body.sampler_order.includes(sampler)) continue
-
-      body.sampler_order.push(sampler)
+        body.sampler_order.push(sampler)
+      }
     }
   }
 
@@ -74,12 +65,17 @@ export const handleKobold: ModelAdapter = async function* ({
   logger.debug(`Prompt:\n${body.prompt}`)
 
   // Only KoboldCPP at version 1.30 and higher has streaming support
-  const isStreamSupported = await checkStreamSupported(`${baseURL}/api/extra/version`)
+  const isStreamSupported =
+    opts.gen.thirdPartyFormat === 'llamacpp'
+      ? true
+      : await checkStreamSupported(`${baseURL}/api/extra/version`)
 
   const stream =
-    opts.gen.streamResponse && isStreamSupported
-      ? streamCompletition(`${baseURL}/api/extra/generate/stream`, body)
-      : fullCompletion(`${baseURL}/api/v1/generate`, body)
+    opts.gen.thirdPartyFormat === 'llamacpp'
+      ? llamaStream(baseURL, body)
+      : opts.gen.streamResponse && isStreamSupported
+      ? streamCompletition(`${baseURL}/api/extra/generate/stream`, body, opts.log)
+      : fullCompletion(`${baseURL}/api/v1/generate`, body, opts.log)
 
   let accum = ''
 
@@ -87,6 +83,11 @@ export const handleKobold: ModelAdapter = async function* ({
     const generated = await stream.next()
 
     if (!generated || !generated.value) break
+
+    if (typeof generated.value === 'string') {
+      accum = generated.value
+      break
+    }
 
     if ('error' in generated.value) {
       yield { error: generated.value.error }
@@ -132,12 +133,10 @@ async function checkStreamSupported(versioncheckURL: any) {
       sensitivity: 'base',
     }) > -1
 
-  if (!isSupportedVersion) return false
-
-  return true
+  return isSupportedVersion
 }
 
-const fullCompletion = async function* (genURL: string, body: any) {
+const fullCompletion = async function* (genURL: string, body: any, log: AppLog) {
   const resp = await needle('post', genURL, body, {
     headers: { 'Bypass-Tunnel-Reminder': 'true' },
     json: true,
@@ -145,12 +144,13 @@ const fullCompletion = async function* (genURL: string, body: any) {
 
   if ('error' in resp) {
     yield { error: `Kobold request failed: ${resp.error?.message || resp.error}` }
+    log.error({ error: resp.error }, `Kobold request failed`)
     return
   }
 
   if (resp.statusCode && resp.statusCode >= 400) {
     yield { error: `Kobold request failed: ${resp.statusMessage}` }
-    logger.error({ error: resp.body }, `Kobold request failed`)
+    log.error({ error: resp.body }, `Kobold request failed`)
     return
   }
 
@@ -159,13 +159,13 @@ const fullCompletion = async function* (genURL: string, body: any) {
   if (text) {
     return { tokens: text }
   } else {
-    logger.error({ err: resp.body }, 'Failed to generate text using Kobold adapter')
+    log.error({ err: resp.body }, 'Failed to generate text using Kobold adapter')
     yield { error: `Kobold failed to generate a response: ${resp.body}` }
     return
   }
 }
 
-const streamCompletition = async function* (streamUrl: any, body: any) {
+const streamCompletition = async function* (streamUrl: any, body: any, log: AppLog) {
   const resp = needle.post(streamUrl, body, {
     parse: false,
     json: true,
@@ -177,7 +177,7 @@ const streamCompletition = async function* (streamUrl: any, body: any) {
   const tokens = []
 
   try {
-    const events = needleToSSE(resp)
+    const events = requestStream(resp)
 
     for await (const event of events) {
       if (!event.data) continue
@@ -189,6 +189,7 @@ const streamCompletition = async function* (streamUrl: any, body: any) {
       }
       if (data.error) {
         yield { error: `Kobold streaming request failed: ${data.error}` }
+        log.error({ error: data.error }, 'Kobold streaming request failed')
         return
       }
 

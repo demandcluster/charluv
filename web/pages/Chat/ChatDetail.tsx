@@ -7,11 +7,12 @@ import {
   For,
   JSX,
   Match,
+  onCleanup,
   Show,
   Switch,
 } from 'solid-js'
 import { A, useNavigate, useParams, useSearchParams } from '@solidjs/router'
-import { ArrowDownLeft, ArrowUpRight, ChevronLeft, Menu, VenetianMask } from 'lucide-solid'
+import { ArrowDownLeft, ArrowUpRight, ChevronLeft, Settings, VenetianMask } from 'lucide-solid'
 import ChatExport from './ChatExport'
 import { ADAPTER_LABELS } from '../../../common/adapters'
 import Button from '../../shared/Button'
@@ -20,7 +21,6 @@ import { getMaxChatWidth, setComponentPageTitle } from '../../shared/util'
 import { characterStore, ChatRightPane, chatStore, settingStore, userStore } from '../../store'
 import { msgStore } from '../../store'
 import InputBar from './components/InputBar'
-import ChatMemoryModal from './components/MemoryModal'
 import Message from './components/Message'
 import PromptModal from './components/PromptModal'
 import DeleteMsgModal from './DeleteMsgModal'
@@ -30,7 +30,7 @@ import ChatOptions, { ChatModal } from './ChatOptions'
 import ForcePresetModal from './ForcePreset'
 import DeleteChatModal from './components/DeleteChat'
 import { cycleArray } from '/common/util'
-import { usePane, useResizeObserver } from '/web/shared/hooks'
+import { useEffect, usePane, useResizeObserver } from '/web/shared/hooks'
 import {
   emptyMsg,
   getChatWidth,
@@ -62,6 +62,7 @@ const ChatDetail: Component = () => {
     chatBots: s.characters.list,
     botMap: s.characters.map,
     impersonate: s.impersonating,
+    ready: s.characters.loaded > 0,
   }))
 
   const isPaneOrPopup = usePane()
@@ -143,7 +144,7 @@ const ChatDetail: Component = () => {
 
   createEffect(() => {
     // On Connect Events
-    if (evented() || !chats.chat || !chats.char) return
+    if (evented() || !chats.chat || !chats.char || !chars.ready) return
     setEvented(true)
 
     const messages = msgs.msgs
@@ -155,6 +156,17 @@ const ChatDetail: Component = () => {
     }
   })
 
+  const descriptionText = createMemo(() => {
+    if (!chats.char?.description) return null
+
+    return (
+      <>
+        {chats.char!.description!.split('\n').map((line) => (
+          <div>{line}</div>
+        ))}
+      </>
+    )
+  })
   const isOwner = createMemo(() => chats.chat?.userId === user.user?._id)
   const headerBg = createMemo(() => getHeaderBg(user.ui.mode))
   const chatWidth = createMemo(() =>
@@ -300,6 +312,63 @@ const ChatDetail: Component = () => {
 
   const chatMargin = createMemo(() => ' ' || (!!chats.opts.pane ? 'xs:mr-auto mx-auto' : 'mx-auto'))
 
+  const characterPills = createMemo(() => {
+    const bots = ctx.activeBots.filter((bot) => {
+      if (ctx.tempMap[bot._id]?.favorite === false) return false
+      return true
+    })
+    return bots
+  })
+
+  useEffect(() => {
+    function keyboardShortcuts(ev: KeyboardEvent) {
+      if (!ev.altKey) return
+
+      const num = +ev.key
+      if (num >= 1) {
+        const pill = characterPills()[num - 1]
+        if (!pill) return
+
+        ev.preventDefault()
+        if (msgs.retrying || msgs.partial) return
+        requestMessage(pill._id)
+      }
+
+      if (ev.key === 'r') {
+        ev.preventDefault()
+        if (msgs.retrying || msgs.partial) return
+        const last = indexOfLastRPMessage()
+        const msg = msgs.msgs[last]
+        if (!msg) return
+        if (msg.adapter === 'image') {
+          msgStore.createImage(msg._id)
+        } else if (msg.characterId) {
+          msgStore.retry(msg.chatId, msg._id)
+        } else {
+          msgStore.resend(msg.chatId, msg._id)
+        }
+      }
+
+      if (ev.key === 'i') {
+        ev.preventDefault()
+        settingStore.toggleImpersonate(true)
+      }
+
+      if (ev.key === 'a') {
+        ev.preventDefault()
+        const last = indexOfLastRPMessage()
+        const msg = msgs.msgs[last]
+        if (!msg?.characterId) return
+
+        msgStore.request(msg.chatId, msg.characterId)
+      }
+    }
+
+    document.addEventListener('keydown', keyboardShortcuts)
+
+    return () => document.removeEventListener('keydown', keyboardShortcuts)
+  })
+
   const contentStyles = createMemo((): JSX.CSSProperties => {
     if (chats.opts.pane && isPaneOrPopup() === 'pane') {
       return {
@@ -323,9 +392,11 @@ const ChatDetail: Component = () => {
     }
   })
 
+  onCleanup(clearScrollMonitor)
+
   return (
     <>
-      <Show when={!chats.loaded}>
+      <Show when={!chats.loaded && !chats.chat}>
         <div>
           <div>Loading conversation...</div>
         </div>
@@ -339,34 +410,29 @@ const ChatDetail: Component = () => {
               class={`hidden h-9 items-center  justify-between rounded-md sm:flex`}
               style={headerBg()}
             >
-              <Show when={isOwner()}>
-                <A
-                  class="ellipsis flex max-w-full cursor-pointer flex-row items-center justify-between gap-4 text-lg font-bold"
-                  href={`/character/${chats.char?._id}/chats`}
-                >
-                  <ChevronLeft />
-                  <div class="ellipsis flex flex-col">
-                    <span class="overflow-hidden text-ellipsis whitespace-nowrap leading-5">
-                      {chats.char?.name}
-                    </span>
-                    <Show when={chats.chat!.name}>
-                      <span class="flex-row items-center gap-4 overflow-hidden text-ellipsis whitespace-nowrap text-sm">
-                        {chats.chat!.name}
-                      </span>
-                    </Show>
-                  </div>
-                </A>
-              </Show>
+              <A
+                class="ellipsis flex max-w-full cursor-pointer flex-row items-center justify-between gap-4 text-lg font-bold"
+                href={isOwner() ? `/character/${chats.char?._id}/chats` : `/chats`}
+              >
+                <ChevronLeft />
+                <div class="ellipsis flex flex-col">
+                  <span class="overflow-hidden text-ellipsis whitespace-nowrap leading-5">
+                    {chats.char?.name}
+                  </span>
+
+                  <span class="flex-row items-center gap-4 overflow-hidden text-ellipsis whitespace-nowrap text-sm">
+                    {chats.chat?.name || ''}
+                  </span>
+                </div>
+              </A>
 
               <div class="flex flex-row gap-3">
-                <Show when={isOwner()}>
-                  <div class="hidden items-center text-xs italic text-[var(--text-500)] sm:flex">
-                    {adapterLabel()}
-                  </div>
-                </Show>
+                <div class="hidden items-center text-xs italic text-[var(--text-500)] sm:flex">
+                  {isOwner() ? adapterLabel() : ''}
+                </div>
 
                 <div class="" onClick={() => setShowOpts(true)}>
-                  <Menu class="icon-button" />
+                  <Settings class="icon-button" />
                   <DropMenu
                     show={showOpts()}
                     close={() => setShowOpts(false)}
@@ -377,7 +443,9 @@ const ChatDetail: Component = () => {
                       adapterLabel={adapterLabel()}
                       setModal={setModal}
                       togglePane={togglePane}
-                      close={() => setShowOpts(false)}
+                      close={() => {
+                        setShowOpts(false)
+                      }}
                     />
                   </DropMenu>
                 </div>
@@ -442,14 +510,13 @@ const ChatDetail: Component = () => {
                 <section
                   data-messages
                   class={`mx-auto flex flex-col-reverse gap-4 overflow-y-auto ${msgsMaxWidth()} w-full`}
+                  ref={monitorScroll}
                 >
                   <div id="chat-messages" class="flex w-full flex-col gap-2">
                     <Show when={chats.loaded && chatMsgs().length < 2 && chats.char?.description}>
-                      <div class="mx-auto mb-4 text-[var(--text-500)]">
-                        <div class="font-bold">Notes from the creator of {chats.char!.name}:</div>
-                        {chats.char!.description!.split('\n').map((paragText) => (
-                          <div>{paragText}</div>
-                        ))}
+                      <div class="mb-4 flex flex-col items-center text-[var(--text-500)]">
+                        <div class="font-bold">Notes from the creator of {chats.char?.name}</div>
+                        {descriptionText()}
                       </div>
                     </Show>
                     <Show when={chats.loaded && chatMsgs().length === 0 && !msgs.waiting}>
@@ -503,63 +570,57 @@ const ChatDetail: Component = () => {
                     </Show>
                   </div>
                 </section>
+
+                <Show when={isSelfRemoved()}>
+                  <div class="flex w-full justify-center">
+                    You have been removed from the conversation
+                  </div>
+                </Show>
+                <Show when={isOwner() && ctx.activeBots.length > 1}>
+                  <div
+                    class={`flex min-h-[42px] justify-center gap-2 overflow-x-auto py-1 ${
+                      msgs.waiting ? 'opacity-70 saturate-0' : ''
+                    }`}
+                  >
+                    <Button
+                      size="md"
+                      schema="bordered"
+                      onClick={() => settingStore.toggleImpersonate(true)}
+                      classList={{ 'impersonate-btn': true }}
+                    >
+                      <VenetianMask size={16} />
+                    </Button>
+                    <For each={characterPills()}>
+                      {(bot) => (
+                        <CharacterPill
+                          char={bot}
+                          onClick={requestMessage}
+                          disabled={!!msgs.waiting}
+                          active={chats.replyAs === bot._id}
+                        />
+                      )}
+                    </For>
+                  </div>
+                </Show>
+                <InputBar
+                  chat={chats.chat!}
+                  swiped={swipe() !== 0}
+                  send={sendMessage}
+                  more={moreMessage}
+                  char={chats.char}
+                  ooc={ooc() ?? isGroupChat()}
+                  setOoc={setOoc}
+                  showOocToggle={isGroupChat()}
+                  request={requestMessage}
+                  bots={ctx.activeBots}
+                  botMap={chars.botMap}
+                />
               </section>
 
               <ChatPanes setShowOpts={setShowOpts} />
             </section>
-            <Show when={isSelfRemoved()}>
-              <div class="flex w-full justify-center">
-                You have been removed from the conversation
-              </div>
-            </Show>
-            <Show when={isOwner() && ctx.activeBots.length > 1}>
-              <div
-                class={`flex justify-center gap-2 overflow-x-auto py-1 ${
-                  msgs.waiting ? 'opacity-70 saturate-0' : ''
-                }`}
-              >
-                <Button
-                  size="md"
-                  schema="bordered"
-                  onClick={() => settingStore.toggleImpersonate(true)}
-                  classList={{ 'impersonate-btn': true }}
-                >
-                  <VenetianMask size={16} />
-                </Button>
-                <For each={ctx.activeBots}>
-                  {(bot) => {
-                    if (ctx.tempMap[bot._id]?.favorite === false) return null
-                    return (
-                      <CharacterPill
-                        char={bot}
-                        onClick={requestMessage}
-                        disabled={!!msgs.waiting}
-                        active={chats.replyAs === bot._id}
-                      />
-                    )
-                  }}
-                </For>
-              </div>
-            </Show>
-            <InputBar
-              chat={chats.chat!}
-              swiped={swipe() !== 0}
-              send={sendMessage}
-              more={moreMessage}
-              char={chats.char}
-              ooc={ooc() ?? isGroupChat()}
-              setOoc={setOoc}
-              showOocToggle={isGroupChat()}
-              request={requestMessage}
-              bots={ctx.activeBots}
-              botMap={chars.botMap}
-            />
           </div>
         </main>
-      </Show>
-
-      <Show when={chats.opts.modal === 'memory'}>
-        <ChatMemoryModal chat={chats.chat!} show={!!chats.chat} close={clearModal} />
       </Show>
 
       <Show when={chats.opts.modal === 'export'}>
@@ -591,3 +652,29 @@ const ChatDetail: Component = () => {
 }
 
 export default ChatDetail
+
+let scrollMonitor: any
+
+function monitorScroll(ref: HTMLElement) {
+  let bottom = true
+
+  ref.onscroll = (ev) => {
+    const pos = ref.scrollTop
+
+    if (pos >= 0) {
+      bottom = true
+    } else {
+      bottom = false
+    }
+  }
+
+  scrollMonitor = setInterval(() => {
+    if (bottom && ref.scrollTop !== 0) {
+      ref.scrollTop = 0
+    }
+  }, 1000 / 30)
+}
+
+function clearScrollMonitor() {
+  clearInterval(scrollMonitor)
+}

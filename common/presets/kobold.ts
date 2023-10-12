@@ -55,7 +55,6 @@ export const koboldPresets = {
     memoryDepth: 50,
     memoryContextLimit: 256,
     memoryReverseWeight: false,
-    useGaslight: true,
     antiBond: false,
   },
 } satisfies Record<string, Partial<AppSchema.GenSettings>>

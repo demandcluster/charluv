@@ -1,17 +1,16 @@
 import { A, useNavigate, useParams, useSearchParams } from '@solidjs/router'
 import { Edit, Plus, Save, X } from 'lucide-solid'
 import { Component, createEffect, createSignal, Show } from 'solid-js'
-import { defaultPresets, isDefaultPreset, presetValidator } from '../../../common/presets'
+import { defaultPresets, isDefaultPreset } from '../../../common/presets'
 import { AppSchema } from '../../../common/types/schema'
 import Button from '../../shared/Button'
 import Select, { Option } from '../../shared/Select'
-import GenerationSettings from '../../shared/GenerationSettings'
+import GenerationSettings, { getPresetFormData } from '../../shared/GenerationSettings'
 import Modal, { ConfirmModal } from '../../shared/Modal'
 import PageHeader from '../../shared/PageHeader'
 import TextInput from '../../shared/TextInput'
 import { getStrictForm, setComponentPageTitle } from '../../shared/util'
 import { presetStore, toastStore } from '../../store'
-import { AI_ADAPTERS } from '../../../common/adapters'
 import Loading from '/web/shared/Loading'
 import { TitleCard } from '/web/shared/Card'
 
@@ -32,10 +31,9 @@ export const GenerationPresetsPage: Component = () => {
     nav(`/presets/${preset._id}`)
   }
 
-  const state = presetStore(({ presets, saving, openRouterModels }) => ({
+  const state = presetStore(({ presets, saving }) => ({
     saving,
     presets,
-    openRouterModels,
     items: presets.map<Option>((p) => ({ label: p.name, value: p._id })),
     editing: isDefaultPreset(query.preset)
       ? defaultPresets[query.preset]
@@ -106,21 +104,9 @@ export const GenerationPresetsPage: Component = () => {
 
   const onSave = (_ev: Event, force?: boolean) => {
     if (state.saving) return
-    const validator = {
-      ...presetValidator,
-      service: ['', ...AI_ADAPTERS],
-      thirdPartyFormat: 'string?',
-    } as const
-    const body = getStrictForm(ref, validator)
+    const body = getPresetFormData(ref)
 
-    body.thirdPartyFormat = body.thirdPartyFormat || (null as any)
-
-    if (body.openRouterModel) {
-      const actual = state.openRouterModels?.find((or) => or.id === body.openRouterModel)
-      body.openRouterModel = actual || undefined
-    }
-
-    if (body.service === '') {
+    if (!body.service) {
       toastStore.error(`You must select an AI service before saving`)
       return
     }
@@ -131,6 +117,7 @@ export const GenerationPresetsPage: Component = () => {
     }
 
     const prev = editing()
+
     if (prev?._id) {
       presetStore.updatePreset(prev._id, body as any)
     } else {
@@ -141,8 +128,7 @@ export const GenerationPresetsPage: Component = () => {
     setMissingPlaceholder(false)
   }
 
-  if (params.id && !state.editing) {
-    console.log(params, state)
+  if (params.id && params.id !== 'new' && !state.editing) {
     return (
       <>
         <PageHeader title="Generation Presets" />
@@ -188,7 +174,7 @@ export const GenerationPresetsPage: Component = () => {
                   fieldName="name"
                   label="Name"
                   helperText="A name or short description of your preset"
-                  placeholder="E.g. Pygmalion Creative"
+                  placeholder="Preset name"
                   value={editing()?.name}
                   required
                   parentClass="mb-2"
@@ -238,8 +224,9 @@ export default GenerationPresetsPage
 
 const emptyPreset: AppSchema.GenSettings = {
   ...defaultPresets.basic,
+  service: '' as any,
   name: '',
-  maxTokens: 80,
+  maxTokens: 150,
 }
 
 const EditPreset: Component<{

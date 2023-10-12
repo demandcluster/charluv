@@ -25,7 +25,7 @@ Expression = content:Parent* {
     return results
 }
 
-Parent "parent-node" = v:(BotIterator / HistoryIterator / Condition / Placeholder / Text) { return v }
+Parent "parent-node" = v:(BotIterator / HistoryIterator / HistoryInsert / Condition / Placeholder / Text) { return v }
 
 ManyPlaceholder "repeatable-placeholder" = OP i:(Character / User / Random / Roll) CL {
 	return { kind: 'placeholder', value: i }
@@ -36,6 +36,7 @@ BotChild = i:(BotRef / BotCondition / ManyPlaceholder) { return i }
 
 HistoryIterator "history-iterator" = OP "#each" WS loop:History CL children:(HistoryChild / LoopText)* CloseLoop { return { kind: 'each', value: loop, children } }
 HistoryChild = i:(HistoryRef / HistoryCondition / ManyPlaceholder) { return i }
+HistoryInsert "history-insert" = OP "#insert"i WS "="? WS line:[0-9]|1..2| CL children:(Placeholder / InsertText)* CloseInsert { return { kind: 'history-insert', values: +line.join(''), children } }
   
 Placeholder "placeholder"
   = OP WS interp:Interp WS pipes:Pipe* CL {
@@ -59,7 +60,7 @@ Condition "if" = OP "#if" WS value:Word CL sub:(ConditionChild / ConditionText)*
   return { kind: 'if', value, children: sub.flat() }
 }
 
-
+InsertText "insert-text" = !(BotChild / HistoryChild / CloseCondition / CloseInsert) ch:(.) { return ch }
 LoopText "loop-text" = !(BotChild / HistoryChild / CloseCondition / CloseLoop) ch:(.)  { return ch }
 ConditionText = !(ConditionChild / CloseCondition) ch:. { return ch }
 Text "text" = !(Placeholder / Condition / BotIterator / HistoryIterator) ch:. { return ch }
@@ -70,7 +71,8 @@ WordList = word:Word WS "," WS { return word }
 
 CloseCondition = OP "/if"i CL
 CloseLoop = OP "/each"i CL
-Word "word" = text:[a-zA-Z_ ]+ {  return text.join('') }
+CloseInsert = OP "/insert"i CL
+Word "word" = text:[a-zA-Z_ 0-9\!\?\.\'\#\@\%\"\&\*\=\+]+ { return text.join('') }
 Pipe "pipe" = _ "|" _ fn:Handler {  return fn }
 
 
@@ -78,6 +80,7 @@ _ "whitespace" = [ \t]*
 OP "open" = "{{" WS
 CL "close" = WS "}}" 
 WS "ws" = " "*
+NL "newline" = "\\n" / "\\r" "\\n"?
 
 // Example pipe functions: lowercase, uppercase
 Handler "handler" = "upper" / "lower"
@@ -91,13 +94,13 @@ HistoryProperty "history-prop" = "." prop:(Message / "dialogue"i / "name"i / "is
 Character "character" = ("char"i / "character"i / "bot"i) { return "char" }
 User "user" = "user"i { return "user" }
 Scenario "scenario" = "scenario"i { return "scenario" }
-Impersonate "impersonating" = ("impersonate"i / "impersonating"i) { return "impersonating" }
+Impersonate "impersonating" = ("impersonate"i / "impersonating"i / "impersonality"i) { return "impersonating" }
 Persona "personality" = ("personality"i / "persona"i) { return "personality" }
 AllPersona "all_personalities" = ("all_personas"i / "all_personalities"i) { return "all_personalities" }
-Dialogue "example_dialogue" = ("samplechat"i / "example_dialogue"i) { return "example_dialogue" }
+Dialogue "example_dialogue" = ("samplechat"i / "example_dialogue"i / "sample_chat"i / "example_dialog"i / "example_chat"i) { return "example_dialogue" }
 
 Instruction "instruction" = "system_prompt"i { return "system_prompt" }
-Jailbreak "ujb" = ("ujb"i / "system_note"i) { return "ujb" }
+Jailbreak "ujb" = ("ujb"i / "system_note"i / "jailbreak"i) { return "ujb" }
 Post "post" = "post"i { return "post" }
 Memory "memory" = "memory"i { return "memory" }
 Message "message" = ("msg"i / "message"i / "text"i) { return "message" }
@@ -109,7 +112,7 @@ Random "random" = "random"i ":"? WS words:CSV { return { kind: "random", values:
 Roll "roll" = ("roll"i / "dice"i) ":"? WS "d"|0..1| max:[0-9]|0..10| { return { kind: 'roll', values: +max.join('') || 20 } }
 
 // Iterable entities
-Bots "bots" = ( "bots"i ) { return "bots" }
+Bots "bots" = ( "bots"i / "bot"i ) { return "bots" }
 History "history" = ( "history"i / "messages"i / "msgs"i / "msg"i) { return "history" }
 
 Interp "interp"

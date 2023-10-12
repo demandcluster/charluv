@@ -1,5 +1,4 @@
 import { assertValid } from '/common/valid'
-import { getOpenAIUsage } from '../../adapter/openai'
 import { store } from '../../db'
 import { errors, handle, StatusError } from '../wrap'
 import { findUser } from '../horde'
@@ -49,24 +48,6 @@ export const novelLogin = handle(async ({ userId, body }) => {
   return { novelVerified: true, novelApiKey: res.body.accessToken }
 })
 
-export const openaiUsage = handle(async ({ userId, body }) => {
-  const guest = !userId
-
-  if (guest) {
-    assertValid({ key: 'string' }, body)
-    const usage = await getOpenAIUsage(body.key, true)
-    return usage
-  }
-
-  const user = await store.users.getUser(userId)
-  if (!user?.oaiKey) {
-    throw new StatusError('OpenAI key not set', 400)
-  }
-
-  const usage = await getOpenAIUsage(user.oaiKey, false)
-  return usage
-})
-
 export const hordeStats = handle(async ({ userId, body }) => {
   if (!userId) {
     assertValid({ key: 'string' }, body)
@@ -104,7 +85,7 @@ export const updateService = handle(async ({ userId, body, params }) => {
   const service = params.service as AIAdapter
   const user = await store.users.getUser(userId)
 
-  const adapter = getRegisteredAdapters().find((adp) => adp.name === service)
+  const adapter = getRegisteredAdapters(user).find((adp) => adp.name === service)
   if (!adapter) {
     throw new StatusError(`Service (${service}) does not exist or is not enabled`, 400)
   }

@@ -338,7 +338,7 @@ const WorkerModal: Component<{
 
 function toItem(model: HordeModel) {
   return {
-    label: `${model.name} - (queue: ${model.queued}, eta: ${model.eta}, count: ${model.count})`,
+    label: `${model.name} - (count: ${model.count}, queue: ${model.queued}, eta: ${model.eta})`,
     value: model.name,
   }
 }

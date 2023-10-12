@@ -1,12 +1,14 @@
 import { StatusError, errors, wrap } from '../wrap'
-import { sendGuest, sendMany, sendOne } from '../ws'
+import { sendMany } from '../ws'
 import { defaultPresets, isDefaultPreset } from '/common/presets'
 import { assertValid } from '/common/valid'
-import { createInferenceStream, inferenceAsync } from '/srv/adapter/generate'
+import { inferenceAsync } from '/srv/adapter/generate'
 import { store } from '/srv/db'
 import { AppSchema } from '/common/types'
 import { rerunGuidanceValues, runGuidance } from '/common/guidance/guidance-parser'
-import { cyoaTemplate } from '/common/templates'
+import { cyoaTemplate } from '/common/mode-templates'
+import { AIAdapter } from '/common/adapters'
+import { parseTemplate } from '/common/template-parser'
 
 const validInference = {
   prompt: 'string',
@@ -26,6 +28,9 @@ export const generateActions = wrap(async ({ userId, log, body, socketId, params
       impersonating: 'any?',
       profile: 'any',
       prompt: 'string?',
+      char: 'any?',
+      chat: 'any?',
+      characters: 'any?',
     },
     body
   )
@@ -46,7 +51,21 @@ export const generateActions = wrap(async ({ userId, log, body, socketId, params
     body.user = user
   }
 
-  const prompt = cyoaTemplate(body.service!, settings.service === 'openai' ? settings.oaiModel : '')
+  const prompt = cyoaTemplate(
+    body.service! as AIAdapter,
+    settings.service === 'openai' ? settings.oaiModel : ''
+  )
+
+  const parsed = parseTemplate(prompt, {
+    chat: both.chat || body.chat || ({} as any),
+    characters: body.characters || {},
+    char: body.char || {},
+    lines: body.lines,
+    parts: {},
+    impersonate: body.impersonating,
+    sender: body.profile,
+    replyAs: body.char || ({} as any),
+  }).parsed
 
   const infer = async (text: string, tokens?: number) => {
     const inference = await inferenceAsync({
@@ -57,12 +76,13 @@ export const generateActions = wrap(async ({ userId, log, body, socketId, params
       guest: userId ? undefined : socketId,
       retries: 2,
       maxTokens: tokens,
+      settings,
     })
 
     return inference.generated
   }
 
-  const { values } = await runGuidance(prompt, {
+  const { values } = await runGuidance(parsed, {
     infer,
     placeholders: {
       history: body.lines.join('\n'),
@@ -104,6 +124,7 @@ export const guidance = wrap(async ({ userId, log, body, socketId }) => {
       maxTokens: tokens,
       prompt: text,
       service: body.service,
+      settings: body.settings,
       guest: userId ? undefined : socketId,
     })
 
@@ -139,6 +160,7 @@ export const rerunGuidance = wrap(async ({ userId, log, body, socketId }) => {
       log,
       prompt: text,
       service: body.service,
+      settings: body.settings,
       guest: userId ? undefined : socketId,
     })
 
@@ -164,7 +186,7 @@ export const inference = wrap(async ({ socketId, userId, body, log }, res) => {
     body.user = user
   }
 
-  const { stream } = await createInferenceStream({
+  const inference = await inferenceAsync({
     user: body.user,
     log,
     prompt: body.prompt,
@@ -172,48 +194,7 @@ export const inference = wrap(async ({ socketId, userId, body, log }, res) => {
     guest: userId ? undefined : socketId,
   })
 
-  let generated = ''
-  let error = false
-  let meta = {}
-
-  for await (const gen of stream) {
-    if (typeof gen === 'string') {
-      generated = gen
-      continue
-    }
-
-    if ('partial' in gen) {
-      continue
-    }
-
-    if ('meta' in gen) {
-      Object.assign(meta, gen.meta)
-      continue
-    }
-
-    if ('error' in gen) {
-      error = true
-      const payload = {
-        type: 'inference-complete',
-        requestId: body.requestId,
-        error: gen.error,
-      }
-      if (userId) sendOne(userId, payload)
-      else sendGuest(socketId, payload)
-      continue
-    }
-  }
-
-  if (error) return
-
-  const payload = {
-    type: 'inference-complete',
-    requestId: body.requestId,
-    response: generated,
-    meta,
-  }
-  if (userId) sendOne(userId, payload)
-  else sendGuest(socketId, payload)
+  return { response: inference.generated, meta: inference.meta }
 })
 
 async function assertSettings(body: any, userId: string) {

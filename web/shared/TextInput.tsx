@@ -1,8 +1,10 @@
 import { Component, Show, createMemo, JSX, createEffect, createSignal } from 'solid-js'
 import IsVisible from './IsVisible'
-import { AIAdapter, PresetAISettings } from '../../common/adapters'
-import { getAISettingServices } from './util'
+import { AIAdapter, PresetAISettings, ThirdPartyFormat } from '../../common/adapters'
+import { createDebounce, isValidServiceSetting } from './util'
 import { getEncoder } from '/common/tokenize'
+import { useEffect } from './hooks'
+import { markdown } from './markdown'
 
 const MIN_HEIGHT = 40
 
@@ -10,6 +12,7 @@ const TextInput: Component<{
   fieldName: string
   label?: string | JSX.Element
   helperText?: string | JSX.Element
+  helperMarkdown?: string
   placeholder?: string
   isMultiline?: boolean
   type?: string
@@ -23,6 +26,7 @@ const TextInput: Component<{
   lang?: string
   parentClass?: string
   tokenCount?: boolean | ((count: number) => void)
+  step?: number
   ref?: (ref: any) => void
 
   onKeyUp?: (
@@ -41,27 +45,39 @@ const TextInput: Component<{
   ) => void
 
   service?: AIAdapter
+  format?: ThirdPartyFormat
   aiSetting?: keyof PresetAISettings
 }> = (props) => {
   let inputRef: any
   const [tokens, setTokens] = createSignal(0)
   const placeholder = createMemo(() => (props.placeholder !== undefined ? props.placeholder : ''))
-  const adapters = createMemo(() => getAISettingServices(props.aiSetting))
 
   const value = createMemo(() =>
     props.value !== undefined ? props.value : (null as unknown as undefined)
   )
 
-  const updateCount = async () => {
-    if (!props.tokenCount) return
+  const [countTokens] = createDebounce(async (text: string) => {
     const tokenizer = await getEncoder()
-    const count = tokenizer(inputRef?.value || '')
+    const count = tokenizer(text)
     setTokens(count)
 
     if (typeof props.tokenCount === 'function') {
       props.tokenCount(count)
     }
+  }, 500)
+
+  const updateCount = async () => {
+    if (!props.tokenCount) return
+    countTokens(inputRef?.value || '')
   }
+
+  useEffect(() => {
+    const tick = setInterval(() => {
+      resize()
+    }, 1000)
+
+    return () => clearInterval(tick)
+  })
 
   const resize = () => {
     if (inputRef?.value === '') {
@@ -117,8 +133,8 @@ const TextInput: Component<{
   }
 
   const hide = createMemo(() => {
-    if (!props.service || !adapters()) return ''
-    return adapters()!.includes(props.service) ? '' : ` hidden `
+    const isValid = isValidServiceSetting(props.service, props.format, props.aiSetting)
+    return isValid ? '' : ' hidden'
   })
 
   return (
@@ -137,7 +153,13 @@ const TextInput: Component<{
             </div>
           </Show>
           <Show when={!!props.helperText}>
-            <p class="helper-text mt-[-0.125rem] pb-1 text-sm">{props.helperText}</p>
+            <p class="helper-text">{props.helperText}</p>
+          </Show>
+          <Show when={!!props.helperMarkdown}>
+            <p
+              class="helper-text markdown"
+              innerHTML={markdown.makeHtml(props.helperMarkdown!)}
+            ></p>
           </Show>
         </label>
       </Show>
@@ -165,6 +187,7 @@ const TextInput: Component<{
             spellcheck={props.spellcheck}
             lang={props.lang}
             ref={onRef}
+            step={props.step}
           />
         }
       >

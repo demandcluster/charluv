@@ -26,6 +26,7 @@ export type CharacterUpdate = Partial<
     | 'extensions'
     | 'systemPrompt'
     | 'postHistoryInstructions'
+    | 'insert'
     | 'creator'
     | 'characterVersion'
     | 'appearance'
@@ -59,6 +60,7 @@ export async function createCharacter(
     | 'extensions'
     | 'systemPrompt'
     | 'postHistoryInstructions'
+    | 'insert'
     | 'creator'
     | 'characterVersion'
     | 'sprite'
@@ -139,7 +141,22 @@ export async function getCharacter(
 }
 
 export async function getCharacters(userId: string) {
-  const list = await db('character').find({ userId }).toArray()
+  const list = await db('character')
+    .find({ userId })
+    .project({
+      _id: 1,
+      userId: 1,
+      name: 1,
+      avatar: 1,
+      description: 1,
+      favorite: 1,
+      tags: 1,
+      createdAt: 1,
+      updatedAt: 1,
+      voice: 1,
+    })
+    .toArray()
+
   return list
 }
 
@@ -150,9 +167,30 @@ export async function deleteCharacter(opts: { charId: string; userId: string }) 
   await db('chat').deleteMany({ characterId: opts.charId, userId: opts.userId })
 }
 
-export async function getCharacterList(charIds: string[]) {
+export async function getCharacterList(charIds: string[], userId?: string) {
+  const project = {
+    _id: 1,
+    userId: 1,
+    name: 1,
+    avatar: 1,
+    description: 1,
+    favorite: 1,
+    tags: 1,
+    createdAt: 1,
+    updatedAt: 1,
+    voice: 1,
+  }
+  if (userId) {
+    const list = await db('character')
+      .find({ $or: [{ _id: { $in: charIds } }, { userId }] })
+      .project(project)
+      .toArray()
+    return list
+  }
+
   const list = await db('character')
     .find({ _id: { $in: charIds } })
+    .project(project)
     .toArray()
   return list
 }

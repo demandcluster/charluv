@@ -1,14 +1,29 @@
-import { Component, Show, createMemo } from 'solid-js'
-import { AIAdapter } from '/common/adapters'
+import { Component, Match, Switch, createMemo } from 'solid-js'
 import { userStore } from '../store/user'
 import { A } from '@solidjs/router'
 import { TitleCard } from './Card'
+import { settingStore } from '../store'
+import { AppSchema } from '/common/types'
 
-const ServiceWarning: Component<{ service: AIAdapter | undefined }> = (props) => {
+const ServiceWarning: Component<{ preset?: Partial<AppSchema.GenSettings> }> = (props) => {
   const user = userStore((s) => ({ ...s.user }))
+  const cfg = settingStore((s) => s.config)
+
+  const noSub = createMemo(() => {
+    if (!props.preset) return false
+    if (props.preset.service !== 'agnaistic') return false
+    const userLevel = user.sub?.level ?? -1
+    const sub = cfg.subs.find(
+      (sub) => sub._id === props.preset?.registered?.agnaistic?.subscriptionId
+    )
+    if (!sub) return false
+    const ineligible = userLevel < sub.level
+    return ineligible
+  })
 
   const isKeySet = createMemo(() => {
-    const svc = props.service
+    if (!props.preset) return true
+    const svc = props.preset.service
     if (!svc) return true
 
     if (svc === 'openai' && !user.oaiKeySet && !user.oaiKey) return false
@@ -26,16 +41,11 @@ const ServiceWarning: Component<{ service: AIAdapter | undefined }> = (props) =>
   })
 
   return (
-    <>
-      <Show when={!isKeySet()}>
-        <span class="text-orange-500">
-          This service requires an API key to be set. Go to your{' '}
-          <A class="link" href="/settings">
-            Settings
-          </A>{' '}
-          to set the API key.
-        </span>
-      </Show>
+    <Switch>
+      <Match when={props.preset?.service === 'agnaistic' && noSub()}>
+        <TitleCard type="orange">Your account is ineligible for this tier/model.</TitleCard>
+      </Match>
+
       <Show when={props.service === 'horde' && !user?.premium && !user?.hordeName}>
         <TitleCard type="orange">Get premium for skipping AI queue and more features.</TitleCard>
       </Show>

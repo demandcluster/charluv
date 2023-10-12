@@ -77,6 +77,7 @@ export function exportCharacter(char: AppSchema.Character, target: 'tavern' | 'o
           character_version: char.characterVersion ?? '',
           extensions: {
             ...(char.extensions ?? {}),
+            depth_prompt: char.insert,
             agnai: {
               voice: char.voice,
               persona: char.persona,
@@ -129,6 +130,14 @@ export function formatCharacter(
         [name]
       )
       return attrs.join(' + ')
+    }
+
+    case 'attributes': {
+      const attrs = Object.entries(persona.attributes)
+        .map(([key, value]) => `${key}: ${value.join(', ')}`)
+        .join('\n')
+
+      return `Name: ${name}\n${attrs}`
     }
 
     case 'text': {

@@ -3,6 +3,7 @@ import { AppSchema } from './types/schema'
 export type AIAdapter = (typeof AI_ADAPTERS)[number]
 export type ChatAdapter = (typeof CHAT_ADAPTERS)[number]
 export type PersonaFormat = (typeof PERSONA_FORMATS)[number]
+export type ThirdPartyFormat = (typeof THIRDPARTY_FORMATS)[number]
 
 export type AdapterSetting = {
   /** The name of the field within the settings object */
@@ -21,6 +22,7 @@ export type AdapterSetting = {
   hidden?: boolean
 
   setting: SettingType
+  preset?: boolean
 }
 
 type SettingType =
@@ -33,18 +35,23 @@ export type AdapterOptions = {
   label: string
   settings: AdapterSetting[]
   options: Array<keyof PresetAISettings>
+  load?: (user?: AppSchema.User | null) => AdapterSetting[]
 }
 
-export const PERSONA_FORMATS = ['boostyle', 'wpp', 'sbf', 'text'] as const
+export const PERSONA_FORMATS = ['boostyle', 'wpp', 'sbf', 'attributes', 'text'] as const
 
 export const PERSONA_LABELS: { [key in PersonaFormat]: string } = {
   boostyle: 'Boostyle',
   wpp: 'W++',
   sbf: 'SBF',
+  attributes: 'Attributes (NovelAI)',
   text: 'Plain Text',
 }
 
+export const THIRDPARTY_FORMATS = ['kobold', 'openai', 'claude', 'ooba', 'llamacpp'] as const
+
 export const AI_ADAPTERS = [
+  'agnaistic',
   'kobold',
   'novel',
   'ooba',
@@ -55,6 +62,8 @@ export const AI_ADAPTERS = [
   'goose',
   'replicate',
   'openrouter',
+  'mancer',
+  'petals',
 ] as const
 export const CHAT_ADAPTERS = ['default', ...AI_ADAPTERS] as const
 
@@ -86,6 +95,8 @@ export const OPENAI_MODELS = {
   Turbo0301: 'gpt-3.5-turbo-0301',
   Turbo0613: 'gpt-3.5-turbo-0613',
   Turbo_16k: 'gpt-3.5-turbo-16k',
+  Turbo_Instruct: 'gpt-3.5-turbo-instruct',
+  Turbo_Intruct914: 'gpt-3.5-turbo-instruct-0914',
   GPT4: 'gpt-4',
   GPT4_0314: 'gpt-4-0314',
   GPT4_0613: 'gpt-4-0613',
@@ -197,6 +208,9 @@ export const ADAPTER_LABELS: { [key in AIAdapter]: string } = {
   goose: 'Goose AI',
   replicate: 'Replicate',
   openrouter: 'OpenRouter',
+  mancer: 'Mancer',
+  petals: 'Petals',
+  agnaistic: 'Agnaistic',
 }
 
 export const INSTRUCT_SERVICES: { [key in AIAdapter]?: boolean } = {
@@ -206,6 +220,10 @@ export const INSTRUCT_SERVICES: { [key in AIAdapter]?: boolean } = {
   scale: true,
   horde: true,
   novel: true,
+  agnaistic: true,
+  mancer: true,
+  kobold: true,
+  ooba: true,
 }
 
 export type PresetAISettings = Omit<
@@ -218,72 +236,58 @@ export type PresetAISettings = Omit<
   | 'memoryReverseWeight'
   | 'src'
   | 'order'
-  | 'useGaslight'
 >
 
 /**
  * This is al
  */
 export const adapterSettings: {
-  [key in keyof PresetAISettings]: AIAdapter[]
+  [key in keyof PresetAISettings]: Array<AIAdapter | ThirdPartyFormat>
 } = {
-  temp: ['kobold', 'novel', 'ooba', 'horde', 'openai', 'scale', 'claude', 'goose'],
+  temp: ['kobold', 'novel', 'ooba', 'horde', 'openai', 'scale', 'claude', 'goose', 'agnaistic'],
   maxTokens: AI_ADAPTERS.slice(),
   maxContextLength: AI_ADAPTERS.slice(),
   antiBond: ['openai', 'scale'],
 
-  gaslight: [
-    'openai',
-    'novel',
-    'scale',
-    'horde',
-    'kobold',
-    'claude',
-    'ooba',
-    'goose',
-    'openrouter',
-  ],
-  systemPrompt: ['openai', 'novel', 'scale', 'kobold', 'claude', 'ooba', 'goose', 'openrouter'],
-  ignoreCharacterSystemPrompt: [
-    'openai',
-    'novel',
-    'scale',
-    'kobold',
-    'claude',
-    'ooba',
-    'goose',
-    'openrouter',
-  ],
-  ultimeJailbreak: ['openai', 'claude', 'kobold', 'scale', 'openrouter', 'novel'],
   prefill: ['claude'],
-  ignoreCharacterUjb: ['openai', 'claude', 'kobold', 'horde', 'openrouter'],
 
-  topP: ['horde', 'kobold', 'claude', 'ooba', 'openai', 'novel'],
-  repetitionPenalty: ['horde', 'novel', 'kobold', 'ooba'],
-  repetitionPenaltyRange: ['horde', 'novel', 'kobold'],
+  topP: ['horde', 'kobold', 'claude', 'ooba', 'openai', 'novel', 'agnaistic'],
+  repetitionPenalty: ['horde', 'novel', 'kobold', 'ooba', 'agnaistic'],
+  repetitionPenaltyRange: ['horde', 'novel', 'kobold', 'ooba', 'agnaistic'],
   repetitionPenaltySlope: ['horde', 'novel', 'kobold'],
-  tailFreeSampling: ['horde', 'novel', 'kobold'],
-  topA: ['horde', 'novel', 'kobold'],
-  topK: ['horde', 'novel', 'kobold', 'ooba', 'claude'],
-  typicalP: ['horde', 'novel', 'kobold', 'ooba'],
-  cfgScale: ['novel'],
-  cfgOppose: ['novel'],
+  tailFreeSampling: ['horde', 'novel', 'kobold', 'ooba', 'agnaistic'],
+  topA: ['horde', 'novel', 'kobold', 'ooba', 'agnaistic'],
+  topK: ['horde', 'novel', 'kobold', 'ooba', 'claude', 'agnaistic'],
+  typicalP: ['horde', 'novel', 'kobold', 'ooba', 'agnaistic'],
 
-  thirdPartyUrl: ['kobold', 'ooba', 'horde'],
-  thirdPartyFormat: ['kobold', 'horde'],
-  claudeModel: ['claude', 'kobold'],
+  topG: ['novel'],
+  mirostatLR: ['novel', 'ooba', 'agnaistic', 'llamacpp'],
+  mirostatTau: ['novel', 'ooba', 'agnaistic', 'llamacpp'],
+  cfgScale: ['novel', 'ooba'],
+  cfgOppose: ['novel', 'ooba'],
+  phraseRepPenalty: ['novel'],
+  phraseBias: ['novel'],
+
+  thirdPartyUrl: ['kobold', 'ooba'],
+  thirdPartyFormat: ['kobold'],
+  claudeModel: ['claude'],
   novelModel: ['novel'],
-  oaiModel: ['openai', 'kobold'],
-  frequencyPenalty: ['openai', 'kobold', 'novel'],
+  oaiModel: ['openai'],
+  frequencyPenalty: ['openai', 'kobold', 'novel', 'agnaistic'],
   presencePenalty: ['openai', 'kobold', 'novel'],
-  streamResponse: ['openai', 'kobold', 'novel', 'claude'],
+  streamResponse: ['openai', 'kobold', 'novel', 'claude', 'ooba', 'agnaistic'],
   openRouterModel: ['openrouter'],
+  stopSequences: ['ooba', 'agnaistic', 'novel', 'mancer', 'llamacpp', 'horde'],
 
-  addBosToken: ['ooba'],
-  banEosToken: ['ooba'],
+  addBosToken: ['ooba', 'agnaistic'],
+  banEosToken: ['ooba', 'agnaistic'],
+  doSample: ['ooba', 'agnaistic'],
   encoderRepitionPenalty: ['ooba'],
   penaltyAlpha: ['ooba'],
+  earlyStopping: ['ooba'],
+  numBeams: ['ooba'],
 
+  replicateModelName: ['replicate'],
   replicateModelVersion: ['replicate'],
   replicateModelType: ['replicate'],
 
@@ -294,6 +298,7 @@ export type RegisteredAdapter = {
   name: AIAdapter
   settings: AdapterSetting[]
   options: Array<keyof PresetAISettings>
+  load?: (user?: AppSchema.User | null) => AdapterSetting[]
 }
 
 export const settingLabels: { [key in keyof PresetAISettings]: string } = {
@@ -336,10 +341,24 @@ export const settingLabels: { [key in keyof PresetAISettings]: string } = {
   thirdPartyUrl: 'Third Party URL',
   ultimeJailbreak: 'Jailbreak',
   prefill: 'Bot response prefilling',
-  useTemplateParser: 'Use V2 Prompt Parser',
+  phraseRepPenalty: 'Phrase Repetition Penality',
+  stopSequences: 'Stop Sequences',
+  topG: 'Top G',
+  mirostatTau: 'Mirostat Tau',
+  mirostatLR: 'Mirostat LR',
 }
 
 export const samplerOrders: { [key in AIAdapter]?: Array<keyof PresetAISettings> } = {
   kobold: ['topK', 'topA', 'topP', 'tailFreeSampling', 'typicalP', 'temp', 'repetitionPenalty'],
-  novel: ['temp', 'topK', 'topP', 'tailFreeSampling', 'topA', 'typicalP', 'cfgScale'],
+  novel: [
+    'temp',
+    'topK',
+    'topP',
+    'tailFreeSampling',
+    'topA',
+    'typicalP',
+    'cfgScale',
+    'topG',
+    'mirostatTau',
+  ],
 }

@@ -1,6 +1,6 @@
-import { toGeneratedCharacter } from './util'
-import { AIAdapter, INSTRUCT_SERVICES } from '/common/adapters'
-import { modernJailbreak } from '/common/templates'
+import { AIAdapter, INSTRUCT_SERVICES, PersonaFormat } from '/common/adapters'
+import { modernJailbreak } from '/common/mode-templates'
+import { AppSchema } from '/common/types'
 import { NewCharacter } from '/web/store'
 import { msgsApi } from '/web/store/data/messages'
 
@@ -16,7 +16,7 @@ export type GenField =
   | 'example2'
   | 'example3'
 
-export async function generateChar(description: string, service: string) {
+export async function generateChar(description: string, service: string, kind: PersonaFormat) {
   const [svc, _model] = service?.split('/') as [AIAdapter, string]
   const template =
     svc === 'novel'
@@ -26,42 +26,27 @@ export async function generateChar(description: string, service: string) {
       : genTemplate
   const prompt = template.replace(`{{description}}`, description)
 
-  return new Promise<NewCharacter>((resolve, reject) => {
-    msgsApi.guidance({ prompt, service }, (err, res) => {
-      if (err || !res) {
-        return reject(err || `No response received`)
-      }
+  const vars = await msgsApi.guidance({ prompt, service })
+  const char: NewCharacter = {
+    originalAvatar: undefined,
+    description,
+    name: vars.firstname,
+    persona: toAttributes(kind, vars),
+    appearance: vars.appearance,
+    greeting: vars.greeting,
+    sampleChat: `{{char}}: ${vars.example1}\n{{char}}: ${vars.example2}\n{{char}}: ${vars.example3}`,
+    scenario: vars.scenario,
+  }
 
-      if (typeof res === 'string') {
-        const char = toGeneratedCharacter(res, description)
-        return resolve(char)
-      }
-
-      const vars = res.values
-      const char: NewCharacter = {
-        originalAvatar: undefined,
-        description,
-        name: vars.firstname,
-        persona: {
-          kind: 'wpp',
-          attributes: {
-            personality: [vars.personality],
-            speech: [vars.speech],
-            behaviour: [vars.behaviour],
-          },
-        },
-        appearance: vars.appearance,
-        greeting: vars.greeting,
-        sampleChat: `{{char}}: ${vars.example1}\n{{char}}: ${vars.example2}\n{{char}}: ${vars.example3}`,
-        scenario: vars.scenario,
-      }
-
-      return resolve(char)
-    })
-  })
+  return char
 }
 
-export async function regenerateCharProp(char: NewCharacter, service: string, fields: GenField[]) {
+export async function regenerateCharProp(
+  char: NewCharacter,
+  service: string,
+  kind: PersonaFormat,
+  fields: GenField[]
+) {
   const [adapter] = service?.split('/') as AIAdapter[]
   const template =
     adapter === 'novel'
@@ -73,7 +58,7 @@ export async function regenerateCharProp(char: NewCharacter, service: string, fi
   const prompt = template.replace(`{{description}}`, char.description || '')
 
   const attrs: any = char.persona.attributes
-  const vars = {
+  const prev = {
     description: char.description,
     firstname: char.name,
     personality: attrs?.personality || '',
@@ -84,60 +69,83 @@ export async function regenerateCharProp(char: NewCharacter, service: string, fi
     scenario: char.scenario || '',
   }
 
-  return new Promise<NewCharacter>((resolve, reject) => {
-    msgsApi.rerunGuidance({ prompt, service, rerun: fields, previous: vars }, (err, res) => {
-      if (err || !res) {
-        return reject(err || `No response received`)
-      }
+  const vars = await msgsApi.rerunGuidance({ prompt, service, rerun: fields, previous: prev })
+  const sampleChat =
+    vars.example1 && vars.example2 && vars.example3
+      ? `{{char}}: ${vars.example1}\n{{char}}: ${vars.example2}\n{{char}}: ${vars.example3}`
+      : char.sampleChat
 
-      const vars = res.values
-      const sampleChat =
-        vars.example1 && vars.example2 && vars.example3
-          ? `{{char}}: ${vars.example1}\n{{char}}: ${vars.example2}\n{{char}}: ${vars.example3}`
-          : char.sampleChat
-      const newchar: NewCharacter = {
-        originalAvatar: undefined,
-        description: char.description || '',
-        name: vars.firstname,
-        persona: {
-          kind: 'text',
-          attributes: {
-            text: [`${vars.personality}\n${vars.behaviour}\n${vars.speech}`],
-          },
-        },
-        appearance: vars.appearance,
-        greeting: vars.greeting,
-        sampleChat,
-        scenario: vars.scenario,
-      }
+  vars.behaviour ??= prev.behaviour
+  vars.speech ??= prev.speech
+  vars.personality ??= prev.personality
+  vars.greeting ??= prev.greeting
 
-      return resolve(newchar)
-    })
-  })
+  const newchar: NewCharacter = {
+    originalAvatar: undefined,
+    description: char.description || '',
+    name: vars.firstname,
+    persona: fields.includes('personality') ? toAttributes(kind, vars) : char.persona,
+    appearance: vars.appearance,
+    greeting: vars.greeting,
+    sampleChat,
+    scenario: vars.scenario,
+  }
+
+  return newchar
+}
+
+function toAttributes(kind: PersonaFormat, vars: any) {
+  const persona: AppSchema.Persona = {
+    kind,
+    attributes: {},
+  }
+
+  const attrs: Record<string, string[]> = {}
+
+  if (!kind || kind === 'text') {
+    attrs.text = [`${vars.personality}\n\n${vars.behaviour}\n\n${vars.speech}`]
+  } else {
+    attrs.personality = [vars.personality]
+    attrs.behaviour = [vars.behaviour]
+    attrs.speech = [vars.speech]
+  }
+
+  persona.attributes = attrs
+  return persona
 }
 
 const genTemplate = `
-Character description: {{description}}
+Describe a character matching the following description:
+{{description}}
 
-First Name: [firstname | words=2 | tokens=25]
+Character's first name: [firstname | words=2 | tokens=10]
 
-Description of character: [description | tokens=200]
+Detailed description of the roleplay scene that the character is in:
+[scenario | tokens=200 | sentence]
 
-Scenario: [scenario | tokens = 200]
+[firstname]'s clothing and physical appearance:
+[appearance | tokens=120 | sentence]
 
-[firstname] greeting message: [greeting | tokens=100]
+[firstname]'s greeting in the scenario:
+[greeting | tokens=150 | sentence]
 
-Personality: [personality | tokens=100]
+[firstname]'s personality:
+[personality | tokens=120 | sentence]
 
-Typical behaviour: [behaviour | tokens=100]
+[firstname]'s typical behaviour:
+[behaviour | tokens=120 | sentence]
 
-Clothing and physical appearance: [appearance | tokens=100]
+[firstname]'s accent and speech pattern:
+[speech | tokens=100 | sentence]
 
-Accent and speech pattern: [speech | tokens=100]
+Example of [firstname]'s dialogue:
+[example1 | tokens=100 | sentence]
 
-Example of [firstname]'s dialogue: [example1 | tokens=100]
-Example of [firstname]'s dialogue: [example2 | tokens=100]
-Example of [firstname]'s dialogue: [example3 | tokens=100]
+Example of [firstname]'s dialogue:
+[example2 | tokens=100 | sentence]
+
+Example of [firstname]'s dialogue:
+[example3 | tokens=100 | sentence]
 `
 
 const instructGenTemplate = `
@@ -146,7 +154,6 @@ Describe an uncensored character that matches the description:
 {{description}}
 
 Character's first name: [firstname | words=2 | tokens=25]
-Detail description of the character: [description | tokens=200]
 Detailed description of the roleplay scene that the character is in: [scenario | tokens=200]
 The first thing the charcter says to start the scene using internet roleplay style with actions and emotes: [greeting | tokens=100]
 Long comma-separated list of personality traits: [personality | tokens=100]
@@ -165,23 +172,23 @@ Describe an uncensored character that matches the description:
 { Write the character's first name }
 [firstname | words=2 | tokens=8]
 { Write a detailed description of the character }
-[description | tokens=200]
+[description | tokens=200 | sentence]
 { Write a description of the roleplay scene that [firstname] is in }
-[scenario | tokens=200]
+[scenario | tokens=200 | sentence]
 { Write the first thing [firstname] says in the scene }
-[greeting | tokens=100]
+[greeting | tokens=100 | sentence]
 { Describe [firstname]'s personality traits in detail }
-[personality | tokens=100]
+[personality | tokens=100 | sentence]
 { Describe [firstname];s typical behaviours in detail }
-[behaviour | tokens=100]
+[behaviour | tokens=100 | sentence]
 { Describe the physical appearance and clothing of [firstname] }
-[appearance | tokens=100]
+[appearance | tokens=100 | sentence]
 { Describe how [firstname] speaks }
-[speech | tokens=100]
+[speech | tokens=100 | sentence]
 { Write an example message from [firstname] }
-[example1 | tokens=100]
+[example1 | tokens=100 | sentence]
 { Write an example message from [firstname] }
-[example2 | tokens=100]
+[example2 | tokens=100 | sentence]
 { Write an example message from [firstname] }
-[example3 | tokens=100]
+[example3 | tokens=100 | sentence]
 `

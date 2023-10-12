@@ -6,6 +6,10 @@ import { setComponentPageTitle } from '../../shared/util'
 const text = `
 _12 October 2023_
 - Fixed timeout issue on chats
+- "Enter" no longer sends message on mobile
+- Added ability to delete account
+- Add stop sequences and phrase bias
+- Fix "speak as" buttons not appearing when characters added
 
 _11 October 2023_
 - New 20B language model

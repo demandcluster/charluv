@@ -6,6 +6,7 @@ import { AppSchema } from '/common/types'
 import { v4 } from 'uuid'
 import { now } from '/srv/db/util'
 import { entityUploadBase64 } from '../upload'
+import { toArray } from '/common/util'
 
 export const addCharacter = handle(async ({ body, params, userId }) => {
   assertValid({ charId: 'string' }, body)
@@ -69,7 +70,7 @@ export const upsertTempCharacter = handle(async ({ body, params, userId }) => {
       _id: 'string?',
       name: 'string',
       description: 'string',
-      appearance: 'string',
+      appearance: 'string?',
       sampleChat: 'string',
       persona: 'any',
       greeting: 'string',
@@ -79,6 +80,15 @@ export const upsertTempCharacter = handle(async ({ body, params, userId }) => {
       premium: 'boolean?',
       avatar: 'string?',
       favorite: 'boolean?',
+      deletedAt: 'string?',
+      voice: 'any?',
+      systemPrompt: 'string?',
+      postHistoryInstructions: 'string?',
+      alternateGreetings: 'any?',
+      characterBook: 'string?',
+      visualType: 'string?',
+      sprite: 'any?',
+      culture: 'string?',
     },
     body
   )
@@ -108,6 +118,15 @@ export const upsertTempCharacter = handle(async ({ body, params, userId }) => {
     xp: 0,
     premium: false,
     favorite: body.favorite !== undefined ? body.favorite : prev?.favorite,
+    deletedAt: body.deletedAt,
+    voice: body.voice,
+    postHistoryInstructions: body.postHistoryInstructions,
+    systemPrompt: body.systemPrompt,
+    alternateGreetings: body.alternateGreetings ? toArray(body.alternateGreetings) : undefined,
+    characterBook: body.characterBook ? JSON.parse(body.characterBook) : undefined,
+    visualType: body.visualType,
+    sprite: body.sprite,
+    culture: body.culture,
   }
 
   tempCharacters[upserted._id] = upserted

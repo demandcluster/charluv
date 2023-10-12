@@ -8,7 +8,9 @@ import { handle } from './wrap'
 import { AppSchema } from '../../common/types/schema'
 import { store } from '../db'
 import { RegisteredAdapter } from '/common/adapters'
-import { getHordeWorkers, getHoredeModels } from './horde'
+import { getHordeWorkers, getHordeModels } from './horde'
+import { getOpenRouterModels } from '../adapter/openrouter'
+import { updateRegisteredSubs } from '../adapter/agnaistic'
 
 const router = Router()
 
@@ -19,16 +21,26 @@ const getSettings = handle(async () => {
   return config
 })
 
+export const getPublicSubscriptions = handle(async () => {
+  const subscriptions = store.subs.getCachedSubscriptions()
+  return { subscriptions }
+})
+
+router.get('/subscriptions', getPublicSubscriptions)
 router.get('/', getSettings)
 
 export default router
 
-export async function getAppConfig() {
+export async function getAppConfig(user?: AppSchema.User) {
   const canAuth = isConnected()
   const workers = getHordeWorkers()
-  const models = getHoredeModels()
+  const models = getHordeModels()
+  const openRouter = await getOpenRouterModels()
 
   if (!appConfig) {
+    await store.subs.prepSubscriptionCache()
+    const subs = store.subs.getCachedSubscriptions(user)
+    updateRegisteredSubs()
     appConfig = {
       adapters: config.adapters,
       version: '',
@@ -38,7 +50,7 @@ export async function getAppConfig() {
       assetPrefix: config.storage.enabled
         ? `https://${config.storage.bucket}.${config.storage.endpoint}`
         : '',
-      registered: getRegisteredAdapters().map(toRegisteredAdapter),
+      registered: getRegisteredAdapters(user).map(toRegisteredAdapter),
       maintenance: config.ui.maintenance,
       patreon: config.ui.patreon,
       policies: config.ui.policies,
@@ -48,9 +60,16 @@ export async function getAppConfig() {
         models,
         workers: workers.filter((w) => w.type === 'text'),
       },
+      openRouter: { models: openRouter },
+      subs,
     }
   }
 
+  const subs = store.subs.getCachedSubscriptions()
+
+  appConfig.subs = subs
+  appConfig.registered = getRegisteredAdapters(user).map(toRegisteredAdapter)
+  appConfig.openRouter.models = openRouter
   appConfig.horde = {
     models,
     workers: workers.filter((w) => w.type === 'text'),

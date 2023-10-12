@@ -32,6 +32,10 @@ export function wait(secs: number) {
   return new Promise((res) => setTimeout(res, secs * 1000))
 }
 
+export function waitMs(ms: number) {
+  return new Promise((res) => setTimeout(res, ms))
+}
+
 export function isObject(val: unknown) {
   return Object.prototype.toString.call(val) === '[object Object]'
 }
@@ -64,18 +68,18 @@ export function toDuration(valueSecs: number, full?: boolean) {
   }
 
   if (days) {
-    return `${days} days`
+    return `${days} ${days > 1 ? 'days' : 'day'}`
   }
 
   if (hours) {
-    return `${hours} hours`
+    return `${hours} ${hours > 1 ? 'hours' : 'hour'}`
   }
 
   if (minutes) {
-    return `${minutes} mins`
+    return `${minutes} ${minutes > 1 ? 'mins' : 'min'}`
   }
 
-  return `${seconds} seconds`
+  return `${seconds} ${seconds > 1 ? 'seconds' : 'second'}`
 }
 
 export function elapsedSince(date: string | Date, offsetMs: number = 0) {
@@ -156,7 +160,8 @@ export function getBotName(
   msg: AppSchema.ChatMessage,
   chars: Record<string, AppSchema.Character>,
   replyAs: AppSchema.Character,
-  main: AppSchema.Character
+  main: AppSchema.Character,
+  impersonate?: AppSchema.Character
 ) {
   if (!msg.characterId) return replyAs?.name || main.name
   if (msg.characterId.startsWith('temp-')) {
@@ -165,10 +170,57 @@ export function getBotName(
     return temp.name
   }
 
-  const char = chars[msg.characterId]
+  const char =
+    msg.characterId && impersonate?._id === msg.characterId ? impersonate : chars[msg.characterId]
+
   if (!char) {
     return main.name
   }
 
   return char.name
+}
+
+export function eventGenerator<T = any>() {
+  const queue: Array<Promise<any>> = []
+  let done = false
+  let signal = false
+
+  const stream = (async function* () {
+    while (!done) {
+      await waitMs(1)
+      const promise = queue.shift()
+      if (!promise) {
+        if (signal) {
+          done = true
+        }
+        continue
+      }
+
+      const result = await promise
+      yield result
+    }
+  })() as AsyncGenerator<T, T>
+
+  return {
+    stream,
+    push: (value: T) => {
+      if (done) return
+      queue.push(Promise.resolve(value))
+    },
+    done: () => {
+      if (done) return
+      signal = true
+    },
+  }
+}
+
+/**
+ * Will automatically clamp to `-max -> max` if `min` is not provided
+ */
+export function clamp(toClamp: number, max: number, min?: number) {
+  return Math.max(Math.min(toClamp, max), min ?? -max)
+}
+
+export function now() {
+  return new Date().toISOString()
 }

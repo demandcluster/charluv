@@ -25,6 +25,8 @@ const emptyCfg: AppSchema.AppConfig = {
     workers: [],
     models: [],
   },
+  openRouter: { models: [] },
+  subs: [],
 }
 
 let SELF_HOSTING = false
@@ -50,6 +52,7 @@ export const KEYS = {
   scenario: 'scenario',
   swipe: 'swipe',
   trees: 'chat-trees',
+  templates: 'templates',
 }
 
 type LocalStorage = {
@@ -65,21 +68,20 @@ type LocalStorage = {
   scenario: AppSchema.ScenarioBook[]
   swipe: string
   trees: AppSchema.ChatTree[]
+  templates: AppSchema.PromptTemplate[]
 }
 
 const localStore = new Map<keyof LocalStorage, any>()
 
 const fallbacks: { [key in StorageKey]: LocalStorage[key] } = {
-  characters: [
-    {
-      _id: v4(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      kind: 'character',
-      userId: 'anon',
-      ...defaultChars.Robot,
-    },
-  ],
+  characters: Object.values(defaultChars).map((char) => ({
+    _id: v4(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    kind: 'character',
+    userId: 'anon',
+    ...char,
+  })),
   chats: [],
   presets: [],
   config: {
@@ -109,6 +111,7 @@ const fallbacks: { [key in StorageKey]: LocalStorage[key] } = {
   scenario: [],
   swipe: '',
   trees: [],
+  templates: [],
 }
 
 export async function handleGuestInit() {
@@ -147,6 +150,7 @@ export async function handleGuestInit() {
       localStore.set('scenario', res.result.scenario)
       localStore.set('characters', res.result.characters)
       localStore.set('chats', res.result.chats)
+      localStore.set('templates', res.result.templates)
       return res
     }
   }
@@ -183,11 +187,31 @@ async function getGuestInitEntities() {
   const scenario = await localApi.loadItem('scenario', true)
   const characters = await localApi.loadItem('characters', true)
   const chats = await localApi.loadItem('chats', true)
+
+  let fixed = false
+  for (const chat of chats) {
+    if (!chat.tempCharacters) continue
+    const chars = Object.entries(chat.tempCharacters)
+    for (const [key, char] of chars) {
+      if (char._id) continue
+      fixed = true
+      const id = v4()
+      delete chat.tempCharacters[key]
+      char._id = id
+      chat.tempCharacters[id] = char
+    }
+  }
+
+  if (fixed) {
+    await saveChats(chats)
+  }
+
   const trees = await localApi.loadItem('trees', true)
+  const templates = await localApi.loadItem('templates', true)
 
   user._id = 'anon'
 
-  return { user, presets, profile, books, scenario, characters, chats, trees }
+  return { user, presets, profile, books, scenario, characters, chats, trees, templates }
 }
 
 async function migrateLegacyItems() {
@@ -288,6 +312,10 @@ export async function saveScenarios(state: AppSchema.ScenarioBook[]) {
   await saveItem('scenario', state)
 }
 
+export async function saveTemplates(state: AppSchema.PromptTemplate[]) {
+  await saveItem('templates', state)
+}
+
 export async function deleteChatMessages(chatId: string) {
   await storage.removeItem(`messages-${chatId}`)
 }
@@ -367,6 +395,7 @@ export const localApi = {
   savePresets,
   saveProfile,
   saveBooks,
+  saveTemplates,
   saveScenarios,
   saveTrees,
   deleteChatMessages,

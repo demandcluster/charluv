@@ -7,7 +7,12 @@ import { config } from '../config'
 import { NOVEL_MODELS } from '../../common/adapters'
 import { logger } from '../logger'
 import { errors, StatusError } from '../api/wrap'
-import { encryptPassword, now, STARTER_CHARACTER } from './util'
+import { encryptPassword, now } from './util'
+import { defaultChars } from '/common/characters'
+import { stripe } from '../api/billing/stripe'
+import { getTier } from './subscriptions'
+import { domain } from '../domains'
+import { store } from '.'
 
 export type NewUser = {
   username: string
@@ -126,16 +131,21 @@ export async function createUser(newUser: NewUser, admin?: boolean) {
     createdAt: new Date().toISOString(),
   }
 
-  const startChar: AppSchema.Character = {
-    ...STARTER_CHARACTER,
-    _id: v4(),
-    userId: user._id,
-    createdAt: now(),
-    updatedAt: now(),
-  }
-
   await db('user').insertOne(user)
-  await db('character').insertOne(startChar)
+
+  for (const char of Object.values(defaultChars)) {
+    const nextChar: AppSchema.Character = {
+      _id: v4(),
+      kind: 'character',
+      userId: user._id,
+      favorite: false,
+      visualType: 'avatar',
+      updatedAt: now(),
+      createdAt: now(),
+      ...char,
+    }
+    await db('character').insertOne(nextChar)
+  }
 
   const profile: AppSchema.Profile = {
     _id: v4(),
@@ -219,4 +229,121 @@ export function verifyJwt(token: string): any {
   }
 
   throw errors.Unauthorized
+}
+
+export async function updateLimit(userId: string) {
+  const last = new Date().toISOString()
+  const res = await db('user').updateOne(
+    { _id: userId },
+    { $set: { 'sub.last': last } },
+    { upsert: false }
+  )
+  if (res.modifiedCount === 0) {
+    throw new Error(`User not found`)
+  }
+}
+
+export async function updateUserTier(userId: string, tierId: string) {
+  const tier = await getTier(tierId)
+  await db('user').updateOne(
+    { _id: userId },
+    { $set: { 'sub.level': tier.level, 'sub.tierId': tierId } },
+    { upsert: false }
+  )
+}
+
+export async function deleteUserAccount(userId: string) {
+  if (!userId) {
+    throw new Error(`No user id provided`)
+  }
+
+  const chats = await db('chat').find({ userId }).toArray()
+  await db('character').deleteMany({ userId })
+  await db('memory').deleteMany({ userId })
+  await db('scenario').deleteMany({ userId })
+  await db('gen-setting').deleteMany({ userId })
+  await db('chat-message').deleteMany({ chatId: { $in: chats.map((ch) => ch._id) } })
+  await db('chat-invite').deleteMany({ byUserId: userId })
+  await db('chat-invite').deleteMany({ invitedId: userId })
+  await db('chat').deleteMany({ userId })
+  await db('user').deleteOne({ _id: userId })
+
+  // We keep the user profile in a skeleton state to ensure no issues occur in chats they were a participant of.
+  await db('profile').updateOne({ userId }, { $set: { handle: 'Unknown', avatar: '' } })
+}
+
+export async function validateSubscription(user: AppSchema.User) {
+  if (!user.sub?.tierId) {
+    return -1
+  }
+
+  const tier = await getTier(user.sub.tierId)
+  if (!tier.productId) return tier.level
+
+  const state = await domain.subscription.getAggregate(user._id)
+  if (state.state === 'active') {
+    /**
+     * Downgrades
+     * The aggregate tier id will be the intended tier id.
+     * If these differ then a downgrade has occurred.
+     */
+    if (state.tierId !== user.sub.tierId) {
+      const nextTier = state.tierId ? await getTier(state.tierId) : null
+      await store.users.updateUser(user._id, {
+        sub: {
+          last: '',
+          level: nextTier?.level ?? -1,
+          tierId: state.tierId,
+        },
+      })
+      return nextTier?.level ?? -1
+    }
+
+    return tier.level
+  }
+
+  if (!user.billing) {
+    return new Error(`Subscription information is invalid - Contact support`)
+  }
+
+  const subscription = await stripe.subscriptions
+    .retrieve(user.billing.subscriptionId)
+    .catch((err) => ({ err }))
+
+  if ('err' in subscription) {
+    logger.error({ err: subscription.err }, 'Subscription information could not be retrieved')
+    return new Error(
+      `Could not retrieve subscription information - Please try again or contact support`
+    )
+  }
+
+  const now = Date.now()
+  const limit = new Date(subscription.current_period_end * 1000).valueOf()
+
+  if (now < limit) return tier.level
+
+  const renewedAt = new Date(subscription.current_period_start * 1000)
+  const validUntil = new Date(subscription.current_period_end * 1000)
+
+  if (validUntil.valueOf() < now) {
+    return new Error('Your subscripion has expired')
+  }
+
+  const tierId = state.tierId || subscription.metadata.tierId
+
+  /**
+   * The subscription in Stripe reports that it has been renewed
+   */
+  const nextTier = await getTier(tierId).catch((err) => ({ err }))
+  if ('err' in nextTier) {
+    return new Error(`Could not retrieve subscription tier - Contact support`)
+  }
+
+  user.billing.lastRenewed = renewedAt.toISOString()
+  user.billing.validUntil = validUntil.toISOString()
+  user.billing.status = subscription.status === 'active' ? 'active' : 'cancelled'
+  user.sub.level = nextTier.level
+  user.sub.tierId = tierId
+  await updateUser(user._id, { billing: user.billing, sub: user.sub })
+  return nextTier.level
 }

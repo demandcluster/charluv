@@ -92,7 +92,12 @@ const UISettings: Component = () => {
         </div>
       </div>
 
-      <FileInput fieldName="background" label="Background Image" onUpdate={onBackground} />
+      <FileInput
+        fieldName="background"
+        label="Background Image"
+        onUpdate={onBackground}
+        accept="image/png,image/jpeg,image/jpg"
+      />
       <div class="my-2 w-full justify-center">
         <Button onClick={() => userStore.setBackground(null)}>Remove Background</Button>
       </div>
@@ -109,13 +114,21 @@ const UISettings: Component = () => {
       />
 
       <Divider />
-      <h3 class="text-md font-bold">Chat View Settings</h3>
+      <h3 class="text-md font-bold">Chat Settings</h3>
 
       <Toggle
         label="Trim Incomplete Sentences"
         fieldName="trimSentences"
         value={state.ui.trimSentences ?? false}
         onChange={(next) => userStore.saveUI({ trimSentences: next })}
+      />
+
+      <Toggle
+        fieldName="mobileSendOnEnter"
+        label="Send Message on Enter on Mobile"
+        helperText='Instead of adding a line break, "Enter" will send the message (Mobile only)'
+        value={state.ui.mobileSendOnEnter}
+        onChange={(ev) => userStore.saveUI({ mobileSendOnEnter: ev })}
       />
 
       <Select
@@ -276,12 +289,6 @@ const UISettings: Component = () => {
         value={state.ui.imageWrap}
       />
 
-      <Toggle
-        fieldName="logPromptsToBrowserConsole"
-        label="Log Prompts to Console"
-        value={state.ui?.logPromptsToBrowserConsole ?? false}
-        onChange={(enabled) => userStore.saveUI({ logPromptsToBrowserConsole: enabled })}
-      />
       <Divider />
       <div class="text-lg font-bold">Preview</div>
       <Show when={chars.characters.list.length > 0}>

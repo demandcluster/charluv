@@ -1,4 +1,3 @@
-import Select from '../../shared/Select'
 import { ADAPTER_LABELS } from '../../../common/adapters'
 import { presetStore, settingStore, userStore } from '../../store'
 import Tabs from '../../shared/Tabs'
@@ -24,7 +23,8 @@ import RegisteredSettings from './components/RegisteredSettings'
 import { A, useSearchParams } from '@solidjs/router'
 import { Toggle } from '/web/shared/Toggle'
 import OpenRouterOauth from './OpenRouterOauth'
-import { TitleCard } from '/web/shared/Card'
+import { SolidCard, TitleCard } from '/web/shared/Card'
+import { PresetSelect } from '/web/shared/PresetSelect'
 
 const AISettings: Component<{
   onHordeWorkersChange: (workers: string[]) => void
@@ -36,13 +36,23 @@ const AISettings: Component<{
   const presets = presetStore((s) => s.presets.filter((pre) => !!pre.service))
 
   createEffect(() => {
-    const tabs = cfg.config.adapters.map((a) => ADAPTER_LABELS[a] || a)
+    const tabs = cfg.config.adapters
+      .filter((adp) => {
+        if (adp === 'ooba') return false
+        const reg = cfg.config.registered.find((r) => r.name === adp)
+        if (!reg) return true
+        for (const opt of reg.settings) {
+          if (!opt.preset) return true
+        }
+        return false
+      })
+      .map((a) => ADAPTER_LABELS[a] || a)
+
     setTabs(tabs)
 
     if (!ready() && cfg.config.adapters?.length) {
       const queryTab = tabs.findIndex((label) => label.toLowerCase() === query.service)
-      const defaultTab = cfg.config.adapters.indexOf(state.user?.defaultAdapter!)
-      setTab(queryTab !== -1 ? queryTab : defaultTab === -1 ? 0 : defaultTab)
+      setTab(queryTab !== -1 ? queryTab : 0)
       setReady(true)
     }
   })
@@ -51,14 +61,18 @@ const AISettings: Component<{
   const [tab, setTab] = createSignal(-1)
   const [ready, setReady] = createSignal(false)
 
-  const currentTab = createMemo(() => cfg.config.adapters[tab()])
-  const presetOptions = createMemo(() =>
-    [{ label: 'None', value: '' }].concat(
-      getPresetOptions(presets, { builtin: true }).filter(
-        (pre) => pre.value !== AutoPreset.chat && pre.value !== AutoPreset.service
-      )
+  const currentTab = createMemo(() => {
+    const list = tabs()
+    const next = list[tab()]
+    return next
+  })
+  const presetOptions = createMemo(() => {
+    const opts = getPresetOptions(presets, { builtin: true }).filter(
+      (pre) => pre.value !== AutoPreset.chat && pre.value !== AutoPreset.service
     )
-  )
+    return [{ label: 'None', value: '', custom: false }].concat(opts)
+  })
+  const [presetId, setPresetId] = createSignal(state.user?.defaultPreset || '')
 
   const tabClass = `flex flex-col gap-4`
 
@@ -72,71 +86,75 @@ const AISettings: Component<{
         <Show when={!state.user?.premium}>
           Creation of Presets is only available to premium members.
         </Show>
-        <Select
+        <PresetSelect
           fieldName="defaultPreset"
-          items={presetOptions()}
           label="Default Preset"
-          helperText="The default preset your chats will use."
-          value={state.user?.defaultPreset || ''}
+          helperText="The default preset your chats will use"
+          options={presetOptions()}
+          selected={presetId()}
+          setPresetId={setPresetId}
         />
         <div class="hidden">
-          <Toggle
-            fieldName="useLocalPipeline"
-            label="Use Local Pipeline"
-            helperText={
-              <>
-                <A class="link" href="/guides/pipeline">
-                  Pipeline Guide.
-                </A>
-                &nbsp;If available, use local Agnaistic pipeline features (summarization for
-                images). This is extremely new and experimental. Expect this to change and improve
-                in the near future.
-                <span></span>
-              </>
-            }
-            value={state.user?.useLocalPipeline}
-          />
+        <Toggle
+          fieldName="useLocalPipeline"
+          label="Use Local Pipeline"
+          helperText={
+            <>
+              <A class="link" href="/guides/pipeline">
+                Pipeline Guide.
+              </A>
+              &nbsp;If available, use local Agnaistic pipeline features (summarization for images).
+              This is extremely new and experimental. Expect this to change and improve in the near
+              future.
+              <span></span>
+            </>
+          }
+          value={state.user?.useLocalPipeline}
+        />
 
-          <div class="my-2">
-            <Tabs tabs={tabs()} selected={tab} select={setTab} />
-          </div>
+        <div class="my-2">
+          <SolidCard bg="orange-500" class="mb-2">
+            Are you using an external AI service such as OpenAI, NovelAI, or Horde? Provide your API
+            key below.
+          </SolidCard>
+          <Tabs tabs={tabs()} selected={tab} select={setTab} />
         </div>
       </Show>
-
-      <div class={currentTab() === 'hordex' ? tabClass : 'hidden'}>
+        </div>
+      <div class={currentTab() !== 'hide' ? tabClass : 'hidden'}>
         <HordeAISettings
           onHordeWorkersChange={props.onHordeWorkersChange}
           onHordeModelsChange={props.onHordeModelsChange}
         />
       </div>
 
-      <div class={currentTab() === 'kobold' ? tabClass : 'hidden'}>
+      <div class={currentTab() === ADAPTER_LABELS.kobold ? tabClass : 'hidden'}>
         <KoboldAISettings />
       </div>
 
-      <div class={currentTab() === 'ooba' ? tabClass : 'hidden'}>
+      <div class={currentTab() === ADAPTER_LABELS.ooba ? tabClass : 'hidden'}>
         <OobaAISettings />
       </div>
 
-      <div class={currentTab() === 'openai' ? tabClass : 'hidden'}>
+      <div class={currentTab() === ADAPTER_LABELS.openai ? tabClass : 'hidden'}>
         <OpenAISettings />
       </div>
 
-      <div class={currentTab() === 'scale' ? tabClass : 'hidden'}>
+      <div class={currentTab() === ADAPTER_LABELS.scale ? tabClass : 'hidden'}>
         <ScaleSettings />
       </div>
 
-      <div class={currentTab() === 'novel' ? tabClass : 'hidden'}>
+      <div class={currentTab() === ADAPTER_LABELS.novel ? tabClass : 'hidden'}>
         <NovelAISettings />
       </div>
 
-      <div class={currentTab() === 'claude' ? tabClass : 'hidden'}>
+      <div class={currentTab() === ADAPTER_LABELS.claude ? tabClass : 'hidden'}>
         <ClaudeSettings />
       </div>
 
       <For each={cfg.config.registered}>
         {(each) => (
-          <div class={currentTab() === each.name ? tabClass : 'hidden'}>
+          <div class={currentTab() === ADAPTER_LABELS[each.name] ? tabClass : 'hidden'}>
             {/** Optionally show adapter specific information for registered adapters */}
             <Switch>
               <Match when={each.name === 'openrouter'}>

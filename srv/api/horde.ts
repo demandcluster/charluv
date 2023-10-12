@@ -66,6 +66,6 @@ export function getHordeWorkers() {
   return WORKER_CACHE.slice()
 }
 
-export function getHoredeModels() {
+export function getHordeModels() {
   return TEXT_CACHE.slice()
 }

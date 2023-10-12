@@ -16,6 +16,7 @@ type InitEntities = {
 
 export const usersApi = {
   getInit,
+  getSubscriptions,
   deleteApiKey,
   getConfig,
   getOpenAIUsage,
@@ -36,6 +37,13 @@ export async function getInit() {
 
   const init = await localApi.handleGuestInit()
   return init
+}
+
+export async function getSubscriptions() {
+  const res = await api.get<{ subscriptions: AppSchema.SubscriptionOption[] }>(
+    '/settings/subscriptions'
+  )
+  return res
 }
 
 export async function getProfile(id?: string) {

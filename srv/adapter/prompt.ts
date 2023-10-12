@@ -1,6 +1,7 @@
 import { TokenCounter } from '../../common/tokenize'
 import { store } from '../db'
 import { AppSchema } from '../../common/types/schema'
+import { AdapterProps } from './type'
 
 type PromptOpts = {
   chat: AppSchema.Chat
@@ -51,4 +52,39 @@ function prefix(chat: AppSchema.ChatMessage, bot: string, members: AppSchema.Pro
   const member = members.find((mem) => chat.userId === mem.userId)
 
   return chat.characterId ? `${bot}: ` : `${member?.handle}: `
+}
+
+export function getStoppingStrings(opts: AdapterProps, extras: string[] = []) {
+  const seen = new Set<string>(extras)
+  const unique = new Set<string>(extras)
+
+  const chars = Object.values(opts.characters || {})
+  if (opts.impersonate) {
+    chars.push(opts.impersonate)
+  }
+
+  for (const char of chars) {
+    if (seen.has(char.name)) continue
+    if (char.name === opts.replyAs.name) continue
+    unique.add(`${char.name}:`)
+    unique.add(`\n${char.name}`)
+    seen.add(char.name)
+  }
+
+  for (const member of opts.members) {
+    if (seen.has(member.handle)) continue
+    if (member.handle === opts.replyAs.name) continue
+    unique.add(`${member.handle}:`)
+    unique.add(`\n${member.handle}`)
+    seen.add(member.handle)
+  }
+
+  if (opts.gen.stopSequences) {
+    for (const stop of opts.gen.stopSequences) {
+      seen.add(stop)
+      unique.add(stop)
+    }
+  }
+
+  return Array.from(unique.values())
 }

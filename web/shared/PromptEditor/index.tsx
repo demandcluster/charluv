@@ -11,7 +11,7 @@ import {
 import { FormLabel } from '../FormLabel'
 import { AIAdapter, PresetAISettings } from '/common/adapters'
 import { getAISettingServices, toMap } from '../util'
-import { useRootModal } from '../hooks'
+import { useEffect, useRootModal } from '../hooks'
 import Modal from '../Modal'
 import { HelpCircle } from 'lucide-solid'
 import { TitleCard } from '../Card'
@@ -21,6 +21,10 @@ import { toBotMsg, toChar, toChat, toPersona, toProfile, toUser, toUserMsg } fro
 import { ensureValidTemplate, getPromptParts } from '/common/prompt'
 import { AppSchema } from '/common/types/schema'
 import { v4 } from 'uuid'
+import { templates } from '../../../common/presets/templates'
+import Select from '../Select'
+import TextInput from '../TextInput'
+import { presetStore, toastStore } from '/web/store'
 
 type Placeholder = {
   required: boolean
@@ -109,7 +113,8 @@ const PromptEditor: Component<
     aiSetting?: keyof PresetAISettings
     showHelp?: boolean
     placeholder?: string
-    v2?: boolean
+    minHeight?: number
+    showTemplates?: boolean
 
     /** Hide the meanings of "green" "yellow" "red" placeholder helper text */
     hideHelperText?: boolean
@@ -123,17 +128,20 @@ const PromptEditor: Component<
   const adapters = createMemo(() => getAISettingServices(props.aiSetting || 'gaslight'))
   const [input, setInput] = createSignal<string>(props.value || '')
   const [help, showHelp] = createSignal(false)
+  const [templates, setTemplates] = createSignal(false)
   const [preview, setPreview] = createSignal(false)
 
   const rendered = createMemo(() => {
     const opts = getExampleOpts(props.inherit)
     const template = props.noDummyPreview ? input() : ensureValidTemplate(input(), opts.parts)
-    const example = parseTemplate(template, opts)
+    const example = parseTemplate(template, opts).parsed
     return example
   })
 
   const onChange = (ev: Event & { currentTarget: HTMLTextAreaElement }) => {
     setInput(ev.currentTarget.value)
+    resize()
+    props.onChange?.(ev.currentTarget.value)
   }
 
   createEffect(() => {
@@ -174,10 +182,19 @@ const PromptEditor: Component<
     ref.focus()
   }
 
+  useEffect(() => {
+    const tick = setInterval(() => {
+      resize()
+    }, 100)
+
+    return () => clearInterval(tick)
+  })
+
   const resize = () => {
     if (!ref) return
+    const min = props.minHeight ?? 40
 
-    const next = +ref.scrollHeight < 40 ? 40 : ref.scrollHeight
+    const next = +ref.scrollHeight < min ? min : ref.scrollHeight
     ref.style.height = `${next}px`
   }
 
@@ -197,20 +214,26 @@ const PromptEditor: Component<
               <div class="flex cursor-pointer items-center gap-2" onClick={() => showHelp(true)}>
                 Prompt Template (formerly gaslight) <HelpCircle size={16} />
               </div>
-              <Button size="sm" onClick={() => setPreview(!preview())}>
-                Toggle Preview
-              </Button>
+              <div class="flex gap-2">
+                <Button size="sm" onClick={() => setPreview(!preview())}>
+                  Toggle Preview
+                </Button>
+                <Show when={props.showTemplates}>
+                  <Button size="sm" onClick={() => setTemplates(true)}>
+                    Use Existing Template
+                  </Button>
+                </Show>
+              </div>
             </>
           }
           helperText={
             <Show when={!props.hideHelperText}>
               <div>
-                <span class="text-green-600">Green</span> placeholders will be inserted
-                automatically if they are missing.
-              </div>
-              <div>
-                <span class="text-yellow-600">Yellow</span> placeholders will not be automatically
-                included if you do not include them.
+                Placeholders will{' '}
+                <b>
+                  <u>not</u>
+                </b>{' '}
+                be automatically included if you do not include them.
               </div>
             </Show>
           }
@@ -224,7 +247,7 @@ const PromptEditor: Component<
       <textarea
         id={props.fieldName}
         name={props.fieldName}
-        class="form-field focusable-field text-900 min-h-[8rem] w-full rounded-xl px-4 py-2 text-sm"
+        class="form-field focusable-field text-900 min-h-[4rem] w-full rounded-xl px-4 py-2 text-sm"
         classList={{ hidden: preview() }}
         ref={ref}
         onKeyUp={onChange}
@@ -241,10 +264,17 @@ const PromptEditor: Component<
       </div>
 
       <HelpModal
-        v2={props.v2}
         interps={usable().map((item) => item[0])}
         show={help()}
         close={() => showHelp(false)}
+      />
+
+      <SelectTemplate
+        show={templates()}
+        close={() => setTemplates(false)}
+        select={(template) => {
+          ref.value = template
+        }}
       />
     </div>
   )
@@ -284,13 +314,151 @@ const Placeholder: Component<
     </div>
   )
 }
+const builtinTemplates = Object.keys(templates).map((key) => ({
+  label: `(Built-in) ${key}`,
+  value: key,
+}))
+
+const SelectTemplate: Component<{
+  show: boolean
+  close: () => void
+  select: (template: string) => void
+}> = (props) => {
+  const state = presetStore((s) => ({ templates: s.templates }))
+
+  const [opt, setOpt] = createSignal('Alpaca')
+  const [template, setTemplate] = createSignal(templates.Alpaca)
+  const [original, setOriginal] = createSignal(templates.Alpaca)
+  const [filter, setFilter] = createSignal('')
+
+  const templateOpts = createMemo(() => {
+    const base = Object.entries(templates).reduce(
+      (prev, [id, template]) => Object.assign(prev, { [id]: { name: id, template, user: false } }),
+      {} as Record<string, { name: string; template: string; user: boolean }>
+    )
+
+    const all = state.templates.reduce(
+      (prev, temp) =>
+        Object.assign(prev, {
+          [temp._id]: { name: temp.name, template: temp.template, user: true },
+        }),
+      base
+    )
+
+    return all
+  })
+
+  const options = createMemo(() => {
+    return Object.entries(templateOpts()).map(([id, temp]) => ({
+      label: temp.user ? temp.name : `(Built-in) ${temp.name}`,
+      value: id,
+    }))
+  })
+
+  const canSaveTemplate = createMemo(() => {
+    if (opt() in templates === true) return false
+    return original() !== template()
+  })
+
+  createEffect<number>((prev) => {
+    const opts = options()
+    if (prev !== opts.length) {
+      setOpt(state.templates[0]._id)
+      setTemplate(state.templates[0].template)
+      setOriginal(state.templates[0].template)
+    }
+
+    return opts.length
+  }, builtinTemplates.length)
+
+  const Footer = (
+    <>
+      <Button schema="secondary" onClick={props.close}>
+        Cancel
+      </Button>
+      <Show when={canSaveTemplate()}>
+        <Button
+          onClick={() => {
+            const orig = state.templates.find((t) => t._id === opt())
+            const update = template()
+            if (!orig) {
+              toastStore.error(`Cannot find template to save`)
+              return
+            }
+
+            presetStore.updateTemplate(opt(), { name: orig.name, template: update }, () => {
+              toastStore.success('Prompt template updated')
+              props.select(update)
+              props.close()
+            })
+          }}
+        >
+          Save and Use
+        </Button>
+      </Show>
+
+      <Show when={!canSaveTemplate()}>
+        <Button
+          schema="primary"
+          onClick={() => {
+            props.select(template())
+            props.close()
+          }}
+        >
+          Use
+        </Button>
+      </Show>
+    </>
+  )
+
+  useRootModal({
+    id: 'predefined-prompt-templates',
+    element: (
+      <Modal
+        title={'Prompt Templates'}
+        show={props.show}
+        close={props.close}
+        footer={Footer}
+        maxWidth="half"
+      >
+        <div class="flex flex-col gap-4 text-sm">
+          <TextInput
+            fieldName="filter"
+            placeholder="Filter templates"
+            onInput={(ev) => setFilter(ev.currentTarget.value)}
+          />
+          <div class="h-min-[6rem]">
+            <Select
+              fieldName="templateId"
+              items={options().filter((opt) => opt.label.toLowerCase().includes(filter()))}
+              value={opt()}
+              onChange={(ev) => {
+                setOpt(ev.value)
+                setTemplate(templateOpts()[ev.value].template)
+                setOriginal(templateOpts()[ev.value].template)
+              }}
+            />
+          </div>
+          <TextInput
+            fieldName="template"
+            value={template()}
+            isMultiline
+            onInput={(ev) => setTemplate(ev.currentTarget.value)}
+          />
+        </div>
+        <div class="flex justify-end gap-2"></div>
+      </Modal>
+    ),
+  })
+
+  return null
+}
 
 const HelpModal: Component<{
   show: boolean
   close: () => void
   interps: Interp[]
   inherit?: Partial<AppSchema.GenSettings>
-  v2?: boolean
 }> = (props) => {
   const [id] = createSignal(v4())
   const items = createMemo(() => {
@@ -303,7 +471,12 @@ const HelpModal: Component<{
   useRootModal({
     id: `prompt-editor-help-${id()}`,
     element: (
-      <Modal show={props.show} close={props.close} title={<div>Placeholder Definitions</div>}>
+      <Modal
+        show={props.show}
+        close={props.close}
+        title={<div>Placeholder Definitions</div>}
+        maxWidth="half"
+      >
         <div class="flex w-full flex-col gap-1 text-sm">
           <For each={items()}>
             {([interp, help]) => (
@@ -335,6 +508,7 @@ function getExampleOpts(inherit?: Partial<AppSchema.GenSettings>) {
     toBotMsg(char, 'Hi, nice to meet you!'),
     toUserMsg(profile, 'Nice to meet you too.'),
     toBotMsg(replyAs, 'I am also here.'),
+    toUserMsg(profile, `I'm glad you're here.`),
   ]
 
   const lines = history.map((hist) => {

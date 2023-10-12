@@ -1,8 +1,9 @@
-import { A } from '@solidjs/router'
+import { A, useLocation } from '@solidjs/router'
 import {
   Activity,
   Bell,
   Book,
+  ChevronRight,
   HeartHandshake,
   Heart,
   HelpCircle,
@@ -54,27 +55,25 @@ import WizardIcon from './icons/WizardIcon'
 import Badge from './shared/Badge'
 import { pipelineApi } from './store/data/pipeline'
 
-const MobileNavHeader = () => (
-  <div class="flex min-h-[2rem] justify-between sm:hidden">
-    <div class="w-8"></div>
-    <div>
-      {' '}
-      <div
-        class="items-left w-full object-left px-2 pb-2 pt-0 sm:flex"
-        style="background:#55b89cff;"
-      >
-        <A href="/">
+const MobileNavHeader = () => {
+  const user = userStore()
+  const suffix = createMemo(() => (user.user?.sub?.level ?? 0 > 0 ? '+' : ''))
+
+  return (
+    <div class="flex min-h-[2rem] justify-between sm:hidden">
+      <div class="w-8"></div>
+      <A href="/">
           <img width="30px" class="float-left py-0" alt="Charluv" src={logoIcon} /> Charluv
         </A>
       </div>
-    </div>
-    <div class="w-8">
-      <div class="icon-button">
-        <X onClick={settingStore.menu} />
+      <div class="w-8">
+        <div class="icon-button">
+          <X onClick={settingStore.menu} />
+        </div>
       </div>
     </div>
-  </div>
-)
+  )
+}
 
 const Navigation: Component = () => {
   let parent: any
@@ -83,6 +82,14 @@ const Navigation: Component = () => {
   const user = userStore()
   const chat = chatStore()
   const size = useWindowSize()
+
+  const suffix = createMemo(() => (user.user?.sub?.level ?? 0 > 0 ? '+' : ''))
+
+  createEffect(() => {
+    if (!state.overlay && state.showMenu) {
+      settingStore.menu()
+    }
+  })
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -128,7 +135,7 @@ const Navigation: Component = () => {
                 class="px-0 py-2"
                 alt="Charluv"
                 src={user.ui?.mode === 'light' ? logoDark : logo}
-              />
+              />{suffix()}
             </A>
           </div>
 
@@ -138,7 +145,24 @@ const Navigation: Component = () => {
             <UserNavigation />
           </Show>
         </div>
-        <div class="absolute bottom-0 flex h-4 w-full flex-col items-center justify-between px-4">
+
+        <div
+          class="absolute bottom-0 flex w-full flex-col items-center justify-between px-4"
+          classList={{
+            'h-8': state.config.policies,
+            'h-4': !state.config.policies,
+          }}
+        >
+          <Show when={state.config.policies}>
+            <div class="text-500 flex w-full justify-center gap-4 text-xs">
+              <div>
+                <A href="/terms">Term of Service</A>
+              </div>
+              <div>
+                <A href="/privacy">Privacy Policy</A>
+              </div>
+            </div>
+          </Show>
           <div class="text-500 mb-1 text-[0.6rem] italic">{state.config.version}</div>
         </div>
       </div>
@@ -177,7 +201,7 @@ const UserNavigation: Component = () => {
 
       <ChatLink />
 
-      <Library />
+      <Library pipeline={user.user?.useLocalPipeline} />
 
       <Item href="/invites">
         <MailPlus /> Invites <InviteBadge />
@@ -195,8 +219,19 @@ const UserNavigation: Component = () => {
 
       <Show when={user.user?.admin}>
         <Item href="/admin/metrics">
-          <Activity /> Metrics
+          <Activity /> Manage
         </Item>
+        <SubMenu>
+          <SubItem href="/admin/users" parent="/admin/">
+            Users
+          </SubItem>
+          <SubItem href="/admin/subscriptions" parent="/admin/">
+            Subscriptions
+          </SubItem>
+          <SubItem href="/admin/announcements" parent="/admin/">
+            Announcements
+          </SubItem>
+        </SubMenu>
       </Show>
 
       <div class="flex flex-wrap justify-center gap-[2px] text-sm">
@@ -240,6 +275,7 @@ const UserNavigation: Component = () => {
         <Item
           onClick={() => {
             settingStore.closeMenu()
+            if (menu.showMenu) settingStore.closeMenu()
             toastStore.modal(true)
           }}
         >
@@ -321,7 +357,7 @@ const GuestNavigation: Component = () => {
 
         <Item
           onClick={() => {
-            settingStore.closeMenu()
+            if (menu.showMenu) settingStore.closeMenu()
             toastStore.modal(true)
           }}
         >
@@ -350,6 +386,7 @@ const GuestNavigation: Component = () => {
 const Item: Component<{ href?: string; children: string | JSX.Element; onClick?: () => void }> = (
   props
 ) => {
+  const menu = settingStore()
   return (
     <>
       <Show when={!props.href}>
@@ -357,7 +394,7 @@ const Item: Component<{ href?: string; children: string | JSX.Element; onClick?:
           class="flex min-h-[2.5rem] cursor-pointer items-center justify-start gap-4 rounded-lg px-2 hover:bg-[var(--bg-700)] sm:min-h-[2.5rem]"
           onClick={() => {
             if (props.onClick) props.onClick()
-            else settingStore.closeMenu()
+            else if (menu.showMenu) settingStore.closeMenu()
           }}
         >
           {props.children}
@@ -367,12 +404,40 @@ const Item: Component<{ href?: string; children: string | JSX.Element; onClick?:
         <A
           href={props.href!}
           class="flex min-h-[2.5rem] items-center justify-start gap-4 rounded-lg px-2 hover:bg-[var(--bg-700)] sm:min-h-[2.5rem]"
-          onClick={settingStore.closeMenu}
+          onClick={() => {
+            if (menu.showMenu) settingStore.closeMenu()
+          }}
         >
           {props.children}
         </A>
       </Show>
     </>
+  )
+}
+
+const SubMenu: Component<{ children: any }> = (props) => <div class="bg-900">{props.children}</div>
+
+const SubItem: Component<{
+  parent: string
+  href: string
+  children: string | JSX.Element
+  onClick?: () => void
+}> = (props) => {
+  const menu = settingStore()
+  const loc = useLocation()
+  return (
+    <Show when={loc.pathname.startsWith(props.parent)}>
+      <A
+        activeClass="bg-[var(--hl-900)]"
+        href={props.href!}
+        class="flex min-h-[2.5rem] items-center justify-start gap-4 rounded-lg px-2 pl-4 hover:bg-[var(--bg-700)] sm:min-h-[2.5rem]"
+        onClick={() => {
+          if (menu.showMenu) settingStore.closeMenu()
+        }}
+      >
+        <ChevronRight size={14} /> {props.children}
+      </A>
+    </Show>
   )
 }
 
@@ -404,7 +469,7 @@ const ExternalLink: Component<{ href: string; newtab?: boolean; children?: any }
   </a>
 )
 
-const Library = () => {
+const Library: Component<{ pipeline?: boolean }> = (props) => {
   const cfg = settingStore()
 
   return (
@@ -452,6 +517,7 @@ const ChatLink = () => {
 const UserProfile = () => {
   const chars = characterStore()
   const user = userStore()
+  const menu = settingStore()
 
   return (
     <>
@@ -463,7 +529,7 @@ const UserProfile = () => {
       >
         <Item
           onClick={() => {
-            settingStore.closeMenu()
+            if (menu.showMenu) settingStore.closeMenu()
             userStore.modal(true)
           }}
         >
@@ -496,7 +562,7 @@ const UserProfile = () => {
             class="icon-button"
             onClick={() => {
               settingStore.toggleImpersonate(true)
-              settingStore.closeMenu()
+              if (menu.showMenu) settingStore.closeMenu()
             }}
           >
             <VenetianMask />

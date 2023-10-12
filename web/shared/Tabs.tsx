@@ -1,9 +1,10 @@
-import { Component, For, createMemo, createSignal } from 'solid-js'
+import { Component, For, JSX, createMemo, createSignal } from 'solid-js'
 
 const Tabs: Component<{
   tabs: string[] | readonly string[]
   selected: () => number
   select: (idx: number) => void
+  titles?: Array<JSX.Element | string>
   class?: string
 }> = (props) => {
   return (
@@ -21,7 +22,7 @@ const Tabs: Component<{
               props.selected() === i()
             )} rounded-t-md px-4`}
           >
-            {tab}
+            {props.titles ? props.titles[i()] : tab}
           </div>
         )}
       </For>
@@ -34,7 +35,7 @@ export default Tabs
 const border = (selected: boolean) =>
   selected
     ? `bg-[var(--hl-800)] border-[var(--hl-500)] hover:border-[var(--hl-400)]`
-    : `hover:bg-[var(--bg-800)] border-[var(--bg-800)] hover:border-[var(--bg-700)]`
+    : `bg-900 hover:bg-[var(--bg-800)] border-[var(--bg-800)] hover:border-[var(--bg-700)]`
 
 export function useTabs(tabs: string[], initial: number = 0) {
   const [tab, setTabs] = createSignal(initial)

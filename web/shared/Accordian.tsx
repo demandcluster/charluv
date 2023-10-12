@@ -7,17 +7,21 @@ const Accordian: Component<{
   open?: boolean
   class?: string
   titleClickOpen?: boolean
+  onChange?: (open: boolean) => boolean
 }> = (props) => {
   const [open, setOpen] = createSignal(props.open ?? true)
   const cls = createMemo(() => (open() ? '' : 'hidden'))
+
+  const toggleOpen = () => {
+    const next = !open()
+    setOpen(next)
+    props.onChange?.(next)
+  }
+
   return (
-    <div
-      class={`w-full select-none rounded-md bg-[var(--bg-700)] bg-opacity-50 p-2 ${
-        props.class || ''
-      }`}
-    >
+    <div class={`bg-700 w-full select-none rounded-md bg-opacity-50 p-2 ${props.class || ''}`}>
       <div class="flex cursor-pointer items-center gap-2">
-        <div class="icon-button" onClick={() => setOpen(!open())}>
+        <div class="icon-button" onClick={toggleOpen}>
           <Show when={open()} fallback={<ChevronUp />}>
             <ChevronDown />
           </Show>
@@ -25,7 +29,7 @@ const Accordian: Component<{
         <div
           class="w-full"
           onClick={() => {
-            if (props.titleClickOpen) setOpen(!open())
+            if (props.titleClickOpen) toggleOpen()
           }}
         >
           {props.title}

@@ -49,6 +49,7 @@ if (!process.env.JWT_SECRET) {
 export const config = {
   clustering: !!env('CLUSTERING', ''),
   auth: {
+    inferenceKey: env('INFERENCE_KEY', ''),
     urls: env('AUTH_URLS', 'https://chara.cards,https://dev.chara.cards')
       .split(',')
       .map((name) => name.trim())
@@ -62,6 +63,13 @@ export const config = {
   port: +env('PORT', '3001'),
   assetFolder: env('ASSET_FOLDER', resolve(__dirname, '..', 'dist', 'assets')),
   extraFolder: env('EXTRA_FOLDER', ''),
+  billing: {
+    private: env('STRIPE_PRIVATE_KEY', ''),
+    public: env('STRIPE_PUBLIC_KEY', ''),
+    domains: env('STRIPE_DOMAINS', '')
+      .split(',')
+      .filter((d) => !!d),
+  },
   db: {
     name: env('DB_NAME', 'agnai'),
     host: env('DB_HOST', '127.0.0.1'),
@@ -78,6 +86,7 @@ export const config = {
   limits: {
     upload: +env('IMAGE_SIZE_LIMIT', '10'),
     payload: +env('JSON_SIZE_LIMIT', '10'),
+    subRate: +env('SUB_RATE_LIMIT', '15'),
   },
   horde: {
     maxWaitSecs: +env('HORDE_WAIT_SECS', '120'),

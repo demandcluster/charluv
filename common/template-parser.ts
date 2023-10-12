@@ -13,11 +13,12 @@ const parser = peggy.generate(grammar.trim(), {
   },
 })
 
-type PNode = PlaceHolder | ConditionNode | IteratorNode | string
+type PNode = PlaceHolder | ConditionNode | IteratorNode | InsertNode | string
 
 type PlaceHolder = { kind: 'placeholder'; value: Holder; values?: any; pipes?: string[] }
 type ConditionNode = { kind: 'if'; value: Holder; values?: any; children: PNode[] }
 type IteratorNode = { kind: 'each'; value: IterableHolder; children: CNode[] }
+type InsertNode = { kind: 'history-insert'; values: number; children: PNode[] }
 
 type CNode =
   | Exclude<PNode, { kind: 'each' }>
@@ -66,6 +67,7 @@ type HistoryProp = 'i' | 'message' | 'dialogue' | 'name' | 'isuser' | 'isbot'
 type BotsProp = 'i' | 'personality' | 'name'
 
 export type TemplateOpts = {
+  continue?: boolean
   parts: Partial<PromptParts>
   chat: AppSchema.Chat
 
@@ -92,9 +94,17 @@ export type TemplateOpts = {
    * Only allow repeatable placeholders. Excludes iterators, conditions, and prompt parts.
    */
   repeatable?: boolean
+  inserts?: Map<number, string>
 }
 
-export function parseTemplate(template: string, opts: TemplateOpts) {
+/**
+ * This function also returns inserts because Chat and Claude discard the
+ * parsed string and use the inserts for their own prompt builders
+ */
+export function parseTemplate(
+  template: string,
+  opts: TemplateOpts
+): { parsed: string; inserts: Map<number, string> } {
   if (opts.limit) {
     opts.limit.output = {}
   }
@@ -107,7 +117,9 @@ export function parseTemplate(template: string, opts: TemplateOpts) {
     opts.parts.ujb = render(opts.parts.ujb, opts)
   }
 
-  let output = render(template, opts)
+  const ast = parser.parse(template, {}) as PNode[]
+  readInserts(template, opts, ast)
+  let output = render(template, opts, ast)
 
   if (opts.limit && opts.limit.output) {
     for (const [id, lines] of Object.entries(opts.limit.output)) {
@@ -115,28 +127,95 @@ export function parseTemplate(template: string, opts: TemplateOpts) {
         opts.limit.encoder,
         opts.limit.context,
         output,
-        lines
+        lines,
+        opts.inserts
       ).reverse()
       output = output.replace(id, trimmed.join('\n'))
     }
   }
 
-  return render(output, opts)
+  const result = render(output, opts).replace(/\r\n/g, '\n').replace(/\n\n+/g, '\n\n')
+  return { parsed: result, inserts: opts.inserts ?? new Map() }
 }
 
-function render(template: string, opts: TemplateOpts) {
+function readInserts(template: string, opts: TemplateOpts, existingAst?: PNode[]): void {
+  if (opts.inserts) return
+  const ast = existingAst ?? (parser.parse(template, {}) as PNode[])
+
+  const inserts = ast.filter(
+    (node) => typeof node !== 'string' && node.kind === 'history-insert'
+  ) as InsertNode[]
+
+  opts.inserts = new Map()
+  if (opts.char.insert) {
+    opts.inserts.set(opts.char.insert.depth, opts.char.insert.prompt)
+  }
+  for (const insert of inserts) {
+    const oldInsert = opts.inserts.get(insert.values)
+    opts.inserts.set(
+      insert.values,
+      // If multiple inserts are in the same depth, we want to combine them
+      (oldInsert ? oldInsert + '\n' : '') + renderNodes(insert.children, opts)
+    )
+  }
+}
+
+function render(template: string, opts: TemplateOpts, existingAst?: PNode[]) {
   try {
-    const ast = parser.parse(template, {}) as PNode[]
+    const orig = existingAst ?? (parser.parse(template, {}) as PNode[])
+    const ast: PNode[] = []
+
+    /**
+     * When condition nodes are at the beginning a new line then the linebreak should
+     * only be rendered if the condition is rendered
+     * We will move the line break to the beginning of the condition children
+     */
+    for (let i = 0; i < orig.length; i++) {
+      const node = orig[i]
+      if (typeof node !== 'string') {
+        ast.push(node)
+        continue
+      }
+
+      const next = orig[i + 1]
+      const prev = orig[i - 1]
+
+      if (node === '\n' && isEnclosingNode(next)) {
+        next.children.unshift('\n')
+        continue
+      }
+
+      if (node === '\n' && isEnclosingNode(prev)) {
+        prev.children.push('\n')
+        continue
+      }
+
+      ast.push(node)
+    }
+
     const output: string[] = []
-    for (const parent of ast) {
+
+    for (let i = 0; i < ast.length; i++) {
+      const parent = ast[i]
+
       const result = renderNode(parent, opts)
+
       if (result) output.push(result)
     }
-    return output.join('')
+    return output.join('').replace(/\n\n+/g, '\n\n')
   } catch (err) {
     console.error({ err }, 'Failed to parse')
     throw err
   }
+}
+
+function renderNodes(nodes: PNode[], opts: TemplateOpts) {
+  const output: string[] = []
+  for (const node of nodes) {
+    const text = renderNode(node, opts)
+    if (text) output.push(text)
+  }
+  return output.join('')
 }
 
 function renderNode(node: PNode, opts: TemplateOpts) {
@@ -233,12 +312,19 @@ function renderCondition(node: ConditionNode, children: PNode[], opts: TemplateO
 
 function renderIterator(holder: IterableHolder, children: CNode[], opts: TemplateOpts) {
   if (opts.repeatable) return ''
+  let isHistory = holder === 'history'
 
   const output: string[] = []
 
   const entities =
     holder === 'bots'
-      ? Object.values(opts.characters).filter((b) => !!b && b._id !== opts.replyAs._id)
+      ? Object.values(opts.characters).filter(
+          (b) =>
+            !!b &&
+            b._id !== opts.replyAs._id &&
+            !b.deletedAt &&
+            (b._id.startsWith('temp-') ? b.favorite !== false : true)
+        )
       : opts.lines
 
   let i = 0
@@ -251,7 +337,14 @@ function renderIterator(holder: IterableHolder, children: CNode[], opts: Templat
       }
 
       switch (child.kind) {
-        case 'if':
+        case 'if': {
+          const condition = getPlaceholder(child, opts)
+          if (!condition) break
+
+          const result = renderNode(child, opts)
+          if (result) curr += result
+          break
+        }
         case 'placeholder': {
           const result = renderNode(child, opts)
           if (result) curr += result
@@ -260,6 +353,13 @@ function renderIterator(holder: IterableHolder, children: CNode[], opts: Templat
 
         case 'bot-prop':
         case 'history-prop': {
+          if (
+            child.prop === 'personality' ||
+            child.prop === 'message' ||
+            child.prop === 'dialogue'
+          ) {
+            isHistory = true
+          }
           const result = renderProp(child, opts, entity, i)
           if (result) curr += result
           break
@@ -279,13 +379,13 @@ function renderIterator(holder: IterableHolder, children: CNode[], opts: Templat
     i++
   }
 
-  if (holder === 'history' && opts.limit) {
+  if (isHistory && opts.limit) {
     const id = '__' + v4() + '__'
     opts.limit.output![id] = output
     return id
   }
 
-  return output.join('\n')
+  return isHistory ? output.join('\n') : output.join('')
 }
 
 function renderEntityCondition(nodes: CNode[], opts: TemplateOpts, entity: unknown, i: number) {
@@ -304,7 +404,7 @@ function getPlaceholder(node: PlaceHolder | ConditionNode, opts: TemplateOpts) {
 
   switch (node.value) {
     case 'char':
-      return opts.replyAs.name
+      return opts.replyAs.name || ''
 
     case 'user':
       return opts.impersonate?.name || opts.sender?.handle || 'You'
@@ -313,7 +413,7 @@ function getPlaceholder(node: PlaceHolder | ConditionNode, opts: TemplateOpts) {
       return opts.parts.sampleChat?.join('\n') || ''
 
     case 'scenario':
-      return opts.parts.scenario || opts.chat.scenario || opts.char.scenario
+      return opts.parts.scenario || opts.chat.scenario || opts.char.scenario || ''
 
     case 'memory':
       return opts.parts.memory || ''
@@ -322,7 +422,7 @@ function getPlaceholder(node: PlaceHolder | ConditionNode, opts: TemplateOpts) {
       return opts.parts.impersonality || ''
 
     case 'personality':
-      return opts.parts.persona
+      return opts.parts.persona || ''
 
     case 'ujb':
       return opts.parts.ujb || ''
@@ -378,4 +478,9 @@ function lastMessage(value: string) {
   const date = new Date(value)
   if (isNaN(date.valueOf())) return 'unknown'
   return elapsedSince(date)
+}
+
+function isEnclosingNode(node: any): node is ConditionNode | IteratorNode {
+  if (!node || typeof node === 'string') return false
+  return node.kind === 'if'
 }

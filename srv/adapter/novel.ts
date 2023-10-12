@@ -5,7 +5,7 @@ import { badWordIds, clioBadWordsId, penaltyWhitelist } from './novel-bad-words'
 import { ModelAdapter } from './type'
 import { AppSchema } from '../../common/types/schema'
 import { NOVEL_MODELS } from '/common/adapters'
-import { needleToSSE } from './stream'
+import { requestStream } from './stream'
 import { AppLog } from '../logger'
 import { getEncoder } from '../tokenize'
 
@@ -22,6 +22,8 @@ const streamUrl = (model: string) => `${getBaseUrl(model)}/ai/generate-stream`
  * 4. Top A Sampling
  * 5. Typical Sampling
  * 6. CFG Scale
+ * 7. Top G
+ * 8. Mirostat
  */
 
 const statuses: Record<number, string> = {
@@ -62,6 +64,14 @@ export const handleNovel: ModelAdapter = async function* ({
     return
   }
 
+  if (typeof opts.gen.order === 'string') {
+    opts.gen.order = (opts.gen.order as string).split(',').map((val) => +val)
+  }
+
+  if (typeof opts.gen.disabledSamplers === 'string') {
+    opts.gen.disabledSamplers = (opts.gen.disabledSamplers as string).split(',').map((val) => +val)
+  }
+
   const model = opts.gen.novelModel || user.novelModel || NOVEL_MODELS.clio_v1
 
   const processedPrompt = processNovelAIPrompt(prompt)
@@ -78,20 +88,17 @@ export const handleNovel: ModelAdapter = async function* ({
   } else {
     const { encode } = getEncoder('novel', model)
     const stops: Array<number[]> = []
-    const biases: any[] = [
-      // {
-      //   bias: -0.1,
-      //   ensure_sequence_finish: false,
-      //   generate_once: false,
-      //   sequence: encode('***'),
-      // },
-      // {
-      //   bias: -0.1,
-      //   ensure_sequence_finish: false,
-      //   generate_once: false,
-      //   sequence: encode('⁂'),
-      // },
-    ]
+    const biases: any[] = []
+
+    for (const { bias, seq } of opts.gen.phraseBias || []) {
+      biases.push({
+        // Range from -2 to 2
+        bias: Math.min(Math.max(bias, -2), 2),
+        sequence: encode(seq),
+        generate_once: true,
+        ensure_sequence_finish: false,
+      })
+    }
 
     const added = new Set<string>()
 
@@ -110,7 +117,8 @@ export const handleNovel: ModelAdapter = async function* ({
     }
 
     body.parameters.logit_bias_exp = biases
-    body.parameters.stop_sequences = stops
+    const all = ['***', 'Scenario:', '----', '⁂'].concat(opts.gen.stopSequences || []).map(encode)
+    body.parameters.stop_sequences = stops.concat(all)
   }
 
   if (opts.gen.order && !opts.gen.disabledSamplers) {
@@ -119,11 +127,11 @@ export const handleNovel: ModelAdapter = async function* ({
 
   if (opts.gen.order && opts.gen.disabledSamplers) {
     body.parameters.order = opts.gen.order.filter(
-      (sampler) => !opts.gen.disabledSamplers?.includes(sampler)
+      (sampler) => sampler === 0 || !opts.gen.disabledSamplers?.includes(sampler)
     )
   }
 
-  yield { prompt: processedPrompt }
+  yield { prompt: body.input }
 
   const endTokens = ['***', 'Scenario:', '----', '⁂']
 
@@ -180,6 +188,8 @@ export const handleNovel: ModelAdapter = async function* ({
 }
 
 function getModernParams(gen: Partial<AppSchema.GenSettings>) {
+  const module = gen.temporary?.module || 'vanilla'
+
   const payload: any = {
     temperature: gen.temp,
     max_length: gen.maxTokens,
@@ -198,10 +208,14 @@ function getModernParams(gen: Partial<AppSchema.GenSettings>) {
     use_cache: false,
     use_string: true,
     return_full_text: false,
-    prefix: 'vanilla',
+    prefix: module,
+    phrase_rep_pen: gen.phraseRepPenalty || 'aggressive',
     order: gen.order,
     bad_words_ids: clioBadWordsId,
     repetition_penalty_whitelist: penaltyWhitelist,
+    top_g: gen.topG,
+    mirostat_tau: gen.mirostatTau,
+    mirotsat_lr: gen.mirostatLR,
   }
 
   if (gen.cfgScale) {
@@ -225,20 +239,28 @@ const streamCompletition = async function* (headers: any, body: any, _log: AppLo
   const tokens = []
 
   try {
-    const events = needleToSSE(resp)
+    const events = requestStream(resp)
     for await (const event of events) {
-      if (event.type !== 'newToken') continue
+      if (event.error) {
+        yield { error: `NovelAI streaming request failed: ${event.error}` }
+        return
+      }
+
+      if (event.type !== 'newToken') {
+        continue
+      }
+
       const data = JSON.parse(event.data) as {
         token: string
         final: boolean
         ptr: number
         error?: string
       }
+
       if (data.error) {
         yield { error: `NovelAI streaming request failed: ${data.error}` }
         return
       }
-
       tokens.push(data.token)
       yield { token: data.token }
     }
@@ -289,7 +311,7 @@ const fullCompletition = async function* (headers: any, body: any, log: AppLog) 
 }
 
 function processNovelAIPrompt(prompt: string) {
-  return prompt.replace(/^\<START\>$/gm, '***')
+  return prompt.replace(/^\<START\>$/gm, '***').replace(/\n\n+/gi, '\n\n')
 }
 
 function getBaseUrl(model: string) {

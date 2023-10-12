@@ -3,16 +3,17 @@ import { createStore } from 'solid-js/store'
 import { AppSchema, VoiceSettings } from '/common/types'
 import { FullSprite } from '/common/types/sprite'
 import { defaultCulture } from '/web/shared/CultureCodes'
-import {
-  ADAPTER_LABELS,
-  AIAdapter,
-  NOVEL_MODELS,
-  OPENAI_MODELS,
-  PERSONA_FORMATS,
-} from '/common/adapters'
+import { ADAPTER_LABELS, PERSONA_FORMATS } from '/common/adapters'
 import { getStrictForm, setFormField } from '/web/shared/util'
 import { getAttributeMap } from '/web/shared/PersonaAttributes'
-import { NewCharacter, characterStore, presetStore, toastStore, userStore } from '/web/store'
+import {
+  NewCharacter,
+  characterStore,
+  presetStore,
+  settingStore,
+  toastStore,
+  userStore,
+} from '/web/store'
 import { getImageData } from '/web/store/data/chars'
 import { Option } from '/web/shared/Select'
 import { defaultPresets, isDefaultPreset } from '/common/presets'
@@ -32,8 +33,12 @@ type EditState = {
   sampleChat: string
   creator: string
   characterVersion: string
-  postHistoryInstructions?: string
-  systemPrompt?: string
+  postHistoryInstructions: string
+  insert?: {
+    prompt: string
+    depth: number
+  }
+  systemPrompt: string
 
   xp?: string
   match?: string
@@ -64,8 +69,10 @@ export const newCharGuard = {
   share: 'string?',
   match: 'string?',
   premium: 'string?',
-  systemPrompt: 'string?',
-  postHistoryInstructions: 'string?',
+  systemPrompt: 'string',
+  postHistoryInstructions: 'string',
+  insertPrompt: 'string',
+  insertDepth: 'number',
   creator: 'string',
   characterVersion: 'string',
 } as const
@@ -107,6 +114,10 @@ const initState: EditState = {
   creator: '',
   characterVersion: '',
   postHistoryInstructions: '',
+  insert: {
+    prompt: '',
+    depth: 3,
+  },
   systemPrompt: '',
   xp: '0',
   match: 'false',
@@ -122,12 +133,17 @@ const initState: EditState = {
   persona: { kind: 'text', attributes: { text: [''] } },
 }
 
+export type CharEditor = ReturnType<typeof useCharEditor>
+
 export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
   const user = userStore()
   const presets = presetStore()
+  const settings = settingStore()
   const [original, setOriginal] = createSignal(editing)
   const [state, setState] = createStore<EditState>({ ...initState })
   const [imageData, setImageData] = createSignal<string>()
+  const [form, setForm] = createSignal<any>()
+  const [generating, setGenerating] = createSignal(false)
 
   const genOptions = createMemo(() => {
     if (!user.user) return []
@@ -138,10 +154,20 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
 
     const opts: Option[] = []
 
-    if (preset?.service) {
-      const model = getModelForService(preset.service!)
-      const value = model ? `${preset.service}/${model}` : preset.service!
-      opts.push({ label: `Default (${ADAPTER_LABELS[preset.service!]})`, value })
+    if (preset?.service && preset.service !== 'horde') {
+      opts.push({ label: `Default (${ADAPTER_LABELS[preset.service!]})`, value: 'default' })
+    }
+
+    {
+      const level = user.user.sub?.level ?? -1
+      const subs = settings.config.subs.filter((s) => s.level <= level)
+
+      for (const sub of subs) {
+        opts.push({ label: `Agnastic: ${sub.name}`, value: `agnaistic/${sub._id}` })
+      }
+
+      if (subs) {
+      }
     }
 
     if (user.user.oaiKeySet) {
@@ -185,8 +211,8 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
     }
   })
 
-  const createAvatar = async (ref: any) => {
-    const char = payload(ref)
+  const createAvatar = async () => {
+    const char = payload()
     const avatar = await generateAvatar(char)
 
     if (avatar) {
@@ -194,35 +220,49 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
     }
   }
 
-  const generateCharacter = async (ref: any, service: string, fields?: GenField[]) => {
-    const char = payload(ref)
+  const generateCharacter = async (service: string, fields?: GenField[]) => {
+    try {
+      if (generating()) {
+        toastStore.warn(`Cannot generate: Already generating`)
+        return
+      }
 
-    const prevAvatar = state.avatar
-    const prevSprite = state.sprite
+      setGenerating(true)
+      const char = payload()
 
-    if (fields?.length) {
-      const result = await regenerateCharProp(char, service, fields)
-      load(ref, result)
-    } else {
-      const result = await generateChar(char.description || 'a random character', service)
-      load(ref, result)
+      const prevAvatar = state.avatar
+      const prevSprite = state.sprite
+
+      if (fields?.length) {
+        const result = await regenerateCharProp(char, service, state.personaKind, fields)
+        load(result)
+      } else {
+        const result = await generateChar(
+          char.description || 'a random character',
+          service,
+          state.personaKind
+        )
+        load(result)
+      }
+      setState('avatar', prevAvatar)
+      setState('sprite', prevSprite)
+    } finally {
+      setGenerating(false)
     }
-    setState('avatar', prevAvatar)
-    setState('sprite', prevSprite)
   }
 
-  const reset = (ref: any) => {
+  const reset = () => {
     const char = original()
     setState({ ...initState })
 
     const personaKind = char?.persona.kind || state.personaKind
     for (const [key, field] of fieldMap.entries()) {
-      if (!char) setFormField(ref, field, '')
-      else setFormField(ref, field, char[key] || '')
+      if (!char) setFormField(form(), field, '')
+      else setFormField(form(), field, char[key] || '')
     }
 
     setState('personaKind', personaKind)
-    setFormField(ref, 'kind', personaKind)
+    setFormField(form(), 'kind', personaKind)
 
     // We set fields that aren't properly managed by form elements
     setState({
@@ -234,32 +274,35 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
       sprite: char?.sprite || undefined,
       visualType: char?.visualType || 'avatar',
       culture: char?.culture || defaultCulture,
+      insert: char?.insert?.prompt
+        ? { prompt: char.insert.prompt, depth: char.insert.depth }
+        : undefined,
     })
   }
 
-  const clear = (ref: any) => {
+  const clear = () => {
     setImageData()
-    load(ref, { ...initState, originalAvatar: undefined })
+    load({ ...initState, originalAvatar: undefined })
   }
 
-  const load = (ref: any, char: NewCharacter | AppSchema.Character) => {
+  const load = (char: NewCharacter | AppSchema.Character) => {
     if ('_id' in char) {
       const { avatar, ...incoming } = char
       setOriginal({ ...incoming, originalAvatar: avatar })
-      reset(ref)
+      reset()
       return
     }
 
     setOriginal(char)
-    reset(ref)
+    reset()
   }
 
-  const payload = (ref: any) => {
-    return getPayload(ref, state, original())
+  const payload = () => {
+    return getPayload(form(), state, original())
   }
 
-  const convert = (ref: any): AppSchema.Character => {
-    const payload = getPayload(ref, state, original())
+  const convert = (): AppSchema.Character => {
+    const payload = getPayload(form(), state, original())
 
     return {
       _id: '',
@@ -284,9 +327,11 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
     genOptions,
     createAvatar,
     avatar: imageData,
+    generating,
     canGuidance: genOptions().length > 0,
     generateCharacter,
     generateAvatar,
+    prepare: setForm,
   }
 }
 
@@ -323,6 +368,7 @@ function getPayload(ev: any, state: EditState, original?: NewCharacter) {
     // New fields start here
     systemPrompt: body.systemPrompt ?? '',
     postHistoryInstructions: body.postHistoryInstructions ?? '',
+    insert: body.insertPrompt ? { prompt: body.insertPrompt, depth: body.insertDepth } : undefined,
     alternateGreetings: state.alternateGreetings ?? [],
     characterBook: state.book,
     creator: body.creator ?? '',
@@ -349,14 +395,4 @@ async function generateAvatar(char: NewCharacter) {
       reject(err)
     })
   })
-}
-
-function getModelForService(service: AIAdapter) {
-  switch (service) {
-    case 'openai':
-      return OPENAI_MODELS.Turbo0301
-
-    case 'novel':
-      return NOVEL_MODELS.kayra_v1
-  }
 }

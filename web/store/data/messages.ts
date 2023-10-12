@@ -14,7 +14,6 @@ import { getStore } from '../create'
 import { userStore } from '../user'
 import { loadItem, localApi } from './storage'
 import { toastStore } from '../toasts'
-import { subscribe } from '../socket'
 import { getActiveBots, getBotsForChat } from '/web/pages/Chat/util'
 import { pipelineApi } from './pipeline'
 import { UserEmbed } from '/common/types/memory'
@@ -22,6 +21,7 @@ import { settingStore } from '../settings'
 import { TemplateOpts, parseTemplate } from '/common/template-parser'
 import { replace } from '/common/util'
 import { toMap } from '/web/shared/util'
+import { getServiceTempConfig, getUserPreset } from '/web/shared/adapter'
 
 export type PromptEntities = {
   chat: AppSchema.Chat
@@ -45,12 +45,11 @@ export const msgsApi = {
   editMessageProps,
   getMessages,
   getPromptEntities,
-  generateResponseV2,
+  generateResponse,
   deleteMessages,
   basicInference,
   createActiveChatPrompt,
   guidance,
-  guidanceAsync,
   rerunGuidance,
   generateActions,
   getActiveTemplateParts,
@@ -64,7 +63,8 @@ type InferenceOpts = {
 }
 
 export async function generateActions() {
-  const { settings, impersonating, profile, user, messages } = await getPromptEntities()
+  const { settings, impersonating, profile, user, messages, ...entities } =
+    await getPromptEntities()
   const { prompt } = await createActiveChatPrompt({ kind: 'continue' }, 1024)
 
   const last = messages.slice(-1)[0]
@@ -74,125 +74,101 @@ export async function generateActions() {
     return
   }
 
-  await api.post<{ actions: AppSchema.ChatAction[] }>(`/chat/${last._id}/actions`, {
+  const res = await api.post<{ actions: AppSchema.ChatAction[] }>(`/chat/${last._id}/actions`, {
     service: settings.service,
     settings,
     impersonating,
     profile,
     user,
     lines: prompt.lines,
+    char: entities.char,
+    chat: entities.chat,
+    characters: entities.characters,
   })
+  return res
 }
 
-export async function basicInference(
-  { prompt, settings }: InferenceOpts,
-  onComplete: (err?: any, response?: string) => void
-) {
+export async function basicInference({ prompt, settings }: InferenceOpts) {
   const requestId = v4()
   const { user } = userStore.getState()
 
+  const preset = getUserPreset(user?.defaultPreset)
   if (!user) {
     toastStore.error(`Could not get user settings. Refresh and try again.`)
     return
   }
 
-  subscribe(
-    'inference-complete',
-    { requestId: 'string', response: 'string?', error: 'string?' },
-    (body) => onComplete(body.error, body.response),
-    (body) => body.requestId === requestId
-  )
+  const res = await api.method<{ response: string; meta: any }>('post', `/chat/inference`, {
+    requestId,
+    user,
+    prompt,
+    settings: settings || preset,
+  })
 
-  const res = await api.method('post', `/chat/inference`, { requestId, user, prompt, settings })
-  if (res.error) {
-    onComplete(res.error)
-    return
-  }
+  return res
 }
 
-export async function guidance<T = any>(
-  { prompt, service, maxTokens }: InferenceOpts,
-  onComplete?: (err: any | null, response?: { result: string; values: T }) => void
-): Promise<void> {
+export async function guidance<T = any>({
+  prompt,
+  service,
+  maxTokens,
+  settings,
+}: InferenceOpts): Promise<T> {
   const requestId = v4()
   const { user } = userStore.getState()
 
   if (!user) {
-    toastStore.error(`Could not get user settings. Refresh and try again.`)
-    return
+    throw new Error(`Could not get user settings. Refresh and try again.`)
   }
 
-  const res = await api.method('post', `/chat/guidance`, {
+  const fallback = service === 'default' ? getUserPreset(user.defaultPreset) : undefined
+
+  const res = await api.method<{ result: string; values: T }>('post', `/chat/guidance`, {
+    requestId,
+    user,
+    settings: settings || fallback,
+    prompt,
+    service,
+    maxTokens,
+  })
+
+  if (res.error) throw new Error(res.error)
+  return res.result!.values
+}
+
+export async function rerunGuidance<T = any>({
+  prompt,
+  service,
+  maxTokens,
+  rerun,
+  previous,
+}: InferenceOpts & { previous?: any; rerun: string[] }): Promise<T> {
+  const requestId = v4()
+  const { user } = userStore.getState()
+
+  if (!user) {
+    throw new Error(`Could not get user settings. Refresh and try again.`)
+  }
+
+  const settings = service === 'default' ? getUserPreset(user.defaultPreset) : undefined
+
+  const res = await api.method<{ result: string; values: T }>('post', `/chat/reguidance`, {
     requestId,
     user,
     prompt,
     service,
     maxTokens,
-  })
-
-  if (res.error) {
-    onComplete?.(res.error)
-    if (!onComplete) {
-      throw new Error(`Guidance failed: ${res.error}`)
-    }
-  }
-
-  onComplete?.(null, res.result)
-}
-
-export async function guidanceAsync<T = any>(
-  opts: InferenceOpts
-): Promise<{ result: string; values: T }> {
-  return new Promise((resolve, reject) => {
-    guidance<T>(opts, (err, result) => {
-      if (err) return reject(err)
-      if (result) resolve(result)
-    })
-  })
-}
-
-export async function rerunGuidance<T = any>(
-  {
-    prompt,
-    service,
-    maxTokens,
-    rerun,
-    previous,
-  }: InferenceOpts & { previous?: any; rerun: string[] },
-  onComplete?: (err: any | null, response?: { result: string; values: T }) => void
-) {
-  const requestId = v4()
-  const { user } = userStore.getState()
-
-  if (!user) {
-    toastStore.error(`Could not get user settings. Refresh and try again.`)
-    return
-  }
-
-  const res = await api.method('post', `/chat/reguidance`, {
-    requestId,
-    user,
-    prompt,
-    service,
-    maxTokens,
+    settings,
     rerun,
     previous,
   })
-  if (res.error) {
-    onComplete?.(res.error)
-    if (!onComplete) {
-      throw new Error(`Guidance failed: ${res.error}`)
-    }
-  }
 
-  if (res.result) {
-    onComplete?.(null, res.result)
-    return res.result
-  }
+  if (res.error) throw new Error(res.error)
+  return res.result!.values
 }
 
 export async function editMessage(msg: AppSchema.ChatMessage, replace: string) {
-  return editMessageProps(msg, { msg: replace })
+  return editMessageProps(msg, { msg: replace.replace(/\r\n/g, '\n') })
 }
 
 export async function editMessageProps(
@@ -250,8 +226,7 @@ export type GenerateOpts =
   | { kind: 'self' }
   | { kind: 'summary' }
 
-export async function generateResponseV2(opts: GenerateOpts) {
-  const { ui } = userStore.getState()
+export async function generateResponse(opts: GenerateOpts) {
   const { active } = chatStore.getState()
 
   if (!active) {
@@ -264,6 +239,7 @@ export async function generateResponseV2(opts: GenerateOpts) {
 
   const activePrompt = await createActiveChatPrompt(opts).catch((err) => ({ err }))
   if ('err' in activePrompt) {
+    console.error(activePrompt.err)
     return localApi.error(activePrompt.err.message || activePrompt.err)
   }
 
@@ -280,11 +256,6 @@ export async function generateResponseV2(opts: GenerateOpts) {
         ' and '
       )} did not fit in prompt. Check your Preset -> Memory Embed context limits.`
     )
-  }
-
-  if (ui?.logPromptsToBrowserConsole) {
-    console.log(`=== Sending the following prompt: ===`)
-    console.log(`${prompt.template}`)
   }
 
   const request: GenerateRequestV2 = {
@@ -489,6 +460,16 @@ async function getGenerateProps(
   active: NonNullable<ChatState['active']>
 ): Promise<GenerateProps> {
   const entities = await getPromptEntities()
+
+  const temporary = getServiceTempConfig(entities.settings.service)
+  if (!entities.settings.temporary) {
+    entities.settings.temporary = {}
+  }
+
+  for (const temp of temporary) {
+    entities.settings.temporary[temp.field] = temp.value
+  }
+
   const [secondLastMsg, lastMsg] = entities.messages.slice(-2)
   const lastCharMsg = entities.messages.reduceRight<AppSchema.ChatMessage | void>((prev, curr) => {
     if (prev) return prev
@@ -513,7 +494,7 @@ async function getGenerateProps(
       sender: entities.profile,
       impersonate: props.impersonate,
       repeatable: true,
-    })
+    }).parsed
   }
 
   const getBot = (id: string) => {
@@ -672,7 +653,7 @@ async function getGuestEntities() {
 
   const {
     impersonating,
-    characters: { list, map },
+    chatChars: { list, map },
   } = getStore('character').getState()
 
   const characters = getBotsForChat(chat, char, map)
@@ -716,7 +697,7 @@ function getAuthedPromptEntities() {
 
   const {
     impersonating,
-    characters: { list, map },
+    chatChars: { list, map },
   } = getStore('character').getState()
 
   const characters = getBotsForChat(chat, char, map)

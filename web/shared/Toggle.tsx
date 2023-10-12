@@ -1,8 +1,8 @@
 import { Component, For, JSX, Show, createMemo } from 'solid-js'
 import { FormLabel } from './FormLabel'
 import './toggle.css'
-import { AIAdapter, PresetAISettings } from '../../common/adapters'
-import { getAISettingServices } from './util'
+import { AIAdapter, PresetAISettings, ThirdPartyFormat } from '../../common/adapters'
+import { isValidServiceSetting } from './util'
 import { Option } from './Select'
 
 export const Toggle: Component<{
@@ -13,8 +13,9 @@ export const Toggle: Component<{
   class?: string
   onChange?: (value: boolean) => void
   disabled?: boolean
-
+  reverse?: boolean
   service?: AIAdapter
+  format?: ThirdPartyFormat
   aiSetting?: keyof PresetAISettings
 }> = (props) => {
   const onChange = (ev: Event & { currentTarget: HTMLInputElement }) => {
@@ -22,18 +23,16 @@ export const Toggle: Component<{
     props.onChange?.(ev.currentTarget.checked)
   }
 
-  const adapters = createMemo(() => getAISettingServices(props.aiSetting))
-
   const hide = createMemo(() => {
-    if (!props.service || !adapters()) return ''
-    return adapters()!.includes(props.service) || shouldShow(props.aiSetting, props.value)
-      ? ''
-      : ` hidden `
+    const isValid = isValidServiceSetting(props.service, props.format, props.aiSetting)
+    return isValid ? '' : ' hidden'
   })
 
+  const justify = createMemo(() => (props.reverse ? 'sm:justify-start' : 'sm:justify-between'))
+
   return (
-    <div class={`sm: flex flex-col gap-2 sm:flex-row ${hide()} sm:items-center sm:justify-between`}>
-      <Show when={props.label}>
+    <div class={`sm: flex flex-col gap-2 sm:flex-row ${hide()} sm:items-center ${justify()}`}>
+      <Show when={props.label && !props.reverse}>
         <FormLabel label={props.label} helperText={props.helperText} />
       </Show>
       <label class={`toggle ${props.disabled ? 'toggle-disabled' : ''}`}>
@@ -48,14 +47,11 @@ export const Toggle: Component<{
         />
         <div class={`toggle-switch ${props.disabled ? 'toggle-disabled' : ''}`}></div>
       </label>
+      <Show when={props.label && props.reverse}>
+        <FormLabel label={props.label} helperText={props.helperText} />
+      </Show>
     </div>
   )
-}
-
-function shouldShow(setting?: keyof PresetAISettings, value?: boolean) {
-  if (!setting) return false
-  if (setting === 'gaslight' && value === true) return true
-  return false
 }
 
 export const ToggleButtons: Component<{

@@ -1,12 +1,13 @@
 import * as horde from '../../common/horde-gen'
 import { sanitise, trimResponseV2 } from '../api/chat/common'
-import { HORDE_GUEST_KEY } from '../api/horde'
+import { HORDE_GUEST_KEY, getHordeModels } from '../api/horde'
 import { publishOne } from '../api/ws/handle'
 import { decryptText } from '../db/util'
 import { ModelAdapter } from './type'
 import { config } from '../config'
 import { logger } from '../logger'
 const { hordeKeyPremium } = config
+import { toArray } from '/common/util'
 
 export const handleHorde: ModelAdapter = async function* ({
   char,
@@ -28,9 +29,28 @@ export const handleHorde: ModelAdapter = async function* ({
 
     yield { prompt }
 
+    const models = getHordeModels()
+    const userModels = toArray(user.hordeModel)
+
+    const modelsMatch = models
+      .filter((m) => {
+        const lowered = m.name.toLowerCase()
+        for (const um of userModels) {
+          if (lowered.includes(um.toLowerCase())) return true
+        }
+        return false
+      })
+      .map((m) => m.name)
+
+    user.hordeModel = modelsMatch.length > 0 ? userModels : 'any'
+
     const result = await horde.generateText({ ...user, hordeKey: key }, gen, prompt, opts.log)
     const sanitised = sanitise(result.text)
-    const trimmed = trimResponseV2(sanitised, opts.replyAs, members, characters, ['END_OF_DIALOG'])
+    const stops = gen.stopSequences || []
+    const trimmed = trimResponseV2(sanitised, opts.replyAs, members, characters, [
+      'END_OF_DIALOG',
+      ...stops,
+    ])
 
     // This is a temporary measure to help users provide more info when reporting instances of 'cut off' responses
     publishOne(guest || user._id, {

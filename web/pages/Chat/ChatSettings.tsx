@@ -18,6 +18,8 @@ const options = [
   { value: 'wpp', label: 'W++' },
   { value: 'boostyle', label: 'Boostyle' },
   { value: 'sbf', label: 'SBF' },
+  { value: 'attributes', label: 'Attributes' },
+  { value: 'text', label: 'Plain text' },
 ]
 
 const ChatSettings: Component<{
@@ -29,6 +31,7 @@ const ChatSettings: Component<{
   const cfg = settingStore()
   const presets = presetStore((s) => s.presets)
   const [useOverrides, setUseOverrides] = createSignal(!!state.chat?.overrides)
+  const [kind, setKind] = createSignal(state.chat?.overrides?.kind || state.char?.persona.kind)
   const scenarioState = scenarioStore()
 
   const activePreset = createMemo(() => {
@@ -68,11 +71,14 @@ const ChatSettings: Component<{
     const noScenario = [{ value: '', label: "None (use character's scenario)" }]
     if (scenarioState.loading || scenarioState.partial) {
       return noScenario.concat(
-        (state.chat?.scenarioIds ?? []).map((id) => ({ value: id, label: id }))
+        (state.chat?.scenarioIds ?? []).map((id) => ({
+          value: id,
+          label: '...',
+        }))
       )
     } else {
       return noScenario.concat(
-        scenarioState.scenarios.map((s) => ({ label: s.name, value: s._id }))
+        scenarioState.scenarios.map((s) => ({ label: s.name || 'Untitled scenario', value: s._id }))
       )
     }
   })
@@ -82,6 +88,8 @@ const ChatSettings: Component<{
       name: 'string',
       greeting: 'string?',
       sampleChat: 'string?',
+      systemPrompt: 'string?',
+      postHistoryInstructions: 'string?',
       scenario: 'string?',
       schema: ['wpp', 'boostyle', 'sbf', 'text', null],
       scenarioId: 'string?',
@@ -97,7 +105,7 @@ const ChatSettings: Component<{
     const payload = {
       ...body,
       overrides,
-      scenarioIds: scenarioId ? [scenarioId] : undefined,
+      scenarioIds: scenarioId ? [scenarioId] : [],
       scenarioStates: states(),
     }
     chatStore.editChat(state.chat?._id!, payload, useOverrides(), () => {
@@ -175,7 +183,7 @@ const ChatSettings: Component<{
         </Card>
       </Show>
 
-      <Show when={activePreset()?.service === 'openai'}>
+      <Show when={activePreset()?.service !== 'horde'}>
         <Card>
           <Select
             fieldName="mode"
@@ -268,27 +276,32 @@ const ChatSettings: Component<{
             label="Sample Chat"
           />
 
-          <Show when={state.char?.persona.kind !== 'text'}>
-            <Select
-              fieldName="schema"
-              label="Persona"
-              items={options}
-              value={state.chat?.overrides?.kind || state.char?.persona?.kind}
-            />
-          </Show>
-          <Show when={state.char?.persona.kind === 'text'}>
-            <Select
-              fieldName="schema"
-              label="Persona"
-              items={[{ label: 'Plain text', value: 'text' }]}
-              value={'text'}
-            />
-          </Show>
+          <TextInput
+            fieldName="systemPrompt"
+            class="text-sm"
+            label="Character System Prompt"
+            value={state.chat?.systemPrompt}
+          />
+
+          <TextInput
+            fieldName="postHistoryInstructions"
+            class="text-sm"
+            label="Character Post-History Instructions"
+            value={state.chat?.postHistoryInstructions}
+          />
+
+          <Select
+            fieldName="schema"
+            label="Persona"
+            items={options}
+            value={kind()}
+            onChange={(ev) => setKind(ev.value as any)}
+          />
           <div class="mt-4 flex flex-col gap-2 text-sm">
             <PersonaAttributes
               value={state.chat?.overrides?.attributes || state.char?.persona?.attributes}
               hideLabel
-              plainText={state.char?.persona.kind === 'text'}
+              plainText={kind() === 'text'}
             />
           </div>
         </Card>

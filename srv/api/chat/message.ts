@@ -9,7 +9,7 @@ import { v4 } from 'uuid'
 import { Response } from 'express'
 import { publishMany } from '../ws/handle'
 import { runGuidance } from '/common/guidance/guidance-parser'
-import { cyoaTemplate } from '/common/templates'
+import { cyoaTemplate } from '/common/mode-templates'
 import { fillPromptWithLines } from '/common/prompt'
 import { getTokenCounter } from '/srv/tokenize'
 
@@ -83,7 +83,7 @@ export const createMessage = handle(async (req) => {
 
   if (!userId) {
     const guest = req.socketId
-    const newMsg = newMessage(chatId, body.text, {
+    const newMsg = newMessage(v4(), chatId, body.text, {
       userId: impersonate ? undefined : 'anon',
       characterId: impersonate?._id,
       ooc: body.kind === 'ooc',
@@ -232,7 +232,7 @@ export const generateMessageV2 = handle(async (req, res) => {
 
   let generated = ''
   let error = false
-  let meta = {}
+  let meta = { ctx: entities.settings.maxContextLength, char: entities.size }
 
   const messageId =
     body.kind === 'retry'
@@ -274,17 +274,33 @@ export const generateMessageV2 = handle(async (req, res) => {
         sendMany(members, { type: 'message-error', requestId, error: gen.error, adapter, chatId })
         continue
       }
+
+      if ('warning' in gen) {
+        sendOne(userId, { type: 'message-warning', requestId, warning: gen.warning })
+      }
     }
   } catch (ex: any) {
     error = true
-    log.error({ err: ex }, 'Unhandled exception occurred during stream handler')
-    sendMany(members, {
-      type: 'message-error',
-      requestId,
-      error: `Unhandled exception: ${ex?.message || ex}`,
-      adapter,
-      chatId,
-    })
+
+    if (ex instanceof StatusError) {
+      log.warn({ err: ex }, `[${ex.status}] Stream handler exception`)
+      sendMany(members, {
+        type: 'message-error',
+        requestId,
+        error: `[${ex.status}] Message failed: ${ex?.message || ex}`,
+        adapter,
+        chatId,
+      })
+    } else {
+      log.error({ err: ex }, 'Unhandled exception occurred during stream handler')
+      sendMany(members, {
+        type: 'message-error',
+        requestId,
+        error: `Unhandled exception: ${ex?.message || ex}`,
+        adapter,
+        chatId,
+      })
+    }
   }
 
   if (error) {
@@ -459,19 +475,27 @@ async function handleGuestGenerate(body: GenRequest, req: AppRequest, res: Respo
   const chat: AppSchema.Chat = body.chat
   if (!chat) throw errors.NotFound
 
+  const requestId = v4()
+  const messageId =
+    body.kind === 'retry'
+      ? body.replacing?._id ?? requestId
+      : body.kind === 'continue'
+      ? body.continuing?._id
+      : requestId
+
   // Coalesce for backwards compatibly while new UI rolls out
   const replyAs: AppSchema.Character = body.replyAs || body.char
 
   // For authenticated users we will verify parts of the payload
   let newMsg: AppSchema.ChatMessage | undefined
   if (body.kind === 'send' || body.kind === 'ooc') {
-    newMsg = newMessage(chatId, body.text!, {
+    newMsg = newMessage(v4(), chatId, body.text!, {
       userId: 'anon',
       ooc: body.kind === 'ooc',
       event: undefined,
     })
   } else if (body.kind.startsWith('send-event:')) {
-    newMsg = newMessage(chatId, body.text!, {
+    newMsg = newMessage(v4(), chatId, body.text!, {
       characterId: replyAs?._id,
       ooc: false,
       event: body.kind.split(':')[1] as AppSchema.EventTypes,
@@ -486,10 +510,9 @@ async function handleGuestGenerate(body: GenRequest, req: AppRequest, res: Respo
     return { success: true }
   }
 
-  const requestId = v4()
   res.json({ success: true, generating: true, message: 'Generating message', requestId })
 
-  const { stream, adapter } = await createTextStreamV2(
+  const { stream, adapter, ...entities } = await createTextStreamV2(
     { ...body, chat, replyAs, requestId },
     log,
     guest
@@ -499,14 +522,7 @@ async function handleGuestGenerate(body: GenRequest, req: AppRequest, res: Respo
 
   let generated = ''
   let error = false
-  let meta = {}
-
-  const messageId =
-    body.kind === 'retry'
-      ? body.replacing?._id ?? requestId
-      : body.kind === 'continue'
-      ? body.continuing?._id
-      : requestId
+  let meta = { ctx: entities.settings.maxContextLength, char: entities.size }
 
   for await (const gen of stream) {
     if (typeof gen === 'string') {
@@ -532,6 +548,11 @@ async function handleGuestGenerate(body: GenRequest, req: AppRequest, res: Respo
     if ('error' in gen) {
       error = true
       sendGuest(guest, { type: 'message-error', error: gen.error, adapter, chatId })
+      break
+    }
+
+    if ('warning' in gen) {
+      sendGuest(guest, { type: 'message-warning', requestId, warning: gen.warning })
       continue
     }
   }
@@ -542,7 +563,7 @@ async function handleGuestGenerate(body: GenRequest, req: AppRequest, res: Respo
 
   const characterId = body.kind === 'self' ? undefined : body.replyAs?._id || body.char?._id
   const senderId = body.kind === 'self' ? 'anon' : undefined
-  const response = newMessage(chatId, responseText, {
+  const response = newMessage(messageId, chatId, responseText, {
     characterId,
     userId: senderId,
     ooc: false,
@@ -568,12 +589,14 @@ async function handleGuestGenerate(body: GenRequest, req: AppRequest, res: Respo
         adapter,
         continue: body.kind === 'continue',
         generate: true,
+        meta,
       })
       return
   }
 }
 
 function newMessage(
+  messageId: string,
   chatId: string,
   text: string,
   props: {
@@ -585,7 +608,7 @@ function newMessage(
   }
 ) {
   const userMsg: AppSchema.ChatMessage = {
-    _id: v4(),
+    _id: messageId,
     chatId,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

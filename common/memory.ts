@@ -12,6 +12,7 @@ export type MemoryOpts = {
   settings?: Partial<AppSchema.UserGenPreset>
   books?: Array<AppSchema.MemoryBook | undefined>
   lines: string[]
+  impersonate?: AppSchema.Character
   members: AppSchema.Profile[]
 }
 
@@ -81,7 +82,8 @@ export function buildMemoryPrompt(
   const { chat, settings, members, char, lines, books } = opts
 
   if (!books || !books.length) return
-  const sender = members.find((mem) => mem.userId === chat.userId)?.handle || 'You'
+  const sender =
+    opts.impersonate?.name || members.find((mem) => mem.userId === chat.userId)?.handle || 'You'
 
   const depth = settings?.memoryDepth || defaultPresets.basic.memoryDepth || Infinity
   const memoryBudget = settings?.memoryContextLimit || defaultPresets.basic.memoryContextLimit
@@ -107,12 +109,17 @@ export function buildMemoryPrompt(
 
       let index = -1
       for (const keyword of entry.keywords) {
-        // const partial = `(${prep(keyword)})`
-        const txt = `\\b(${prep(keyword)})\\b`
-        const re = new RegExp(txt, 'gi')
-        const result = re.exec(reversed)
-        if (index === -1 && result !== null) {
-          index = result.index
+        try {
+          const txt = `\\b(${prep(keyword.trim())})\\b`
+          const re = new RegExp(txt, 'gi')
+          const result = re.exec(reversed)
+          if (index === -1 && result !== null) {
+            index = result.index
+          }
+        } catch (ex) {
+          /**
+           * @todo handle failures properly
+           */
         }
       }
 

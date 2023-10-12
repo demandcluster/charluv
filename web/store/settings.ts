@@ -10,6 +10,7 @@ import { subscribe } from './socket'
 import { FeatureFlags, defaultFlags } from './flags'
 import { ReplicateModel } from '/common/types/replicate'
 import { wait } from '/common/util'
+import { ButtonSchema } from '../shared/Button'
 
 import { Performance } from '../../common/performance'
 
@@ -20,6 +21,7 @@ export type SettingState = {
     loading: boolean
     ttl: number
   }
+
   showMenu: boolean
   showImpersonate: boolean
   fullscreen: boolean
@@ -39,13 +41,17 @@ export type SettingState = {
     config: AppSchema.AppConfig
     books: AppSchema.MemoryBook[]
   }
-  showImage?: string
+  showImage?: {
+    url: string
+    options: Array<{ schema: ButtonSchema; text: string; onClick: () => void }>
+  }
   flags: FeatureFlags
   replicate: Record<string, ReplicateModel>
   showSettings: boolean
 
   slotsLoaded: boolean
-  slots: { publisherId: string } & Record<string, string>
+  slots: { publisherId: string; provider?: 'google' | 'ez' } & Record<string, string>
+  overlay: boolean
 }
 
 const HORDE_URL = `https://horde.aivo.chat/api/v2`
@@ -92,12 +98,15 @@ const initState: SettingState = {
     pipelineProxyEnabled: false,
     authUrls: ['https://chara.cards', 'https://dev.chara.cards'],
     horde: { workers: [], models: [] },
+    openRouter: { models: [] },
+    subs: [],
   },
   replicate: {},
   flags: getFlags(),
   showSettings: false,
   slotsLoaded: false,
   slots: { publisherId: '' },
+  overlay: false,
 }
 
 export const settingStore = createStore<SettingState>(
@@ -105,6 +114,12 @@ export const settingStore = createStore<SettingState>(
   initState
 )((get) => {
   events.on(EVENTS.loggedOut, () => {
+    const prev = get()
+    settingStore.setState({ ...initState, slots: prev.slots, slotsLoaded: prev.slotsLoaded })
+    settingStore.init()
+  })
+
+  events.on(EVENTS.loggedIn, () => {
     const prev = get()
     settingStore.setState({ ...initState, slots: prev.slots, slotsLoaded: prev.slotsLoaded })
     settingStore.init()
@@ -149,11 +164,14 @@ export const settingStore = createStore<SettingState>(
         setTimeout(() => settingStore.init(), 2500)
       }
     },
+    toggleOverlay({ overlay }, next?: boolean) {
+      return { overlay: next === undefined ? !overlay : next }
+    },
     menu({ showMenu }) {
-      return { showMenu: !showMenu }
+      return { showMenu: !showMenu, overlay: !showMenu }
     },
     closeMenu: () => {
-      return { showMenu: false }
+      return { showMenu: false, overlay: false }
     },
     toggleImpersonate: ({ showImpersonate }, show?: boolean) => {
       return { showImpersonate: show ?? !showImpersonate }
@@ -216,8 +234,15 @@ export const settingStore = createStore<SettingState>(
     toggleAnonymize({ anonymize }) {
       return { anonymize: !anonymize }
     },
-    showImage(_, image?: string) {
-      return { showImage: image }
+    showImage(
+      _,
+      image: string,
+      options: Array<{ schema: ButtonSchema; text: string; onClick: () => void }> = []
+    ) {
+      return { showImage: { url: image, options } }
+    },
+    clearImage() {
+      return { showImage: undefined }
     },
     flag({ flags }, flag: keyof FeatureFlags, value: boolean) {
       const nextFlags = { ...flags, [flag]: value }
@@ -228,11 +253,17 @@ export const settingStore = createStore<SettingState>(
   }
 })
 
+let firstConnection = true
 subscribe('connected', { uid: 'string' }, (body) => {
+  if (firstConnection) {
+    firstConnection = false
+    return
+  }
+
   const { initLoading } = settingStore.getState()
   if (initLoading) return
 
-  settingStore.init()
+  settingStore.getConfig()
 })
 
 window.flag = function (flag: keyof FeatureFlags, value) {
@@ -350,3 +381,25 @@ async function loadSlotConfig() {
     settingStore.setState({ slots, slotsLoaded: true })
   }
 }
+
+setInterval(async () => {
+  const { config } = settingStore.getState()
+  if (!config.subs.length) return
+
+  const res = await usersApi.getSubscriptions()
+  if (!res.result) return
+
+  const opts = res.result.subscriptions.map((sub) => ({ label: sub.name, value: sub._id }))
+  const next = {
+    ...config,
+    subs: res.result.subscriptions,
+    registered: config.registered.map((reg) => {
+      if (reg.name !== 'agnaistic') return reg
+      const settings = reg.settings.map((s) =>
+        s.field === 'subscriptionId' ? { ...s, setting: { ...s.setting, options: opts } } : s
+      )
+      return { ...reg, settings }
+    }),
+  }
+  settingStore.setState({ config: next })
+}, 60000)

@@ -8,12 +8,16 @@ import { pipelineApi } from './pipeline'
 import { decode, encode, getEncoder } from '/common/tokenize'
 import { parseTemplate } from '/common/template-parser'
 import { neat } from '/common/util'
+import { AppSchema } from '/common/types'
+import { localApi } from './storage'
 
 type GenerateOpts = {
   chatId?: string
   ephemeral?: boolean
   messageId?: string
   prompt?: string
+  append?: boolean
+  source: string
   onDone: (image: string) => void
 }
 
@@ -49,26 +53,38 @@ export async function generateImage({ chatId, messageId, onDone, ...opts }: Gene
     user: entities.user,
     messageId,
     ephemeral: opts.ephemeral,
+    append: opts.append,
+    source: opts.source,
   })
   return res
 }
 
-export async function generateImageWithPrompt(prompt: string, onDone: (image: string) => void) {
+export async function generateImageWithPrompt(
+  prompt: string,
+  source: string,
+  onDone: (image: string) => void
+) {
   const user = getStore('user').getState().user
 
   if (!user) {
     throw new Error('Could not get user settings')
   }
 
-  if (!isLoggedIn()) {
-    const { text: image } = await horde.generateImage(user, prompt)
-    onDone(image)
+  if (!isLoggedIn() && (!user.images || user.images.type === 'horde')) {
+    try {
+      const { text: image } = await horde.generateImage(user, prompt)
+      onDone(image)
+      return localApi.result({})
+    } catch (ex: any) {
+      return localApi.error(ex.message)
+    }
   }
 
   const res = await api.post<{ success: boolean }>(`/character/image`, {
     prompt,
     user,
     ephemeral: true,
+    source,
   })
   return res
 }
@@ -77,13 +93,19 @@ const SUMMARY_BACKENDS: { [key in AIAdapter]?: (opts: PromptEntities) => boolean
   openai: () => true,
   novel: () => true,
   horde: () => true,
+  ooba: () => true,
+  kobold: () => true,
+  openrouter: () => true,
+  claude: () => true,
+  mancer: () => true,
+  agnaistic: () => true,
 }
 
 async function createSummarizedImagePrompt(opts: PromptEntities) {
   if (opts.user?.useLocalPipeline && pipelineApi.isAvailable().summary) {
     const { prompt } = await msgsApi.createActiveChatPrompt({ kind: 'summary' }, 1024)
     console.log('Using local summarization')
-    const res = await pipelineApi.summarize(prompt.template)
+    const res = await pipelineApi.summarize(prompt.template.parsed)
     if (res?.result) return res.result.summary
   }
 
@@ -95,7 +117,7 @@ async function createSummarizedImagePrompt(opts: PromptEntities) {
   if (canUseService && opts.user.images?.summariseChat) {
     console.log('Using', opts.settings?.service, 'to summarise')
 
-    const summary = await getChatSummary(opts.settings.service!)
+    const summary = await getChatSummary(opts.settings)
     console.log('Image caption: ', summary)
     return summary
   }
@@ -104,7 +126,7 @@ async function createSummarizedImagePrompt(opts: PromptEntities) {
   return prompt
 }
 
-async function getChatSummary(service: AIAdapter) {
+async function getChatSummary(settings: Partial<AppSchema.GenSettings>) {
   const opts = await msgsApi.getActiveTemplateParts()
   opts.limit = {
     context: 1024,
@@ -112,11 +134,15 @@ async function getChatSummary(service: AIAdapter) {
   }
   opts.lines = opts.lines.reverse()
 
-  const template = getSummaryTemplate(service)
-  if (!template) throw new Error(`No chat summary template available for "${service}"`)
+  const template = getSummaryTemplate(settings.service!)
+  if (!template) throw new Error(`No chat summary template available for "${settings.service!}"`)
 
-  const prompt = parseTemplate(template, opts)
-  const { values } = await msgsApi.guidanceAsync<{ summary: string }>({ prompt, service })
+  const prompt = parseTemplate(template, opts).parsed
+  const values = await msgsApi.guidance<{ summary: string }>({
+    prompt,
+    settings,
+    service: settings.service,
+  })
   return values.summary
 }
 
@@ -138,13 +164,37 @@ function getSummaryTemplate(service: AIAdapter) {
     case 'horde':
     case 'scale':
       return neat`
-      {{personality}}
-      
-      (System note: Start of conversation)
-      {{history}}
-      
-      <|system|> Write an image caption of the current scene including the character's appearance)
-      Image caption: [summary]
+              {{personality}}
+              
+              (System note: Start of conversation)
+              {{history}}
+              
+              {{ujb}}
+              (System: Write an image caption of the current scene including the character's appearance)
+              Image caption: [summary]
+              `
+
+    case 'ooba':
+    case 'kobold':
+    case 'horde':
+    case 'agnaistic':
+      return neat`
+      Below is an instruction that describes a task. Write a response that completes the request.
+
+      {{char}}'s Persona: {{personality}}
+
+      The scenario of the conversation: {{scenario}}
+
+      Then the roleplay chat between {{#each bot}}{{.name}}, {{/each}}{{char}} begins.
+  
+      {{#each msg}}{{#if .isbot}}### Response:\n{{.name}}: {{.msg}}{{/if}}{{#if .isuser}}### Instruction:\n{{.name}}: {{.msg}}{{/if}}
+      {{/each}}
+
+      ### Instruction:
+      Write an image caption of the current scene using physical descriptions without names.
+
+      ### Response:
+      Image caption: [summary | tokens=250]
       `
   }
 }

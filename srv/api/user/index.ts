@@ -1,8 +1,17 @@
 import { Router } from 'express'
 import { loggedIn, isPremium } from '../auth'
 import { changePassword, createApiKey, login, register, remoteLogin, verifyOauthKey } from './auth'
-import { createUserPreset, getUserPresets, updateUserPreset, deleteUserPreset } from './presets'
-import { hordeStats, novelLogin, openRouterModels, openaiUsage, updateService } from './services'
+import {
+  createUserPreset,
+  getUserPresets,
+  updateUserPreset,
+  deleteUserPreset,
+  createTemplate,
+  updateTemplate,
+  deleteTemplate,
+  getPromptTemplates,
+} from './presets'
+import { hordeStats, novelLogin, openRouterModels, updateService } from './services'
 import {
   deleteHordeKey,
   deleteNovelKey,
@@ -19,13 +28,13 @@ import {
   updateUI,
   updatePartialConfig,
 } from './settings'
+import { deleteUserAccount } from './delete-user'
 
 const router = Router()
 
 router.post('/login/callback', loggedIn, remoteLogin)
 router.post('/login', login)
 router.post('/register', register)
-router.post('/services/openai-usage', openaiUsage)
 router.post('/services/novel', novelLogin)
 router.post('/services/horde-stats', hordeStats)
 router.get('/services/openrouter', openRouterModels)
@@ -34,9 +43,10 @@ router.post('/verify', verifyOauthKey)
 router.get('/init', loggedIn, getInitialLoad)
 router.get('/', loggedIn, getProfile)
 router.get('/presets', loggedIn, getUserPresets)
+router.get('/templates', loggedIn, getPromptTemplates)
 router.get('/config', loggedIn, getConfig)
-router.get('/:id', loggedIn, getProfile)
 router.post('/config/service/:service', loggedIn, updateService)
+router.delete('/my-account', loggedIn, deleteUserAccount)
 router.delete('/config/scale', loggedIn, deleteScaleKey)
 router.delete('/config/horde', loggedIn, deleteHordeKey)
 router.delete('/config/novel', loggedIn, deleteNovelKey)
@@ -50,7 +60,11 @@ router.post('/ui', loggedIn, updateUI)
 router.post('/config/partial', loggedIn, updatePartialConfig)
 router.post('/config', loggedIn, updateConfig)
 router.post('/profile', loggedIn, updateProfile)
-router.post('/presets', isPremium, createUserPreset)
-router.post('/presets/:id', isPremium, updateUserPreset)
+router.post('/presets', isPremium, loggedIn, createUserPreset)
+router.post('/presets/:id', isPremium, loggedIn, updateUserPreset)
+router.post('/templates', loggedIn, createTemplate)
+router.post('/templates/:id', loggedIn, updateTemplate)
+router.delete('/templates/:id', loggedIn, deleteTemplate)
+router.get('/:id', loggedIn, getProfile)
 
 export default router

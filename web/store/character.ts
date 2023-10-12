@@ -8,6 +8,7 @@ import { charsApi, getImageData } from './data/chars'
 import { imageApi } from './data/image'
 import { getAssetUrl, storage, toMap } from '../shared/util'
 import { toCharacterMap } from '../pages/Character/util'
+import { getUserId } from './api'
 
 const IMPERSONATE_KEY = 'agnai-impersonate'
 
@@ -15,10 +16,11 @@ type CharacterState = {
   loading?: boolean
   impersonating?: AppSchema.Character
   characters: {
-    loaded: boolean
+    loaded: number
     list: AppSchema.Character[]
     map: Record<string, AppSchema.Character>
   }
+  editing?: AppSchema.Character
   chatChars: {
     list: AppSchema.Character[]
     map: Record<string, AppSchema.Character>
@@ -50,6 +52,7 @@ export type NewCharacter = UpdateCharacter &
     | 'premium'
     | 'xp'
     | 'shared'
+    | 'insert'
   > & {
     originalAvatar: any
   }
@@ -61,8 +64,9 @@ export type UpdateCharacter = Partial<
 >
 
 const initState: CharacterState = {
+  loading: false,
   creating: false,
-  characters: { loaded: false, list: [], map: {} },
+  characters: { loaded: 0, list: [], map: {} },
   chatChars: { list: [], map: {} },
   generate: {
     image: null,
@@ -77,51 +81,107 @@ export const characterStore = createStore<CharacterState>(
   initState
 )((get, set) => {
   events.on(EVENTS.loggedOut, () => {
-    characterStore.setState(initState)
+    characterStore.setState({ ...initState })
+    characterStore.getCharacters(true)
   })
 
-  events.on(EVENTS.init, async (init) => {
-    if (!init.characters) {
-      characterStore.getCharacters()
-      return
+  events.on(EVENTS.loggedIn, () => {
+    characterStore.setState({ ...initState })
+  })
+
+  events.on(EVENTS.charAdded, (char: AppSchema.Character) => {
+    const { chatChars: prev } = get()
+    set({
+      chatChars: {
+        list: prev.list.concat(char),
+        map: Object.assign({}, prev.map, { [char._id]: char }),
+      },
+    })
+  })
+
+  events.on(
+    EVENTS.charsReceived,
+    async (chars: AppSchema.Character[], temps: AppSchema.Character[]) => {
+      const state = get()
+      const id = await storage.getItem(IMPERSONATE_KEY)
+      let impersonating =
+        !state.impersonating && id
+          ? chars.concat(temps).find((ch) => ch._id === id)
+          : state.impersonating
+
+      if (id?.startsWith('temp') && temps.every((ch) => ch._id !== id)) {
+        impersonating = undefined
+      }
+
+      set({ chatChars: { list: chars, map: toMap(chars) }, impersonating })
     }
+  )
 
-    const nextChars = receiveChars(characterStore.getState().characters.map, init.characters)
-    set({ characters: { ...nextChars, loaded: true } })
-
-    const impersonateId = await storage.getItem(IMPERSONATE_KEY)
-    if (!impersonateId) return
-
-    const impersonating = init.characters?.find(
-      (ch: AppSchema.Character) => ch._id === impersonateId
-    )
-    set({ impersonating })
+  events.on(EVENTS.init, (data) => {
+    if (!data.characters) return
+    events.emit(EVENTS.allChars, data.characters)
   })
 
-  events.on(EVENTS.charsReceived, (chars: AppSchema.Character[]) => {
-    set({ chatChars: { list: chars, map: toMap(chars) } })
+  events.on(EVENTS.allChars, async (chars: AppSchema.Character[]) => {
+    const state = get()
+    const id = await storage.getItem(IMPERSONATE_KEY)
+    const userId = getUserId()
+
+    const impersonating =
+      !state.impersonating && id ? chars.find((ch) => ch._id === id) : state.impersonating
+
+    set({
+      characters: {
+        map: toMap(chars),
+        list: chars.filter((ch) => ch.userId === userId),
+        loaded: Date.now(),
+      },
+      impersonating,
+    })
   })
 
   return {
-    async *getCharacters(state) {
-      if (state.loading) return
+    clearCharacter() {
+      return { editing: undefined }
+    },
+    async *getCharacter(_, characterId: string, chat?: AppSchema.Chat) {
+      if (chat?.tempCharacters && characterId.startsWith('temp-')) {
+        const char = chat.tempCharacters[characterId]
+        if (!char) return toastStore.error(`Temp character not found`)
+        return { editing: char }
+      }
+      yield { editing: undefined }
+      const res = await charsApi.getCharacterDetail(characterId)
+      if (res.result) {
+        return { editing: res.result }
+      }
+
+      if (res.error) {
+        return toastStore.error(res.error)
+      }
+    },
+    async *getCharacters(state, force?: boolean) {
+      if (!force && state.loading) return
+
+      const age = Date.now() - state.characters.loaded
+      if (!force && age < 30000) return
 
       yield { loading: true }
       const res = await charsApi.getCharacters()
-      yield { loading: false }
 
       if (res.error) {
+        yield { loading: false }
         return toastStore.error('Failed to retrieve characters')
       }
-
-      const next = receiveChars(state.characters.map, res.result.characters)
 
       if (res.result && state.impersonating) {
         return {
           characters: {
-            ...next,
-            loaded: true,
+            list: res.result.characters,
+            map: toMap(res.result.characters),
+            loaded: Date.now(),
           },
+          loading: false,
         }
       }
 
@@ -131,10 +191,12 @@ export const characterStore = createStore<CharacterState>(
 
         return {
           characters: {
-            ...next,
-            loaded: true,
+            list: res.result.characters,
+            map: toMap(res.result.characters),
+            loaded: Date.now(),
           },
           impersonating,
+          loading: false,
         }
       }
     },
@@ -145,7 +207,7 @@ export const characterStore = createStore<CharacterState>(
     },
 
     async *createCharacter(
-      { creating, characters: { list } },
+      { creating, characters: { list, loaded } },
       char: NewCharacter,
       onSuccess?: (result: AppSchema.Character) => void
     ) {
@@ -157,18 +219,19 @@ export const characterStore = createStore<CharacterState>(
       if (res.error) toastStore.error(`Failed to create character: ${res.error}`)
       if (res.result) {
         toastStore.success(`Successfully created character`)
+        events.emit(EVENTS.charUpdated, res.result, 'created')
         yield {
           characters: {
             list: list.concat(res.result),
             map: toCharacterMap(list.concat(res.result)),
-            loaded: true,
+            loaded,
           },
         }
         onSuccess?.(res.result)
       }
     },
     async *editCharacter(
-      { characters: { list, map } },
+      { characters: { list, map, loaded } },
       characterId: string,
       char: UpdateCharacter,
       onSuccess?: () => void
@@ -177,13 +240,13 @@ export const characterStore = createStore<CharacterState>(
 
       if (res.error) toastStore.error(`Failed to create character: ${res.error}`)
       if (res.result) {
-        events.emit(EVENTS.charUpdated, res.result)
+        events.emit(EVENTS.charUpdated, res.result, 'updated')
         toastStore.success(`Successfully updated character`)
         yield {
           characters: {
             list: list.map((ch) => (ch._id === characterId ? { ...ch, ...res.result } : ch)),
             map: replace(map, characterId, res.result),
-            loaded: true,
+            loaded,
           },
         }
         onSuccess?.()
@@ -206,7 +269,7 @@ export const characterStore = createStore<CharacterState>(
         }
       }
     },
-    async *editAvatar({ characters: { list, map } }, characterId: string, file: File) {
+    async *editAvatar({ characters: { list, map, loaded } }, characterId: string, file: File) {
       const res = await charsApi.editAvatar(characterId, file)
       if (res.error) {
         toastStore.error(`Failed to update avatar: ${res.error}`)
@@ -217,12 +280,12 @@ export const characterStore = createStore<CharacterState>(
           characters: {
             list: list.map((ch) => (ch._id === characterId ? res.result : ch)),
             map: replace(map, characterId, res.result),
-            loaded: true,
+            loaded,
           },
         }
       }
     },
-    async *removeAvatar({ characters: { list, map } }, characterId: string) {
+    async *removeAvatar({ characters: { list, map, loaded } }, characterId: string) {
       const res = await charsApi.removeAvatar(characterId)
       if (res.error) {
         toastStore.error(`Failed to remove avatar: ${res.error}`)
@@ -233,25 +296,26 @@ export const characterStore = createStore<CharacterState>(
           characters: {
             list: list.map((ch) => (ch._id === characterId ? { ...ch, avatar: '' } : ch)),
             map: replace(map, characterId, { avatar: '' }),
-            loaded: true,
+            loaded,
           },
         }
       }
     },
     deleteCharacter: async (
-      { characters: { list, map } },
+      { characters: { list, map, loaded } },
       charId: string,
       onSuccess?: () => void
     ) => {
       const res = await charsApi.deleteCharacter(charId)
       if (res.error) return toastStore.error(`Failed to delete character`)
       if (res.result) {
+        events.emit(EVENTS.charDeleted, charId)
         const next = list.filter((char) => char._id !== charId)
         toastStore.success('Successfully deleted character')
         onSuccess?.()
         delete map[charId]
         return {
-          characters: { loaded: true, list: next, map },
+          characters: { loaded, list: next, map },
         }
       }
     },
@@ -276,11 +340,11 @@ export const characterStore = createStore<CharacterState>(
           .replace(/,+/g, ', ')
           .replace(/\s+/g, ' ')
         yield { generate: { image: null, loading: true, blob: null } }
-        const res = await imageApi.generateImageWithPrompt(prompt, async (image) => {
+        const res = await imageApi.generateImageWithPrompt(prompt, 'avatar', async (image) => {
           const file = await dataURLtoFile(image)
           const data = await getImageData(file)
           onDone?.(null, data)
-          set({ generate: { image, loading: false, blob: file } })
+          set({ generate: { image: data, loading: false, blob: file } })
         })
         if (res.error) {
           onDone?.(res.error)
@@ -293,7 +357,8 @@ export const characterStore = createStore<CharacterState>(
   }
 })
 
-subscribe('image-generated', { image: 'string' }, async (body) => {
+subscribe('image-generated', { image: 'string', source: 'string' }, async (body) => {
+  if (body.source !== 'avatar') return
   const image = await fetch(getAssetUrl(body.image)).then((res) => res.blob())
   const file = new File([image], `avatar.png`, { type: 'image/png' })
   characterStore.setState({ generate: { image: body.image, loading: false, blob: file } })
@@ -305,8 +370,12 @@ subscribe('image-failed', { error: 'string' }, (body) => {
 })
 
 async function dataURLtoFile(base64: string) {
+  if (!base64.startsWith('data')) {
+    base64 = `data:image/png;base64,${base64}`
+  }
+
   return fetch(base64)
-    .then((res) => res.arrayBuffer())
+    .then((res) => res.blob())
     .then((buf) => new File([buf], 'avatar.png', { type: 'image/png' }))
 }
 
@@ -337,19 +406,4 @@ function replace(
 ): Record<string, AppSchema.Character> {
   const next = map[id] || {}
   return { ...map, [id]: { ...next, ...char } }
-}
-
-function receiveChars(
-  current: Record<string, AppSchema.Character>,
-  received: AppSchema.Character[]
-) {
-  const next: Record<string, AppSchema.Character> = Object.assign({}, current)
-  for (const char of received) {
-    next[char._id] = char
-  }
-
-  return {
-    list: Object.values(next),
-    map: next,
-  }
 }

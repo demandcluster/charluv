@@ -15,6 +15,9 @@ export const UI_THEME = [
   'orange',
   'rose',
   'pink',
+  'lime',
+  'cyan',
+  'fuchsia',
   'purple',
   'premium',
   'truegray',
@@ -55,6 +58,7 @@ export type UISettings = {
 
   /** 0 -> 1. 0 = transparent. 1 = opaque */
   msgOpacity: number
+  mobileSendOnEnter: boolean
 
   viewMode?: 'split' | 'standard'
   viewHeight?: number
@@ -72,7 +76,7 @@ const customUiGuard = {
   botBackground: 'string',
   chatTextColor: 'string',
   chatEmphasisColor: 'string',
-    chatQuoteColor: 'string',
+  chatQuoteColor: 'string',
 } as const
 
 export const uiGuard = {
@@ -88,6 +92,8 @@ export const uiGuard = {
   font: UI_FONT,
   imageWrap: 'boolean',
   msgOpacity: 'number',
+  mobileSendOnEnter: 'boolean',
+
   chatWidth: CHAT_WIDTHS,
   logPromptsToBrowserConsole: 'boolean',
 
@@ -106,6 +112,7 @@ export const defaultUIsettings: UISettings = {
   avatarCorners: 'circle',
   font: 'default',
   msgOpacity: 0.8,
+  mobileSendOnEnter: false,
 
   chatWidth: 'full',
   chatAvatarMode: true,

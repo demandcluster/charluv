@@ -6,6 +6,7 @@ import {
   Info,
   PauseCircle,
   Pencil,
+  PlusCircle,
   RefreshCw,
   Terminal,
   Trash,
@@ -30,7 +31,7 @@ import { BOT_REPLACE, SELF_REPLACE } from '../../../../common/prompt'
 import { AppSchema } from '../../../../common/types/schema'
 import AvatarIcon, { CharacterAvatar } from '../../../shared/AvatarIcon'
 import { getAssetUrl, getStrictForm } from '../../../shared/util'
-import { chatStore, userStore, msgStore, settingStore, toastStore } from '../../../store'
+import { chatStore, userStore, msgStore, settingStore, toastStore, ChatState } from '../../../store'
 import { markdown } from '../../../shared/markdown'
 import Button from '/web/shared/Button'
 import { rootModalStore } from '/web/store/root-modal'
@@ -59,8 +60,13 @@ type MessageProps = {
 }
 
 const Message: Component<MessageProps> = (props) => {
-  const [ctx] = useAppContext()
-  const splits = createMemo(() => splitMessage(ctx, props.msg), { equals: false })
+  const splits = createMemo(
+    () => {
+      if (!props.retrying) return splitMessage(props.msg)
+      return [props.msg]
+    },
+    { equals: false }
+  )
 
   return (
     <>
@@ -96,6 +102,7 @@ const SingleMessage: Component<
 > = (props) => {
   let editRef: HTMLDivElement
   let avatarRef: any
+  const [ctx] = useAppContext()
   const user = userStore()
   const state = chatStore()
   const voice = msgStore((x) => ({
@@ -108,14 +115,13 @@ const SingleMessage: Component<
   const isUser = createMemo(() => !!props.msg.userId)
   const isImage = createMemo(() => props.original.adapter === 'image')
   const [img, setImg] = createSignal('h-full')
+  const opts = createSignal(false)
+
   const [obs] = createSignal(
     new ResizeObserver(() => {
       setImg(`calc(${Math.min(avatarRef?.clientHeight, 10000)}px + 1em)`)
     })
   )
-  const opts = createSignal(false)
-
-  const [ctx] = useAppContext()
 
   onMount(() => obs().observe(avatarRef))
   onCleanup(() => obs().disconnect())
@@ -137,16 +143,9 @@ const SingleMessage: Component<
     return styles
   })
 
-  const msgText = createMemo(() => {
-    let msg = props.msg.msg
-    if (props.last && props.swipe) return props.swipe
-    if (ctx.anonymize) {
-      msg = state.chatProfiles.reduce(anonymizeText, msg).replace(SELF_REPLACE, 'User #1')
-    }
-    if (props.msg.event && !props.showHiddenEvents) {
-      msg = msg.replace(/\(OOC:.+\)/, '')
-    }
-    return msg
+  const content = createMemo(() => {
+    const msgV2 = getMessageContent(ctx, props, state)
+    return msgV2
   })
 
   const saveEdit = () => {
@@ -173,15 +172,7 @@ const SingleMessage: Component<
 
   const opacityClass = props.msg.ooc ? 'opacity-50' : ''
 
-  const nameDateFlexDir = createMemo(() =>
-    props.isPaneOpen ? 'sm:flex-col sm:gap-1' : 'sm:flex-row sm:gap-0'
-  )
-
   const format = createMemo(() => ({ size: user.ui.avatarSize, corners: user.ui.avatarCorners }))
-  const visibilityClass = createMemo(() => (ctx.anonymize ? 'invisible' : ''))
-  const nameDateAlignItems = createMemo(() => (props.isPaneOpen ? '' : 'sm:items-end'))
-  const nameClasses = createMemo(() => (props.isPaneOpen ? 'sm:text-base' : 'sm:text-lg'))
-  const oocNameClass = createMemo(() => (props.msg.ooc ? 'italic' : ''))
 
   return (
     <div
@@ -242,7 +233,7 @@ const SingleMessage: Component<
                     char={
                       ctx.activeMap[props.msg.characterId!] ||
                       ctx.tempMap[props.msg.characterId!] ||
-                      ctx.char
+                      {}
                     }
                     openable
                     zoom={1.75}
@@ -263,33 +254,41 @@ const SingleMessage: Component<
             </span>
             <span class="flex flex-row justify-between pb-1">
               <span
-                class={`flex min-w-0 shrink flex-col overflow-hidden ${nameDateFlexDir()} items-start gap-1 ${nameDateAlignItems()} ${oocNameClass()}`}
+                class={`flex min-w-0 shrink flex-col items-start gap-1 overflow-hidden`}
+                classList={{
+                  'sm:flex-col': props.isPaneOpen,
+                  'sm:gap-1': props.isPaneOpen,
+                  'sm:flex-row': !props.isPaneOpen,
+                  'sm:gap-0': !props.isPaneOpen,
+                  'sm:items-end': !props.isPaneOpen,
+                  italic: props.msg.ooc,
+                }}
               >
                 <b
-                  class={`chat-name text-900 mr-2 max-w-[160px] overflow-hidden  text-ellipsis whitespace-nowrap sm:max-w-[400px] ${nameClasses()}`}
+                  class={`chat-name text-900 mr-2 max-w-[160px] overflow-hidden  text-ellipsis whitespace-nowrap sm:max-w-[400px]`}
                   // Necessary to override text-md and text-lg's line height, for proper alignment
                   style="line-height: 1;"
                   data-bot-name={isBot()}
                   data-user-name={isUser()}
-                  classList={{ hidden: !!props.msg.event }}
+                  classList={{
+                    hidden: !!props.msg.event,
+                    'sm:text-base': props.isPaneOpen,
+                    'sm:text-lg': !props.isPaneOpen,
+                  }}
                 >
                   <Switch>
                     <Match when={props.msg.characterId}>
-                      {ctx.allBots[props.msg.characterId!]?.name || ctx.char?.name!}
+                      {ctx.allBots[props.msg.characterId!]?.name ||
+                        (props.msg.split && props.msg.characterId) ||
+                        ctx.char?.name!}
                     </Match>
                     <Match when={true}>{handleToShow()}</Match>
                   </Switch>
                 </b>
+
                 <span
-                  class={`
-                message-date
-                text-600
-                flex
-                items-center
-                text-xs
-                leading-none
-                ${visibilityClass()}
-              `}
+                  classList={{ invisible: ctx.anonymize }}
+                  class={`message-date text-600 flex items-center text-xs leading-none`}
                   data-bot-time={isBot()}
                   data-user-time={isUser()}
                 >
@@ -366,46 +365,43 @@ const SingleMessage: Component<
             <div ref={avatarRef}>
               <Switch>
                 <Match when={isImage()}>
-                  <img
-                    class={'mt-2 max-h-32 max-w-[unset] cursor-pointer rounded-md'}
-                    src={getAssetUrl(props.msg.msg)}
-                    onClick={() => settingStore.showImage(props.original.msg)}
-                  />
-                </Match>
-                <Match when={props.retrying?._id === props.original._id && props.partial}>
-                  <p
-                    class="rendered-markdown streaming-markdown px-1"
-                    data-bot-message={isBot()}
-                    data-user-message={isUser()}
-                    innerHTML={renderMessage(ctx, props.partial!, isUser(), 'partial')}
-                  />
-                </Match>
-                <Match
-                  when={
-                    props.retrying?._id == props.original._id ||
-                    (props.msg._id === 'partial' && !props.msg.msg.length)
-                  }
-                >
-                  <div class="flex h-8 w-12 items-center justify-center">
-                    <Show
-                      when={props.partial}
-                      fallback={<div class="dot-flashing bg-[var(--hl-700)]"></div>}
+                  <div class="flex flex-wrap gap-2">
+                    <img
+                      class={'mt-2 max-h-32 max-w-[unset] cursor-pointer rounded-md'}
+                      src={getAssetUrl(props.msg.msg)}
+                      onClick={() =>
+                        settingStore.showImage(props.original.msg, [
+                          toImageDeleteButton(props.msg._id, 0),
+                        ])
+                      }
+                    />
+                    <For each={props.original.extras || []}>
+                      {(src, i) => (
+                        <img
+                          class={'mt-2 max-h-32 max-w-[unset] cursor-pointer rounded-md'}
+                          src={getAssetUrl(src)}
+                          onClick={() =>
+                            settingStore.showImage(src, [
+                              toImageDeleteButton(props.msg._id, i() + 1),
+                            ])
+                          }
+                        />
+                      )}
+                    </For>
+                    <div
+                      class="icon-button mx-2 flex items-center"
+                      onClick={() => msgStore.createImage(props.msg._id, true)}
                     >
-                      <p
-                        class="rendered-markdown streaming-markdown px-1"
-                        data-bot-message={isBot()}
-                        data-user-message={isUser()}
-                        innerHTML={renderMessage(ctx, props.partial!, isUser(), 'partial')}
-                      />
-                    </Show>
+                      <PlusCircle size={20} />
+                    </div>
                   </div>
                 </Match>
-                <Match when={!edit() && !isImage()}>
+                <Match when={!edit() && content().type !== 'waiting'}>
                   <p
-                    class="rendered-markdown px-1"
-                    data-bot-message={isBot()}
-                    data-user-message={isUser()}
-                    innerHTML={renderMessage(ctx, msgText(), isUser(), props.original.adapter)}
+                    class={`rendered-markdown px-1 ${content().class}`}
+                    data-bot-message={!props.msg.userId}
+                    data-user-message={!!props.msg.userId}
+                    innerHTML={content().message}
                   />
                   <Show when={!props.partial && props.last && props.lastSplit}>
                     <div class="flex items-center justify-center gap-2">
@@ -423,6 +419,11 @@ const SingleMessage: Component<
                     </div>
                   </Show>
                 </Match>
+                <Match when={!edit() && content().type === 'waiting'}>
+                  <div class="flex h-8 w-12 items-center justify-center">
+                    <div class="dot-flashing bg-[var(--hl-700)]"></div>
+                  </div>
+                </Match>
                 <Match when={edit()}>
                   <div
                     class="msg-edit-text-box"
@@ -430,6 +431,10 @@ const SingleMessage: Component<
                     contentEditable={true}
                     onKeyUp={(ev) => {
                       if (ev.key === 'Escape') cancelEdit()
+                      if (ev.altKey && ev.key === 's') {
+                        ev.preventDefault()
+                        saveEdit()
+                      }
                     }}
                   ></div>
                 </Match>
@@ -447,70 +452,86 @@ export default Message
 
 export type SplitMessage = AppSchema.ChatMessage & { split?: boolean; handle?: string }
 
-function splitMessage(ctx: ContextState, incoming: AppSchema.ChatMessage): SplitMessage[] {
-  const charName =
-    (incoming.characterId ? ctx.allBots[incoming.characterId]?.name : ctx.char?.name) || ''
+function splitMessage(incoming: AppSchema.ChatMessage): SplitMessage[] {
+  return [incoming]
+  // const charName =
+  //   (incoming.characterId ? ctx.allBots[incoming.characterId]?.name : ctx.char?.name) || ''
 
-  const CHARS = [`{{char}}:`]
-  if (charName) CHARS.push(`${charName}:`)
+  // const CHARS = [`{{char}}:`]
+  // if (charName) CHARS.push(`${charName}:`)
 
-  const USERS = [`${ctx.handle}:`, `{{user}}:`]
+  // const USERS = [`${ctx.handle}:`, `{{user}}:`]
 
-  const msg = { ...incoming }
-  if (msg.msg.startsWith(`${charName}:`)) {
-    msg.msg = msg.msg.replace(`${charName}:`, '').trim()
-  } else if (msg.msg.startsWith(`${charName} :`)) {
-    msg.msg = msg.msg.replace(`${charName} :`, '').trim()
-  }
+  // const msg = { ...incoming }
+  // if (msg.msg.startsWith(`${charName}:`)) {
+  //   msg.msg = msg.msg.replace(`${charName}:`, '').trim()
+  // } else if (msg.msg.startsWith(`${charName} :`)) {
+  //   msg.msg = msg.msg.replace(`${charName} :`, '').trim()
+  // }
 
-  const next: AppSchema.ChatMessage[] = []
+  // const next: AppSchema.ChatMessage[] = []
 
-  const splits = msg.msg.split('\n')
+  // const splits = msg.msg.split('\n')
 
-  for (const split of splits) {
-    const trim = split.trim()
-    let newMsg: AppSchema.ChatMessage | undefined
+  // for (const split of splits) {
+  //   const trim = split.trim()
 
-    for (const CHAR of CHARS) {
-      if (newMsg) break
-      if (trim.startsWith(CHAR)) {
-        newMsg = {
-          ...msg,
-          msg: trim.replace(CHAR, ''),
-          characterId: ctx.char?._id,
-          userId: undefined,
-        }
-        break
-      }
-    }
+  //   let newMsg: AppSchema.ChatMessage | undefined
 
-    for (const USER of USERS) {
-      if (newMsg) break
-      if (trim.startsWith(USER)) {
-        newMsg = {
-          ...msg,
-          msg: trim.replace(USER, ''),
-          userId: ctx.profile?.userId || '',
-          characterId: undefined,
-        }
-        break
-      }
-    }
+  //   // for (const CHAR of ctx.activeBots) {
+  //   //   if (trim.startsWith(CHAR.name + ':')) {
+  //   //     newMsg = {
+  //   //       ...msg,
+  //   //       msg: trim.slice(CHAR.name.length + 1).trim(),
+  //   //       characterId: CHAR._id,
+  //   //       state: CHAR._id,
+  //   //     }
+  //   //   }
+  //   // }
 
-    if (!next.length && !newMsg) return [msg]
-    if (!newMsg) {
-      const lastMsg = next.slice(-1)[0]
-      lastMsg.msg += ` ${trim}`
-      continue
-    }
+  //   for (const USER of USERS) {
+  //     if (newMsg) break
+  //     if (trim.startsWith(USER)) {
+  //       newMsg = {
+  //         ...msg,
+  //         msg: trim.replace(USER, ''),
+  //         userId: ctx.profile?.userId || '',
+  //         characterId: ctx.impersonate?._id,
+  //         state: 'user',
+  //       }
+  //       break
+  //     }
+  //   }
 
-    next.push(newMsg)
-    continue
-  }
+  //   if (!newMsg) {
+  //     newMsg = {
+  //       ...msg,
+  //       msg: trim,
+  //       characterId: incoming.characterId,
+  //       userId: incoming.userId,
+  //       state: incoming.characterId,
+  //     }
+  //   }
 
-  if (!next.length || next.length === 1) return [msg]
-  const newSplits = next.map((next) => ({ ...next, split: true }))
-  return newSplits
+  //   if (next.length) {
+  //     const lastMsg = next.slice(-1)[0]
+  //     if (lastMsg.state === newMsg.state) {
+  //       lastMsg.msg += ` ${trim}`
+  //       continue
+  //     }
+  //   }
+
+  //   if (newMsg?.msg.length) {
+  //     const suffix = next.length === 0 ? '' : `-${next.length}`
+  //     newMsg._id = `${newMsg._id}${suffix}`
+  //     next.push(newMsg)
+  //   }
+  //   continue
+  // }
+
+  // if (!next.length || next.length === 1) return [msg]
+  // const newSplits = next.map((next) => ({ ...next, split: true }))
+  // return newSplits
 }
 
 function getAnonName(members: AppSchema.Profile[], id: string) {
@@ -539,13 +560,6 @@ const MessageOptions: Component<{
   show: Signal<boolean>
   onRemove: () => void
 }> = (props) => {
-  // const wrap = (fn: Function) => {
-  //   return () => {
-  //     props.show[1](false)
-  //     fn()
-  //   }
-  // }
-
   return (
     <div class="flex items-center gap-3 text-sm">
       <Show when={props.chatEditing && props.msg.characterId && props.msg.adapter !== 'image'}>
@@ -592,33 +606,6 @@ const MessageOptions: Component<{
           <RefreshCw size={18} />
         </div>
       </Show>
-
-      {/* <div class="icon-button" onClick={() => props.show[1](true)}>
-        <MoreHorizontal />
-      </div>
-
-      <DropMenu show={props.show[0]()} close={() => props.show[1](false)} horz="left">
-        <div class="flex gap-1 p-1 text-sm">
-          <Show when={props.chatEditing && props.msg.characterId && props.msg.adapter !== 'image'}>
-            <Button size="sm" schema="secondary">
-              <GitFork size={18} />
-            </Button>
-
-            <Button
-              size="sm"
-              schema="secondary"
-              onClick={wrap(() => !props.partial && chatStore.showPrompt(props.original))}
-              disabled={!!props.partial}
-            >
-              <Terminal size={18} />
-            </Button>
-          </Show>
-
-          <Button size="sm" schema="secondary" onClick={wrap(props.onRemove)}>
-            <Trash size={18} />
-          </Button>
-        </div>
-      </DropMenu> */}
     </div>
   )
 }
@@ -647,9 +634,10 @@ function renderMessage(ctx: ContextState, text: string, isUser: boolean, adapter
 
 function wrapWithQuoteElement(str: string) {
   return str.replace(
-    // we first match code blocks to ensure we do NOTHING to what's inside them
+    // we first match code blocks AND html tags
+    // to ensure we do NOTHING to what's inside them
     // then we match "regular quotes" and“'pretty quotes” as capture group
-    /```[\s\S]*?```|``[\s\S]*?``|`[\s\S]*?`|(\".+?\")|(\u201C.+?\u201D)/gm,
+    /<[\s\S]*?>|```[\s\S]*?```|``[\s\S]*?``|`[\s\S]*?`|(\".+?\")|(\u201C.+?\u201D)/gm,
     wrapCaptureGroups
   )
 }
@@ -679,8 +667,6 @@ function parseMessage(msg: string, ctx: ContextState, isUser: boolean, adapter?:
   }
 
   const parsed = msg.replace(BOT_REPLACE, ctx.char?.name || '').replace(SELF_REPLACE, ctx.handle)
-
-  if (ctx.trimSentences && !isUser) return trimSentence(parsed)
   return parsed
 }
 
@@ -759,4 +745,65 @@ function canShowMeta(msg: AppSchema.ChatMessage, history: any) {
   if (!msg) return false
   if (msg._id === 'partial') return false
   return !!msg.adapter || !!history || (!!msg.meta && Object.keys(msg.meta).length >= 1)
+}
+
+function toImageDeleteButton(msgId: string, position: number) {
+  return {
+    schema: 'red' as const,
+    text: 'Delete Image',
+    onClick: () => {
+      msgStore.removeMessageImage(msgId, position)
+      settingStore.clearImage()
+    },
+  }
+}
+
+function getMessageContent(
+  ctx: ContextState,
+  props: MessageProps & { original: AppSchema.ChatMessage; lastSplit: boolean },
+  state: ChatState
+) {
+  const isRetry = props.retrying?._id === props.original._id
+  const isPartial = props.msg._id === 'partial'
+
+  if (isRetry || isPartial) {
+    if (props.partial) {
+      return {
+        type: 'partial',
+        message: renderMessage(ctx, props.partial!, false, 'partial'),
+        class: 'streaming-markdown',
+      }
+    }
+
+    if (isPartial && props.msg.msg) {
+      return {
+        type: 'partial',
+        message: renderMessage(ctx, props.msg.msg, false, 'partial'),
+        class: 'streaming-markdown',
+      }
+    }
+
+    return { type: 'waiting', message: '', class: 'not-streaming' }
+  }
+
+  let message = props.msg.msg
+
+  if (props.last && props.swipe) message = props.swipe
+  if (props.msg.event && !props.showHiddenEvents) {
+    message = message.replace(/\(OOC:.+\)/, '')
+  }
+
+  if (ctx.anonymize) {
+    message = state.chatProfiles.reduce(anonymizeText, message).replace(SELF_REPLACE, 'User #1')
+  }
+
+  if (ctx.trimSentences && !props.msg.userId) {
+    message = trimSentence(message)
+  }
+
+  return {
+    type: 'message',
+    message: renderMessage(ctx, message, !!props.msg.userId, props.original.adapter),
+    class: 'not-streaming',
+  }
 }

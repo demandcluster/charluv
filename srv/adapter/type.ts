@@ -23,6 +23,7 @@ export type GenerateRequestV2 = {
   replyAs: AppSchema.Character
   sender: AppSchema.Profile
   members: AppSchema.Profile[]
+
   parts: PromptParts
   lines: string[]
   text?: string
@@ -63,14 +64,29 @@ export type AdapterProps = {
   lastMessage?: string
   requestId: string
 
+  subscription?: {
+    level: number
+    preset?: AppSchema.SubscriptionPreset
+    error?: string
+    warning?: string
+  }
+
   /** GenSettings mapped to an object for the target adapter */
   gen: Partial<AppSchema.GenSettings>
   mappedSettings: any
   guest?: string
   log: AppLog
   isThirdParty?: boolean
+  inserts?: Map<number, string>
 }
 
 export type ModelAdapter = (
   opts: AdapterProps
-) => AsyncGenerator<string | { partial: string } | { error: any } | { meta: any } | { prompt: any }>
+) => AsyncGenerator<
+  | string
+  | { partial: string }
+  | { error: any }
+  | { meta: any }
+  | { prompt: any }
+  | { warning: string }
+>

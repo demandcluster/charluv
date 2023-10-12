@@ -19,7 +19,7 @@ const PromptModal: Component = () => {
     if (!user.user) return '....'
     if (!encoder()) return '.....'
 
-    return encoder()!(state.prompt?.template || '')
+    return encoder()!(state.prompt?.template.parsed || '')
   })
 
   return (
@@ -48,7 +48,7 @@ const PromptModal: Component = () => {
             <div class="font-bold">Est. tokens: {tokens()}</div>
           </div>
         }
-        value={state.prompt?.template}
+        value={state.prompt?.template.parsed}
         isMultiline
         disabled
       />
