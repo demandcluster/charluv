@@ -110,7 +110,7 @@ const HomePage: Component = () => {
           </div>
         </Card>
         <Card border>
-          <div class="text-xl leading-6 text-orange-700">
+          <div class="text-xl leading-6 text-yellow-600">
             "Good news, everyone!" All timeout issues have been resolved!
           </div>
         </Card>
