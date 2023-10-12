@@ -110,10 +110,8 @@ const HomePage: Component = () => {
           </div>
         </Card>
         <Card border>
-          <div class="text-xl leading-6 text-orange-500">
-            We are investigating an issue in which a chat becomes unresponsive. If this happens to
-            you and you an idea what it could be, please report it on our Discord. There is more
-            than enough server/GPU power, so that is not the issue. Keep you posted.
+          <div class="text-xl leading-6 text-orange-700">
+            "Good news, everyone!" All timeout issues have been resolved!
           </div>
         </Card>
         <Show when={!cfg.guest && !user?.loggedIn}>
