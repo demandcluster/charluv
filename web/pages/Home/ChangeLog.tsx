@@ -4,6 +4,9 @@ import { markdown } from '../../shared/markdown'
 import { setComponentPageTitle } from '../../shared/util'
 
 const text = `
+_12 October 2023_
+- Fixed timeout issue on chats
+
 _11 October 2023_
 - New 20B language model
 
