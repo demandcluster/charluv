@@ -26,7 +26,7 @@ export async function generateImage({ chatId, messageId, onDone, ...opts }: Gene
   const entities = await getPromptEntities()
   const prompt = opts.prompt ? opts.prompt : await createSummarizedImagePrompt(entities)
   console.log('entities', entities)
-  const charType = entities.char.tags.includes('anime')
+  const charType = entities.char?.tags?.includes('anime')
     ? '(anime style:0.9) '
     : '(realistic style:0.9) '
 
