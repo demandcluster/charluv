@@ -30,7 +30,7 @@ export const handleHorde: ModelAdapter = async function* ({
     yield { prompt }
 
     const models = getHordeModels()
-    const userModels = []
+    const userModels = toArray(user.hordeModel)
 
     const modelsMatch = models
       .filter((m) => {
