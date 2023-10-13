@@ -11,6 +11,7 @@ const ServiceWarning: Component<{ preset?: Partial<AppSchema.GenSettings> }> = (
 
   const noSub = createMemo(() => {
     if (!props.preset) return false
+    return false
     if (props.preset.service !== 'agnaistic') return false
     const userLevel = user.sub?.level ?? -1
     const sub = cfg.subs.find(
@@ -40,17 +41,7 @@ const ServiceWarning: Component<{ preset?: Partial<AppSchema.GenSettings> }> = (
     return true
   })
 
-  return (
-    <Switch>
-      <Match when={props.preset?.service === 'agnaistic' && noSub()}>
-        <TitleCard type="orange">Your account is ineligible for this tier/model.</TitleCard>
-      </Match>
-
-      <Show when={props.service === 'horde' && !user?.premium && !user?.hordeName}>
-        <TitleCard type="orange">Get premium for skipping AI queue and more features.</TitleCard>
-      </Show>
-    </>
-  )
+  return <></>
 }
 
 export default ServiceWarning

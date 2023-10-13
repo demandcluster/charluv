@@ -61,8 +61,8 @@ const MobileNavHeader = () => {
 
   return (
     <div class="flex min-h-[2rem] justify-between sm:hidden">
-      <div class="w-8"></div>
-      <A href="/">
+      <div class="w-8">
+        <A href="/">
           <img width="30px" class="float-left py-0" alt="Charluv" src={logoIcon} /> Charluv
         </A>
       </div>
@@ -135,7 +135,8 @@ const Navigation: Component = () => {
                 class="px-0 py-2"
                 alt="Charluv"
                 src={user.ui?.mode === 'light' ? logoDark : logo}
-              />{suffix()}
+              />
+              {suffix()}
             </A>
           </div>
 

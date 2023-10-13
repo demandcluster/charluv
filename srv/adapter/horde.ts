@@ -42,13 +42,12 @@ export const handleHorde: ModelAdapter = async function* ({
       })
       .map((m) => m.name)
 
-    user.hordeModel = modelsMatch.length > 0 ? userModels : 'any'
-
     const result = await horde.generateText({ ...user, hordeKey: key }, gen, prompt, opts.log)
     const sanitised = sanitise(result.text)
     const stops = gen.stopSequences || []
     const trimmed = trimResponseV2(sanitised, opts.replyAs, members, characters, [
       'END_OF_DIALOG',
+      '### Instruction:',
       ...stops,
     ])
 

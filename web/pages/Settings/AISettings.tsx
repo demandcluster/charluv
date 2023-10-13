@@ -95,32 +95,33 @@ const AISettings: Component<{
           setPresetId={setPresetId}
         />
         <div class="hidden">
-        <Toggle
-          fieldName="useLocalPipeline"
-          label="Use Local Pipeline"
-          helperText={
-            <>
-              <A class="link" href="/guides/pipeline">
-                Pipeline Guide.
-              </A>
-              &nbsp;If available, use local Agnaistic pipeline features (summarization for images).
-              This is extremely new and experimental. Expect this to change and improve in the near
-              future.
-              <span></span>
-            </>
-          }
-          value={state.user?.useLocalPipeline}
-        />
+          <Toggle
+            fieldName="useLocalPipeline"
+            label="Use Local Pipeline"
+            helperText={
+              <>
+                <A class="link" href="/guides/pipeline">
+                  Pipeline Guide.
+                </A>
+                &nbsp;If available, use local Agnaistic pipeline features (summarization for
+                images). This is extremely new and experimental. Expect this to change and improve
+                in the near future.
+                <span></span>
+              </>
+            }
+            value={state.user?.useLocalPipeline}
+          />
 
-        <div class="my-2">
-          <SolidCard bg="orange-500" class="mb-2">
-            Are you using an external AI service such as OpenAI, NovelAI, or Horde? Provide your API
-            key below.
-          </SolidCard>
-          <Tabs tabs={tabs()} selected={tab} select={setTab} />
+          <div class="my-2">
+            <SolidCard bg="orange-500" class="mb-2">
+              Are you using an external AI service such as OpenAI, NovelAI, or Horde? Provide your
+              API key below.
+            </SolidCard>
+            <Tabs tabs={tabs()} selected={tab} select={setTab} />
+          </div>
         </div>
       </Show>
-        </div>
+
       <div class={currentTab() !== 'hide' ? tabClass : 'hidden'}>
         <HordeAISettings
           onHordeWorkersChange={props.onHordeWorkersChange}

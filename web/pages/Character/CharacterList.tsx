@@ -85,7 +85,6 @@ const CharacterList: Component = () => {
   const [sortDirection, setSortDirection] = createSignal(cached.sort.direction)
   const [search, setSearch] = createSignal('')
   const [showImport, setImport] = createSignal(false)
-  const user = userStore()
   const [importPath, setImportPath] = createSignal<string | undefined>(query.import)
   const importQueue: NewCharacter[] = []
 
@@ -240,7 +239,7 @@ const Characters: Component<{
       .filter((ch) => tags.filter.length === 0 || ch.tags?.some((t) => tags.filter.includes(t)))
       .filter((ch) => !ch.tags || !ch.tags.some((t) => tags.hidden.includes(t)))
       .sort(getSortFunction(props.sortField, props.sortDirection))
-
+    console.log('characters', props.characters)
     const groups = [
       { label: 'Favorites', list: list.filter((c) => c.favorite) },
       { label: '', list: list.filter((c) => !c.favorite) },
@@ -334,36 +333,36 @@ const Characters: Component<{
                   </>
                 )}
               </For>
-            </div>
-          </Show>
+            </Show>
 
-          <Show when={props.type === 'cards'}>
-            <For each={groups()}>
-              {(group) => (
-                <>
-                  <Show when={showGrouping()}>
-                    <h2 class="text-xl font-bold">{group.label}</h2>
-                  </Show>
-                  <div class="grid w-full grid-cols-[repeat(auto-fit,minmax(140px,1fr))] flex-row flex-wrap justify-start gap-2 py-2">
-                    <For each={group.list}>
-                      {(char) => (
-                        <Character
-                          type={props.type}
-                          char={char}
-                          delete={() => setDelete(char)}
-                          download={() => setDownload(char)}
-                          toggleFavorite={(value) => toggleFavorite(char._id, value)}
-                        />
-                      )}
-                    </For>
-                    <Show when={group.list.length < 4}>
-                      <For each={new Array(4 - group.list.length)}>{() => <div></div>}</For>
+            <Show when={props.type === 'cards'}>
+              <For each={groups()}>
+                {(group) => (
+                  <>
+                    <Show when={showGrouping()}>
+                      <h2 class="text-xl font-bold">{group.label}</h2>
                     </Show>
-                  </div>
-                  <Divider />
-                </>
-              )}
-            </For>
+                    <div class="grid w-full grid-cols-[repeat(auto-fit,minmax(140px,1fr))] flex-row flex-wrap justify-start gap-2 py-2">
+                      <For each={group.list}>
+                        {(char) => (
+                          <Character
+                            type={props.type}
+                            char={char}
+                            delete={() => setDelete(char)}
+                            download={() => setDownload(char)}
+                            toggleFavorite={(value) => toggleFavorite(char._id, value)}
+                          />
+                        )}
+                      </For>
+                      <Show when={group.list.length < 4}>
+                        <For each={new Array(4 - group.list.length)}>{() => <div></div>}</For>
+                      </Show>
+                    </div>
+                    <Divider />
+                  </>
+                )}
+              </For>
+            </Show>
           </Show>
         </Match>
       </Switch>

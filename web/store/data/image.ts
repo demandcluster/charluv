@@ -36,13 +36,11 @@ export async function generateImage({ chatId, messageId, onDone, ...opts }: Gene
 
   const max = getMaxImageContext(entities.user)
   const trimmed = await encode(prompt)
-    .then((tokens) =>
-      tokens.slice(0, max - (entities.char?.persona?.attributes?.appearance.length + 44 || 0))
-    )
+    .then((tokens) => tokens.slice(0, max - 15))
     .then(decode)
   const looks = ', Looks: ' + entities.char?.persona?.attributes?.appearance.join() || ''
 
-  const newPrompt = charType + looks + ', ' + trimmed + ' ' + charType
+  const newPrompt = charType + trimmed + ' ' + charType
 
   if (!isLoggedIn()) {
     return { error: "Sorry, members only.. don't worry it is free!" }

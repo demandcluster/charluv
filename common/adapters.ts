@@ -218,7 +218,6 @@ export const INSTRUCT_SERVICES: { [key in AIAdapter]?: boolean } = {
   openrouter: true,
   claude: true,
   scale: true,
-  horde: true,
   novel: true,
   agnaistic: true,
   mancer: true,

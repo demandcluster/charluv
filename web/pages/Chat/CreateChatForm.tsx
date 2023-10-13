@@ -132,7 +132,7 @@ const CreateChatForm: Component<{
       scenario: 'string',
       sampleChat: 'string',
       schema: ['wpp', 'boostyle', 'sbf', 'text'],
-      mode: ['standard', 'adventure', 'companion', null],
+      mode: ['standard', 'companion', null],
     } as const)
 
     const attributes = getAttributeMap(ref)
@@ -213,7 +213,7 @@ const CreateChatForm: Component<{
               />
             </Card>
           </Show>
-          <Card>
+          <Card class="hidden">
             <PresetSelect
               options={presetOptions()}
               selected={presetId()}
@@ -229,10 +229,6 @@ const CreateChatForm: Component<{
               helperText={
                 <div class="flex flex-col gap-2">
                   <TitleCard>
-                    <b>ADVENTURE:</b> Works best with instruct models (OpenAI, Claude, Scale). This
-                    may not work as intended with other models.
-                  </TitleCard>
-                  <TitleCard>
                     <b>COMPANION:</b> Everything is permanent. You will not be able to: Edit Chat,
                     Retry Message, Delete Messages, etc.
                   </TitleCard>
@@ -242,7 +238,6 @@ const CreateChatForm: Component<{
                 { label: 'Conversation', value: 'standard' },
 
                 { label: 'Companion', value: 'companion' },
-                { label: 'Adventure', value: 'adventure' },
               ]}
               value={'standard'}
             />
@@ -263,14 +258,15 @@ const CreateChatForm: Component<{
           </Card>
 
           <Card>
-            <Show class="font-semibold" when={!user?.premium}>
+            <Show class="font-semibol" when={!user?.premium}>
               Premium members can override any character.
             </Show>
+            <Divider />
             <Toggle
               fieldName="useOverrides"
               value={useOverrides()}
               onChange={(use) => setUseOverrides(use)}
-              disabled={!user?.premium && (char()?.parent || char()?.name === 'Aiva')}
+              disabled={!user?.premium && (state.char?.parent || state.char?.name === 'Aiva')}
               label="Override Character Definitions"
               helperText="Overrides will only apply to the newly created conversation."
             />
@@ -278,7 +274,7 @@ const CreateChatForm: Component<{
 
           <Divider />
 
-          <Show when={!char()?.parent && char()?.name !== 'Aiva'}>
+          <Show when={!state.char?.parent && state.char?.name !== 'Aiva'}>
             <Select
               fieldName="scenarioId"
               label="Scenario"
@@ -288,9 +284,9 @@ const CreateChatForm: Component<{
               disabled={scenarios.length === 0}
             />
           </Show>
-          <Show when={char()?.scenarioIds}>
+          <Show when={state.char?.scenarioIds}>
             <Card class="text-md text-yellow-100">
-              {char()?.name} comes with a built-in progressive multi-step Charluv scenario!
+              {state.char?.name} comes with a built-in progressive multi-step Charluv scenario!
             </Card>
           </Show>
           <Card>

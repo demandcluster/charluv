@@ -50,6 +50,7 @@ let logger: AppLog
 
 if (typeof window !== 'undefined') {
   fetcher = async (opts) => {
+    console.log(opts)
     const res = await fetch(opts.url, {
       headers: { 'Content-Type': 'application/json', apikey: opts.key || HORDE_GUEST_KEY },
       body: opts.payload ? JSON.stringify(opts.payload) : undefined,

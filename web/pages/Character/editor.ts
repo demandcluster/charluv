@@ -362,7 +362,7 @@ function getPayload(ev: any, state: EditState, original?: NewCharacter) {
     // charluv fields
     match: state.match?.toString() === 'true' || false,
     premium: state.premium?.toString() === 'true' || false,
-    xp: state.xp ? parseInt(body.xp) : 0,
+    xp: 0,
     share: state.share ?? 'private',
 
     // New fields start here

@@ -51,6 +51,7 @@ export type NewCharacter = UpdateCharacter &
     | 'match'
     | 'premium'
     | 'xp'
+    | 'parent'
     | 'shared'
     | 'insert'
   > & {

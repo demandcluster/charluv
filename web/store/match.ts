@@ -80,7 +80,6 @@ export const matchStore = createStore<Matchesstate>('Match', {
       const res = await api.post(`/match/${char._id}`)
 
       toastStore.success(`Successfully created Match`)
-      console.log('this is res', res)
 
       if (res.error) toastStore.error(`Failed to create Match: ${res.error}`)
       if (res.result) {

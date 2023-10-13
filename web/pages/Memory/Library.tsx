@@ -15,7 +15,7 @@ const Library: Component = () => {
   const cfg = settingStore()
 
   const allowed = createMemo(() => {
-    const base = ['Memories', 'Scenarios', 'Prompt Templates']
+    const base = ['Memories', 'Scenarios']
     if (cfg.pipelineOnline) {
       base.push('Embeddings')
     }

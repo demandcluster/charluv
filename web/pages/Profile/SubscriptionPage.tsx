@@ -61,7 +61,7 @@ export const SubscriptionPage: Component = (props) => {
             <p class="flex justify-center text-[var(--hl-500)]">
               <strong>Why subscribe?</strong>
             </p>
-            <p>Subscribing to Agnaistic grants you access to higher quality models.</p>
+            <p>Subscribing to Charluv grants you access to higher quality models.</p>
             <p>
               In the future you'll also have access to additional features! Such as: Image
               generation, image storage, and with third-party apps like Discord, Slack, and

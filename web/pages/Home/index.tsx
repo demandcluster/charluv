@@ -5,9 +5,9 @@ import logo from '../../asset/logo.png'
 import discordLogo from '../../asset/discord-logo-blue.svg'
 import PageHeader from '../../shared/PageHeader'
 import { adaptersToOptions, getAssetUrl, setComponentPageTitle } from '../../shared/util'
-import { announceStore, chatStore, settingStore } from '../../store'
+import { announceStore, userStore, chatStore, settingStore } from '../../store'
 import { A, useNavigate } from '@solidjs/router'
-import { AlertTriangle, MoveRight, Plus, Settings } from 'lucide-solid'
+import { AlertTriangle, MoveRight, Plus, Settings, Heart, Users } from 'lucide-solid'
 import { Card, Pill, SolidCard, TitleCard } from '/web/shared/Card'
 import Modal from '/web/shared/Modal'
 import AvatarIcon from '/web/shared/AvatarIcon'
@@ -15,6 +15,7 @@ import { elapsedSince } from '/common/util'
 import { AppSchema } from '/common/types'
 import { markdown } from '/web/shared/markdown'
 import WizardIcon from '/web/icons/WizardIcon'
+import Button from '/web/shared/Button'
 
 const enum Sub {
   None,
@@ -118,27 +119,8 @@ const HomePage: Component = () => {
             you invite them to your chat.
           </div>
         </Card>
-        <Card border>
-          <div class="text-xl leading-6 text-yellow-600">
-            "Good news, everyone!" All timeout issues have been resolved!
-          </div>
-        </Card>
-        <Show when={!cfg.guest && !user?.loggedIn}>
-          <Card class="flex">
-            <div class="flex text-orange-500">
-              <AlertTriangle class="mb-2 mr-2" />
-              We have become too busy to allow guest access. No worries it is FREE and no details
-              are needed, use code AIVOFOUNDER
-            </div>
-            <div class="flex">
-              <A href="/register">
-                <Button>REGISTER</Button>
-              </A>
-            </div>
-          </Card>
-        </Show>
 
-        <RecentChats />
+        <RecentChats user={user} />
 
         <Show when={announce.list.length > 0}>
           <Announcements list={announce.list} />
@@ -150,16 +132,13 @@ const HomePage: Component = () => {
               <A href="/guides/memory">
                 <Pill>Memory Book</Pill>
               </A>
-              <A href="/help">
-                <Pill>Help Chatbot</Pill>
-              </A>
             </div>
           </TitleCard>
 
           <TitleCard type="bg" title="Links" center>
             <div class="flex flex-wrap justify-center gap-2">
               <a href="/discord" target="_blank">
-                <Pill inverse>Agnaistic Discord</Pill>
+                <Pill inverse>Charluv Discord</Pill>
               </a>
 
               <A class="link" href="/changelog">
@@ -262,6 +241,7 @@ const HomePage: Component = () => {
 export default HomePage
 
 const RecentChats: Component = (props) => {
+  const user = props.user
   const nav = useNavigate()
   const state = chatStore((s) => ({
     chars: s.allChars.list,
@@ -277,7 +257,7 @@ const RecentChats: Component = (props) => {
       <div class="text-lg font-bold">Recent Conversations</div>
       <div
         class="grid w-full grid-cols-2 gap-2 sm:grid-cols-4"
-        classList={{ hidden: state.last.length === 0 }}
+        classList={{ hidden: state.last.length === 0 || !user?.loggedIn }}
       >
         <For each={state.last}>
           {({ chat, char }) => (
@@ -354,26 +334,34 @@ const RecentChats: Component = (props) => {
             </>
           )}
         </For>
-        <Show when={state.last.length < 4}>
-          <BorderCard href="/chats/create">
-            <div>Start Conversation</div>
+
+        <Show when={!user?.loggedIn}>
+          <BorderCard href="/register">
+            <div>Register to Start Chatting</div>
             <Plus size={20} />
           </BorderCard>
         </Show>
 
-        <Show when={state.last.length < 3}>
-          <BorderCard href="/editor">
-            <div>Create a Character</div>
-            <WizardIcon size={20} />
+        <Show when={state.last.length < 4 && user.loggedIn}>
+          <BorderCard href="/likes/list">
+            <div>Like to Get Macthes</div>
+            <Users size={20} />
           </BorderCard>
         </Show>
 
-        <Show when={state.last.length < 2}>
-          <BorderCard href="/settings">
+        <Show when={state.last.length < 3 && user.loggedIn}>
+          <BorderCard href="/chats/create">
+            <div>Start a Conversation</div>
+            <Plus size={20} />
+          </BorderCard>
+        </Show>
+
+        <Show when={state.last.length < 2 && user.loggedIn}>
+          <BorderCard href="/editor">
             <div class="flex w-full items-center justify-center text-center">
-              Configure your AI Services
+              Create a Character
             </div>
-            <Settings size={20} />
+            <Heart size={20} />
           </BorderCard>
         </Show>
       </div>

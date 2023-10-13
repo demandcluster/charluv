@@ -154,6 +154,9 @@ export async function getCharacters(userId: string) {
       createdAt: 1,
       updatedAt: 1,
       voice: 1,
+      xp: 1,
+      match: 1,
+      parent: 1,
     })
     .toArray()
 
@@ -179,6 +182,9 @@ export async function getCharacterList(charIds: string[], userId?: string) {
     createdAt: 1,
     updatedAt: 1,
     voice: 1,
+    parent: 1,
+    xp: 1,
+    match: 1,
   }
   if (userId) {
     const list = await db('character')

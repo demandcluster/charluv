@@ -21,7 +21,7 @@ const ProfileCard: Component<{ character: AppSchema.Character; href: string }> =
   <>
     <Show when={props.character}>
       <div class="m-auto flex flex-col flex-wrap xl:flex-row xl:flex-nowrap">
-        <div class=" mr-auto  ml-auto w-full max-w-3xl px-4 md:w-3/4">
+        <div class=" ml-auto  mr-auto w-full max-w-3xl px-4 md:w-3/4">
           <div class="text-900 relative mb-6 flex w-full min-w-0 flex-col break-words rounded-lg  border-[var(--hl-900)] bg-[var(--bg-800)] shadow-lg ">
             <ChevronsLeft
               class="absolute h-20 w-20 text-white  hover:cursor-pointer"
@@ -39,9 +39,9 @@ const ProfileCard: Component<{ character: AppSchema.Character; href: string }> =
                 : ''}
             </div>
             <blockquote class="relative mb-4 p-8">
-              <p class="text-md mt-2 mb-4 font-light">{props.character?.summary}</p>
+              <p class="text-md mb-4 mt-2 font-light">{props.character?.summary}</p>
 
-              <hr class=" mt-8 ml-32 w-[calc(100%-8rem)] opacity-40" />
+              <hr class=" ml-32 mt-8 w-[calc(100%-8rem)] opacity-40" />
               <div class=" relative -top-4 -ml-3  mr-3 inline-block text-shadow  ">
                 <Leaf class="text mr-1 inline w-10 text-[var(--hl-200)]" />
                 Sexuality
@@ -64,7 +64,7 @@ const ProfileCard: Component<{ character: AppSchema.Character; href: string }> =
               </div>
 
               <Show when={props.character.persona?.attributes?.appearance}>
-                <hr class=" mt-8 ml-24 w-[calc(100%-6rem)] opacity-40" />
+                <hr class=" ml-24 mt-8 w-[calc(100%-6rem)] opacity-40" />
                 <div class=" relative -top-4 -ml-3  mr-3 inline-block text-shadow ">
                   <Dumbbell class="mr-1 inline w-10 text-[var(--hl-200)]" />
                   Appearance
@@ -81,7 +81,7 @@ const ProfileCard: Component<{ character: AppSchema.Character; href: string }> =
               </Show>
 
               <Show when={props.character.persona?.attributes?.likes}>
-                <hr class=" mt-8 ml-24 w-[calc(100%-5rem)] opacity-40" />
+                <hr class=" ml-24 mt-8 w-[calc(100%-5rem)] opacity-40" />
                 <div class=" relative -top-4 -ml-3  mr-3 inline-block text-shadow">
                   <Heart class="mr-1 inline w-10 text-[var(--hl-200)]" />
                   Likes:
@@ -98,7 +98,7 @@ const ProfileCard: Component<{ character: AppSchema.Character; href: string }> =
               </Show>
 
               <Show when={props.character.persona?.attributes?.job}>
-                <hr class=" mt-8 ml-24 w-[calc(100%-5rem)] opacity-40" />
+                <hr class=" ml-24 mt-8 w-[calc(100%-5rem)] opacity-40" />
                 <div class=" relative -top-4 -ml-3  mr-3 inline-block text-shadow">
                   <Briefcase class="mr-1 inline w-10 text-[var(--hl-200)]" />
                   Job
@@ -111,7 +111,7 @@ const ProfileCard: Component<{ character: AppSchema.Character; href: string }> =
               </Show>
 
               <Show when={props.character.persona?.attributes?.zodiac}>
-                <hr class=" mt-8 ml-24 w-[calc(100%-5rem)] opacity-40" />
+                <hr class=" ml-24 mt-8 w-[calc(100%-5rem)] opacity-40" />
                 <div class=" relative -top-4 -ml-3  mr-3 inline-block text-shadow">
                   <Moon class="mr-1 inline w-10 text-[var(--hl-200)]" />
                   Zodiac
@@ -124,7 +124,7 @@ const ProfileCard: Component<{ character: AppSchema.Character; href: string }> =
               </Show>
 
               <Show when={props.character.persona?.attributes?.country}>
-                <hr class=" mt-8 ml-24 w-[calc(100%-5rem)] opacity-40" />
+                <hr class=" ml-24 mt-8 w-[calc(100%-5rem)] opacity-40" />
                 <div class=" relative -top-4 -ml-3  mr-3 inline-block text-shadow">
                   <Globe2 class="mr-1 inline w-10 text-[var(--hl-200)]" />
                   Country
