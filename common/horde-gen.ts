@@ -143,9 +143,9 @@ export async function generateText(
   //body.models.push(...models)
   //  }
 
-  if (user.hordeWorkers?.length) {
-    body.workers = user.hordeWorkers
-  }
+  // if (user.hordeWorkers?.length) {
+  //   body.workers = user.hordeWorkers
+  // }
 
   const params: any = {
     n: 1,
