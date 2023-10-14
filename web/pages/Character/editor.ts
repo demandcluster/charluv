@@ -328,7 +328,7 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
     createAvatar,
     avatar: imageData,
     generating,
-    canGuidance: genOptions().length > 0,
+    canGuidance: false, //genOptions().length > 0,
     generateCharacter,
     generateAvatar,
     prepare: setForm,
