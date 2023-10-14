@@ -379,7 +379,7 @@ export const CreateCharacterForm: Component<{
                       parentClass="w-full"
                       value={editor.state.description}
                     />
-                    <Show when={editor.canGuidance}>
+                    <Show when={editor.canGuidance && 1 === 0}>
                       <TitleCard class="text-sm" type="hl">
                         <div class="font-bold">AI Generated Characters</div>
                         1. Fill out the <Pill small>Description</Pill> field
