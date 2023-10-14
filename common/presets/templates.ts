@@ -1,6 +1,35 @@
 import { neat } from '../util'
 
 export const templates = {
+  Charluv: neat`
+  {{system_prompt}}
+
+  Below is an instruction that describes a task. Write a response that appropriately completes the request.
+  
+  Write {{char}}'s next reply in a fictional roleplay chat between {{#each bot}}{{.name}}, {{/each}}{{char}}.
+  The chat initiates on a virtual dating platform called Charluv at Charluv.com. Act as a dating simulator.  
+  The relationship progresses and is based on a LEVEL.
+
+  LEVEL(NOVICE) First chat, no relationship, no sex.
+  LEVEL(SEX) {{char}} is horny and wants sex
+  There are many other levels, they are described in the scenarios of the conversation. 
+  
+  {{char}}'s Persona: {{personality}}
+
+  {{#if memory}}{{char}}'s Memory: {{memory}}
+  {{/if}}
+  {{#if scenario}}The scenario of the conversation: {{scenario}}
+  {{/if}}
+  {{#if example_dialogue}}This is how {{char}} should talk: {{example_dialogue}}
+  {{/if}}
+  Then the roleplay chat between {{#each bot}}{{.name}}, {{/each}}{{char}} begins.
+  
+  {{#each msg}}{{#if .isbot}}### Response:\n{{.name}}: {{.msg}}{{/if}}{{#if .isuser}}### Instruction:\n{{.name}}: {{.msg}}{{/if}}
+  {{/each}}
+  {{ujb}}
+  ### Response:
+  {{post}}
+  `,
   Alpaca: neat`
   {{system_prompt}}
 

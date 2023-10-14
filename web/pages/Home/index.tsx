@@ -63,7 +63,7 @@ If you don't like a reply, you can just reroll it and get another reply. You can
 Our app is based on [AgnAIstic](https://github.com/luminai-companion/agn-ai).
 The source code for our version can be found [here](https://github.com/demandcluster/charluv)
 
-We run our [own AI Horde](https://github.com/demandcluster/aivohorde) on a massive 20B model [ReMM](https://huggingface.co/TheBloke/MLewd-ReMM-L2-Chat-20B-GGUF)!
+We run our [own AI Horde](https://github.com/demandcluster/aivohorde) on a massive 13B model.
 
 The software we use for the Horde is made possible by [db0](https://dbzer0.com/).
 

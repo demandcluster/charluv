@@ -54,11 +54,11 @@ export async function generateImage(
     height: 512,
     width: 512,
     steps: 28,
-    summariseChat: false,
+    summariseChat: true,
     summaryPrompt: '',
     horde: {
       sampler: 'k_dpmpp_2m',
-      model: 'Deliberate 3.0',
+      model: '',
     },
     novel: {
       model: 'nai-diffusion',

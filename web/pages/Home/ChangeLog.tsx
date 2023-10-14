@@ -4,6 +4,10 @@ import { markdown } from '../../shared/markdown'
 import { setComponentPageTitle } from '../../shared/util'
 
 const text = `
+_14 October 2023_
+- Updated image generation to include summarise to give better results
+- Changed model to originally intended trained Mythalion 13B model
+
 _12 October 2023_
 - Fixed timeout issue on chats
 - "Enter" no longer sends message on mobile
