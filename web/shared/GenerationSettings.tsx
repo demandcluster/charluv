@@ -414,7 +414,7 @@ const GeneralSettings: Component<
             </>
           }
           min={16}
-          max={props.service === 'claude' ? 100000 : 2048}
+          max={props.service === 'claude' ? 100000 : 3072}
           step={1}
           value={props.inherit?.maxContextLength || defaultPresets.basic.maxContextLength}
           disabled={props.disabled}

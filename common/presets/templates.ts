@@ -4,6 +4,8 @@ export const templates = {
   Charluv: neat`
   {{system_prompt}}
 
+  ### Instruction: 
+  
   Below is an instruction that describes a task. Write a response that appropriately completes the request.
   
   Write {{char}}'s next reply in a fictional roleplay chat between {{#each bot}}{{.name}}, {{/each}}{{char}}.

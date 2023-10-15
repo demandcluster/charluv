@@ -274,14 +274,14 @@ const CreateChatForm: Component<{
 
           <Divider />
 
-          <Show when={!state.char?.parent && state.char?.name !== 'Aiva'}>
+          <Show when={!state.char?.name !== 'Aiva'}>
             <Select
               fieldName="scenarioId"
               label="Scenario"
               helperText="The scenario to use for this conversation"
               items={currScenarios()}
               onChange={(option) => setScenarioById(option.value)}
-              disabled={scenarios.length === 0}
+              disabled={scenarios.length === 0 || state.char?.scenarioIds}
             />
           </Show>
           <Show when={state.char?.scenarioIds}>
