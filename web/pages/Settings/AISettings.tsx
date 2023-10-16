@@ -122,7 +122,7 @@ const AISettings: Component<{
         </div>
       </Show>
 
-      <div class={currentTab() !== 'hide' ? tabClass : 'hidden'}>
+      <div class={currentTab() !== 'hide' ? 'hidden' : 'hidden'}>
         <HordeAISettings
           onHordeWorkersChange={props.onHordeWorkersChange}
           onHordeModelsChange={props.onHordeModelsChange}
