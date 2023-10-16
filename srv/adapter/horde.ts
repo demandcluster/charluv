@@ -20,7 +20,7 @@ export const handleHorde: ModelAdapter = async function* ({
   ...opts
 }) {
   try {
-    let key = user.hordeKey ? (guest ? user.hordeKey : decryptText(user.hordeKey)) : HORDE_GUEST_KEY
+    let key = HORDE_GUEST_KEY
 
     if (user.premium) {
       key = hordeKeyPremium
@@ -30,7 +30,7 @@ export const handleHorde: ModelAdapter = async function* ({
     yield { prompt }
 
     const models = getHordeModels()
-    const userModels = toArray(user.hordeModel)
+    const userModels = toArray('')
 
     const modelsMatch = models
       .filter((m) => {
