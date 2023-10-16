@@ -38,7 +38,6 @@ export async function generateImage({ chatId, messageId, onDone, ...opts }: Gene
   const trimmed = await encode(prompt)
     .then((tokens) => tokens.slice(0, max - 15))
     .then(decode)
-  const looks = ', Looks: ' + entities.char?.persona?.attributes?.appearance.join() || ''
 
   const newPrompt = charType + trimmed + ' ' + charType
 
