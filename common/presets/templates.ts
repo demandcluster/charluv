@@ -24,6 +24,8 @@ export const templates = {
   {{/if}}
   {{#if example_dialogue}}This is how {{char}} should talk: {{example_dialogue}}
   {{/if}}
+  {{#if memory}}Facts:{{memory}}
+  
   Then the roleplay chat between {{#each bot}}{{.name}}, {{/each}}{{char}} begins.
   
   {{#each msg}}{{#if .isbot}}### Response:\n{{.name}}: {{.msg}}{{/if}}{{#if .isuser}}### Instruction:\n{{.name}}: {{.msg}}{{/if}}
