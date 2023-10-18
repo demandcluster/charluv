@@ -50,10 +50,10 @@ export async function generateImage(
 
   user.images = {
     type: 'horde',
-    cfg: 9,
+    cfg: 7,
     height: 512,
     width: 512,
-    steps: 28,
+    steps: 20,
     summariseChat: true,
     summaryPrompt: '',
     horde: {
