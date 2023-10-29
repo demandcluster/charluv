@@ -93,8 +93,8 @@ const MatchList: Component = () => {
   const tags = tagStore((s) => ({ filter: s.filter, hidden: s.hidden }))
   const [showGrouping, setShowGrouping] = createSignal(false)
   const cached = getListCache()
-  
-  const [view, setView] = createSignal(cached.view) //createSignal(cached.view)
+
+  const [view, setView] = createSignal('likes') // createSignal(cached.view) //createSignal(cached.view)
   const [sortField, setSortField] = createSignal(cached.sort.field)
   const [sortDirection, setSortDirection] = createSignal(cached.sort.direction)
   const [search, setSearch] = createSignal('')
@@ -318,6 +318,7 @@ const MatchList: Component = () => {
           <Button
             class=" float-right -mt-16"
             schema="secondary"
+            disabled
             onClick={() => {
               setView(getNextView())
               endAllSwipes()
