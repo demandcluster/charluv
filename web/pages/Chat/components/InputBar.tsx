@@ -1,4 +1,12 @@
-import { ImagePlus, Megaphone, MoreHorizontal, PlusCircle, Send, Zap } from 'lucide-solid'
+import {
+  ImagePlus,
+  Megaphone,
+  ClipboardList,
+  MoreHorizontal,
+  PlusCircle,
+  Send,
+  Zap,
+} from 'lucide-solid'
 import {
   Component,
   createMemo,
@@ -127,6 +135,13 @@ const InputBar: Component<{
       setCleared(0)
       draft.clear()
     })
+  }
+
+  const createSummary = () => {
+    ref.value = ''
+    msgStore.createSummary()
+    toastStore.normal('Summarizing...')
+    setMenu(false)
   }
 
   const createImage = () => {
@@ -302,6 +317,9 @@ const InputBar: Component<{
             </Button>
             <Button schema="secondary" class="w-full" onClick={more} alignLeft>
               <PlusCircle size={18} /> Generate More
+            </Button>
+            <Button schema="secondary" class="w-full" onClick={createSummary} alignLeft>
+              <ClipboardList size={18} /> Summarize Chat
             </Button>
             <Show when={!!props.char?.voice}>
               <Button schema="secondary" class="w-full" onClick={playVoice} alignLeft>

@@ -449,6 +449,22 @@ export const msgStore = createStore<MsgState>(
         toastStore.error(`Failed to request text to speech: ${res.error}`)
       }
     },
+
+    async *createSummary(
+      { msgs, activeChatId, activeCharId, waiting },
+      messageId?: string,
+      append?: boolean
+    ) {
+      if (waiting) return
+
+      yield { waiting: { chatId: activeChatId, mode: 'send', characterId: activeCharId } }
+
+      const res = await msgsApi.getChatSummary()
+      if (res?.error) {
+        toastStore.error(`Failed to request summary: ${res.error}`)
+      }
+      msgStore.setState({ partial: undefined, waiting: undefined })
+    },
     async *createImage(
       { msgs, activeChatId, activeCharId, waiting },
       messageId?: string,
@@ -488,6 +504,10 @@ function processQueue() {
   msgStore.setState({ queue: remaining })
 
   msgStore.send(first.chatId, first.message, first.mode, () => processQueue())
+}
+
+async function handleSummary() {
+  msgStore.setState({ waiting: undefined })
 }
 
 /**

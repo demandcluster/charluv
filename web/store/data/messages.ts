@@ -21,6 +21,7 @@ import { settingStore } from '../settings'
 import { TemplateOpts, parseTemplate } from '/common/template-parser'
 import { replace } from '/common/util'
 import { toMap } from '/web/shared/util'
+import { neat } from '/common/util'
 import { getServiceTempConfig, getUserPreset } from '/web/shared/adapter'
 
 export type PromptEntities = {
@@ -53,6 +54,7 @@ export const msgsApi = {
   rerunGuidance,
   generateActions,
   getActiveTemplateParts,
+  getChatSummary,
 }
 
 type InferenceOpts = {
@@ -562,6 +564,8 @@ async function getGenerateProps(
     }
 
     case 'summary': {
+      props.replyAs = getBot(entities.char._id)
+      props.messages.push(emptyMsg(entities.chat, { msg: opts.text, userId: entities.user._id }))
       break
     }
 
@@ -570,7 +574,6 @@ async function getGenerateProps(
     }
   }
 
-  console.log('props', props, 'opts', opts)
   if (!props.replyAs) throw new Error(`Could not find character to reply as`)
 
   // Remove avatar from generate requests
@@ -583,7 +586,10 @@ async function getGenerateProps(
 /**
  * Create a user message that does not generate a bot response
  */
-async function createMessage(chatId: string, opts: { kind: 'ooc' | 'send-noreply'; text: string }) {
+async function createMessage(
+  chatId: string,
+  opts: { kind: 'ooc' | 'summary' | 'send-noreply'; text: string }
+) {
   const { impersonating } = getStore('character').getState()
   const impersonate = opts.kind === 'send-noreply' ? impersonating : undefined
   return api.post<{ requestId: string }>(`/chat/${chatId}/send`, {
@@ -789,5 +795,90 @@ function messageToLine(opts: {
       opts.sender.handle ||
       'You'
     return `${entity}: ${msg.msg}`
+  }
+}
+
+async function getChatSummary() {
+  const opts = await msgsApi.getActiveTemplateParts()
+  opts.limit = {
+    context: 3072,
+    encoder: await getEncoder(),
+  }
+  // check for previous summary
+  let resultCheck = opts.lines.join('\n')
+  const checkWord = 'Summary of Facts:'
+  const lastSummary = resultCheck.lastIndexOf(checkWord)
+  console.log('length of result', resultCheck.length)
+  if (lastSummary !== -1 && lastSummary > 4) {
+    resultCheck = resultCheck.substring(lastSummary - 4)
+    console.log('new length of result', resultCheck.length)
+  }
+  opts.lines = opts.lines.reverse()
+
+  const tokenCount = opts.limit.encoder(resultCheck)
+
+  if (tokenCount < 1500) {
+    const needCount = 1500 - tokenCount
+    return { error: `Need at least ${needCount} more tokens to generate a summary.` }
+  }
+
+  const { active, chatProfiles: members } = getStore('chat').getState()
+  if (!active) return
+
+  const { profile, user } = getStore('user').getState()
+  if (!profile || !user) return
+
+  const chat = active.chat
+
+  const settings = getAuthGenSettings(chat, user)!
+
+  const template = getChatSummaryTemplate('horde')
+  if (!template) throw new Error(`No chat summary template available for horde`)
+
+  const prompt = parseTemplate(template, opts).parsed
+  settings.temp = 0
+  settings.maxTokens = 180
+  settings.maxContextLength = 3072
+  const values = await msgsApi.guidance<{ summary: string }>({
+    prompt,
+    settings,
+    service: 'horde',
+    maxTokens: 180,
+  })
+
+  const result = await createMessage(chat._id, {
+    kind: 'summary',
+    text: `(OOC Summary of Facts: ${values.summary})`,
+  })
+  if (result!.result!.error) {
+    throw new Error(result!.error)
+  }
+
+  return result.result!.values
+}
+
+function getChatSummaryTemplate(service: AIAdapter) {
+  switch (service) {
+    case 'horde':
+      return neat`Below is an instruction that describes a task. Write a response that completes the request.
+
+      {{char}}'s Persona: {{personality}}  (not to be included in summaries)
+
+      The scenario of the conversation: {{scenario}}
+
+      Then the roleplay chat between {{#each bot}}{{.name}}, {{/each}}{{char}} begins.
+  
+      {{#each msg}}{{#if .isbot}}### Response:\n{{.name}}: {{.msg}}{{/if}}{{#if .isuser}}### Instruction:\n{{.name}}: {{.msg}}{{/if}}
+      {{/each}}
+
+      ### Instruction:
+      Act as a database of facts for {{char}}. Find the facts in the roleplay chat above and summarize them into keywords.
+      DO NOT include facts from {{char}}'s Persona above. Agreed upon words and names should always be included.
+      Be like a database, short and keyword based. Make sure to include relationship LEVEL/status and any facts needed for coherence.
+      You be making a short list for continuity and coherence. Summarize as short as possible, important facts only.
+
+      ### Response:
+      Summary of Facts: [summary | tokens=180]
+      `
   }
 }

@@ -4,9 +4,11 @@ import { markdown } from '../../shared/markdown'
 import { setComponentPageTitle } from '../../shared/util'
 
 const text = `
+_1 November 2023_
+- Added Summarize Chat feature which you can use every 1500 tokens, for hopefully a better history
+
 _14 October 2023_
 - Updated image generation to include summarise to give better results
-- Changed model to originally intended trained Mythalion 13B model
 
 _12 October 2023_
 - Fixed timeout issue on chats

@@ -463,7 +463,7 @@
   "display": "fullscreen",
   "description": "Charluv is a virtual dating app in which you date an AI.",
   "lang": "en",
-  "orientation": "any",
+  "orientation": "portrait",
   "display_override": [
     "standalone",
     "window-controls-overlay"

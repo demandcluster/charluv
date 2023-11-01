@@ -1,6 +1,6 @@
-import { assertValid } from '/common/valid'
+import { assertValid } from '../../../common/valid'
 import { AppSocket } from './types'
-import { verifyJwt } from '/srv/db/user'
+import { verifyJwt } from '../../db/user'
 
 const allSockets = new Map<string, AppSocket>()
 const userSockets = new Map<string, AppSocket[]>()

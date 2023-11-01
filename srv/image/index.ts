@@ -125,7 +125,7 @@ export async function generateImage(
   } else if (guestId) {
     sendGuest(guestId, message)
   }
-  const credits = await store.credits.updateCredits(user._id!, -20)
+  const credits = await store.credits.updateCredits(user._id!, -10)
 
   sendOne(user._id!, { type: 'credits-updated', credits })
 
@@ -159,7 +159,7 @@ async function createImageMessage(opts: {
       message: opts.filename,
       adapter: 'image',
     })
-    const credits = await store.credits.updateCredits(opts.userId!, -20)
+    const credits = await store.credits.updateCredits(opts.userId!, -10)
 
     sendOne(opts.userId!, { type: 'credits-updated', credits })
 
@@ -192,7 +192,7 @@ async function createImageMessage(opts: {
 
     sendMany(opts.memberIds, { type: 'message-created', msg, chatId: opts.chatId })
 
-    const credits = await store.credits.updateCredits(opts.userId!, -20)
+    const credits = await store.credits.updateCredits(opts.userId!, -10)
 
     //sendOne(opts.userId!, { type: 'credits-updated', credits })
 

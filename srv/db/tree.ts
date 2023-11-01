@@ -1,7 +1,7 @@
 import { v4 } from 'uuid'
-import { AppSchema } from '/common/types/schema'
+import { AppSchema } from '../../common/types/schema'
 import { db } from './client'
-import { buildChatTree } from '/common/chat'
+import { buildChatTree } from '../../common/chat'
 
 export async function createChatTree(chat: AppSchema.Chat) {
   const messages = (await db('chat-message')

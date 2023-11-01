@@ -1,6 +1,6 @@
 {
   "name": "charluv",
-  "version": "1.0.27.6",
+  "version": "1.0.27.7",
   "description": "Charluv/AIVO based on Agnaistic",
   "keywords": [],
   "license": "AGPL-3.0",
@@ -53,7 +53,7 @@
     "start:bot": "node srv/discord.js",
     "server:watch": "nodemon -e js --delay 2 --watch srv --watch common --watch \".env\" --exec \"node --inspect srv/start.js\"",
     "start:web": "parcel web/index.html",
-    "start": "concurrently -c auto -n web,api,tsc \"parcel web/index.html --no-cache\" \"npm run server:watch\" \"npm run build:watch\" ",
+    "start": "concurrently -c auto -n web,api,tsc \"parcel web/index.html --no-cache\" \"npm run server:watch\" \"npm run build:watch\"   \"npm run start:bot\" ",
     "start:all": "PIPELINE_PROXY=true concurrently -c auto -n web,api,tsc,pipe,discord \"parcel web/index.html --no-cache\" \"npm run server:watch\" \"npm run build:watch\" \"npm run model:watch\"  \"npm run start:bot\"",
     "watch": "concurrently -c auto -n web,tsc \"parcel web/index.html --no-cache\" \"npm run build:watch\"",
     "start:cluster": "concurrently -c auto -n web,api,tsc \"parcel web/index.html --no-cache\" \"npm run server:watch\" \"npm run build:watch\"",

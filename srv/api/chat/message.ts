@@ -16,7 +16,7 @@ import { getTokenCounter } from '/srv/tokenize'
 type GenRequest = UnwrapBody<typeof genValidator>
 
 const sendValidator = {
-  kind: ['send-noreply', 'ooc'],
+  kind: ['send-noreply', 'summary', 'ooc'],
   text: 'string',
   impersonate: 'any?',
 } as const

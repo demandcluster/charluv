@@ -239,7 +239,7 @@ const Characters: Component<{
       .filter((ch) => tags.filter.length === 0 || ch.tags?.some((t) => tags.filter.includes(t)))
       .filter((ch) => !ch.tags || !ch.tags.some((t) => tags.hidden.includes(t)))
       .sort(getSortFunction(props.sortField, props.sortDirection))
-    console.log('characters', props.characters)
+
     const groups = [
       { label: 'Favorites', list: list.filter((c) => c.favorite) },
       { label: '', list: list.filter((c) => !c.favorite) },

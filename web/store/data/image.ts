@@ -155,11 +155,9 @@ function getSummaryTemplate(service: AIAdapter) {
       { Write a detailed image caption of the current scene with a description of each character's appearance }
       [summary | tokens=250]
       `
-
     case 'openai':
     case 'openrouter':
     case 'claude':
-    case 'horde':
     case 'scale':
       return neat`
               {{personality}}

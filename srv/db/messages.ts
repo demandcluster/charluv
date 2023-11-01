@@ -2,7 +2,7 @@ import { v4 } from 'uuid'
 import { db } from './client'
 import { AppSchema } from '../../common/types/schema'
 import { now } from './util'
-import { getChatBranchIds } from '/common/chat'
+import { getChatBranchIds } from '../../common/chat'
 import { store } from '.'
 
 const PAGE_SIZE = 100
