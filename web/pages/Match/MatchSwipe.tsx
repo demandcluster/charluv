@@ -509,8 +509,9 @@ const MatchLike: Component<{ character: AppSchema.Character; match: Any }> = (pr
           href={`/likes/${props.character._id}/profile`}
         >
           <AvatarIcon avatarUrl={props.character.avatar} class="mx-4 h-10 w-10 rounded-md" />
-          <div class="text-lg">
-            <span class="font-bold">{props.character.name}</span>
+          <div class="flex max-w-full flex-col overflow-hidden">
+            <span class="elipsis font-bold">{props.character.name}</span>
+            <span class="ellipsis">{props.character.description}</span>
           </div>
           <Show when={props.character.premium === true}>
             &nbsp; <Star class="text-yellow-400" />
