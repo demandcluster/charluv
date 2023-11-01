@@ -331,7 +331,7 @@ export function saveCartItem(state: AppSchema.ShopItem[]) {
 }
 export function saveSwipe(state) {
   console.log('saving saveSwipe...', KEYS.swipe, state)
-  saveItem(KEYS.swipe, state)
+  saveItem(KEYS.agnaiswipe, state)
 }
 
 async function saveItem<TKey extends keyof typeof KEYS>(key: TKey, value: LocalStorage[TKey]) {
