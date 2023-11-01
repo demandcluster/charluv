@@ -30,7 +30,7 @@ import type { SwipeCardRef } from '../../shared/Swipe'
 import { setComponentPageTitle } from '../../shared/util'
 import { getAssetUrl } from '../../shared/util'
 
-const CACHE_KEY = 'agnai-charlist-cache'
+const CACHE_KEY = 'agnai-likes-cache'
 
 type ViewTypes = 'list' | 'cards'
 type SortFieldTypes = 'modified' | 'created' | 'name'
