@@ -37,7 +37,7 @@ module.exports = {
       title: character.name,
       description: summary,
       type: 'rich',
-      url: `https://aivo.chat/likes/${character._id}/profile`,
+      url: `https://charluv.com/likes/${character._id}/profile`,
       color: 0x00ffff,
       fields: [
         {
@@ -56,7 +56,7 @@ module.exports = {
       },
       footer: {
         text: `Charluv Character`,
-        icon_url: `https://aivo.chat/favicon.ico`,
+        icon_url: `https://charluv.com/favicon.ico`,
       },
     }
 

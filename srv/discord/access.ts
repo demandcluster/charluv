@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, Role, PermissionFlagsBits } from 'discord.js'
-import { getInviteCode } from '../db/invitecode'
+import { store } from '../db'
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -18,7 +18,7 @@ module.exports = {
     }
     const member = members?.first() || null
 
-    const code = await getInviteCode()
+    const code = await store.invitecode.getInviteCode()
     if (!code) await interaction.reply({ content: 'No codes available', ephemeral: true })
     if (code) {
       await interaction.reply({ content: 'Code sent', ephemeral: true })
