@@ -82,8 +82,13 @@ const MatchList: Component = () => {
   })
   createEffect(() => {
     curApiref = ''
-    swipeStore.getSwipe()
-    matchStore.getMatches(swipeCount.lastid)
+    if(getNextView() === 'likes'){ 
+      swipeStore.getSwipe() 
+      matchStore.getMatches(swipeCount.lastid)
+    }else{
+      matchStore.getMatches('')
+    }
+    // getNextView() === 'likes' ?  swipeStore.getSwipe() : ''
     const next = {
       view: view(),
     }
