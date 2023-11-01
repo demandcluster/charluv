@@ -2,7 +2,9 @@ import { v4 } from 'uuid'
 import { loadItem, localApi } from './storage'
 
 export async function getSwipe() {
-  const swipe = await loadItem('swipe')
+  // return;
+  const swipe = await loadItem('agnaiswipe')
+  // console.log('agnaiswipe',swipe);
   return { lastid: swipe, loaded: true, error: undefined }
 }
 
