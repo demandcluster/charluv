@@ -30,7 +30,7 @@ import type { SwipeCardRef } from '../../shared/Swipe'
 import { setComponentPageTitle } from '../../shared/util'
 import { getAssetUrl } from '../../shared/util'
 
-const CACHE_KEY = 'charluv-likes-cache'
+const CACHE_KEY = 'agnai-charlist-cache'
 
 type ViewTypes = 'list' | 'cards'
 type SortFieldTypes = 'modified' | 'created' | 'name'
@@ -94,7 +94,7 @@ const MatchList: Component = () => {
   const [showGrouping, setShowGrouping] = createSignal(false)
   const cached = getListCache()
 
-  const [view, setView] = createSignal('likes') // createSignal(cached.view) //createSignal(cached.view)
+  const [view, setView] = createSignal(cached.view) // createSignal(cached.view) //createSignal(cached.view)
   const [sortField, setSortField] = createSignal(cached.sort.field)
   const [sortDirection, setSortDirection] = createSignal(cached.sort.direction)
   const [search, setSearch] = createSignal('')
@@ -318,7 +318,6 @@ const MatchList: Component = () => {
           <Button
             class=" float-right -mt-16"
             schema="secondary"
-            disabled
             onClick={() => {
               setView(getNextView())
               endAllSwipes()
