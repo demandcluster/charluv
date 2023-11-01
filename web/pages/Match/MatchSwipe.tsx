@@ -94,7 +94,7 @@ const MatchList: Component = () => {
   const [showGrouping, setShowGrouping] = createSignal(false)
   const cached = getListCache()
 
-  const [view, setView] = createSignal('likes') // createSignal(cached.view) //createSignal(cached.view)
+  const [view, setView] = createSignal(cached.view) // createSignal(cached.view) //createSignal(cached.view)
   const [sortField, setSortField] = createSignal(cached.sort.field)
   const [sortDirection, setSortDirection] = createSignal(cached.sort.direction)
   const [search, setSearch] = createSignal('')
