@@ -21,6 +21,7 @@ import { A, useNavigate } from '@solidjs/router'
 import AvatarIcon from '../../shared/AvatarIcon'
 import { matchStore, userStore, swipeStore } from '../../store'
 
+import { CharacterAvatar } from '../../shared/AvatarIcon'
 import { tagStore } from '../../store'
 import TagSelect from '../../shared/TagSelect'
 import Select, { Option } from '../../shared/Select'
@@ -469,7 +470,7 @@ const DSwipeCard: Component<{ character: AppSchema.Character; match: Any }> = (p
     <div class="absolute w-full max-w-5xl">
       <SwipeCard
         zindex="5"
-        class="fixed left-[5%] right-[5%] m-auto h-96 max-h-[90%] w-96 max-w-[90%] rounded-lg border-[10px] border-solid border-[var(--bg-800)] bg-[var(--bg-800)] shadow-lg  md:left-[10%] md:right-[10%] md:border-[20px] sm:h-3/4  sm:max-h-[550px] sm:w-9/12 sm:max-w-[550px] lg:right-[calc(14%-18.5rem)]"
+        class="fixed left-[5%] right-[5%] m-auto h-96 max-h-[90%] w-96 max-w-[90%] rounded-lg border-[10px] border-solid border-[var(--bg-800)] bg-[var(--bg-800)] shadow-lg  md:left-[10%] md:right-[10%] md:border-[20px] sm:h-3/4  sm:max-h-[550px] sm:w-9/12 sm:max-w-[550px] lg:right-[calc(14%-22.5rem)]"
         threshold="300"
         rotationmultiplier="7.5"
         maxrotation="90"
@@ -506,28 +507,27 @@ const DSwipeCard: Component<{ character: AppSchema.Character; match: Any }> = (p
 
 const MatchLike: Component<{ character: AppSchema.Character; match: Any }> = (props) => {
   return (
-    <div class="flex w-full gap-2">
-      <div class="flex h-12 w-full flex-row items-center gap-4 rounded-xl bg-[var(--bg-800)]">
+    <div class="flex w-full  gap-2">
+      <div class="bg-800 flex  w-full flex-row items-center justify-between gap-4 rounded-xl px-2 py-1 hover:bg-[var(--bg-700)]">
+        
         <A
-          class="ml-4 flex h-3/4 cursor-pointer items-center rounded-2xl  sm:w-9/12"
+          class="ellipsis flex w-5/6 h-3/4 grow cursor-pointer items-center gap-4"
           href={`/likes/${props.character._id}/profile`}
         >
-          <AvatarIcon avatarUrl={props.character.avatar} class="mx-4 h-10 w-10 rounded-md" />
-          <div class="flex max-w-full flex-col overflow-hidden">
-            <span class="elipsis font-bold">{props.character.name}</span>
+          <CharacterAvatar char={props.character} zoom={1.75} />
+          <div class="flex max-w-full flex-col overflow-hidden h-[52px]">
+            <span class="ellipsis font-bold">{props.character.name}</span>
+            <span class="ellipsis">{props.character.description}</span>
           </div>
-          <Show when={props.character.premium === true}>
-            &nbsp; <Star class="text-yellow-400" />
-          </Show>
         </A>
-      </div>
-      <div class="flex flex-row items-center justify-center gap-2 sm:w-3/12">
-        <Button
-          class="ml-4 flex h-3/4 cursor-pointer items-center rounded-2xl sm:w-9/12"
-          onClick={() => props.match(props.character._id)}
-        >
-          MATCH <Check class="cursor-pointer text-white/25 hover:text-white" />
-        </Button>
+        <div class="flex flex-row items-center justify-center gap-2 w-1/6">
+          <Button
+            class="ml-4 flex h-3/4 cursor-pointer items-center rounded-2xl sm:w-9/12"
+            onClick={() => props.match(props.character._id)}
+          >
+            MATCH <Check class="cursor-pointer text-white/25 hover:text-white hidden sm:block text-xs sm:text-sm " />
+          </Button>
+        </div>
       </div>
     </div>
   )
