@@ -39,7 +39,7 @@ const ProfileCard: Component<{ character: AppSchema.Character; href: string }> =
                 : ''}
             </div>
             <blockquote class="relative mb-4 p-8">
-              <p class="text-md mb-4 mt-2 font-light">{props.character?.summary}</p>
+              <p class="text-md mb-4 mt-2 font-light">{props.character?.description}</p>
 
               <hr class=" ml-32 mt-8 w-[calc(100%-8rem)] opacity-40" />
               <div class=" relative -top-4 -ml-3  mr-3 inline-block text-shadow  ">
