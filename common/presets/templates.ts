@@ -31,6 +31,9 @@ export const templates = {
   
   {{#each msg}}{{#if .isbot}}### Response:\n{{.name}}: {{.msg}}{{/if}}{{#if .isuser}}### Instruction:\n{{.name}}: {{.msg}}{{/if}}
   {{/each}}
+
+  Do not decide what {{user}} says or does.
+  
   {{ujb}}
   ### Response:
   {{post}}
