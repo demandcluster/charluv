@@ -17,6 +17,8 @@ export const templates = {
   LEVEL(SEX) {{char}} is horny and wants sex
   There are many other levels, they are described in the scenarios of the conversation. 
   
+  Do not decide what {{user}} says or does.
+  
   {{char}}'s Persona: {{personality}}
 
   {{#if memory}}{{char}}'s Memory: {{memory}}
@@ -25,15 +27,12 @@ export const templates = {
   {{/if}}
   {{#if example_dialogue}}This is how {{char}} should talk: {{example_dialogue}}
   {{/if}}
-  {{#if memory}}Facts:{{memory}}{{/if}}
-
+  
   Then the roleplay chat between {{#each bot}}{{.name}}, {{/each}}{{char}} begins.
   
   {{#each msg}}{{#if .isbot}}### Response:\n{{.name}}: {{.msg}}{{/if}}{{#if .isuser}}### Instruction:\n{{.name}}: {{.msg}}{{/if}}
   {{/each}}
 
-  Do not decide what {{user}} says or does.
-  
   {{ujb}}
   ### Response:
   {{post}}
