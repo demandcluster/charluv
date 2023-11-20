@@ -3,6 +3,8 @@ import { getSettingColor, getAsCssVar, userStore } from '../store'
 import { useBgStyle } from './hooks'
 import { hooks } from './util'
 
+type Size = 'sm' | 'md' | 'lg'
+
 export const Card: Component<{
   children: JSX.Element
   class?: string
@@ -10,22 +12,31 @@ export const Card: Component<{
   border?: boolean
   bg?: string
   hide?: boolean
+  size?: Size
+  ariaRole?: JSX.AriaAttributes['role']
+  ariaLabel?: string
 }> = (props) => {
   const cardBg = useBgStyle({
-    hex: props.bg ? getSettingColor(props.bg) : 'bg-800',
+    hex: props.bg ? getSettingColor(props.bg) : 'bg-700',
     blur: false,
     opacity: props.bgOpacity ?? 0.08,
   })
 
-  const hide = createMemo(() => (props.hide ? 'hidden' : ''))
-
   return (
     <div
-      class={`rounded-lg p-3 ${props.class ?? ''} ${hide()}`}
-      style={{
+      class={`rounded-lg ${props.class ?? ''}`}
+      classList={{
+        hidden: props.hide,
+        'p-1': props.size === 'sm',
+        'p-2': props.size === 'md',
+        'p-3': !props.size || props.size === 'lg',
+      }}
+      style={hooks({
         border: props.border ? '1px solid var(--bg-600)' : 0,
         ...cardBg(),
-      }}
+      })}
+      role={props.ariaRole}
+      aria-label={props.ariaLabel}
     >
       {props.children}
     </div>
@@ -35,6 +46,7 @@ export const Card: Component<{
 export const SolidCard: Component<{
   children: JSX.Element
   class?: string
+  size?: Size
   bg?: string
   hover?: string | boolean
   border?: boolean
@@ -48,7 +60,12 @@ export const SolidCard: Component<{
 
   return (
     <div
-      class={`rounded-lg p-3 ${props.class ?? ''}`}
+      class={`rounded-lg ${props.class ?? ''}`}
+      classList={{
+        'p-1': props.size === 'sm',
+        'p-2': props.size === 'md',
+        'p-3': !props.size || props.size === 'lg',
+      }}
       style={hooks({
         border: props.border ? '1px solid var(--bg-600)' : 0,
         background: bg(),
@@ -84,6 +101,8 @@ export const TitleCard: Component<{
   type?: CardType
   class?: string
   center?: boolean
+  ariaRole?: JSX.AriaAttributes['role']
+  ariaLabel?: string
 }> = (props) => {
   const cfg = userStore((s) => s.ui)
 
@@ -98,7 +117,12 @@ export const TitleCard: Component<{
     }
   })
   return (
-    <div class={`flex flex-col gap-2 rounded-md border-[1px] ${props.class || ''}`} style={bg()}>
+    <div
+      class={`flex flex-col gap-2 rounded-md border-[1px] ${props.class || ''}`}
+      style={bg()}
+      role={props.ariaRole}
+      aria-label={props.ariaLabel}
+    >
       <Show when={!!props.title}>
         <div
           class={`flex rounded-t-md px-2 pt-2 text-xl font-bold ${
@@ -122,6 +146,8 @@ export const Pill: Component<{
   inverse?: boolean
   small?: boolean
   onClick?: () => void
+  ariaRole?: JSX.AriaAttributes['role']
+  ariaLabel?: string
 }> = (props) => {
   const cfg = userStore((s) => s.ui)
 
@@ -156,6 +182,8 @@ export const Pill: Component<{
         'py-1': !props.small,
         'py-[2x]': props.small,
       }}
+      role={props.ariaRole}
+      aria-label={props.ariaLabel}
     >
       {props.children}
     </span>

@@ -1,6 +1,5 @@
-import { TokenCounter } from '../../common/tokenize'
+import { AppSchema, TokenCounter } from '../../common/types'
 import { store } from '../db'
-import { AppSchema } from '../../common/types/schema'
 import { AdapterProps } from './type'
 
 type PromptOpts = {
@@ -35,7 +34,7 @@ export async function getMessagesForPrompt(
     const history = messages.map(formatMsg)
 
     for (const hist of history) {
-      const nextTokens = encoder(hist)
+      const nextTokens = await encoder(hist)
       if (nextTokens + tokens > maxContext) break
       tokens += nextTokens
       lines.unshift(hist)
@@ -66,8 +65,7 @@ export function getStoppingStrings(opts: AdapterProps, extras: string[] = []) {
   for (const char of chars) {
     if (seen.has(char.name)) continue
     if (char.name === opts.replyAs.name) continue
-    unique.add(`${char.name}:`)
-    unique.add(`\n${char.name}`)
+    unique.add(`\n${char.name}:`)
     seen.add(char.name)
   }
 

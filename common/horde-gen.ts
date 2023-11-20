@@ -96,7 +96,7 @@ export async function generateImage(user: AppSchema.User, prompt: string, log: A
   const settings = user.images?.horde || defaults.image
 
   const payload = {
-    prompt: `${prompt.slice(0, 500)} ### ${defaults.image.negative}`,
+    prompt: `${prompt.slice(0, 500)} ### ${user.images?.negative || defaults.image.negative}`,
     params: {
       height: base?.height ?? 512,
       width: base?.width ?? 512,

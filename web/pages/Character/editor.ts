@@ -50,6 +50,7 @@ type EditState = {
 
   tags: string[]
   book?: AppSchema.MemoryBook
+  voiceDisabled?: boolean
   voice: VoiceSettings
   culture: string
   alternateGreetings: string[]
@@ -75,6 +76,7 @@ export const newCharGuard = {
   insertDepth: 'number',
   creator: 'string',
   characterVersion: 'string',
+  voiceDisabled: 'boolean?',
 } as const
 
 const fieldMap: Map<CharKey, GuardKey | 'tags'> = new Map([
@@ -114,6 +116,7 @@ const initState: EditState = {
   creator: '',
   characterVersion: '',
   postHistoryInstructions: '',
+  voiceDisabled: false,
   insert: {
     prompt: '',
     depth: 3,
@@ -159,14 +162,12 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
     }
 
     {
-      const level = user.user.sub?.level ?? -1
-      const subs = settings.config.subs.filter((s) => s.level <= level)
+      const tier = user.tiers.find((t) => t._id === user.user?.sub?.tierId)
+      const level = tier?.level ?? user.user.sub?.level ?? -1
+      const subs = settings.config.subs.filter((s) => user.user?.admin || s.level <= level)
 
       for (const sub of subs) {
         opts.push({ label: `Agnastic: ${sub.name}`, value: `agnaistic/${sub._id}` })
-      }
-
-      if (subs) {
       }
     }
 
@@ -228,6 +229,9 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
       }
 
       setGenerating(true)
+      if (state.personaKind === 'text') {
+        setState('personaKind', 'attributes')
+      }
       const char = payload()
 
       const prevAvatar = state.avatar
@@ -238,6 +242,7 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
         load(result)
       } else {
         const result = await generateChar(
+          char.name,
           char.description || 'a random character',
           service,
           state.personaKind
@@ -357,6 +362,7 @@ function getPayload(ev: any, state: EditState, original?: NewCharacter) {
     greeting: body.greeting,
     sampleChat: body.sampleChat,
     originalAvatar: original?.originalAvatar,
+    voiceDisabled: body.voiceDisabled,
     voice: state.voice,
 
     // charluv fields
@@ -368,7 +374,7 @@ function getPayload(ev: any, state: EditState, original?: NewCharacter) {
     // New fields start here
     systemPrompt: body.systemPrompt ?? '',
     postHistoryInstructions: body.postHistoryInstructions ?? '',
-    insert: body.insertPrompt ? { prompt: body.insertPrompt, depth: body.insertDepth } : undefined,
+    insert: { prompt: body.insertPrompt, depth: body.insertDepth },
     alternateGreetings: state.alternateGreetings ?? [],
     characterBook: state.book,
     creator: body.creator ?? '',

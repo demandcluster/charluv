@@ -3,7 +3,10 @@ import { EVENTS, events } from '../emitter'
 import { api } from './api'
 import { createStore } from './create'
 import { PresetCreate, PresetUpdate, SubscriptionUpdate, presetApi } from './data/presets'
+import { subscribe } from './socket'
 import { toastStore } from './toasts'
+import { AIAdapter } from '/common/adapters'
+import { defaultPresets, isDefaultPreset } from '/common/presets'
 
 type PresetState = {
   presets: AppSchema.UserGenPreset[]
@@ -53,6 +56,32 @@ export const presetStore = createStore<PresetState>(
         toastStore.success('Successfully updated preset')
         yield { presets: presets.map((p) => (p._id === presetId ? res.result! : p)) }
         onSuccess?.()
+      }
+    },
+    async *updateRegisterPresetProp(
+      { presets },
+      presetId: string,
+      service: AIAdapter,
+      key: string,
+      value: any
+    ) {
+      const preset: Partial<AppSchema.UserGenPreset> | undefined = isDefaultPreset(presetId)
+        ? defaultPresets[presetId]
+        : presets.find((p) => p._id === presetId)
+      if (!preset) {
+        toastStore.error(`Could not update preset: Preset not found`)
+        return
+      }
+
+      const next = { ...preset?.registered }
+      if (!next[service]) {
+        next[service] = {}
+      }
+
+      next[service]![key] = value
+
+      if (!isDefaultPreset(presetId)) {
+        presetStore.updatePreset(presetId, { registered: next })
       }
     },
     async *createPreset(
@@ -129,6 +158,25 @@ export const presetStore = createStore<PresetState>(
         onSuccess?.(res.result)
       }
     },
+    async replaceSubscription(
+      { subs },
+      subId: string,
+      replacementId: string,
+      onSuccess?: () => void
+    ) {
+      const res = await api.post(`/admin/subscriptions/${subId}/replace`, { replacementId })
+      if (res.result) {
+        toastStore.success('Subscription successfully replaced')
+        onSuccess?.()
+      }
+
+      if (res.error) {
+        toastStore.error(`Subscription could not be replaced: ${res.error}`)
+        return {
+          subs: subs.map((sub) => (sub._id === subId ? { ...sub, subDisabled: true } : sub)),
+        }
+      }
+    },
     async getTemplates() {
       const res = await presetApi.getTemplates()
       if (res.result) {
@@ -183,3 +231,20 @@ export const presetStore = createStore<PresetState>(
     },
   }
 })
+
+subscribe(
+  'subscription-replaced',
+  { subscriptionId: 'string', replacementId: 'string' },
+  (body) => {
+    const { presets } = presetStore.getState()
+
+    const next = presets.map((pre) => {
+      if (pre.registered?.agnaistic?.subscriptionId !== body.subscriptionId) return pre
+      const preset = { ...pre }
+      preset.registered!.agnaistic!.subscriptionId = body.replacementId
+      return preset
+    })
+
+    presetStore.setState({ presets: next })
+  }
+)

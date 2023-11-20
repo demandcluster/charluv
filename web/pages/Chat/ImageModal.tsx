@@ -4,7 +4,7 @@ import { settingStore } from '../../store'
 import { getAssetUrl } from '../../shared/util'
 import Button from '/web/shared/Button'
 
-export const ImageModal: Component = () => {
+export const ImageModal: Component = (props) => {
   const state = settingStore()
 
   const footer = createMemo(() => {
@@ -31,7 +31,7 @@ export const ImageModal: Component = () => {
       footer={footer()}
     >
       <div class="flex justify-center p-4">
-        <img class="rounded-md" src={getAssetUrl(state.showImage!.url)} />
+        <img class="rounded-md" src={getAssetUrl(state.showImage!.url!)} />
       </div>
     </NoTitleModal>
   )

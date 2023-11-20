@@ -27,14 +27,23 @@ export function requestStream(stream: NodeJS.ReadableStream) {
     emitter.done()
   })
 
+  let incomplete = ''
+
   stream.on('data', (chunk: Buffer) => {
-    const data = chunk.toString()
+    const data = incomplete + chunk.toString()
+    incomplete = ''
     const messages = data.split(/\r?\n\r?\n/)
 
     for (const msg of messages) {
       const event: any = parseEvent(msg)
 
       if (!event.data) {
+        continue
+      }
+
+      const data: string = event.data
+      if (typeof data === 'string' && data.startsWith('{') && !data.endsWith('}')) {
+        incomplete = msg
         continue
       }
 
@@ -64,11 +73,19 @@ function parseEvent(msg: string) {
   return event
 }
 
-export async function websocketStream(opts: { url: string; body: any }) {
+export async function websocketStream(opts: { url: string; body: any }, timeoutMs?: number) {
   const socket = new WebSocket(opts.url.replace('https:', 'wss:').replace('http:', 'ws:'))
 
   const emitter = eventGenerator()
   let accum = ''
+
+  // Terminate the request if the first token is not received without the timeout window
+  const ttfbTimer = timeoutMs
+    ? setTimeout(() => {
+        emitter.push({ error: `request cancelled - timed out` })
+        emitter.done()
+      }, timeoutMs)
+    : 0
 
   socket.on('error', (err) => {
     if ('syscall' in err && 'code' in err) {
@@ -91,7 +108,14 @@ export async function websocketStream(opts: { url: string; body: any }) {
   socket.on('message', (data: any) => {
     const obj = JSON.parse(data)
 
+    if (obj.response_type === 'chunk') {
+      clearTimeout(ttfbTimer)
+      emitter.push({ token: obj.chunk })
+      accum += obj.chunk
+    }
+
     if (obj.event === 'text_stream') {
+      clearTimeout(ttfbTimer)
       emitter.push({ token: obj.text })
       accum += obj.text
     }
@@ -104,8 +128,9 @@ export async function websocketStream(opts: { url: string; body: any }) {
       emitter.push({ error: obj.error })
     }
 
-    if (obj.event === 'stream_end') {
-      emitter.push(accum)
+    if (obj.event === 'stream_end' || obj.response_type === 'full') {
+      const text = obj.text ? obj.text : accum
+      emitter.push(text)
       emitter.done()
       socket.close()
     }

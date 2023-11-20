@@ -50,6 +50,8 @@ import NovelGuide from './pages/Guides/NovelAI'
 import { ImageModal } from './pages/Chat/ImageModal'
 import PerformanceModal from './pages/Settings/PerformanceModal'
 import { CheckoutCancel, CheckoutSuccess } from './pages/Profile/Checkout'
+import { markdown } from './shared/markdown'
+import SoundsPage from './pages/Sounds'
 
 const App: Component = () => {
   const state = userStore()
@@ -77,6 +79,9 @@ const App: Component = () => {
             path="/presets"
             component={lazy(() => import('./pages/GenerationPresets/PresetList'))}
           />
+          <Show when={cfg.flags.sounds}>
+            <Route path="/sounds" component={SoundsPage} />
+          </Show>
           <Route path="/profile" component={ProfilePage} />
           <Route path="/settings" component={Settings} />
           <Route path="/privacy" component={lazy(() => import('./pages/Home/policy'))} />
@@ -157,8 +162,7 @@ const App: Component = () => {
             </Show>
           </Show>
           <Show when={cfg.config.canAuth}>
-            <Route path="/login" component={LoginPage} />
-            <Route path="/register" component={LoginPage} />
+            <Route path={['/login', '/login/remember', '/register']} component={LoginPage} />
           </Show>
           <Route path="/faq" component={FAQ} />
           <Route path="/builder" component={lazy(() => import('./shared/Avatar/Builder'))} />
@@ -217,7 +221,7 @@ const Layout: Component = () => {
         <NavBar />
         <div class="flex w-full grow flex-row overflow-y-hidden">
           <Navigation />
-          <div class="w-full overflow-y-auto" data-background style={bg()}>
+          <main class="w-full overflow-y-auto" data-background style={bg()}>
             <div
               class={`mx-auto h-full min-h-full ${isChat() ? maxW() : 'max-w-8xl'} px-2 sm:px-3`}
               classList={{
@@ -243,22 +247,22 @@ const Layout: Component = () => {
                 </div>
               </Show>
             </div>
-          </div>
+          </main>
         </div>
-        <Toasts />
-        <ImpersonateModal
-          show={cfg.showImpersonate}
-          close={() => settingStore.toggleImpersonate(false)}
-        />
-        <PerformanceModal
-          show={cfg.showPerformance}
-          close={() => settingStore.togglePerformance(false)}
-        />
-        <InfoModal />
-        <ProfileModal />
-        <ImageModal />
-        <For each={rootModals.modals}>{(modal) => modal.element}</For>
       </div>
+      <Toasts />
+      <ImpersonateModal
+        show={cfg.showImpersonate}
+        close={() => settingStore.toggleImpersonate(false)}
+      />
+      <PerformanceModal
+        show={cfg.showPerformance}
+        close={() => settingStore.togglePerformance(false)}
+      />
+      <InfoModal />
+      <ProfileModal />
+      <For each={rootModals.modals}>{(modal) => modal.element}</For>
+      <ImageModal />
 
       <div
         class="absolute bottom-0 left-0 right-0 top-0 z-10 h-[100vh] w-full bg-black bg-opacity-5"
@@ -274,12 +278,14 @@ const InfoModal: Component = (props) => {
 
   return (
     <Modal
-      title="Information"
+      title={state.infoTitle || 'Information'}
       show={state.info}
-      close={() => rootModalStore.info()}
+      close={() => rootModalStore.closeInfo()}
       maxWidth="half"
     >
-      {state.info}
+      <Show when={typeof state.info === 'string'} fallback={state.info}>
+        <div class="markdown" innerHTML={markdown.makeHtml(state.info)} />
+      </Show>
     </Modal>
   )
 }

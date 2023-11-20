@@ -2,7 +2,7 @@ import { sanitise, sanitiseAndTrim, trimResponseV2 } from '../api/chat/common'
 import { config } from '../config'
 import { store } from '../db'
 import { isConnected } from '../db/client'
-import { getCachedSubscriptionPresets, getCachedSubscriptions } from '../db/subscriptions'
+import { getCachedSubscriptions } from '../db/subscriptions'
 import { decryptText } from '../db/util'
 import { handleClaude } from './claude'
 import { handleGooseAI } from './goose'
@@ -10,7 +10,7 @@ import { handleHorde } from './horde'
 import { handleKobold } from './kobold'
 import { handleMancer } from './mancer'
 import { handleNovel } from './novel'
-import { getTextgenCompletion, getTextgenPayload, handleOoba } from './ooba'
+import { getTextgenCompletion, getThirdPartyPayload, handleOoba } from './ooba'
 import { handleOAI } from './openai'
 import { handleOpenRouter } from './openrouter'
 import { handlePetals } from './petals'
@@ -21,6 +21,7 @@ import { websocketStream } from './stream'
 import { ModelAdapter } from './type'
 import { AIAdapter, AdapterSetting } from '/common/adapters'
 import { AppSchema } from '/common/types'
+import { parseStops } from '/common/util'
 
 export async function getSubscriptionPreset(
   user: AppSchema.User,
@@ -31,11 +32,11 @@ export async function getSubscriptionPreset(
   if (!gen) return
   if (gen.service !== 'agnaistic') return
 
-  const level = user.sub?.level ?? -1
+  const level = user.admin ? Infinity : user.sub?.level ?? -1
   let error: string | undefined = undefined
   let warning: string | undefined = undefined
 
-  const fallback = getDefaultSubscription()
+  const fallback = await store.subs.getDefaultSubscription()
   const subId = gen.registered?.agnaistic?.subscriptionId
   let preset = subId ? await store.subs.getSubscription(subId) : fallback
 
@@ -43,14 +44,18 @@ export async function getSubscriptionPreset(
     error = 'Please sign in to use this model.'
   }
 
+  if (preset?.stopSequences) {
+    preset.stopSequences = parseStops(preset.stopSequences)
+  }
+
   if (!preset || preset.subDisabled) {
     // If the subscription they're using becomes unavailable, gracefully fallback to the default and let them know
     if (fallback && !fallback.subDisabled && fallback.subLevel <= level) {
       preset = fallback
       warning =
-        'Your configured Agnaistic model/tier is no longer available. Using a fallback. Please update your preset.'
+        'Your configured Agnaistic model is no longer available. Using a fallback. Please update your preset.'
     } else {
-      error = 'Tier/model selected is invalid or disabled. Try another.'
+      error = 'Model selected is invalid or disabled. Try another.'
     }
   }
 
@@ -81,14 +86,32 @@ export const handleAgnaistic: ModelAdapter = async function* (opts) {
   const level = opts.subscription.level ?? -1
   const preset = opts.subscription.preset
 
-  const newLevel = await store.users.validateSubscription(opts.user)
+  let newLevel = await store.users.validateSubscription(opts.user)
+  if (newLevel === undefined) {
+    newLevel = -1
+  }
+
   if (newLevel instanceof Error) {
     yield { error: newLevel.message }
     return
   }
 
-  if (preset.subLevel > newLevel) {
-    yield { error: 'Your account is ineligible for this model - sub tier insufficient' }
+  if (preset.subLevel > -1 && preset.subLevel > newLevel) {
+    opts.log.error(
+      {
+        preset: preset.name,
+        presetLevel: preset.subLevel,
+        newLevel,
+        userLevel: opts.user.sub?.level,
+      },
+      `Subscription insufficient`
+    )
+    yield { error: 'Your account is ineligible for this model - Subscription tier insufficient' }
+    return
+  }
+
+  if (!preset.allowGuestUsage && opts.guest) {
+    yield { error: 'Please sign in to use this model' }
     return
   }
 
@@ -133,7 +156,8 @@ export const handleAgnaistic: ModelAdapter = async function* (opts) {
     const userKey = preset.subApiKey
 
     opts.user.oaiKey = userKey
-    opts.gen.oaiModel = preset.oaiModel
+    opts.gen.thirdPartyModel = preset.thirdPartyModel
+    opts.gen.oaiModel = preset.thirdPartyModel || preset.oaiModel
 
     opts.user.claudeApiKey = userKey
     opts.gen.claudeModel = preset.claudeModel
@@ -183,17 +207,17 @@ export const handleAgnaistic: ModelAdapter = async function* (opts) {
     return
   }
 
-  const body = getTextgenPayload(opts, allStops)
+  // if (opts.kind === 'continue') {
+  //   opts.prompt = opts.prompt.trim() + ' '
+  // }
 
-  yield { prompt: body.prompt }
+  const body = getThirdPartyPayload(opts, allStops)
+
+  yield { prompt }
 
   log.debug({ ...body, prompt: null }, 'Agnaistic payload')
 
-  if (opts.kind === 'continue') {
-    body.prompt = body.prompt.split('\n').slice(0, -1).join('\n')
-  }
-
-  log.debug(`Prompt:\n${body.prompt}`)
+  log.debug(`Prompt:\n${prompt}`)
 
   const params = [
     `key=${key}`,
@@ -267,6 +291,8 @@ registerAdapter('agnaistic', handleAgnaistic, {
   options: [
     'repetitionPenalty',
     'repetitionPenaltyRange',
+    'repetitionPenaltySlope',
+    'topA',
     'topK',
     'topP',
     'streamResponse',
@@ -279,16 +305,7 @@ registerAdapter('agnaistic', handleAgnaistic, {
   ],
   settings,
   load: (user) => {
-    const subs = getCachedSubscriptions(user)
-    const opts = subs.map((sub) => ({ label: sub.name, value: sub._id }))
     return [
-      {
-        preset: true,
-        field: 'subscriptionId',
-        secret: false,
-        label: 'Tier/Model',
-        setting: { type: 'list', options: opts },
-      },
       {
         preset: true,
         field: 'useRecommended',
@@ -311,32 +328,6 @@ export async function updateRegisteredSubs() {
       item.setting.options = options
     }
   }
-}
-
-/**
- * Select the lowest subscription below 0. Prioritise default sub.
- */
-function getDefaultSubscription() {
-  let match: AppSchema.SubscriptionPreset | undefined
-
-  for (const sub of getCachedSubscriptionPresets()) {
-    if (sub.subLevel >= 0 || sub.subDisabled || sub.deletedAt) continue
-    if (!match) {
-      match = sub
-      continue
-    }
-
-    if (match?.isDefaultSub && !sub.isDefaultSub) continue
-
-    if (sub.isDefaultSub) {
-      return sub
-    }
-
-    if (sub.subLevel < match.subLevel) {
-      match = sub
-    }
-  }
-  return match
 }
 
 /**

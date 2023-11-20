@@ -218,9 +218,46 @@ export function eventGenerator<T = any>() {
  * Will automatically clamp to `-max -> max` if `min` is not provided
  */
 export function clamp(toClamp: number, max: number, min?: number) {
-  return Math.max(Math.min(toClamp, max), min ?? -max)
+  toClamp = Math.min(toClamp, max)
+  if (min !== undefined) {
+    toClamp = Math.max(toClamp, min)
+  } else {
+    toClamp = Math.max(toClamp, -max)
+  }
+
+  return toClamp
 }
 
 export function now() {
   return new Date().toISOString()
+}
+
+export function parseStops(stops?: string[]) {
+  if (!stops) return
+
+  const next = stops.map((stop) => stop.replace(/(\\n|\r\n|\r)/g, '\n'))
+  return next
+}
+
+const copyables: Record<string, boolean> = {
+  string: true,
+  boolean: true,
+  function: true,
+  undefined: true,
+  number: true,
+}
+
+export function deepClone<T extends object>(obj: T): T {
+  let copy: any = {}
+
+  for (const [key, value] of Object.entries(obj)) {
+    if (copyables[typeof value] || !value) {
+      copy[key] = value
+      continue
+    }
+
+    copy[key] = deepClone(value)
+  }
+
+  return copy
 }

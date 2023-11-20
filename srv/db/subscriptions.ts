@@ -18,6 +18,11 @@ export async function getSubscription(id: string) {
   return sub ? sub : undefined
 }
 
+export async function getDefaultSubscription() {
+  const sub = await db('subscription-setting').findOne({ isDefaultSub: true })
+  return sub ? sub : undefined
+}
+
 export async function createSubscription(settings: Partial<AppSchema.SubscriptionPreset>) {
   const preset = {
     _id: v4(),
@@ -141,4 +146,23 @@ export async function updateTier(id: string, update: Partial<AppSchema.Subscript
 
   const next = await getTier(id)
   return next
+}
+
+export async function replaceSubscription(id: string, replacementId: string) {
+  const original = await getSubscription(id)
+  const replacement = await getSubscription(replacementId)
+
+  if (!original || !replacement) {
+    throw new StatusError('Replacement subscription not found', 404)
+  }
+
+  if (replacement.subDisabled || replacement.deletedAt) {
+    throw new StatusError('Cannot replace tier with disabled/deleted subscription', 400)
+  }
+
+  await db('gen-setting').updateMany(
+    { 'registered.agnaistic.subscriptionId': id },
+    { $set: { 'registered.agnaistic.subscriptionId': replacementId } }
+  )
+  await updateSubscription(id, { subDisabled: true })
 }

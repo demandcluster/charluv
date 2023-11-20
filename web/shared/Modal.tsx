@@ -1,8 +1,9 @@
 import { Check, X } from 'lucide-solid'
-import { Component, Show, JSX, createMemo, Switch, Match, createSignal } from 'solid-js'
+import { Component, Show, JSX, createMemo, Switch, Match } from 'solid-js'
 import Button from './Button'
 import './modal.css'
-import Tabs from './Tabs'
+import Tabs, { TabHook } from './Tabs'
+import { markdown } from './markdown'
 
 interface Props {
   title?: string | JSX.Element
@@ -13,18 +14,17 @@ interface Props {
   maxWidth?: 'full' | 'half'
   fixedHeight?: boolean
   onSubmit?: (ev: Event & { currentTarget: HTMLFormElement }) => void
-  tabs?: Array<{ name: string; content: JSX.Element }>
+  tabs?: TabHook
 
   /**
    * If set to false, the close button 'X' will be omitted
    */
   dismissable?: boolean
+  ariaLabel?: string
+  ariaDescription?: string
 }
 
 const Modal: Component<Props> = (props) => {
-  const [tab, setTab] = createSignal(0)
-  let ref: any
-
   const width = createMemo(() => {
     if (!props.maxWidth) return `sm:max-w-lg`
 
@@ -37,6 +37,9 @@ const Modal: Component<Props> = (props) => {
     ev.preventDefault
   }
 
+  // on-screen readers require focusing on the dialog to work
+  const autofocus = (ref: HTMLFormElement) => setTimeout(() => ref.focus())
+
   return (
     <Show when={props.show}>
       <div class="fixed inset-x-0 top-0 z-[100] items-center justify-center px-4 sm:inset-0 sm:flex sm:items-center sm:justify-center">
@@ -45,17 +48,31 @@ const Modal: Component<Props> = (props) => {
         </div>
         <div class="modal-body">
           <form
-            ref={ref}
+            ref={autofocus}
             onSubmit={props.onSubmit || defaultSubmit}
             class={`modal-height bg-900 z-50 my-auto w-[calc(100vw-16px)] overflow-hidden rounded-lg shadow-md shadow-black transition-all ${width()} `}
+            role="dialog"
+            aria-modal="true"
+            aria-label={props.ariaLabel}
+            aria-description={props.ariaDescription}
+            tabindex="-1"
           >
             <Switch>
               <Match when={props.tabs}>
                 <div class="flex h-[56px] flex-row justify-between text-lg">
-                  <Tabs selected={tab} select={setTab} tabs={props.tabs!.map((t) => t.name)} />
+                  <Tabs
+                    selected={props.tabs?.selected!}
+                    select={props.tabs?.select!}
+                    tabs={props.tabs?.tabs!}
+                  />
                   <Show when={props.dismissable !== false}>
-                    <div onClick={props.close} class="cursor-pointer p-4">
-                      <X />
+                    <div
+                      onClick={props.close}
+                      class="cursor-pointer p-4"
+                      role="button"
+                      aria-label="Close dialog window"
+                    >
+                      <X aria-hidden="true" />
                     </div>
                   </Show>
                 </div>
@@ -65,8 +82,13 @@ const Modal: Component<Props> = (props) => {
                 <div class="flex flex-row justify-between p-4 text-lg font-bold">
                   <div>{props.title}</div>
                   <Show when={props.dismissable !== false}>
-                    <div onClick={props.close} class="cursor-pointer">
-                      <X />
+                    <div
+                      onClick={props.close}
+                      class="cursor-pointer"
+                      role="button"
+                      aria-label="Close window"
+                    >
+                      <X aria-hidden="true" />
                     </div>
                   </Show>
                 </div>
@@ -75,11 +97,7 @@ const Modal: Component<Props> = (props) => {
 
             {/* 132px is the height of the title + footer*/}
             <div class={`modal-content ${minHeight()} overflow-y-auto p-4 pt-0 text-lg`}>
-              <Switch>
-                <Match when={props.tabs}>{props.tabs![tab()].content}</Match>
-
-                <Match when>{props.children}</Match>
-              </Switch>
+              {props.children}
             </div>
             <Show when={props.footer}>
               <div class="flex w-full flex-row justify-end gap-2 p-4">{props.footer}</div>
@@ -94,7 +112,6 @@ const Modal: Component<Props> = (props) => {
 export default Modal
 
 export const NoTitleModal: Component<Omit<Props, 'title'>> = (props) => {
-  let ref: any
   const width = createMemo(() => {
     if (!props.maxWidth) return `sm:max-w-lg`
 
@@ -109,17 +126,25 @@ export const NoTitleModal: Component<Omit<Props, 'title'>> = (props) => {
     ev.preventDefault()
   }
 
+  // on-screen readers require focusing on the dialog to work
+  const autofocus = (ref: HTMLFormElement) => setTimeout(() => ref.focus())
+
   return (
     <Show when={props.show}>
-      <div class="fixed inset-x-0 top-0  items-center justify-center px-4 sm:inset-0 sm:flex sm:items-center sm:justify-center">
+      <div class="fixed inset-x-0 top-0 z-[100] items-center justify-center px-4 sm:inset-0 sm:flex sm:items-center sm:justify-center">
         <div class="fixed inset-0 -z-10 opacity-40 transition-opacity">
           <div class="absolute inset-0 bg-black" />
         </div>
         <div class="modal-body">
           <form
-            ref={ref}
+            ref={autofocus}
             onSubmit={props.onSubmit || defaultSubmit}
             class={`bg-900 my-auto max-h-[80vh] w-[calc(100vw-16px)] overflow-hidden rounded-lg shadow-md shadow-black transition-all sm:max-h-[90vh] ${width()} `}
+            role="dialog"
+            aria-modal="true"
+            aria-label={props.ariaLabel}
+            aria-description={props.ariaDescription}
+            tabindex="-1"
           >
             <div class="flex flex-row justify-end pr-4 pt-4 text-lg font-bold">
               <div onClick={props.close} class="cursor-pointer">
@@ -149,6 +174,8 @@ export const ConfirmModal: Component<{
   close: () => void
   confirm: () => void
   message: string | JSX.Element
+  ariaLabel?: string
+  ariaDescription?: string
 }> = (props) => {
   const confirm = () => {
     props.confirm()
@@ -171,8 +198,18 @@ export const ConfirmModal: Component<{
           </Button>
         </>
       }
+      aria-label={props.ariaLabel}
+      aria-description={props.ariaDescription}
     >
-      <div class="mb-8 flex justify-center">{props.message}</div>
+      <Show
+        when={typeof props.message === 'string'}
+        fallback={<div class="mb-8 flex justify-center">{props.message}</div>}
+      >
+        <div
+          class="markdown mb-8 flex flex-col items-center"
+          innerHTML={markdown.makeHtml(props.message as string)}
+        />
+      </Show>
     </Modal>
   )
 }

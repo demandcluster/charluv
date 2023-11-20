@@ -36,6 +36,7 @@ const characterValidator = {
   premium: 'string?',
   favorite: 'boolean?',
   voice: 'string?',
+  voiceDisabled: 'string?',
   tags: 'string?',
 
   // v2 fields start here
@@ -118,6 +119,7 @@ const createCharacter = handle(async (req) => {
     sprite,
     avatar: body.originalAvatar,
     favorite: false,
+    voiceDisabled: body.voiceDisabled === 'true',
     voice,
     tags,
     alternateGreetings,
@@ -184,6 +186,7 @@ const editCharacter = handle(async (req) => {
     premium: body.premium?.toString() === 'true' || false,
     xp: body.xp ? parseInt(body.xp) : 0,
     share: body.share || 'private',
+    voiceDisabled: body.voiceDisabled === 'true',
     insert,
   }
 
@@ -285,11 +288,11 @@ export const createImage = handle(async ({ body, userId, socketId, log }) => {
   return { success: true }
 })
 
+router.post('/image', createImage)
 router.use(loggedIn)
 router.post('/', loggedIn, createCharacter)
 router.get('/', getCharacters)
-router.post('/image', loggedIn, createImage)
-router.post('/:id', loggedIn, editCharacter)
+router.post('/:id', editCharacter)
 router.get('/:id', getCharacter)
 router.delete('/:id', loggedIn, deleteCharacter)
 router.post('/:id/favorite', editCharacterFavorite)

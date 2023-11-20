@@ -1,9 +1,10 @@
 import { v4 } from 'uuid'
 import {
-  createPrompt,
+  createPromptParts,
   getChatPreset,
   getLinesForPrompt,
-  getPromptParts,
+  buildPromptParts,
+  resolveScenario,
 } from '../../../common/prompt'
 import { getEncoder } from '../../../common/tokenize'
 import { GenerateRequestV2 } from '../../../srv/adapter/type'
@@ -15,14 +16,14 @@ import { userStore } from '../user'
 import { loadItem, localApi } from './storage'
 import { toastStore } from '../toasts'
 import { getActiveBots, getBotsForChat } from '/web/pages/Chat/util'
-import { pipelineApi } from './pipeline'
 import { UserEmbed } from '/common/types/memory'
-import { settingStore } from '../settings'
 import { TemplateOpts, parseTemplate } from '/common/template-parser'
 import { replace } from '/common/util'
 import { toMap } from '/web/shared/util'
 import { neat } from '/common/util'
 import { getServiceTempConfig, getUserPreset } from '/web/shared/adapter'
+import { msgStore } from '../message'
+import { embedApi } from '../embeddings'
 
 export type PromptEntities = {
   chat: AppSchema.Chat
@@ -115,7 +116,8 @@ export async function guidance<T = any>({
   service,
   maxTokens,
   settings,
-}: InferenceOpts): Promise<T> {
+  previous,
+}: InferenceOpts & { previous?: any }): Promise<T> {
   const requestId = v4()
   const { user } = userStore.getState()
 
@@ -132,6 +134,7 @@ export async function guidance<T = any>({
     prompt,
     service,
     maxTokens,
+    previous,
   })
 
   if (res.error) throw new Error(res.error)
@@ -221,7 +224,7 @@ export type GenerateOpts =
   /**
    * The last message in the chat is a bot message and we want to generate more text for this message.
    */
-  | { kind: 'continue' }
+  | { kind: 'continue'; retry?: boolean }
   /**
    * Generate a message on behalf of the user
    */
@@ -247,18 +250,18 @@ export async function generateResponse(opts: GenerateOpts) {
 
   const { prompt, props, entities, chatEmbeds, userEmbeds } = activePrompt
 
-  const embedWarnings: string[] = []
-  if (chatEmbeds.length > 0 && prompt.parts.chatEmbeds.length === 0) embedWarnings.push('Chat')
-  if (userEmbeds.length > 0 && prompt.parts.userEmbeds.length === 0)
-    embedWarnings.push('User-created')
+  // const embedWarnings: string[] = []
+  // if (chatEmbeds.length > 0 && prompt.parts.chatEmbeds.length === 0)
+  //   embedWarnings.push('chat history')
+  // if (userEmbeds.length > 0 && prompt.parts.userEmbeds.length === 0) embedWarnings.push('document')
 
-  if (embedWarnings.length) {
-    toastStore.warn(
-      `Embedding from ${embedWarnings.join(
-        ' and '
-      )} did not fit in prompt. Check your Preset -> Memory Embed context limits.`
-    )
-  }
+  // if (embedWarnings.length) {
+  //   toastStore.warn(
+  //     `Embedding from ${embedWarnings.join(
+  //       ' and '
+  //     )} did not fit in prompt. Check your Preset -> Memory Embed context limits.`
+  //   )
+  // }
 
   const request: GenerateRequestV2 = {
     requestId: v4(),
@@ -328,6 +331,8 @@ async function getActivePromptOptions(
   const props = await getGenerateProps(opts, active)
   const entities = props.entities
 
+  const resolvedScenario = resolveScenario(entities.chat, entities.char, entities.scenarios || [])
+
   const encoder = await getEncoder()
 
   const promptOpts = {
@@ -347,10 +352,11 @@ async function getActivePromptOptions(
     settings: entities.settings,
     messages: entities.messages,
     lastMessage: entities.lastMessage?.date || '',
+    resolvedScenario,
   }
 
-  const lines = getLinesForPrompt(promptOpts, encoder)
-  const parts = getPromptParts(promptOpts, lines, encoder)
+  const lines = await getLinesForPrompt(promptOpts, encoder)
+  const parts = await buildPromptParts(promptOpts, lines, encoder)
 
   return { lines, parts, entities, props }
 }
@@ -360,8 +366,7 @@ async function createActiveChatPrompt(
   maxContext?: number
 ) {
   const { active } = chatStore.getState()
-  const { ui, user } = userStore.getState()
-  const { pipelineOnline } = settingStore.getState()
+  const { ui } = userStore.getState()
 
   if (!active) {
     throw new Error('No active chat. Try refreshing')
@@ -370,10 +375,7 @@ async function createActiveChatPrompt(
   const props = await getGenerateProps(opts, active)
   const entities = props.entities
 
-  const chat = {
-    ...entities.chat,
-    scenario: resolveScenario(entities.chat.scenario || '', entities.scenarios || []),
-  }
+  const resolvedScenario = resolveScenario(entities.chat, entities.char, entities.scenarios || [])
 
   const chatEmbeds: UserEmbed<{ name: string }>[] = []
   const userEmbeds: UserEmbed[] = []
@@ -386,33 +388,13 @@ async function createActiveChatPrompt(
       ? opts.text
       : entities.lastMessage?.msg
 
-  if (pipelineOnline && user?.useLocalPipeline) {
-    const created = text ? new Date().toISOString() : entities.messages.slice(-1)[0]?.createdAt
-    const chats = text
-      ? await pipelineApi.chatRecall(entities.chat._id, text, created || new Date().toISOString())
-      : null
-
-    const users =
-      text && entities.chat.userEmbedId
-        ? await pipelineApi.queryEmbedding(entities.chat.userEmbedId, text)
-        : null
-
-    if (chats) {
-      chatEmbeds.push(...chats)
-    }
-
-    if (users) {
-      userEmbeds.push(...users)
-    }
-  }
-
   const encoder = await getEncoder()
-  const prompt = createPrompt(
+  const prompt = await createPromptParts(
     {
       kind: opts.kind,
       char: entities.char,
       sender: entities.profile,
-      chat,
+      chat: entities.chat,
       user: entities.user,
       members: entities.members.concat([entities.profile]),
       continue: props?.continue,
@@ -427,14 +409,41 @@ async function createActiveChatPrompt(
       trimSentences: ui.trimSentences,
       chatEmbeds,
       userEmbeds,
+      resolvedScenario,
     },
     encoder,
     maxContext
   )
+
+  const retrieveBefore = props.messages[props.messages.length - prompt.lines.length - 1]
+  const chats =
+    !!retrieveBefore && text
+      ? await embedApi.query(entities.chat._id, text, retrieveBefore.createdAt)
+      : null
+
+  const users =
+    text && entities.chat.userEmbedId ? await embedApi.query(entities.chat.userEmbedId, text) : null
+
+  if (chats?.messages.length) {
+    for (const chat of chats.messages) {
+      const name =
+        entities.chatBots.find((b) => b._id === chat.entityId)?.name ||
+        entities.members.find((m) => m._id === chat.entityId)?.handle ||
+        'You'
+
+      chatEmbeds.push({ date: '', distance: chat.similarity, text: chat.msg, name, id: '' })
+    }
+  }
+
+  if (users?.messages.length) {
+    for (const chat of users.messages) {
+      userEmbeds.push({ date: '', distance: chat.similarity, text: chat.msg, id: '' })
+    }
+  }
   return { prompt, props, entities, chatEmbeds, userEmbeds }
 }
 
-type GenerateProps = {
+export type GenerateProps = {
   retry?: AppSchema.ChatMessage
   continuing?: AppSchema.ChatMessage
   replacing?: AppSchema.ChatMessage
@@ -444,17 +453,6 @@ type GenerateProps = {
   messages: AppSchema.ChatMessage[]
   continue?: string
   impersonate?: AppSchema.Character
-}
-
-function resolveScenario(scenario: string, scenarios: AppSchema.ScenarioBook[]) {
-  const main = scenarios.find((s) => s.overwriteCharacterScenario)
-  if (main) scenario = main.text
-
-  const secondary = scenarios.filter((s) => s.overwriteCharacterScenario === false)
-  if (!secondary.length) return scenario
-
-  scenario += '\n' + secondary.map((s) => s.text).join('\n')
-  return scenario
 }
 
 async function getGenerateProps(
@@ -486,7 +484,7 @@ async function getGenerateProps(
   }
 
   if ('text' in opts) {
-    opts.text = parseTemplate(opts.text, {
+    const parsed = await parseTemplate(opts.text, {
       char: active.char,
       characters: entities.characters,
       chat: active.chat,
@@ -496,7 +494,9 @@ async function getGenerateProps(
       sender: entities.profile,
       impersonate: props.impersonate,
       repeatable: true,
-    }).parsed
+      lastMessage: entities.lastMessage?.date,
+    })
+    opts.text = parsed.parsed
   }
 
   const getBot = (id: string) => {
@@ -544,6 +544,15 @@ async function getGenerateProps(
       props.continuing = lastMsg
       props.replyAs = getBot(lastCharMsg?.characterId)
       props.continue = lastCharMsg.msg
+      if (opts.retry) {
+        const msgState = msgStore()
+        props.continuing = { ...lastMsg, msg: msgState.textBeforeGenMore ?? lastMsg.msg }
+        props.continue = msgState.textBeforeGenMore ?? lastMsg.msg
+        props.messages = [
+          ...props.messages.slice(0, props.messages.length - 1),
+          { ...lastMsg, msg: msgState.textBeforeGenMore ?? lastMsg.msg },
+        ]
+      }
       break
     }
 
@@ -621,7 +630,7 @@ export async function getPromptEntities(): Promise<PromptEntities> {
     if (!entities) throw new Error(`Could not collate data for prompting`)
     return {
       ...entities,
-      messages: entities.messages.filter((msg) => msg.ooc !== true),
+      messages: entities.messages.filter((msg) => msg.ooc !== true && msg.adapter !== 'image'),
       lastMessage: getLastMessage(entities.messages),
     }
   }
@@ -630,7 +639,7 @@ export async function getPromptEntities(): Promise<PromptEntities> {
   if (!entities) throw new Error(`Could not collate data for prompting`)
   return {
     ...entities,
-    messages: entities.messages.filter((msg) => msg.ooc !== true),
+    messages: entities.messages.filter((msg) => msg.ooc !== true && msg.adapter !== 'image'),
     lastMessage: getLastMessage(entities.messages),
   }
 }
@@ -657,12 +666,9 @@ async function getGuestEntities() {
     (s) => chat.scenarioIds && chat.scenarioIds.includes(s._id)
   )
 
-  const {
-    impersonating,
-    chatChars: { list, map },
-  } = getStore('character').getState()
+  const { impersonating, chatChars } = getStore('character').getState()
 
-  const characters = getBotsForChat(chat, char, map)
+  const characters = getBotsForChat(chat, char, chatChars.map)
 
   return {
     chat,
@@ -673,7 +679,7 @@ async function getGuestEntities() {
     messages,
     settings,
     members: [profile] as AppSchema.Profile[],
-    chatBots: list,
+    chatBots: chatChars.list,
     autoReplyAs: active.replyAs,
     characters,
     impersonating,
@@ -695,18 +701,15 @@ function getAuthedPromptEntities() {
     .getState()
     .books.list.find((book) => book._id === chat.memoryId)
 
-  const messages = getStore('messages').getState().msgs
+  const { msgs, messageHistory } = getStore('messages').getState()
   const settings = getAuthGenSettings(chat, user)!
   const scenarios = getStore('scenario')
     .getState()
     .scenarios.filter((s) => chat.scenarioIds && chat.scenarioIds.includes(s._id))
 
-  const {
-    impersonating,
-    chatChars: { list, map },
-  } = getStore('character').getState()
+  const { impersonating, chatChars } = getStore('character').getState()
 
-  const characters = getBotsForChat(chat, char, map)
+  const characters = getBotsForChat(chat, char, chatChars.map)
 
   return {
     chat,
@@ -714,10 +717,10 @@ function getAuthedPromptEntities() {
     user,
     profile,
     book,
-    messages,
+    messages: messageHistory.concat(msgs),
     settings,
     members,
-    chatBots: list,
+    chatBots: chatChars.list,
     autoReplyAs: active.replyAs,
     characters,
     impersonating,

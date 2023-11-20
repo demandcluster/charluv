@@ -8,7 +8,6 @@ import {
   Heart,
   HelpCircle,
   LogIn,
-  MailPlus,
   MessageCircle,
   ShoppingCart,
   Moon,
@@ -19,10 +18,12 @@ import {
   Power,
   Settings,
   ShoppingBag,
-  Signal,
   Sliders,
+  Speaker,
   Sun,
   VenetianMask,
+  Volume2,
+  VolumeX,
   X,
 } from 'lucide-solid'
 import {
@@ -38,6 +39,7 @@ import {
 } from 'solid-js'
 import AvatarIcon, { CharacterAvatar } from './shared/AvatarIcon'
 import {
+  audioStore,
   characterStore,
   chatStore,
   inviteStore,
@@ -53,7 +55,7 @@ import logoIcon from './charluv192.png'
 import { useEffect, useResizeObserver, useWindowSize } from './shared/hooks'
 import WizardIcon from './icons/WizardIcon'
 import Badge from './shared/Badge'
-import { pipelineApi } from './store/data/pipeline'
+import { soundEmitter } from './shared/Audio/playable-events'
 
 const MobileNavHeader = () => {
   const user = userStore()
@@ -164,7 +166,9 @@ const Navigation: Component = () => {
               </div>
             </div>
           </Show>
-          <div class="text-500 mb-1 text-[0.6rem] italic">{state.config.version}</div>
+          <div class="text-500 mb-1 text-[0.6rem] italic" role="contentinfo" aria-label="Version">
+            {state.config.version}
+          </div>
         </div>
       </div>
     </>
@@ -175,6 +179,11 @@ const UserNavigation: Component = () => {
   const user = userStore()
   const menu = settingStore()
   const toasts = toastStore()
+  const invites = inviteStore()
+
+  const count = createMemo(() => {
+    return toasts.unseen + invites.invites.length
+  })
 
   return (
     <>
@@ -194,50 +203,57 @@ const UserNavigation: Component = () => {
         <CharacterLink />
       </Show>
       <Show when={menu.flags.chub}>
-        <Item href="/chub">
-          <ShoppingBag />
+        <Item href="/chub" ariaLabel="Character hub">
+          <ShoppingBag aria-hidden="true" />
           CHUB
         </Item>
       </Show>
 
       <ChatLink />
 
-      <Library pipeline={user.user?.useLocalPipeline} />
+      <Library />
+      <MultiItem>
+        <Item href="/presets" ariaLabel="Presets">
+          <Sliders aria-hidden="true" />
+          <span aria-hidden="true">Presets</span>
+        </Item>
+        <EndItem>
+          <A class="icon-button" href="/presets/new" role="button" aria-label="Add a new preset">
+            <Plus aria-hidden="true" />
+          </A>
+        </EndItem>
+      </MultiItem>
 
-      <Item href="/invites">
-        <MailPlus /> Invites <InviteBadge />
-      </Item>
+      <Show when={menu.flags.sounds}>
+        <Sounds />
+      </Show>
       <Show when={user.loggedIn}>
         <Item href="/premium">
           <HeartHandshake /> Premium
         </Item>
       </Show>
-      <Show when={user.user?.admin || user.user?.premium}>
-        <Item href="/presets">
-          <Sliders /> Presets
-        </Item>
-      </Show>
 
       <Show when={user.user?.admin}>
-        <Item href="/admin/metrics">
-          <Activity /> Manage
+        <Item href="/admin/metrics" ariaLabel="Manage">
+          <Activity aria-hidden="true" />
+          <span aria-hidden="true">Manage</span>
         </Item>
         <SubMenu>
-          <SubItem href="/admin/users" parent="/admin/">
+          <SubItem href="/admin/users" parent="/admin/" ariaLabel="Users">
             Users
           </SubItem>
-          <SubItem href="/admin/subscriptions" parent="/admin/">
+          <SubItem href="/admin/subscriptions" parent="/admin/" ariaLabel="Subscriptions">
             Subscriptions
           </SubItem>
-          <SubItem href="/admin/announcements" parent="/admin/">
+          <SubItem href="/admin/announcements" parent="/admin/" ariaLabel="Announcements">
             Announcements
           </SubItem>
         </SubMenu>
       </Show>
 
       <div class="flex flex-wrap justify-center gap-[2px] text-sm">
-        <Item href="/faq">
-          <HelpCircle />
+        <Item href="/faq" ariaLabel="Open FAQ page">
+          <HelpCircle aria-hidden="true" />
         </Item>
 
         <Show when={user.loggedIn && !user.user?.admin}>
@@ -245,17 +261,18 @@ const UserNavigation: Component = () => {
             <ShoppingCart />
           </Item>
         </Show>
-        <Item href="/settings">
-          <Settings />
+        <Item href="/settings" ariaLabel="Open settings page">
+          <Settings aria-hidden="true" />
         </Item>
 
         <Item
+          ariaLabel="Toggle between light and dark mode"
           onClick={() => {
             userStore.saveUI({ mode: user.ui.mode === 'light' ? 'dark' : 'light' })
           }}
         >
           <Show when={user.ui.mode === 'dark'} fallback={<Sun />}>
-            <Moon />
+            <Moon aria-hidden="true" />
           </Show>
         </Item>
 
@@ -279,19 +296,24 @@ const UserNavigation: Component = () => {
             if (menu.showMenu) settingStore.closeMenu()
             toastStore.modal(true)
           }}
+          ariaLabel="Show notification list"
         >
           <Switch>
-            <Match when={toasts.unseen > 0}>
-              <div class="relative flex">
-                <Bell fill="var(--bg-100)" />
-                <span class="absolute bottom-[-0.5rem] right-[-0.5rem]">
-                  <Badge>{toasts.unseen > 9 ? '9+' : toasts.unseen}</Badge>
+            <Match when={count() > 0}>
+              <div
+                class="relative flex"
+                role="status"
+                aria-label={`Status: You have ${count()} new notifications`}
+              >
+                <Bell fill="var(--bg-100)" aria-hidden="true" />
+                <span class="absolute bottom-[-0.5rem] right-[-0.5rem]" aria-hidden="true">
+                  <Badge>{count() > 9 ? '9+' : count()}</Badge>
                 </span>
               </div>
             </Match>
 
-            <Match when={!toasts.unseen}>
-              <Bell color="var(--bg-500)" />
+            <Match when={!count()}>
+              <Bell color="var(--bg-500)" role="status" aria-label="Status: No new notifications" />
             </Match>
           </Switch>
         </Item>
@@ -309,13 +331,16 @@ const GuestNavigation: Component = () => {
     config: s.config,
     guest: s.guestAccessAllowed,
     flags: s.flags,
-    pipelineOnline: s.pipelineOnline,
   }))
 
   return (
     <>
       <Show when={menu.config.canAuth}>
-        <Item href="/login">
+        <Item
+          href="/login"
+          ariaLabel="Login to the application"
+          onClick={() => soundEmitter.emit('menu-item-clicked', 'login')}
+        >
           <LogIn /> Login
         </Item>
       </Show>
@@ -326,8 +351,8 @@ const GuestNavigation: Component = () => {
         <CharacterLink />
 
         <Show when={menu.flags.chub}>
-          <Item href="/chub">
-            <ShoppingBag />
+          <Item href="/chub" ariaLabel="Character hub">
+            <ShoppingBag aria-hidden="true" />
             CHUB
           </Item>
         </Show>
@@ -335,24 +360,44 @@ const GuestNavigation: Component = () => {
         <ChatLink />
 
         <Library />
+
+        <MultiItem>
+          <Item
+            href="/presets"
+            ariaLabel="Presets"
+            onClick={() => soundEmitter.emit('menu-item-clicked', 'presets')}
+          >
+            <Sliders /> Presets
+          </Item>
+          <EndItem>
+            <A class="icon-button" href="/presets/new" role="button" aria-label="Add a new preset">
+              <Plus aria-hidden="true" />
+            </A>
+          </EndItem>
+        </MultiItem>
+
+        <Show when={menu.flags.sounds}>
+          <Sounds />
+        </Show>
       </Show>
 
       <div class="flex flex-wrap justify-center gap-[2px] text-sm">
-        <Item href="/faq">
-          <HelpCircle />
+        <Item href="/faq" ariaLabel="Open FAQ page">
+          <HelpCircle aria-hidden="true" />
         </Item>
 
-        <Item href="/settings">
-          <Settings />
+        <Item href="/settings" ariaLabel="Open settings page">
+          <Settings aria-hidden="True" />
         </Item>
 
         <Item
+          ariaLabel="Toggle between light and dark mode"
           onClick={() => {
             userStore.saveUI({ mode: user.ui.mode === 'light' ? 'dark' : 'light' })
           }}
         >
           <Show when={user.ui.mode === 'dark'} fallback={<Sun />}>
-            <Moon />
+            <Moon aria-hidden="true" />
           </Show>
         </Item>
 
@@ -361,19 +406,24 @@ const GuestNavigation: Component = () => {
             if (menu.showMenu) settingStore.closeMenu()
             toastStore.modal(true)
           }}
+          ariaLabel="Show notification list"
         >
           <Switch>
             <Match when={toasts.unseen > 0}>
-              <div class="relative flex">
-                <Bell fill="var(--bg-100)" />
-                <span class="absolute bottom-[-0.5rem] right-[-0.5rem]">
+              <div
+                class="relative flex"
+                role="status"
+                aria-label={`Status: You have ${toasts.unseen} new notifications`}
+              >
+                <Bell fill="var(--bg-100)" aria-hidden="true" />
+                <span class="absolute bottom-[-0.5rem] right-[-0.5rem]" aria-hidden="true">
                   <Badge>{toasts.unseen > 9 ? '9+' : toasts.unseen}</Badge>
                 </span>
               </div>
             </Match>
 
             <Match when={!toasts.unseen}>
-              <Bell color="var(--bg-500)" />
+              <Bell color="var(--bg-500)" role="status" aria-label="Status: No new notifications" />
             </Match>
           </Switch>
         </Item>
@@ -384,9 +434,12 @@ const GuestNavigation: Component = () => {
   )
 }
 
-const Item: Component<{ href?: string; children: string | JSX.Element; onClick?: () => void }> = (
-  props
-) => {
+const Item: Component<{
+  href?: string
+  ariaLabel?: string
+  children: string | JSX.Element
+  onClick?: () => void
+}> = (props) => {
   const menu = settingStore()
   return (
     <>
@@ -397,6 +450,9 @@ const Item: Component<{ href?: string; children: string | JSX.Element; onClick?:
             if (props.onClick) props.onClick()
             else if (menu.showMenu) settingStore.closeMenu()
           }}
+          tabindex={0}
+          role="button"
+          aria-label={props.ariaLabel}
         >
           {props.children}
         </div>
@@ -406,8 +462,11 @@ const Item: Component<{ href?: string; children: string | JSX.Element; onClick?:
           href={props.href!}
           class="flex min-h-[2.5rem] items-center justify-start gap-4 rounded-lg px-2 hover:bg-[var(--bg-700)] sm:min-h-[2.5rem]"
           onClick={() => {
+            if (props.onClick) props.onClick()
             if (menu.showMenu) settingStore.closeMenu()
           }}
+          role="button"
+          aria-label={props.ariaLabel}
         >
           {props.children}
         </A>
@@ -421,6 +480,7 @@ const SubMenu: Component<{ children: any }> = (props) => <div class="bg-900">{pr
 const SubItem: Component<{
   parent: string
   href: string
+  ariaLabel?: string
   children: string | JSX.Element
   onClick?: () => void
 }> = (props) => {
@@ -435,50 +495,69 @@ const SubItem: Component<{
         onClick={() => {
           if (menu.showMenu) settingStore.closeMenu()
         }}
+        role="button"
+        aria-label={props.ariaLabel}
       >
-        <ChevronRight size={14} /> {props.children}
+        <ChevronRight aria-hidden="true" size={14} />
+        <span aria-hidden="true">{props.children}</span>
       </A>
     </Show>
   )
 }
 
-const InviteBadge: Component = () => {
-  const inv = inviteStore()
-
-  return (
-    <>
-      <Show when={inv.invites.length}>
-        <span
-          class={`flex h-6 items-center justify-center rounded-xl bg-red-600 px-2 text-xs text-white`}
-        >
-          {inv.invites.length}
-        </span>
-      </Show>
-    </>
-  )
-}
-
 export default Navigation
 
-const ExternalLink: Component<{ href: string; newtab?: boolean; children?: any }> = (props) => (
+const ExternalLink: Component<{
+  href: string
+  newtab?: boolean
+  ariaLabel?: string
+  children?: any
+}> = (props) => (
   <a
     class="flex h-10 items-center justify-start gap-4 rounded-xl px-2 hover:bg-[var(--bg-700)] sm:h-12"
     href={props.href}
     target={props.newtab ? '_blank' : ''}
+    role="link"
+    aria-label={props.ariaLabel}
   >
     {props.children}
   </a>
 )
 
-const Library: Component<{ pipeline?: boolean }> = (props) => {
-  const cfg = settingStore()
-
+const Library: Component<{}> = (props) => {
   return (
-    <div class="grid w-full gap-2">
-      <Item href="/memory">
-        <Book /> Library{' '}
+    <div class="grid w-full gap-2" style={{ 'grid-template-columns': '1fr 30px' }}>
+      <Item
+        href="/memory"
+        ariaLabel="Library"
+        onClick={() => soundEmitter.emit('menu-item-clicked', 'library')}
+      >
+        <Book aria-hidden="true" />
+        <span aria-hidden="true"> Library </span>
       </Item>
     </div>
+  )
+}
+
+const Sounds: Component<{}> = (props) => {
+  const audioSettings = audioStore()
+
+  return (
+    <MultiItem>
+      <Item href="/sounds" onClick={() => soundEmitter.emit('menu-item-clicked', 'sounds')}>
+        <Speaker /> Sounds
+      </Item>
+      <EndItem>
+        <a class="icon-button" onClick={() => audioStore.toggleMuteTrack('master')}>
+          <Show when={audioSettings.tracks.master.muted}>
+            <VolumeX />
+          </Show>
+          <Show when={!audioSettings.tracks.master.muted}>
+            <Volume2 />
+          </Show>
+        </a>
+      </EndItem>
+    </MultiItem>
   )
 }
 
@@ -486,16 +565,19 @@ const CharacterLink = () => {
   const user = userStore()
   return (
     <MultiItem>
-      <Item href="/character/list">
-        <Heart /> Matches
+      <Item
+        href="/character/list"
+        ariaLabel="Matches"
+        onClick={() => soundEmitter.emit('menu-item-clicked', 'characters')}
+      >
+        <Heart aria-hidden="true" />
+        <span aria-hidden="true"> Matches </span>
       </Item>
-      <Show when={user.loggedIn}>
-        <EndItem>
-          <A class="icon-button" href="/editor">
-            <Plus />
-          </A>
-        </EndItem>
-      </Show>
+      <EndItem>
+        <A class="icon-button" href="/editor" role="button" aria-label="Add a new character">
+          <Plus aria-hidden="true" />
+        </A>
+      </EndItem>
     </MultiItem>
   )
 }
@@ -503,12 +585,17 @@ const CharacterLink = () => {
 const ChatLink = () => {
   return (
     <MultiItem>
-      <Item href="/chats">
-        <MessageCircle fill="var(--bg-100)" /> Chats
+      <Item
+        href="/chats"
+        ariaLabel="Chats"
+        onClick={() => soundEmitter.emit('menu-item-clicked', 'chats')}
+      >
+        <MessageCircle fill="var(--bg-100)" aria-hidden="true" />
+        <span aria-hidden="true"> Chats </span>
       </Item>
       <EndItem>
-        <A class="icon-button" href="/chats/create">
-          <Plus />
+        <A class="icon-button" href="/chats/create" role="button" aria-label="Create a new chat">
+          <Plus aria-hidden="true" />
         </A>
       </EndItem>
     </MultiItem>
@@ -529,8 +616,10 @@ const UserProfile = () => {
         }}
       >
         <Item
+          ariaLabel="Edit user profile"
           onClick={() => {
             if (menu.showMenu) settingStore.closeMenu()
+            soundEmitter.emit('menu-item-clicked', 'profile')
             userStore.modal(true)
           }}
         >
@@ -549,7 +638,7 @@ const UserProfile = () => {
               />
             </Match>
           </Switch>
-          <span>{chars.impersonating?.name || user.profile?.handle}</span>
+          <span aria-hidden="true">{chars.impersonating?.name || user.profile?.handle}</span>
           <span class="float-right text-yellow-500"> {user.user?.credits || 0}</span>
           <Show when={user.user?.premium || false}>
             <span class="text-right text-xs text-yellow-500">
@@ -560,13 +649,16 @@ const UserProfile = () => {
         </Item>
         <div class="flex items-center">
           <a
+            href="#"
+            role="button"
+            aria-label="Open impersonation menu"
             class="icon-button"
             onClick={() => {
               settingStore.toggleImpersonate(true)
               if (menu.showMenu) settingStore.closeMenu()
             }}
           >
-            <VenetianMask />
+            <VenetianMask aria-hidden="true" />
           </a>
         </div>
       </div>

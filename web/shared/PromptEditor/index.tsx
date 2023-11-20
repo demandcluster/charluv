@@ -2,7 +2,9 @@ import {
   Component,
   For,
   JSX,
+  Match,
   Show,
+  Switch,
   createEffect,
   createMemo,
   createSignal,
@@ -14,17 +16,18 @@ import { getAISettingServices, toMap } from '../util'
 import { useEffect, useRootModal } from '../hooks'
 import Modal from '../Modal'
 import { HelpCircle } from 'lucide-solid'
-import { TitleCard } from '../Card'
+import { Card, TitleCard } from '../Card'
 import Button from '../Button'
 import { parseTemplate } from '/common/template-parser'
 import { toBotMsg, toChar, toChat, toPersona, toProfile, toUser, toUserMsg } from '/common/dummy'
-import { ensureValidTemplate, getPromptParts } from '/common/prompt'
+import { ensureValidTemplate, buildPromptParts } from '/common/prompt'
 import { AppSchema } from '/common/types/schema'
 import { v4 } from 'uuid'
 import { templates } from '../../../common/presets/templates'
 import Select from '../Select'
 import TextInput from '../TextInput'
 import { presetStore, toastStore } from '/web/store'
+import Sortable from '../Sortable'
 
 type Placeholder = {
   required: boolean
@@ -51,7 +54,7 @@ const placeholders = {
   example_dialogue: { required: true, limit: 1 },
   all_personalities: { required: false, limit: 1 },
   impersonating: { required: false, limit: 1 },
-  // chat_embed: { required: false, limit: 1 },
+  longterm_memory: { required: false, limit: 1 },
   user_embed: { required: false, limit: 1 },
 } satisfies Record<string, Placeholder>
 
@@ -62,24 +65,25 @@ const v2placeholders = {
   'each bot': { required: false, limit: 1, inserted: `#each bot}} {{/each` },
 } satisfies Record<string, Placeholder>
 
-const helpers: { [key in Interp]?: JSX.Element | string } = {
+const helpers: { [key in InterpAll]?: JSX.Element | string } = {
   char: 'Character name',
   user: `Your character's or profile name`,
+
   system_prompt: `(For instruct models like Turbo, GPT-4, Claude, etc). "Instructions" for how the AI should behave. E.g. "Enter roleplay mode. You will write the {{char}}'s next reply ..."`,
+  ujb: '(Aka: `{{jailbreak}}`) Similar to `system_prompt`, but typically at the bottom of the prompt',
+
   impersonating: `Your character's personality. This only applies when you are using the "character impersonation" feature.`,
   chat_age: `The age of your chat (time elapsed since chat created)`,
   idle_duration: `The time elapsed since you last sent a message`,
-  ujb: `The jailbreak. Typically inserted at the end of the prompt.`,
   all_personalities: `Personalities of all characters in the chat EXCEPT the main character.`,
-  post: `The "post-amble" text. This gives specific instructions on how the model should respond. E.g. "Respond as {{char}}:"`,
-  // chat_embed: 'Text retrieved from chat history embeddings (I.e., "long-term memory").',
-  user_embed: 'Text retrieved from user-specified embeddings (Articles, PDFs, ...)',
-}
+  post: 'The "post-amble" text. This gives specific instructions on how the model should respond. E.g. Typically reads: `{{char}}:`',
 
-const v2helpers: { [key in InterpV2]?: JSX.Element | string } = {
+  longterm_memory:
+    '(Aka `chat_embed`) Text retrieved from chat history embeddings. Adjust the token budget in the preset `Memory` section.',
+  user_embed: 'Text retrieved from user-specified embeddings (Articles, PDFs, ...)',
   roll: 'Produces a random number. Defaults to "d20". To use a custom number: {{roll [number]}}. E.g.: {{roll 1000}}',
   random:
-    'Produces a random word from a comma-separated list. E.g.: {{random happy, sad, jealous, angry}}',
+    'Produces a random word from a comma-separated list. E.g.: `{{random happy, sad, jealous, angry}}`',
   'each bot': (
     <>
       Suported properties: <code>{`{{.name}} {{.persona}}`}</code>
@@ -115,6 +119,7 @@ const PromptEditor: Component<
     placeholder?: string
     minHeight?: number
     showTemplates?: boolean
+    hide?: boolean
 
     /** Hide the meanings of "green" "yellow" "red" placeholder helper text */
     hideHelperText?: boolean
@@ -130,12 +135,13 @@ const PromptEditor: Component<
   const [help, showHelp] = createSignal(false)
   const [templates, setTemplates] = createSignal(false)
   const [preview, setPreview] = createSignal(false)
+  const [rendered, setRendered] = createSignal('')
 
-  const rendered = createMemo(() => {
-    const opts = getExampleOpts(props.inherit)
+  createEffect(async () => {
+    const opts = await getExampleOpts(props.inherit)
     const template = props.noDummyPreview ? input() : ensureValidTemplate(input(), opts.parts)
-    const example = parseTemplate(template, opts).parsed
-    return example
+    const { parsed } = await parseTemplate(template, opts)
+    setRendered(parsed)
   })
 
   const onChange = (ev: Event & { currentTarget: HTMLTextAreaElement }) => {
@@ -199,8 +205,9 @@ const PromptEditor: Component<
   }
 
   const hide = createMemo(() => {
+    if (props.hide) return 'hidden'
     if (!props.service || !adapters()) return ''
-    return adapters()!.includes(props.service) ? '' : ` hidden `
+    return adapters()!.includes(props.service) ? '' : `hidden `
   })
 
   onMount(resize)
@@ -212,7 +219,11 @@ const PromptEditor: Component<
           label={
             <>
               <div class="flex cursor-pointer items-center gap-2" onClick={() => showHelp(true)}>
-                Prompt Template (formerly gaslight) <HelpCircle size={16} />
+                Prompt Template{' '}
+                <div class="link flex items-center gap-1">
+                  <span class="link">Help</span>
+                  <HelpCircle size={14} />
+                </div>
               </div>
               <div class="flex gap-2">
                 <Button size="sm" onClick={() => setPreview(!preview())}>
@@ -269,18 +280,108 @@ const PromptEditor: Component<
         close={() => showHelp(false)}
       />
 
-      <SelectTemplate
-        show={templates()}
-        close={() => setTemplates(false)}
-        select={(template) => {
-          ref.value = template
-        }}
-      />
+      <Show when={props.showTemplates}>
+        <SelectTemplate
+          show={templates()}
+          close={() => setTemplates(false)}
+          select={(template) => {
+            ref.value = template
+          }}
+        />
+      </Show>
     </div>
   )
 }
 
 export default PromptEditor
+
+const BASIC_LABELS: Record<string, { label: string; id: number }> = {
+  system_prompt: { label: 'System Prompt', id: 0 },
+  scenario: { label: 'Scenario', id: 100 },
+  personality: { label: 'Personality', id: 200 },
+  impersonating: { label: 'Impersonate Personality', id: 300 },
+  chat_embed: { label: 'Long-term Memory', id: 350 },
+  memory: { label: 'Memory', id: 400 },
+  example_dialogue: { label: 'Example Dialogue', id: 500 },
+  history: { label: 'Chat History', id: 600 },
+  ujb: { label: 'Jailbreak (UJB)', id: 700 },
+}
+
+const SORTED_LABELS = Object.entries(BASIC_LABELS)
+  .map(([value, spec]) => ({ id: spec.id, label: spec.label, value: value }))
+  .sort((l, r) => l.id - r.id)
+
+export const BasicPromptTemplate: Component<{
+  inherit?: Partial<AppSchema.GenSettings>
+  hide?: boolean
+}> = (props) => {
+  const items = ['Alpaca', 'Vicuna', 'Metharme', 'ChatML', 'Pyg/Simple'].map((label) => ({
+    label: `Format: ${label}`,
+    value: label,
+  }))
+
+  const [original, setOrder] = createSignal(
+    props.inherit?.promptOrder?.map((o) => ({
+      ...BASIC_LABELS[o.placeholder],
+      value: o.placeholder,
+      enabled: o.enabled,
+    })) || SORTED_LABELS.map((h) => ({ ...h, enabled: true }))
+  )
+  const [mod, setMod] = createSignal(original())
+
+  const updateOrder = (ev: number[]) => {
+    const order = ev.reduce((prev, curr, i) => {
+      prev.set(curr, i)
+      return prev
+    }, new Map<number, number>())
+
+    const next = original()
+      .slice()
+      .sort((left, right) => order.get(left.id)! - order.get(right.id)!)
+
+    setMod(next)
+  }
+
+  const onClick = (id: number) => {
+    const next = original().map((o) => {
+      if (o.id !== id) return o
+      return { ...o, enabled: !o.enabled }
+    })
+    setOrder(next)
+  }
+
+  return (
+    <Card border hide={props.hide}>
+      <div class="flex flex-col gap-1">
+        <FormLabel
+          label="Prompt Order"
+          helperMarkdown="Ordering of elements within your prompt. Click on an element to exclude it.
+          Enable **Advanced Prompting** for full control and customization."
+        />
+        <Select
+          fieldName="promptOrderFormat"
+          items={items}
+          value={props.inherit?.promptOrderFormat || 'Alpaca'}
+        />
+        <Sortable
+          items={original()}
+          onChange={updateOrder}
+          onItemClick={onClick}
+          enabled={original()
+            .filter((o) => o.enabled)
+            .map((o) => o.id)}
+        />
+        <TextInput
+          fieldName="promptOrder"
+          parentClass="hidden"
+          value={mod()
+            .map((o) => `${o.value}=${o.enabled ? 'on' : 'off'}`)
+            .join(',')}
+        />
+      </div>
+    </Card>
+  )
+}
 
 const Placeholder: Component<
   {
@@ -462,7 +563,7 @@ const HelpModal: Component<{
 }> = (props) => {
   const [id] = createSignal(v4())
   const items = createMemo(() => {
-    const all = Object.entries(helpers).concat(Object.entries(v2helpers))
+    const all = Object.entries(helpers)
     const entries = all.filter(([interp]) => props.interps.includes(interp as any))
 
     return entries
@@ -481,7 +582,14 @@ const HelpModal: Component<{
           <For each={items()}>
             {([interp, help]) => (
               <TitleCard>
-                <FormLabel label={<b>{interp}</b>} helperText={help} />
+                <Switch>
+                  <Match when={typeof help === 'string'}>
+                    <FormLabel label={<b>{interp}</b>} helperMarkdown={help as string} />
+                  </Match>
+                  <Match when>
+                    <FormLabel label={<b>{interp}</b>} helperText={help} />
+                  </Match>
+                </Switch>
               </TitleCard>
             )}
           </For>
@@ -493,7 +601,7 @@ const HelpModal: Component<{
   return null
 }
 
-function getExampleOpts(inherit?: Partial<AppSchema.GenSettings>) {
+async function getExampleOpts(inherit?: Partial<AppSchema.GenSettings>) {
   const char = toChar('Rory', {
     scenario: 'Rory is strolling in the park',
     persona: toPersona('Rory is very talkative.'),
@@ -516,7 +624,7 @@ function getExampleOpts(inherit?: Partial<AppSchema.GenSettings>) {
     return `${name}: ${hist.msg}`
   })
 
-  const parts = getPromptParts(
+  const parts = await buildPromptParts(
     {
       char,
       characters,
@@ -529,6 +637,7 @@ function getExampleOpts(inherit?: Partial<AppSchema.GenSettings>) {
       chatEmbeds: [],
       userEmbeds: [],
       settings: inherit,
+      resolvedScenario: char.scenario,
     },
     lines,
     (text: string) => text.length

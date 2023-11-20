@@ -71,10 +71,13 @@ export async function updateProfile(userId: string, props: Partial<AppSchema.Pro
   return getProfile(userId)
 }
 
-export async function updateIp(userId: string, ip: string) {
-  await db('user').updateOne({ _id: userId, kind: 'user' }, { $set: { lastIp: ip } })
+export async function updateIp(userId: string, ip?: string) {
+  if (ip) {
+    await db('user').updateOne({ _id: userId, kind: 'user' }, { $set: { lastIp: ip } })
+  }
 }
-export async function checkIp(ip: string) {
+export async function checkIp(ip?: string) {
+  if (!ip) return false
   const usersCursor = await db('user').find({ lastIp: ip, kind: 'user' })
   const usersCount = await usersCursor.count()
   if (usersCount === 0) return false
@@ -273,12 +276,13 @@ export async function deleteUserAccount(userId: string) {
 }
 
 export async function validateSubscription(user: AppSchema.User) {
+  if (user.admin) return Infinity
   if (!user.sub?.tierId) {
     return -1
   }
 
   const tier = await getTier(user.sub.tierId)
-  if (!tier.productId) return tier.level
+  if (!tier.productId) return tier.level ?? -1
 
   const state = await domain.subscription.getAggregate(user._id)
   if (state.state === 'active') {
@@ -299,7 +303,7 @@ export async function validateSubscription(user: AppSchema.User) {
       return nextTier?.level ?? -1
     }
 
-    return tier.level
+    return tier.level ?? -1
   }
 
   if (!user.billing) {
@@ -345,5 +349,5 @@ export async function validateSubscription(user: AppSchema.User) {
   user.sub.level = nextTier.level
   user.sub.tierId = tierId
   await updateUser(user._id, { billing: user.billing, sub: user.sub })
-  return nextTier.level
+  return nextTier.level ?? -1
 }

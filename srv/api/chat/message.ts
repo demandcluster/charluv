@@ -122,7 +122,13 @@ export const generateMessageV2 = handle(async (req, res) => {
     return handleGuestGenerate(body, req, res)
   }
 
-  const impersonate: AppSchema.Character | undefined = body.impersonate
+  const impersonateId: string | undefined = body.impersonate?._id
+  const impersonate: AppSchema.Character | undefined = !impersonateId
+    ? undefined
+    : impersonateId.startsWith('temp-')
+    ? body.impersonate
+    : await store.characters.getCharacter(userId, impersonateId)
+
   const user = await store.users.getUser(userId)
   body.user = user
 
@@ -232,7 +238,7 @@ export const generateMessageV2 = handle(async (req, res) => {
 
   let generated = ''
   let error = false
-  let meta = { ctx: entities.settings.maxContextLength, char: entities.size }
+  let meta = { ctx: entities.settings.maxContextLength, char: entities.size, len: entities.length }
 
   const messageId =
     body.kind === 'retry'
@@ -313,16 +319,18 @@ export const generateMessageV2 = handle(async (req, res) => {
   const actions: AppSchema.ChatAction[] = []
 
   if (chat.mode === 'adventure') {
-    const lines = fillPromptWithLines(
+    const lines = await fillPromptWithLines(
       getTokenCounter('main'),
-      1024,
+      2048,
       '',
       body.lines.concat(`${body.replyAs.name}: ${responseText}`)
     )
 
     const prompt = cyoaTemplate(
       body.settings.service,
-      body.settings.service === 'openai' ? body.settings.oaiModel : ''
+      body.settings.service === 'openai'
+        ? body.settings.thirdPartyModel || body.settings.oaiModel
+        : ''
     )
 
     const infer = async (text: string) => {
@@ -330,6 +338,7 @@ export const generateMessageV2 = handle(async (req, res) => {
         prompt: text,
         log,
         service: entities.settings.service!,
+        settings: entities.settings,
         user: entities.user,
       })
       return res.generated
@@ -522,7 +531,7 @@ async function handleGuestGenerate(body: GenRequest, req: AppRequest, res: Respo
 
   let generated = ''
   let error = false
-  let meta = { ctx: entities.settings.maxContextLength, char: entities.size }
+  let meta = { ctx: entities.settings.maxContextLength, char: entities.size, len: entities.length }
 
   for await (const gen of stream) {
     if (typeof gen === 'string') {

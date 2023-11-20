@@ -1,6 +1,7 @@
 import { AppSchema } from './types/schema'
 import { AIAdapter, AI_ADAPTERS, ChatAdapter, THIRDPARTY_FORMATS } from './adapters'
 import { defaultPresets } from './default-preset'
+import { deepClone } from './util'
 
 export { defaultPresets }
 
@@ -18,11 +19,14 @@ export const presetValidator = {
   repetitionPenaltyRange: 'number',
   repetitionPenaltySlope: 'number',
 
+  usePromptOrder: 'boolean?',
+
   memoryContextLimit: 'number?',
   memoryDepth: 'number?',
   memoryChatEmbedLimit: 'number?',
   memoryUserEmbedLimit: 'number?',
 
+  minP: 'number?',
   typicalP: 'number',
   topP: 'number',
   topK: 'number',
@@ -58,6 +62,7 @@ export const presetValidator = {
   thirdPartyUrl: 'string?',
   thirdPartyFormat: [...THIRDPARTY_FORMATS, null],
   thirdPartyUrlNoSuffix: 'boolean?',
+  thirdPartyModel: 'string?',
 
   novelModel: 'string?',
   novelModelOverride: 'string?',
@@ -155,6 +160,7 @@ export const serviceGenMap: Record<Exclude<ChatAdapter, 'default'>, GenMap> = {
     typicalP: 'typical',
     topA: 'top_a',
     order: 'sampler_order',
+    minP: 'min_p',
   },
   novel: {
     maxTokens: 'max_length',
@@ -168,6 +174,7 @@ export const serviceGenMap: Record<Exclude<ChatAdapter, 'default'>, GenMap> = {
     typicalP: 'typical_p',
     topA: 'top_a',
     order: '',
+    minP: '',
   },
   ooba: {
     maxTokens: 'max_new_tokens',
@@ -189,6 +196,7 @@ export const serviceGenMap: Record<Exclude<ChatAdapter, 'default'>, GenMap> = {
     repetitionPenaltyRange: '',
     repetitionPenaltySlope: '',
     tailFreeSampling: '',
+    minP: 'min_p',
   },
   horde: {
     maxTokens: 'max_length',
@@ -203,6 +211,7 @@ export const serviceGenMap: Record<Exclude<ChatAdapter, 'default'>, GenMap> = {
     topA: 'top_a',
     order: 'sampler_order',
     maxContextLength: 'max_context_length',
+    minP: '',
   },
   openai: {
     maxTokens: 'max_tokens',
@@ -221,6 +230,7 @@ export const serviceGenMap: Record<Exclude<ChatAdapter, 'default'>, GenMap> = {
     gaslight: 'gaslight',
     oaiModel: 'oaiModel',
     streamResponse: 'stream',
+    minP: '',
   },
   claude: {
     maxTokens: 'max_tokens_to_sample',
@@ -235,6 +245,7 @@ export const serviceGenMap: Record<Exclude<ChatAdapter, 'default'>, GenMap> = {
     topA: '',
     gaslight: 'gaslight',
     claudeModel: 'claudeModel',
+    minP: '',
   },
   scale: {
     maxTokens: '',
@@ -252,6 +263,7 @@ export const serviceGenMap: Record<Exclude<ChatAdapter, 'default'>, GenMap> = {
     presencePenalty: '',
     gaslight: '',
     oaiModel: '',
+    minP: '',
   },
   goose: {
     maxTokens: 'max_tokens',
@@ -269,6 +281,7 @@ export const serviceGenMap: Record<Exclude<ChatAdapter, 'default'>, GenMap> = {
     presencePenalty: 'presence_penalty',
     gaslight: '',
     oaiModel: '',
+    minP: '',
   },
   replicate: {
     maxTokens: 'max_tokens',
@@ -287,6 +300,7 @@ export const serviceGenMap: Record<Exclude<ChatAdapter, 'default'>, GenMap> = {
     gaslight: '',
     replicateModelType: 'replicateModelType',
     replicateModelVersion: 'replicateModelVersion',
+    minP: '',
   },
   openrouter: {
     maxTokens: 'max_tokens',
@@ -306,6 +320,7 @@ export const serviceGenMap: Record<Exclude<ChatAdapter, 'default'>, GenMap> = {
     encoderRepitionPenalty: '',
     frequencyPenalty: '',
     gaslight: '',
+    minP: '',
   },
   mancer: {
     maxTokens: 'max_new_tokens',
@@ -324,6 +339,7 @@ export const serviceGenMap: Record<Exclude<ChatAdapter, 'default'>, GenMap> = {
     repetitionPenaltyRange: '',
     repetitionPenaltySlope: '',
     tailFreeSampling: '',
+    minP: 'min_p',
   },
   petals: {
     maxTokens: '',
@@ -338,6 +354,7 @@ export const serviceGenMap: Record<Exclude<ChatAdapter, 'default'>, GenMap> = {
     topA: '',
     gaslight: '',
     claudeModel: '',
+    minP: '',
   },
   agnaistic: {
     maxTokens: 'max_tokens',
@@ -357,6 +374,7 @@ export const serviceGenMap: Record<Exclude<ChatAdapter, 'default'>, GenMap> = {
     encoderRepitionPenalty: '',
     frequencyPenalty: '',
     gaslight: '',
+    minP: '',
   },
 }
 
@@ -369,39 +387,39 @@ export function getFallbackPreset(adapter: AIAdapter): Partial<AppSchema.GenSett
   switch (adapter) {
     case 'petals':
     case 'horde':
-      return defaultPresets.horde
+      return deepClone(defaultPresets.horde)
 
     case 'kobold':
     case 'ooba':
-      return defaultPresets.basic
+      return deepClone(defaultPresets.basic)
 
     case 'agnaistic':
-      return defaultPresets.agnai
+      return deepClone(defaultPresets.agnai)
 
     case 'openai':
-      return defaultPresets.openai
+      return deepClone(defaultPresets.openai)
 
     case 'novel':
-      return defaultPresets.novel_clio
+      return deepClone(defaultPresets.novel_clio)
 
     case 'scale':
-      return defaultPresets.scale
+      return deepClone(defaultPresets.scale)
 
     case 'claude':
-      return defaultPresets.claude
+      return deepClone(defaultPresets.claude)
 
     case 'goose':
-      return { ...defaultPresets.basic, service: 'goose' }
+      return deepClone({ ...defaultPresets.basic, service: 'goose' })
 
     case 'replicate':
-      return defaultPresets.replicate_vicuna_13b
+      return deepClone(defaultPresets.replicate_vicuna_13b)
 
     /** TODO: Create default preset for OpenRouter... */
     case 'openrouter':
-      return defaultPresets.openai
+      return deepClone(defaultPresets.openai)
 
     case 'mancer':
-      return defaultPresets.mancer
+      return deepClone(defaultPresets.mancer)
   }
 }
 
@@ -413,40 +431,41 @@ export function getInferencePreset(
   switch (adapter) {
     case 'petals':
     case 'horde':
-      return defaultPresets.horde
+      return deepClone(defaultPresets.horde)
 
     case 'agnaistic':
-      return defaultPresets.agnai
+      return deepClone(defaultPresets.agnai)
 
     case 'kobold':
     case 'ooba':
-      return defaultPresets.basic
+      return deepClone(defaultPresets.basic)
 
     case 'openai':
-      return defaultPresets.openai
+      return deepClone(defaultPresets.openai)
 
     case 'novel': {
-      if (model === 'kayra-v1' || user.novelModel === 'kayra-v1') return defaultPresets.novel_kayra
-      return defaultPresets.novel_clio
+      if (model === 'kayra-v1' || user.novelModel === 'kayra-v1')
+        return deepClone(defaultPresets.novel_kayra)
+      return deepClone(defaultPresets.novel_clio)
     }
 
     case 'scale':
-      return defaultPresets.scale
+      return deepClone(defaultPresets.scale)
 
     case 'claude':
-      return defaultPresets.claude
+      return deepClone(defaultPresets.claude)
 
     case 'goose':
-      return { ...defaultPresets.basic, service: 'goose' }
+      return deepClone({ ...defaultPresets.basic, service: 'goose' })
 
     case 'replicate':
-      return defaultPresets.replicate_vicuna_13b
+      return deepClone(defaultPresets.replicate_vicuna_13b)
 
     /** TODO: Create default preset for OpenRouter... */
     case 'openrouter':
-      return defaultPresets.openai
+      return deepClone(defaultPresets.openai)
 
     case 'mancer':
-      return defaultPresets.mancer
+      return deepClone(defaultPresets.mancer)
   }
 }

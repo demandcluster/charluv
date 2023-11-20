@@ -22,6 +22,7 @@ type CharacterState = {
   }
   editing?: AppSchema.Character
   chatChars: {
+    chatId: string
     list: AppSchema.Character[]
     map: Record<string, AppSchema.Character>
   }
@@ -68,7 +69,7 @@ const initState: CharacterState = {
   loading: false,
   creating: false,
   characters: { loaded: 0, list: [], map: {} },
-  chatChars: { list: [], map: {} },
+  chatChars: { chatId: '', list: [], map: {} },
   generate: {
     image: null,
     blob: null,
@@ -94,6 +95,7 @@ export const characterStore = createStore<CharacterState>(
     const { chatChars: prev } = get()
     set({
       chatChars: {
+        chatId: prev.chatId,
         list: prev.list.concat(char),
         map: Object.assign({}, prev.map, { [char._id]: char }),
       },
@@ -102,7 +104,7 @@ export const characterStore = createStore<CharacterState>(
 
   events.on(
     EVENTS.charsReceived,
-    async (chars: AppSchema.Character[], temps: AppSchema.Character[]) => {
+    async (chatId: string, chars: AppSchema.Character[], temps: AppSchema.Character[]) => {
       const state = get()
       const id = await storage.getItem(IMPERSONATE_KEY)
       let impersonating =
@@ -114,7 +116,7 @@ export const characterStore = createStore<CharacterState>(
         impersonating = undefined
       }
 
-      set({ chatChars: { list: chars, map: toMap(chars) }, impersonating })
+      set({ chatChars: { chatId, list: chars, map: toMap(chars) }, impersonating })
     }
   )
 
@@ -232,7 +234,7 @@ export const characterStore = createStore<CharacterState>(
       }
     },
     async *editCharacter(
-      { characters: { list, map, loaded } },
+      { characters: { list, map, loaded }, chatChars },
       characterId: string,
       char: UpdateCharacter,
       onSuccess?: () => void
@@ -241,14 +243,24 @@ export const characterStore = createStore<CharacterState>(
 
       if (res.error) toastStore.error(`Failed to create character: ${res.error}`)
       if (res.result) {
+        const next: AppSchema.Character = res.result
         events.emit(EVENTS.charUpdated, res.result, 'updated')
         toastStore.success(`Successfully updated character`)
+
+        const isChatChar = !!chatChars.map[next._id]
+        const nextChars = { ...chatChars }
+        if (isChatChar) {
+          nextChars.map = Object.assign({}, nextChars.map, { [next._id]: next })
+          nextChars.list = nextChars.list.map((ch) => (ch._id === next._id ? next : ch))
+        }
+
         yield {
           characters: {
             list: list.map((ch) => (ch._id === characterId ? { ...ch, ...res.result } : ch)),
             map: replace(map, characterId, res.result),
             loaded,
           },
+          chatChars: nextChars,
         }
         onSuccess?.()
       }

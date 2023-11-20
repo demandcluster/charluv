@@ -8,18 +8,21 @@ import {
   createSignal,
   onCleanup,
 } from 'solid-js'
-import { settingStore, userStore } from '../store'
+import { SettingState, settingStore, userStore } from '../store'
 import { getPagePlatform, getWidthPlatform, useEffect, useResizeObserver } from './hooks'
 import { wait } from '/common/util'
+import { createDebounce } from './util'
 
 window.googletag = window.googletag || { cmd: [] }
 window.ezstandalone = window.ezstandalone || { cmd: [] }
 
-let slotCounter = 100
+let slotCounter = 200
+
+const idLocks = new Set<number>()
 
 declare const google: { ima: any }
 
-export type SlotKind = 'menu' | 'leaderboard' | 'content' | 'video'
+export type SlotKind = 'menu' | 'leaderboard' | 'content' | 'video' | 'pane_leaderboard'
 export type SlotSize = 'sm' | 'lg' | 'xl'
 
 type SlotId =
@@ -38,6 +41,7 @@ type SlotDef = {
   sm?: SlotSpec
   lg?: SlotSpec
   xl?: SlotSpec
+  ez: number[]
 }
 
 const MIN_AGE = 60 * 1000
@@ -63,10 +67,9 @@ const Slot: Component<{
   }))
 
   const [stick, setStick] = createSignal(props.sticky)
-  const [uniqueId] = createSignal(++slotCounter)
+  const [uniqueId, setUniqueId] = createSignal<number>()
 
   const [done, setDone] = createSignal(false)
-  const [videoDone, setVideoDone] = createSignal(false)
   const [adslot, setSlot] = createSignal<googletag.Slot>()
   const [viewable, setViewed] = createSignal<number>()
   const [visible, setVisible] = createSignal(false)
@@ -75,7 +78,7 @@ const Slot: Component<{
 
   const id = createMemo(() => {
     if (cfg.slots.provider === 'ez' || cfg.flags.reporting)
-      return `ezoic-pub-ad-placeholder-${uniqueId()}`
+      return `ezoic-pub-ad-placeholder-${uniqueId() || '###'}`
     return `${props.slot}-${uniqueId()}`
   })
 
@@ -83,7 +86,9 @@ const Slot: Component<{
     if (!cfg.publisherId) return
     if (!cfg.flags.reporting) return
     let slotid = actualId()
-    console.log.apply(null, [`[${id()}]`, ...args, `| ${slotid}`])
+    const now = new Date()
+    const ts = `${now.toTimeString().slice(0, 8)}.${now.toISOString().slice(-4, -1)}`
+    console.log.apply(null, [`${ts} [${uniqueId()}]`, ...args, `| ${slotid}`])
   }
 
   const resize = useResizeObserver()
@@ -103,79 +108,6 @@ const Slot: Component<{
     setActualId(spec.id)
     return spec
   })
-
-  const tryVideo = () => {
-    const isVideo = specs()!.video && !!cfg.slots.gtmVideoTag
-    if (!isVideo) {
-      log('Invalid attempt')
-      return
-    }
-
-    if (videoDone()) {
-      log('[Video] Already done')
-      return
-    }
-
-    const container = document.getElementById(id())
-    const player: any = document.getElementById(id() + '-player')
-    const ad: any = document.getElementById(id() + '-ad')
-
-    if (!container || !player || !ad) {
-      log('Video not ready')
-      return
-    }
-
-    log('Attempting video request')
-    try {
-      const win: any = window
-      const imaAd = new google.ima.AdDisplayContainer(ad, player)
-      const loader = new google.ima.AdsLoader(imaAd)
-      let manager: any
-
-      loader.addEventListener(
-        google.ima.AdsManagerLoadedEvent.Type.ADS_MANAGER_LOADED,
-        (evt: any) => {
-          const mgr = evt.getAdsManager(player)
-          manager = mgr
-          win.mgr = mgr
-
-          player.load?.()
-          ad.initialize?.()
-
-          mgr.init(player.clientWidth, player.clientHeight, google.ima.ViewMode.NORMAL)
-          mgr.start()
-        },
-        false
-      )
-
-      loader.addEventListener(
-        google.ima.AdErrorEvent.Type.AD_ERROR,
-        (error: any) => {
-          log(error.getError())
-          manager?.destroy()
-        },
-        false
-      )
-
-      player.addEventListener('ended', function () {
-        loader.contentComplete()
-      })
-
-      const request = new google.ima.AdsRequest()
-      request.adTagUrl = cfg.slots.gtmVideoTag
-
-      request.linearAdSlotWidth = player.clientWidth
-      request.linearAdSlotHeight = player.clientHeight
-      request.nonLinearAdSlotWidth = player.clientWidth
-      request.nonLinearAdSlotHeight = player.clientHeight / 3
-
-      loader.requestAds(request)
-      setVideoDone(true)
-      log('Video requested')
-    } catch (ex: any) {
-      log('Video error:', ex?.message || ex)
-    }
-  }
 
   const tryRefresh = () => {
     const slot = adslot()
@@ -258,16 +190,22 @@ const Slot: Component<{
   })
 
   onCleanup(() => {
-    const remove = adslot()
-    if (!remove) return
+    idLocks.delete(uniqueId()!)
     log('Cleanup')
 
     if (cfg.slots.provider === 'ez' || cfg.flags.reporting) {
-      if (!done() || !ref) return
+      if (!ezstandalone.getSelectedPlaceholders) return
+      const id = uniqueId()
+      const holders = ezstandalone.getSelectedPlaceholders()
+      if (!done() || !ref || !holders[id!]) return
       ezstandalone.cmd.push(() => {
-        ezstandalone.destroyPlaceholders(uniqueId())
+        ezstandalone.destroyPlaceholders(uniqueId()!)
       })
-    } else googletag.destroySlots([remove])
+    } else {
+      const remove = adslot()
+      if (!remove) return
+      googletag.destroySlots([remove])
+    }
   })
 
   createEffect(async () => {
@@ -285,14 +223,19 @@ const Slot: Component<{
     }
 
     if (user.tier?.disableSlots) {
+      props.parent.style.display = 'hidden'
       return log('Slots are tier disabled')
+    }
+
+    if (!cfg.slots.provider) {
+      return log('No provider configured')
     }
 
     resize.size()
 
     if (ref && !resize.loaded()) {
       resize.load(ref)
-      log('Not loaded')
+      // log('Not loaded')
       return
     }
 
@@ -306,25 +249,39 @@ const Slot: Component<{
       return
     }
 
+    const num = uniqueId() || getUniqueId(props.slot, cfg.slots, uniqueId())
+    setUniqueId(num)
+
     if (cfg.slots.provider === 'ez' || cfg.flags.reporting) {
-      ezReady.then(() => {
-        const num = uniqueId()
-        log('[ez]', num, 'dispatched')
-        ezstandalone.cmd.push(() => {
-          if (!ezstandalone.enabled) {
-            ezstandalone.define(num)
-            ezstandalone.enable()
-            ezstandalone.display()
-          } else {
-            ezstandalone.displayMore(num)
-          }
-        })
-      })
-    } else if (specs()?.video) {
-      imaReady.then(() => {
-        tryVideo()
-      })
-    } else {
+      invoke(log, num)
+      // ezReady.then(() => {
+      // ezstandalone.cmd.push(() => {
+      //   if (!ezstandalone.enabled) {
+      //     log('[ez]', num, `dispatched #${num}`)
+      //     ezstandalone.define(num)
+      //     ezstandalone.enable()
+      //     ezstandalone.display()
+      //   } else {
+      //     log('[ez]', num, `dispatched #${num} (more)`)
+      //     // ezstandalone.define(...nums)
+      //     ezstandalone.displayMore(num)
+      //   }
+      // })
+
+      // const timer = setInterval(() => {
+      //   const holders = ezstandalone.getSelectedPlaceholders()
+      //   const inUse = idLocks.has(num)
+      //   if (!inUse || holders[num]) {
+      //     clearInterval(timer)
+      //   } else {
+      //     ezstandalone.cmd.push(() => {
+      //       log('[ez]', num, 'retrying display')
+      //       ezstandalone.displayMore(num)
+      //     })
+      //   }
+      // }, 200)
+      // })
+    } else if (cfg.slots.provider === 'google') {
       gtmReady.then(() => {
         googletag.cmd.push(function () {
           const slotId = getSlotId(`/${cfg.publisherId}/${spec.id}`)
@@ -358,7 +315,7 @@ const Slot: Component<{
     }
 
     setDone(true)
-    log('Rendered')
+    log('Rendered', !!props.parent)
 
     setTimeout(() => {
       if (props.sticky === 'always') return
@@ -441,12 +398,14 @@ const slotDefs: Record<SlotKind, SlotDef> = {
     sm: { size: '300x250', id: 'agn-menu-sm' },
     lg: { size: '300x300', id: 'agn-video-sm' },
     xl: { size: '300x600', id: 'agn-video-sm' },
+    ez: [],
   },
   leaderboard: {
     platform: 'container',
     sm: { size: '320x50', id: 'agn-leaderboard-sm' },
     lg: { size: '728x90', id: 'agn-leaderboard-lg' },
     xl: { size: '970x90', id: 'agn-leaderboard-xl' },
+    ez: [110, 111],
   },
   menu: {
     calc: (parent) => {
@@ -456,12 +415,19 @@ const slotDefs: Record<SlotKind, SlotDef> = {
     platform: 'page',
     sm: { size: '300x250', id: 'agn-menu-sm' },
     lg: { size: '300x600', id: 'agn-menu-lg' },
+    ez: [106],
   },
   content: {
     platform: 'container',
     sm: { size: '320x50', id: 'agn-leaderboard-sm' },
     lg: { size: '728x90', id: 'agn-leaderboard-lg' },
     xl: { size: '970x90', id: 'agn-leaderboard-xl', fallbacks: ['970x66', '960x90', '950x90'] },
+    ez: [112, 113, 114],
+  },
+  pane_leaderboard: {
+    platform: 'container',
+    sm: { size: '320x50', id: 'agn-leaderboard-sm' },
+    ez: [108, 109],
   },
 }
 
@@ -486,6 +452,25 @@ export function getSlotById(id: string) {
     const slotId = slot.getSlotElementId()
     if (slotId === id) return slot
   }
+}
+
+function getUniqueId(kind: SlotKind, config: SettingState['slots'], current?: number) {
+  if (current) return current
+  if (config.provider === 'google') {
+    return ++slotCounter
+  }
+
+  const available = slotDefs[kind]
+  const inherit: number[] = Array.isArray(config[kind]?.ez) ? config[kind].ez : []
+  const all = inherit.concat(available.ez).filter((v) => !isNaN(v))
+
+  for (const id of all) {
+    if (idLocks.has(id)) continue
+    idLocks.add(id)
+    return id
+  }
+
+  return ++slotCounter
 }
 
 function getSlotId(id: string) {
@@ -515,15 +500,6 @@ const ezReady = new Promise(async (resolve) => {
   } while (true)
 })
 
-const imaReady = new Promise(async (resolve) => {
-  do {
-    if (typeof google !== 'undefined' && typeof google.ima !== 'undefined') {
-      return resolve(true)
-    }
-    await wait(0.05)
-  } while (true)
-})
-
 function getSpec(slot: SlotKind, parent: HTMLElement, log: typeof console.log) {
   const def = slotDefs[slot]
 
@@ -539,7 +515,7 @@ function getSpec(slot: SlotKind, parent: HTMLElement, log: typeof console.log) {
   }
 
   const width = parent.clientWidth
-  log('W/H', width, parent.clientHeight)
+  // log('W/H', width, parent.clientHeight)
   const platform = getWidthPlatform(width)
 
   return getBestFit(def, platform)
@@ -589,3 +565,29 @@ function getSizes(...specs: Array<SlotSpec | undefined>) {
 
   return sizes
 }
+
+const [invoke] = createDebounce((log: (typeof console)['log'], self: number) => {
+  ezReady.then(() => {
+    ezstandalone.cmd.push(() => {
+      const current = ezstandalone.getSelectedPlaceholders()
+      const adding = new Set<number>([self])
+
+      for (const num of idLocks.values()) {
+        if (!current[num]) {
+          adding.add(num)
+        }
+      }
+
+      const add = Array.from(adding.values())
+      if (!ezstandalone.enabled) {
+        ezstandalone.define(...add)
+        log('[ez]', `dispatched #${add.join(', ')}`)
+        ezstandalone.enable()
+        ezstandalone.display()
+      } else {
+        log('[ez]', `dispatched #${add.join(', ')} (more)`)
+        ezstandalone.displayMore(...add)
+      }
+    })
+  })
+}, 1000)

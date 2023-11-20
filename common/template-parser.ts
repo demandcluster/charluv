@@ -1,10 +1,9 @@
 import { formatCharacter } from './characters'
 import { grammar } from './grammar'
 import { PromptParts, fillPromptWithLines } from './prompt'
-import { AppSchema, Memory } from '/common/types'
+import { AppSchema, Memory, TokenCounter } from '/common/types'
 import peggy from 'peggy'
 import { elapsedSince } from './util'
-import { TokenCounter } from './tokenize'
 import { v4 } from 'uuid'
 
 const parser = peggy.generate(grammar.trim(), {
@@ -101,10 +100,10 @@ export type TemplateOpts = {
  * This function also returns inserts because Chat and Claude discard the
  * parsed string and use the inserts for their own prompt builders
  */
-export function parseTemplate(
+export async function parseTemplate(
   template: string,
   opts: TemplateOpts
-): { parsed: string; inserts: Map<number, string> } {
+): Promise<{ parsed: string; inserts: Map<number, string>; length?: number }> {
   if (opts.limit) {
     opts.limit.output = {}
   }
@@ -122,20 +121,35 @@ export function parseTemplate(
   let output = render(template, opts, ast)
 
   if (opts.limit && opts.limit.output) {
+    // const lastIndex = Object.keys(opts.limit.output).reduce((prev, curr) => {
+    //   const index = output.lastIndexOf(curr) + curr.length
+    //   return index > prev ? index : prev
+    // }, -1)
+
+    // if (lastIndex > -1 && opts.continue) {
+    //   output = output.slice(0, lastIndex)
+    // }
+
     for (const [id, lines] of Object.entries(opts.limit.output)) {
-      const trimmed = fillPromptWithLines(
-        opts.limit.encoder,
-        opts.limit.context,
-        output,
-        lines,
-        opts.inserts
+      const trimmed = (
+        await fillPromptWithLines(
+          opts.limit.encoder,
+          opts.limit.context,
+          output,
+          lines,
+          opts.inserts
+        )
       ).reverse()
       output = output.replace(id, trimmed.join('\n'))
     }
   }
 
-  const result = render(output, opts).replace(/\r\n/g, '\n').replace(/\n\n+/g, '\n\n')
-  return { parsed: result, inserts: opts.inserts ?? new Map() }
+  const result = render(output, opts).replace(/\r\n/g, '\n').replace(/\n\n+/g, '\n\n').trimStart()
+  return {
+    parsed: result,
+    inserts: opts.inserts ?? new Map(),
+    length: await opts.limit?.encoder?.(result),
+  }
 }
 
 function readInserts(template: string, opts: TemplateOpts, existingAst?: PNode[]): void {
@@ -318,13 +332,13 @@ function renderIterator(holder: IterableHolder, children: CNode[], opts: Templat
 
   const entities =
     holder === 'bots'
-      ? Object.values(opts.characters).filter(
-          (b) =>
-            !!b &&
-            b._id !== opts.replyAs._id &&
-            !b.deletedAt &&
-            (b._id.startsWith('temp-') ? b.favorite !== false : true)
-        )
+      ? Object.values(opts.characters).filter((b) => {
+          if (!b) return false
+          if (b._id === opts.replyAs._id) return false
+          if (b.deletedAt) return false
+          if (b._id.startsWith('temp-') && b.favorite === false) return false
+          return true
+        })
       : opts.lines
 
   let i = 0
@@ -427,8 +441,9 @@ function getPlaceholder(node: PlaceHolder | ConditionNode, opts: TemplateOpts) {
     case 'ujb':
       return opts.parts.ujb || ''
 
-    case 'post':
+    case 'post': {
       return opts.parts.post?.join('\n') || ''
+    }
 
     case 'history': {
       if (opts.limit) {

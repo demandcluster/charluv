@@ -53,10 +53,10 @@ export const generateActions = wrap(async ({ userId, log, body, socketId, params
 
   const prompt = cyoaTemplate(
     body.service! as AIAdapter,
-    settings.service === 'openai' ? settings.oaiModel : ''
+    settings.service === 'openai' ? settings.thirdPartyModel || settings.oaiModel : ''
   )
 
-  const parsed = parseTemplate(prompt, {
+  const { parsed } = await parseTemplate(prompt, {
     chat: both.chat || body.chat || ({} as any),
     characters: body.characters || {},
     char: body.char || {},
@@ -65,7 +65,7 @@ export const generateActions = wrap(async ({ userId, log, body, socketId, params
     impersonate: body.impersonating,
     sender: body.profile,
     replyAs: body.char || ({} as any),
-  }).parsed
+  })
 
   const infer = async (text: string, tokens?: number) => {
     const inference = await inferenceAsync({
@@ -108,7 +108,7 @@ export const generateActions = wrap(async ({ userId, log, body, socketId, params
 })
 
 export const guidance = wrap(async ({ userId, log, body, socketId }) => {
-  assertValid({ ...validInference, placeholders: 'any?' }, body)
+  assertValid({ ...validInference, placeholders: 'any?', previous: 'any?' }, body)
 
   if (userId) {
     const user = await store.users.getUser(userId)
@@ -134,8 +134,11 @@ export const guidance = wrap(async ({ userId, log, body, socketId }) => {
     throw errors.MissingCredits
   }
 
-  const result = await runGuidance(body.prompt, { infer, placeholders: body.placeholders })
-
+  const result = await runGuidance(body.prompt, {
+    infer,
+    placeholders: body.placeholders,
+    previous: body.previous,
+  })
   const credits = await store.credits.updateCredits(userId!, -10)
 
   return result

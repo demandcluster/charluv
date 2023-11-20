@@ -22,7 +22,7 @@ import Divider from './Divider'
 import { Toggle } from './Toggle'
 import { Check, X } from 'lucide-solid'
 import { presetStore, settingStore, userStore, chatStore } from '../store'
-import PromptEditor from './PromptEditor'
+import PromptEditor, { BasicPromptTemplate } from './PromptEditor'
 import { Card } from './Card'
 import { FormLabel } from './FormLabel'
 import {
@@ -44,6 +44,7 @@ import { getServiceTempConfig } from './adapter'
 import Tabs from './Tabs'
 import { useSearchParams } from '@solidjs/router'
 import { PhraseBias, StoppingStrings } from './PhraseBias'
+import { AgnaisticSettings } from '../pages/Settings/Agnaistic'
 
 export { GenerationSettings as default }
 
@@ -55,7 +56,7 @@ type Props = {
   disableService?: boolean
 }
 
-const GenerationSettings: Component<Props> = (props) => {
+const GenerationSettings: Component<Props & { onSave: () => void }> = (props) => {
   const opts = chatStore((s) => s.opts)
   const [search, setSearch] = useSearchParams()
 
@@ -104,6 +105,9 @@ const GenerationSettings: Component<Props> = (props) => {
             onChange={onServiceChange}
             disabled={props.disabled || props.disableService}
           />
+
+          <AgnaisticSettings service={service()} inherit={props.inherit} onSave={props.onSave} />
+
           <Select
             fieldName="thirdPartyFormat"
             label="Self-host / 3rd-party Format"
@@ -112,9 +116,12 @@ const GenerationSettings: Component<Props> = (props) => {
               { label: 'None', value: '' },
               { label: 'Kobold', value: 'kobold' },
               { label: 'OpenAI', value: 'openai' },
+              { label: 'OpenAI (Chat Format)', value: 'openai-chat' },
               { label: 'Claude', value: 'claude' },
               { label: 'Textgen (Ooba)', value: 'ooba' },
               { label: 'Llama.cpp', value: 'llamacpp' },
+              { label: 'ExLlamaV2', value: 'exllamav2' },
+              { label: 'KoboldCpp', value: 'koboldcpp' },
             ]}
             value={props.inherit?.thirdPartyFormat ?? ''}
             service={service()}
@@ -283,6 +290,18 @@ const GeneralSettings: Component<
           format={props.format}
           aiSetting={'oaiModel'}
         />
+
+        <TextInput
+          fieldName="thirdPartyModel"
+          label="OpenAI Model Override"
+          helperText="OpenAI Model Override (typically for 3rd party APIs)"
+          value={props.inherit?.thirdPartyModel ?? ''}
+          disabled={props.disabled}
+          service={props.service}
+          format={props.format}
+          aiSetting={'thirdPartyModel'}
+        />
+
         <Select
           fieldName="openRouterModel"
           label="OpenRouter Model"
@@ -442,6 +461,10 @@ function modelsToItems(models: Record<string, string>): Option<string>[] {
 const PromptSettings: Component<
   Props & { pane: boolean; format?: ThirdPartyFormat; tab: string }
 > = (props) => {
+  const [useAdvanced, setAdvanced] = createSignal(
+    !props.inherit?._id ? false : props.inherit?.useAdvancedPrompt ?? true
+  )
+
   const fallbackTemplate = createMemo(() => {
     if (!props.service) return defaultTemplate
     const preset = getFallbackPreset(props.service)
@@ -452,6 +475,26 @@ const PromptSettings: Component<
     <div class="flex flex-col gap-4">
       <div class="flex flex-col gap-2" classList={{ hidden: props.tab !== 'Prompt' }}>
         <Card class="flex flex-col gap-4">
+          <Toggle
+            fieldName="useAdvancedPrompt"
+            label="Use Advanced Prompting"
+            value={useAdvanced()}
+            onChange={(ev) => setAdvanced(ev)}
+          />
+
+          <BasicPromptTemplate inherit={props.inherit} hide={useAdvanced()} />
+
+          <PromptEditor
+            fieldName="gaslight"
+            value={props.inherit?.gaslight || fallbackTemplate()}
+            placeholder={defaultTemplate}
+            disabled={props.disabled}
+            showHelp
+            inherit={props.inherit}
+            hide={!useAdvanced()}
+            showTemplates
+          />
+
           <FormLabel
             label="System Prompt"
             helperText={
@@ -467,19 +510,6 @@ const PromptSettings: Component<
             placeholder="Write {{char}}'s next reply in a fictional chat between {{char}} and {{user}}. Write 1 reply only in internet RP style, italicize actions, and avoid quotation marks. Use markdown. Be proactive, creative, and drive the plot and conversation forward. Write at least 1 paragraph, up to 4. Always stay in character and avoid repetition."
             value={props.inherit?.systemPrompt ?? ''}
             disabled={props.disabled}
-          />
-        </Card>
-
-        <Card class="flex flex-col gap-4">
-          <PromptEditor
-            fieldName="gaslight"
-            value={props.inherit?.gaslight || fallbackTemplate()}
-            placeholder={defaultTemplate}
-            exclude={['post', 'history', 'ujb']}
-            disabled={props.disabled}
-            showHelp
-            inherit={props.inherit}
-            showTemplates
           />
 
           <TextInput
@@ -664,6 +694,20 @@ const GenSettings: Component<Props & { pane: boolean; format?: ThirdPartyFormat;
           service={props.service}
           aiSetting="phraseRepPenalty"
           format={props.format}
+        />
+
+        <RangeInput
+          fieldName="minP"
+          label="Min P"
+          helperText="Used to discard unlikely text in the sampling process. Lower values will make text more predictable. (Put this value on 0 to disable its effect)"
+          min={0}
+          max={1}
+          step={0.01}
+          value={props.inherit?.minP ?? 0}
+          disabled={props.disabled}
+          service={props.service}
+          format={props.format}
+          aiSetting={'minP'}
         />
 
         <RangeInput
@@ -958,7 +1002,7 @@ const SamplerOrder: Component<{
   const [order, setOrder] = createSignal(presetOrder())
 
   const [value, setValue] = createSignal(order())
-  const [disabled, setDisabled] = createSignal(props.inherit?.disabledSamplers || [])
+  const [disabled, setDisabled] = createSignal(ensureArray(props.inherit?.disabledSamplers))
   const [sorter, setSorter] = createSignal<Sorter>()
 
   createEffect(() => {
@@ -1096,10 +1140,18 @@ const TempSettings: Component<{ service?: AIAdapter }> = (props) => {
 
 export function getPresetFormData(ref: any) {
   const cfg = settingStore.getState()
-  const data = getStrictForm(ref, {
+  const {
+    promptOrderFormat,
+    promptOrder: order,
+    ...data
+  } = getStrictForm(ref, {
     ...presetValidator,
     thirdPartyFormat: [...THIRDPARTY_FORMATS, ''],
+    useAdvancedPrompt: 'boolean?',
+    promptOrderFormat: 'string?',
+    promptOrder: 'string?',
   })
+
   const registered = getRegisteredSettings(data.service as AIAdapter, ref)
   data.registered = {}
   data.registered[data.service] = registered
@@ -1109,6 +1161,13 @@ export function getPresetFormData(ref: any) {
     const actual = cfg.config.openRouter.models.find((or) => or.id === data.openRouterModel)
     data.openRouterModel = actual || undefined
   }
+
+  const promptOrder: AppSchema.GenSettings['promptOrder'] = order
+    ? order.split(',').map((o) => {
+        const [placeholder, enabled] = o.split('=')
+        return { placeholder, enabled: enabled === 'on' }
+      })
+    : undefined
 
   const entries = getFormEntries(ref)
   const stopSequences = entries.reduce<string[]>((prev, [key, value]) => {
@@ -1128,7 +1187,7 @@ export function getPresetFormData(ref: any) {
     }, {}) as Array<{ seq: string; bias: number }>
   ).filter((pb: any) => 'seq' in pb && 'bias' in pb)
 
-  return { ...data, stopSequences, phraseBias }
+  return { ...data, stopSequences, phraseBias, promptOrder, promptOrderFormat }
 }
 
 export function getRegisteredSettings(service: AIAdapter | undefined, ref: any) {
@@ -1183,4 +1242,16 @@ function updateValue(values: TempSetting[], service: AIAdapter, field: string, n
   return values.map<TempSetting>((val) =>
     val.field === field ? { ...val, value: nextValue } : val
   )
+}
+
+function ensureArray(value: any): number[] {
+  if (!value) return []
+  if (typeof value === 'string') {
+    return value
+      .split(',')
+      .filter((v) => v !== '')
+      .map((v) => +v)
+  }
+
+  return value.map((v: any) => (typeof v === 'number' ? v : +v)).filter((v: number) => isNaN(v))
 }

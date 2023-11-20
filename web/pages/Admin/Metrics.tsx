@@ -1,4 +1,3 @@
-import { A } from '@solidjs/router'
 import { Component, createSignal, onMount } from 'solid-js'
 import Button from '../../shared/Button'
 import { FormLabel } from '../../shared/FormLabel'

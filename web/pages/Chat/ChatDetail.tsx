@@ -40,12 +40,13 @@ import {
   SwipeMessage,
 } from './helpers'
 import { useAutoExpression } from '/web/shared/Avatar/hooks'
-import { useChatAvatars } from './components/ChatAvatar'
 import AvatarContainer from '/web/shared/Avatar/Container'
 import { eventStore } from '/web/store/event'
 import Slot from '/web/shared/Slot'
 import ChatPanes from './components/ChatPanes'
 import { useAppContext } from '/web/store/context'
+import { embedApi } from '/web/store/embeddings'
+import Loading from '/web/shared/Loading'
 
 const ChatDetail: Component = () => {
   const { updateTitle } = setComponentPageTitle('Chat')
@@ -62,7 +63,7 @@ const ChatDetail: Component = () => {
     chatBots: s.characters.list,
     botMap: s.characters.map,
     impersonate: s.impersonating,
-    ready: s.characters.loaded > 0,
+    ready: s.characters.loaded > 0 && s.chatChars.chatId === params.id,
   }))
 
   const isPaneOrPopup = usePane()
@@ -76,10 +77,12 @@ const ChatDetail: Component = () => {
     members: s.chatProfiles,
     loaded: s.loaded,
     opts: s.opts,
+    ready: s.allChars.list.length > 0 && (s.active?.char?._id || 'no-id') in s.allChars.map,
   }))
 
   const msgs = msgStore((s) => ({
     msgs: s.msgs,
+    history: s.messageHistory.length,
     images: s.images,
     partial: s.partial,
     waiting: s.waiting,
@@ -87,6 +90,7 @@ const ChatDetail: Component = () => {
     speaking: s.speaking,
     retrying: s.retrying,
     inference: s.lastInference,
+    textBeforeGenMore: s.textBeforeGenMore,
   }))
 
   const isGroupChat = createMemo(() => {
@@ -95,7 +99,6 @@ const ChatDetail: Component = () => {
   })
 
   const express = useAutoExpression()
-  const avatars = useChatAvatars()
 
   const viewHeight = createMemo(() => {
     const mode = chats.char?.visualType === 'sprite' ? 'sprite' : 'avatar'
@@ -144,7 +147,7 @@ const ChatDetail: Component = () => {
 
   createEffect(() => {
     // On Connect Events
-    if (evented() || !chats.chat || !chats.char || !chars.ready) return
+    if (evented() || !chats.chat || !chats.char || !chars.ready || !chats.ready) return
     setEvented(true)
 
     const messages = msgs.msgs
@@ -153,6 +156,10 @@ const ChatDetail: Component = () => {
       eventStore.onGreeting(chats.chat)
     } else {
       eventStore.onChatOpened(chats.chat, new Date(messages[messages.length - 1].createdAt))
+    }
+
+    if (chats.chat.userEmbedId) {
+      embedApi.loadDocument(chats.chat.userEmbedId)
     }
   })
 
@@ -398,7 +405,7 @@ const ChatDetail: Component = () => {
     <>
       <Show when={!chats.loaded && !chats.chat}>
         <div>
-          <div>Loading conversation...</div>
+          <Loading />
         </div>
       </Show>
       <Show when={chats.chat}>
@@ -418,6 +425,11 @@ const ChatDetail: Component = () => {
                 <div class="ellipsis flex flex-col">
                   <span class="overflow-hidden text-ellipsis whitespace-nowrap leading-5">
                     {chats.char?.name}
+                    <Show when={cfg.flags.debug}>
+                      <span class="ml-2 text-sm font-normal">
+                        {msgs.msgs.length}/{msgs.msgs.length + msgs.history}
+                      </span>
+                    </Show>
                   </span>
 
                   <span class="flex-row items-center gap-4 overflow-hidden text-ellipsis whitespace-nowrap text-sm">
@@ -475,11 +487,12 @@ const ChatDetail: Component = () => {
                     slots.load(ref)
                   }}
                   class="sticky top-0 flex h-fit w-full justify-center"
+                  classList={{ hidden: user.tier?.disableSlots }}
                 >
                   <Switch>
                     <Match when={slots.size().w === 0}>{null}</Match>
                     <Match when={slotContainer!}>
-                      <Slot sticky="always" slot="content" parent={slotContainer!} />
+                      <Slot sticky="always" slot="leaderboard" parent={slotContainer!} />
                     </Match>
                   </Switch>
                 </div>
@@ -525,37 +538,48 @@ const ChatDetail: Component = () => {
                       </div>
                     </Show>
                     {/* Original Slot location */}
-                    <InfiniteScroll />
+                    <InfiniteScroll canFetch={chars.ready} />
+
                     <For each={chatMsgs()}>
                       {(msg, i) => (
-                        <Message
-                          msg={msg}
-                          editing={chats.opts.editing}
-                          last={i() === indexOfLastRPMessage()}
-                          onRemove={() => setRemoveId(msg._id)}
-                          swipe={
-                            msg._id === retries()?.msgId && swipe() > 0 && retries()?.list[swipe()]
-                          }
-                          confirmSwipe={() => confirmSwipe(msg._id)}
-                          cancelSwipe={cancelSwipe}
-                          tts={tts()}
-                          retrying={msgs.retrying}
-                          partial={msgs.partial}
-                          sendMessage={sendMessage}
-                          isPaneOpen={!!chats.opts.pane}
-                        >
-                          {isOwner() &&
-                            retries()?.list?.length! > 1 &&
-                            i() === indexOfLastRPMessage() && (
-                              <SwipeMessage
-                                chatId={chats.chat?._id!}
-                                pos={swipe()}
-                                prev={clickSwipe(-1)}
-                                next={clickSwipe(1)}
-                                list={retries()?.list || []}
-                              />
-                            )}
-                        </Message>
+                        <>
+                          <Message
+                            msg={msg}
+                            editing={chats.opts.editing}
+                            last={i() === indexOfLastRPMessage()}
+                            onRemove={() => setRemoveId(msg._id)}
+                            swipe={
+                              msg._id === retries()?.msgId &&
+                              swipe() > 0 &&
+                              retries()?.list[swipe()]
+                            }
+                            confirmSwipe={() => confirmSwipe(msg._id)}
+                            cancelSwipe={cancelSwipe}
+                            tts={tts()}
+                            retrying={msgs.retrying}
+                            partial={msgs.partial}
+                            sendMessage={sendMessage}
+                            isPaneOpen={!!chats.opts.pane}
+                            textBeforeGenMore={msgs.textBeforeGenMore}
+                            voice={
+                              msg._id === msgs.speaking?.messageId
+                                ? msgs.speaking.status
+                                : undefined
+                            }
+                          >
+                            {isOwner() &&
+                              retries()?.list?.length! > 1 &&
+                              i() === indexOfLastRPMessage() && (
+                                <SwipeMessage
+                                  chatId={chats.chat?._id!}
+                                  pos={swipe()}
+                                  prev={clickSwipe(-1)}
+                                  next={clickSwipe(1)}
+                                  list={retries()?.list || []}
+                                />
+                              )}
+                          </Message>
+                        </>
                       )}
                     </For>
                     <Show when={waitingMsg()}>
@@ -565,7 +589,6 @@ const ChatDetail: Component = () => {
                         editing={chats.opts.editing}
                         sendMessage={sendMessage}
                         isPaneOpen={!!chats.opts.pane}
-                        avatars={avatars.avatars()}
                       />
                     </Show>
                   </div>

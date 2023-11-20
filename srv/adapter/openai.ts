@@ -45,7 +45,7 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     yield { error: `OpenAI request failed: No OpenAI API key not set. Check your settings.` }
     return
   }
-  const oaiModel = gen.oaiModel ?? defaultPresets.openai.oaiModel
+  const oaiModel = gen.thirdPartyModel || gen.oaiModel || defaultPresets.openai.oaiModel
 
   const maxResponseLength =
     opts.chat.mode === 'adventure' ? 400 : gen.maxTokens ?? defaultPresets.openai.maxTokens
@@ -61,12 +61,13 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     stop: `\n${handle}:`,
   }
 
-  const useChat = !!OPENAI_CHAT_MODELS[oaiModel]
+  const useChat =
+    (isThirdParty && gen.thirdPartyFormat === 'openai-chat') || !!OPENAI_CHAT_MODELS[oaiModel]
 
   if (useChat) {
     const messages: CompletionItem[] = config.inference.flatChatCompletion
       ? [{ role: 'system', content: opts.prompt }]
-      : toChatCompletionPayload(opts, body.max_tokens)
+      : await toChatCompletionPayload(opts, body.max_tokens)
 
     body.messages = messages
     yield { prompt: messages }
@@ -150,7 +151,7 @@ export const handleOAI: ModelAdapter = async function* (opts) {
 }
 
 function getBaseUrl(user: AppSchema.User, noSuffix: boolean, isThirdParty?: boolean) {
-  if (isThirdParty && user.thirdPartyFormat === 'openai' && user.koboldUrl) {
+  if (isThirdParty && user.koboldUrl) {
     if (noSuffix) return { url: user.koboldUrl, changed: true }
 
     // If the user provides a versioned API URL for their third-party API, use that. Otherwise

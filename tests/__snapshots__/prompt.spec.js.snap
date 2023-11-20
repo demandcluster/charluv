@@ -105,22 +105,6 @@ ChatOwner: 20-TRIGGER
 OtherBot:"
 `;
 
-exports[`Prompt building will include example dialogue with omitted from template 1`] = `
-"OtherBot's Persona: OtherBot replies a lot
-Scenario: MAIN MainChar
-Facts:ENTRY ONE
-ENTRY TIE
-ENTRY THREE
-
-How OtherBot speaks: SAMPLECHAT OtherBot
-<START>
-MainChar: FIRST
-ChatOwner: 1-TRIGGER
-ChatOwner: TIE-TRIGGER
-ChatOwner: 20-TRIGGER
-OtherBot:"
-`;
-
 exports[`Prompt building will include gaslight for non-turbo adapter 1`] = `
 "GASLIGHT ChatOwner
 How OtherBot speaks:
@@ -197,6 +181,7 @@ Object {
   },
   "template": Object {
     "inserts": Map {},
+    "length": 48,
     "parsed": "GASLIGHT TEMPLATE
 ChatOwner
 OtherBot
@@ -222,6 +207,19 @@ How OtherBot speaks: SAMPLECHAT OtherBot
 MainChar: FIRST
 ChatOwner: 10-TRIGGER
 ChatOwner: 1-TRIGGER
+OtherBot:"
+`;
+
+exports[`Prompt building will not use other character book 1`] = `
+"OtherBot's Persona: OtherBot replies a lot
+
+Scenario: MAIN MainChar
+Facts:
+
+How OtherBot speaks: SAMPLECHAT OtherBot
+
+<START>
+ChatOwner: TRIGGER
 OtherBot:"
 `;
 
@@ -276,5 +274,18 @@ How OtherBot speaks: SAMPLECHAT OtherBot
 
 <START>
 
+OtherBot:"
+`;
+
+exports[`Prompt building will use currently speaking character book 1`] = `
+"OtherBot's Persona: OtherBot replies a lot
+
+Scenario: MAIN MainChar
+Facts:ENTRY
+
+How OtherBot speaks: SAMPLECHAT OtherBot
+
+<START>
+ChatOwner: TRIGGER
 OtherBot:"
 `;

@@ -118,7 +118,13 @@ export const handleNovel: ModelAdapter = async function* ({
 
     body.parameters.logit_bias_exp = biases
     const all = ['***', 'Scenario:', '----', '⁂'].concat(opts.gen.stopSequences || []).map(encode)
-    body.parameters.stop_sequences = stops.concat(all)
+    for (const stop of all) {
+      stops.push(stop)
+    }
+  }
+
+  if (Array.isArray(opts.gen.order)) {
+    opts.gen.order = opts.gen.order.map((o) => +o)
   }
 
   if (opts.gen.order && !opts.gen.disabledSamplers) {
@@ -126,9 +132,9 @@ export const handleNovel: ModelAdapter = async function* ({
   }
 
   if (opts.gen.order && opts.gen.disabledSamplers) {
-    body.parameters.order = opts.gen.order.filter(
-      (sampler) => sampler === 0 || !opts.gen.disabledSamplers?.includes(sampler)
-    )
+    body.parameters.order = opts.gen.order
+      .map((o) => +o)
+      .filter((sampler) => sampler === 0 || !opts.gen.disabledSamplers?.includes(sampler))
   }
 
   yield { prompt: body.input }
@@ -156,7 +162,7 @@ export const handleNovel: ModelAdapter = async function* ({
 
   const stream =
     opts.kind !== 'summary' && opts.gen.streamResponse
-      ? streamCompletition(headers, body, log)
+      ? streamCompletion(headers, body, log)
       : fullCompletition(headers, body, log)
 
   let accum = ''
@@ -226,7 +232,7 @@ function getModernParams(gen: Partial<AppSchema.GenSettings>) {
   return payload
 }
 
-const streamCompletition = async function* (headers: any, body: any, _log: AppLog) {
+const streamCompletion = async function* (headers: any, body: any, _log: AppLog) {
   const resp = needle.post(streamUrl(body.model), body, {
     parse: false,
     json: true,

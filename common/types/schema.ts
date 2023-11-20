@@ -351,6 +351,7 @@ export namespace AppSchema {
     favorite?: boolean
 
     voice?: VoiceSettings
+    voiceDisabled?: boolean
 
     // v2 stuff
     alternateGreetings?: string[]
@@ -361,6 +362,7 @@ export namespace AppSchema {
     insert?: { depth: number; prompt: string }
     creator?: string
     characterVersion?: string
+    folder?: string
   }
 
   export interface ChatInvite {
@@ -467,6 +469,7 @@ export namespace AppSchema {
     repetitionPenaltyRange: number
     repetitionPenaltySlope: number
     typicalP: number
+    minP?: number
     topP: number
     topK: number
     topA: number
@@ -496,6 +499,9 @@ export namespace AppSchema {
     systemPrompt?: string
     ignoreCharacterSystemPrompt?: boolean
     gaslight?: string
+    useAdvancedPrompt?: boolean
+    promptOrderFormat?: string
+    promptOrder?: Array<{ placeholder: string; enabled: boolean }>
     ultimeJailbreak?: string
     prefill?: string
     ignoreCharacterUjb?: boolean
@@ -509,8 +515,10 @@ export namespace AppSchema {
     openRouterModel?: OpenRouterModel
 
     thirdPartyUrl?: string
-    thirdPartyFormat?: 'kobold' | 'openai' | 'claude' | 'ooba' | 'llamacpp'
+    thirdPartyFormat?: ThirdPartyFormat
     thirdPartyUrlNoSuffix?: boolean
+    thirdPartyModel?: string
+    thirdPartyKey?: string
 
     replicateModelName?: string
     replicateModelType?: string

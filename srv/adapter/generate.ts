@@ -11,13 +11,14 @@ import { AppSchema } from '../../common/types/schema'
 import { AppLog, logger } from '../logger'
 import { errors, StatusError } from '../api/wrap'
 import { GenerateRequestV2 } from './type'
-import { createPromptWithParts, getAdapter, getPromptParts } from '../../common/prompt'
+import { assemblePrompt, getAdapter, buildPromptParts, resolveScenario } from '../../common/prompt'
 import { configure } from '../../common/horde-gen'
 import needle from 'needle'
 import { HORDE_GUEST_KEY } from '../api/horde'
 import { getTokenCounter } from '../tokenize'
 import { getAppConfig } from '../api/settings'
 import { getHandlers, getSubscriptionPreset, handlers } from './agnaistic'
+import { parseStops } from '/common/util'
 
 let version = ''
 
@@ -169,6 +170,7 @@ export async function createTextStreamV2(
   log: AppLog,
   guestSocketId?: string
 ) {
+  let subscription: Awaited<ReturnType<typeof getSubscriptionPreset>>
   /**
    * N.b.: The front-end sends the `lines` and `history` in TIME-ASCENDING order. I.e. Oldest -> Newest
    *
@@ -177,13 +179,37 @@ export async function createTextStreamV2(
    *
    * Everything else should be update to date at this point
    */
+  if (guestSocketId) {
+    subscription = await getSubscriptionPreset(opts.user, !!guestSocketId, opts.settings)
+    const subContextLimit = subscription?.preset?.maxContextLength
+
+    if (!opts.settings) {
+      opts.settings = {}
+    }
+
+    if (subContextLimit) {
+      opts.settings.maxContextLength = subContextLimit
+    }
+  }
+
   if (!guestSocketId) {
     const entities = await getResponseEntities(opts.chat, opts.sender.userId, opts.settings)
+    subscription = await getSubscriptionPreset(opts.user, !!guestSocketId, entities.gen)
+    const subContextLimit = subscription?.preset?.maxContextLength
+
+    if (!opts.settings) {
+      opts.settings = {}
+    }
+
+    if (subContextLimit) {
+      entities.gen.maxContextLength = subContextLimit
+    }
+
     entities.gen.temporary = opts.settings?.temporary
 
     const { adapter, model } = getAdapter(opts.chat, entities.user, entities.gen)
     const encoder = getTokenCounter(adapter, model)
-    opts.parts = getPromptParts(
+    opts.parts = await buildPromptParts(
       {
         ...entities,
         sender: opts.sender,
@@ -196,6 +222,7 @@ export async function createTextStreamV2(
         characters: opts.characters,
         chatEmbeds: opts.chatEmbeds || [],
         userEmbeds: opts.userEmbeds || [],
+        resolvedScenario: entities.resolvedScenario,
       },
       [...opts.lines].reverse(),
       encoder
@@ -213,23 +240,17 @@ export async function createTextStreamV2(
   if (opts.settings?.thirdPartyFormat) {
     opts.user.thirdPartyFormat = opts.settings.thirdPartyFormat
   }
-  if (!opts.settings) {
-    opts.settings = {}
+
+  if (opts.settings?.stopSequences) {
+    opts.settings.stopSequences = parseStops(opts.settings.stopSequences)
   }
 
-  if (opts.settings.stopSequences) {
-    opts.settings.stopSequences = opts.settings.stopSequences
-      .map((stop) => stop.replace(/\\n/g, '\n'))
-      .filter((stop) => !!stop)
-  }
-
-  if (opts.settings.phraseBias) {
+  if (opts.settings?.phraseBias) {
     opts.settings.phraseBias = opts.settings.phraseBias
       .map(({ seq, bias }) => ({ seq: seq.replace(/\\n/g, '\n'), bias }))
       .filter((pb) => !!pb.seq)
   }
 
-  const subscription = await getSubscriptionPreset(opts.user, !!guestSocketId, opts.settings)
   const { adapter, isThirdParty, model } = getAdapter(opts.chat, opts.user, opts.settings)
   const encoder = getTokenCounter(adapter, model)
   const handler = handlers[adapter]
@@ -238,12 +259,8 @@ export async function createTextStreamV2(
    * Context limits set by the subscription need to be present before the prompt is finalised.
    * We never need to use the users context length here as the subscription should contain the maximum possible context length.
    */
-  const subContextLimit = subscription?.preset?.maxContextLength
-  if (subContextLimit) {
-    opts.settings.maxContextLength = subContextLimit
-  }
 
-  const prompt = createPromptWithParts(opts, opts.parts, opts.lines, encoder)
+  const prompt = await assemblePrompt(opts, opts.parts, opts.lines, encoder)
 
   const size = encoder(
     [
@@ -287,7 +304,7 @@ export async function createTextStreamV2(
     subscription,
   })
 
-  return { stream, adapter, settings: gen, user: opts.user, size }
+  return { stream, adapter, settings: gen, user: opts.user, size, length: prompt.length }
 }
 
 export async function getResponseEntities(
@@ -317,7 +334,12 @@ export async function getResponseEntities(
   const genSettings = await getGenerationSettings(user, chat, adapter)
   const settings = mapPresetsToAdapter(genSettings, adapter)
 
-  return { char, user, adapter, settings, gen: genSettings, model, book }
+  const chatScenarios = chat.scenarioIds
+    ? await store.scenario.getScenariosById(chat.scenarioIds)
+    : []
+  const resolvedScenario = resolveScenario(chat, char, chatScenarios)
+
+  return { char, user, adapter, settings, gen: genSettings, model, book, resolvedScenario }
 }
 
 async function getGenerationSettings(

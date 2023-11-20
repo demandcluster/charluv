@@ -16,6 +16,7 @@ import { AppSchema } from '/common/types'
 import { markdown } from '/web/shared/markdown'
 import WizardIcon from '/web/icons/WizardIcon'
 import Button from '/web/shared/Button'
+import Slot from '/web/shared/Slot'
 
 const enum Sub {
   None,
@@ -76,6 +77,7 @@ function toItem(model: HordeModel) {
   }
 }
 const HomePage: Component = () => {
+  let ref: any
   setComponentPageTitle('Virtual Date an AI')
   const [sub, setSub] = createSignal(Sub.None)
   const user = userStore()
@@ -111,6 +113,9 @@ const HomePage: Component = () => {
         <div class="flex justify-center text-6xl" style="background: #55b89cff;">
           <img src={logoDark} alt="Charluv Virtual Dating" class="w-4/12 p-8" />
         </div>
+        <div class="w-full" ref={ref}>
+          <Slot slot="leaderboard" parent={ref} />
+        </div>
         <Card border>
           <div class="leading-6">
             <b>Charluv</b> is a virtual dating chat service where you can even create your own
@@ -120,14 +125,14 @@ const HomePage: Component = () => {
           </div>
         </Card>
 
-        <RecentChats user={user} />
+        <RecentChats />
 
         <Show when={announce.list.length > 0}>
           <Announcements list={announce.list} />
         </Show>
 
         <div class="home-cards">
-          <TitleCard type="bg" title="Guides" class="" center>
+          <TitleCard type="bg" title="Guides" class="" center ariaRole="region" ariaLabel="Guides">
             <div class="flex flex-wrap justify-center gap-2">
               <A href="/guides/memory">
                 <Pill>Memory Book</Pill>
@@ -135,7 +140,7 @@ const HomePage: Component = () => {
             </div>
           </TitleCard>
 
-          <TitleCard type="bg" title="Links" center>
+          <TitleCard type="bg" title="Links" center ariaRole="region" ariaLabel="Links">
             <div class="flex flex-wrap justify-center gap-2">
               <a href="/discord" target="_blank">
                 <Pill inverse>Charluv Discord</Pill>
@@ -253,8 +258,10 @@ const RecentChats: Component = (props) => {
   }))
 
   return (
-    <div class="flex flex-col">
-      <div class="text-lg font-bold">Recent Conversations</div>
+    <section class="flex flex-col" aria-labelledby="homeRecConversations">
+      <div id="homeRecConversations" class="text-lg font-bold" aria-hidden="true">
+        Recent Conversations
+      </div>
       <div
         class="grid w-full grid-cols-2 gap-2 sm:grid-cols-4"
         classList={{ hidden: state.last.length === 0 || !user?.loggedIn }}
@@ -263,6 +270,10 @@ const RecentChats: Component = (props) => {
           {({ chat, char }) => (
             <>
               <div
+                role="link"
+                aria-label={`Chat with ${char.name}, ${elapsedSince(chat.updatedAt)} ago ${
+                  chat.name
+                }`}
                 class="bg-800 hover:bg-700 hidden h-24 w-full cursor-pointer rounded-md border-[1px] border-[var(--bg-700)] transition duration-300 sm:flex"
                 onClick={() => nav(`/chat/${chat._id}`)}
               >
@@ -285,7 +296,7 @@ const RecentChats: Component = (props) => {
                   </div>
                 </Show>
 
-                <div class="flex w-full flex-col justify-between text-sm">
+                <div class="flex w-full flex-col justify-between text-sm" aria-hidden="true">
                   <div class="flex flex-col px-1">
                     <div class="text-sm font-bold">{char.name}</div>
                     <div class="text-500 text-xs">{elapsedSince(chat.updatedAt)} ago</div>
@@ -302,10 +313,14 @@ const RecentChats: Component = (props) => {
               </div>
 
               <div
+                role="link"
+                aria-label={`Chat with ${char.name}, ${elapsedSince(chat.updatedAt)} ago ${
+                  chat.name
+                }`}
                 class="bg-800 hover:bg-700 flex w-full cursor-pointer flex-col rounded-md border-[1px] border-[var(--bg-700)] transition duration-300 sm:hidden"
                 onClick={() => nav(`/chat/${chat._id}`)}
               >
-                <div class="flex">
+                <div class="flex" aria-hidden="true">
                   <div class="flex items-center justify-center px-1 pt-1">
                     <AvatarIcon
                       noBorder
@@ -319,7 +334,7 @@ const RecentChats: Component = (props) => {
                   </div>
                 </div>
 
-                <div class="flex h-full w-full flex-col justify-between text-sm">
+                <div class="flex h-full w-full flex-col justify-between text-sm" aria-hidden="true">
                   <p class="line-clamp-2 max-h-10 overflow-hidden text-ellipsis px-1">
                     {chat.name}
                   </p>
@@ -344,7 +359,7 @@ const RecentChats: Component = (props) => {
 
         <Show when={state.last.length < 4 && user.loggedIn}>
           <BorderCard href="/likes/list">
-            <div>Like to Get Macthes</div>
+            <div>Like to Get Matches</div>
             <Users size={20} />
           </BorderCard>
         </Show>
@@ -365,14 +380,16 @@ const RecentChats: Component = (props) => {
           </BorderCard>
         </Show>
       </div>
-    </div>
+    </section>
   )
 }
 
-const BorderCard: Component<{ children: any; href: string }> = (props) => {
+const BorderCard: Component<{ children: any; href: string; ariaLabel?: string }> = (props) => {
   const nav = useNavigate()
   return (
     <div
+      role="button"
+      aria-label={props.ariaLabel}
       class="bg-800 text-700 hover:bg-600 flex h-24 w-full cursor-pointer flex-col items-center justify-center border-[2px] border-dashed border-[var(--bg-700)] text-center transition duration-300"
       onClick={() => nav(props.href)}
     >
@@ -382,61 +399,43 @@ const BorderCard: Component<{ children: any; href: string }> = (props) => {
 }
 
 const Announcements: Component<{ list: AppSchema.Announcement[] }> = (props) => {
+  let ref: any
   return (
-    <div>
-      <div class="font-bold">Latest News</div>
-      <For each={props.list}>
-        {(item) => (
-          <div class="rounded-md border-[1px] border-[var(--hl-500)]">
-            <div class="flex flex-col rounded-t-md bg-[var(--hl-800)] p-2">
-              <div class="text-lg font-bold">{item.title}</div>
-              <div class="text-700 text-xs">{elapsedSince(item.showAt)} ago</div>
+    <>
+      <section class="flex flex-col gap-2" aria-labelledby="homeAnnouncements">
+        <div
+          id="homeAnnouncements"
+          class="flex items-end font-bold leading-[14px]"
+          aria-hidden="true"
+        >
+          Announcements
+        </div>
+        <For each={props.list}>
+          {(item, i) => (
+            <div class="rounded-md border-[1px] border-[var(--hl-500)]">
+              <div class="flex flex-col rounded-t-md bg-[var(--hl-800)] p-2">
+                <div class="text-lg font-bold" role="heading">
+                  {item.title}
+                </div>
+                <div class="text-700 text-xs">{elapsedSince(item.showAt)} ago</div>
+              </div>
+              <div
+                class="rendered-markdown bg-900 rounded-b-md p-2"
+                innerHTML={markdown.makeHtml(item.content)}
+              ></div>
             </div>
-            <div
-              class="rendered-markdown bg-900 rounded-b-md p-2"
-              innerHTML={markdown.makeHtml(item.content)}
-            ></div>
-          </div>
-        )}
-      </For>
-    </div>
+          )}
+        </For>
+        <div ref={ref} class="my-1 w-full">
+          <Slot slot="content" parent={ref} />
+        </div>
+      </section>
+    </>
   )
 }
 
-const Features: Component = () => (
-  <Card border>
-    <div class="flex justify-center text-xl font-bold">Notable Features</div>
-    <div class="flex flex-col gap-2 leading-6">
-      <p>
-        <b class="highlight">Agnaistic</b> is completely free to use. It is free to register. Your
-        data will be kept private and you can permanently delete your data at any time. We take your
-        privacy very seriously.
-      </p>
-      <p>
-        <b class="highlight">Register</b> to have your data available on all of your devices.
-      </p>
-      <p>Chat with multiple users and multiple characters at the same time</p>
-      <p>
-        Create <b class="highlight">Memory Books</b> to give your characters information about their
-        world.
-      </p>
-      <p>
-        <b class="highlight">Image generation</b> - Use Horde, NovelAI or your own Stable Diffusion
-        server.
-      </p>
-      <p>
-        <b class="highlight">Voice</b> - Give your characters a voice and speak back to them.
-      </p>
-      <p>
-        <b class="highlight">Custom Presets</b> - Completely customise the Generation settings used
-        to generate your responses.
-      </p>
-    </div>
-  </Card>
-)
-
 const HordeGuide: Component<{ close: () => void }> = (props) => (
-  <Modal show close={props.close} title="Horde Guide" maxWidth="half">
+  <Modal show close={props.close} title="Horde Guide" maxWidth="half" ariaLabel="Horde guide">
     <div class="flex flex-col gap-2">
       <SolidCard bg="hl-900">
         <b>Important!</b> For reliable responses, ensure you have registered at{' '}
@@ -469,7 +468,7 @@ const HordeGuide: Component<{ close: () => void }> = (props) => (
 )
 
 const OpenAIGuide: Component<{ close: () => void }> = (props) => (
-  <Modal show close={props.close} title="OpenAI Guide" maxWidth="half">
+  <Modal show close={props.close} title="OpenAI Guide" maxWidth="half" ariaLabel="OpenAI guide">
     <div class="flex flex-col gap-2">
       <Card>
         OpenAI is a <b>paid service</b>. To use OpenAI, you to need provide your OpenAI API Key in

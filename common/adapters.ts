@@ -48,7 +48,27 @@ export const PERSONA_LABELS: { [key in PersonaFormat]: string } = {
   text: 'Plain Text',
 }
 
-export const THIRDPARTY_FORMATS = ['kobold', 'openai', 'claude', 'ooba', 'llamacpp'] as const
+export const THIRDPARTY_HANDLERS: { [svc in ThirdPartyFormat]: AIAdapter } = {
+  openai: 'openai',
+  'openai-chat': 'openai',
+  claude: 'claude',
+  exllamav2: 'kobold',
+  kobold: 'kobold',
+  koboldcpp: 'kobold',
+  llamacpp: 'ooba',
+  ooba: 'ooba',
+}
+
+export const THIRDPARTY_FORMATS = [
+  'kobold',
+  'openai',
+  'openai-chat',
+  'claude',
+  'ooba',
+  'llamacpp',
+  'exllamav2',
+  'koboldcpp',
+] as const
 
 export const AI_ADAPTERS = [
   'agnaistic',
@@ -94,6 +114,7 @@ export const OPENAI_MODELS = {
   Turbo: 'gpt-3.5-turbo',
   Turbo0301: 'gpt-3.5-turbo-0301',
   Turbo0613: 'gpt-3.5-turbo-0613',
+  Turbo1106: 'gpt-3.5-turbo-1106',
   Turbo_16k: 'gpt-3.5-turbo-16k',
   Turbo_Instruct: 'gpt-3.5-turbo-instruct',
   Turbo_Intruct914: 'gpt-3.5-turbo-instruct-0914',
@@ -103,12 +124,14 @@ export const OPENAI_MODELS = {
   GPT4_32k: 'gpt-4-32k',
   GPT4_32k_0314: 'gpt-4-32k-0314',
   GPT4_32k_0613: 'gpt-4-32k-0613',
+  GPT45_1106: 'gpt-4-1106-preview',
 } as const
 
 export const OPENAI_CHAT_MODELS: Record<string, boolean> = {
   [OPENAI_MODELS.Turbo]: true,
   [OPENAI_MODELS.Turbo0301]: true,
   [OPENAI_MODELS.Turbo0613]: true,
+  [OPENAI_MODELS.Turbo1106]: true,
   [OPENAI_MODELS.Turbo_16k]: true,
   [OPENAI_MODELS.GPT4]: true,
   [OPENAI_MODELS.GPT4_0314]: true,
@@ -116,6 +139,7 @@ export const OPENAI_CHAT_MODELS: Record<string, boolean> = {
   [OPENAI_MODELS.GPT4_32k]: true,
   [OPENAI_MODELS.GPT4_32k_0314]: true,
   [OPENAI_MODELS.GPT4_32k_0613]: true,
+  [OPENAI_MODELS.GPT45_1106]: true,
 }
 
 /** Note: claude-v1 and claude-instant-v1 not included as they may point
@@ -250,14 +274,25 @@ export const adapterSettings: {
 
   prefill: ['claude'],
 
-  topP: ['horde', 'kobold', 'claude', 'ooba', 'openai', 'novel', 'agnaistic'],
-  repetitionPenalty: ['horde', 'novel', 'kobold', 'ooba', 'agnaistic'],
+  topP: [
+    'horde',
+    'kobold',
+    'claude',
+    'ooba',
+    'openai',
+    'novel',
+    'agnaistic',
+    'exllamav2',
+    'openai-chat',
+  ],
+  repetitionPenalty: ['horde', 'novel', 'kobold', 'ooba', 'agnaistic', 'exllamav2'],
   repetitionPenaltyRange: ['horde', 'novel', 'kobold', 'ooba', 'agnaistic'],
   repetitionPenaltySlope: ['horde', 'novel', 'kobold'],
   tailFreeSampling: ['horde', 'novel', 'kobold', 'ooba', 'agnaistic'],
+  minP: ['llamacpp', 'kobold', 'koboldcpp', 'exllamav2', 'ooba', 'agnaistic'],
   topA: ['horde', 'novel', 'kobold', 'ooba', 'agnaistic'],
-  topK: ['horde', 'novel', 'kobold', 'ooba', 'claude', 'agnaistic'],
-  typicalP: ['horde', 'novel', 'kobold', 'ooba', 'agnaistic'],
+  topK: ['horde', 'novel', 'kobold', 'ooba', 'claude', 'agnaistic', 'exllamav2'],
+  typicalP: ['horde', 'novel', 'kobold', 'ooba', 'agnaistic', 'exllamav2'],
 
   topG: ['novel'],
   mirostatLR: ['novel', 'ooba', 'agnaistic', 'llamacpp'],
@@ -269,14 +304,15 @@ export const adapterSettings: {
 
   thirdPartyUrl: ['kobold', 'ooba'],
   thirdPartyFormat: ['kobold'],
+  thirdPartyModel: ['openai', 'openai-chat'],
   claudeModel: ['claude'],
   novelModel: ['novel'],
-  oaiModel: ['openai'],
-  frequencyPenalty: ['openai', 'kobold', 'novel', 'agnaistic'],
-  presencePenalty: ['openai', 'kobold', 'novel'],
-  streamResponse: ['openai', 'kobold', 'novel', 'claude', 'ooba', 'agnaistic'],
+  oaiModel: ['openai', 'openai-chat'],
+  frequencyPenalty: ['openai', 'kobold', 'novel', 'agnaistic', 'openai-chat'],
+  presencePenalty: ['openai', 'kobold', 'novel', 'openai-chat'],
+  streamResponse: ['openai', 'kobold', 'novel', 'claude', 'ooba', 'agnaistic', 'openai-chat'],
   openRouterModel: ['openrouter'],
-  stopSequences: ['ooba', 'agnaistic', 'novel', 'mancer', 'llamacpp', 'horde'],
+  stopSequences: ['ooba', 'agnaistic', 'novel', 'mancer', 'llamacpp', 'horde', 'exllamav2'],
 
   addBosToken: ['ooba', 'agnaistic'],
   banEosToken: ['ooba', 'agnaistic'],
@@ -307,6 +343,7 @@ export const settingLabels: { [key in keyof PresetAISettings]: string } = {
   repetitionPenaltyRange: 'Repetition Penality Range',
   repetitionPenaltySlope: 'Repetition Penalty Slope',
   tailFreeSampling: 'Tail Free Sampling',
+  minP: 'Min P',
   topA: 'Top A',
   topK: 'Top K',
   topP: 'Top P',
@@ -327,6 +364,8 @@ export const settingLabels: { [key in keyof PresetAISettings]: string } = {
   memoryUserEmbedLimit: 'Memory: User-specific Embed Context Limit',
   novelModel: 'NovelAI Model',
   oaiModel: 'OpenAI Model',
+  thirdPartyModel: 'OpenAI Model Override',
+  thirdPartyKey: 'Third Party Key/Password',
   openRouterModel: 'OpenRouter Model',
   penaltyAlpha: 'Penalty Alpha',
   presencePenalty: 'Presence Penalty',

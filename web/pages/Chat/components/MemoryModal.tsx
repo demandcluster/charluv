@@ -18,10 +18,10 @@ const ChatMemoryModal: Component<{
   const state = memoryStore((s) => ({
     books: s.books,
     items: s.books.list.map((book) => ({ label: book.name, value: book._id })),
-    embeds: s.embeds.filter((em) => em.metadata.type === 'user'),
+    embeds: s.embeds,
   }))
 
-  const [id, setId] = createSignal(props.chat.memoryId || '')
+  const [id, setId] = createSignal(props.chat.memoryId || 'new')
   const [embedId, setEmbedId] = createSignal(props.chat.userEmbedId)
   const [book, setBook] = createSignal<AppSchema.MemoryBook>()
   const [entrySort, setEntrySort] = createSignal<EntrySort>('creationDate')
@@ -42,7 +42,6 @@ const ChatMemoryModal: Component<{
 
   onMount(() => {
     changeBook(props.chat.memoryId || '')
-    memoryStore.listCollections()
   })
 
   const onSubmit = (ev: Event) => {
@@ -61,6 +60,21 @@ const ChatMemoryModal: Component<{
     chatStore.editChat(props.chat._id, { userEmbedId: embedId() }, undefined)
   }
 
+  const createMemoryBook = () => {
+    memoryStore.create(
+      {
+        name: 'New Book',
+        entries: [],
+        description: '',
+        extensions: {},
+      },
+      (book) => {
+        setId(book._id)
+        setBook(book)
+      }
+    )
+  }
+
   const Footer = (
     <>
       <Button schema="secondary" onClick={props.close}>
@@ -75,7 +89,7 @@ const ChatMemoryModal: Component<{
 
   const embeds = createMemo(() => {
     return [{ label: 'None', value: '' }].concat(
-      state.embeds.map((em) => ({ label: em.name, value: em.name }))
+      state.embeds.map((em) => ({ label: `${em.id} [${em.state}]`, value: em.id }))
     )
   })
 
@@ -102,13 +116,16 @@ const ChatMemoryModal: Component<{
             useMemoryBook()
           }}
         />
+        <div>
+          <Button onClick={createMemoryBook}>Create New Memory Book</Button>
+        </div>
 
         <Divider />
         <Show when={state.embeds.length > 0}>
           <Select
             fieldName="embedId"
             label="Embedding"
-            helperText="Local Pipeline: Which user-created embedding to use."
+            helperText="Which user-created embedding to use."
             items={embeds()}
             onChange={(item) => setEmbedId(item.value)}
             value={embedId()}

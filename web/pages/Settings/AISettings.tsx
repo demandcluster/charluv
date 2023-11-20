@@ -20,8 +20,7 @@ import OobaAISettings from './components/OobaAISettings'
 import ClaudeSettings from './components/ClaudeSettings'
 import { AutoPreset, getPresetOptions } from '../../shared/adapter'
 import RegisteredSettings from './components/RegisteredSettings'
-import { A, useSearchParams } from '@solidjs/router'
-import { Toggle } from '/web/shared/Toggle'
+import { useSearchParams } from '@solidjs/router'
 import OpenRouterOauth from './OpenRouterOauth'
 import { SolidCard, TitleCard } from '/web/shared/Card'
 import { PresetSelect } from '/web/shared/PresetSelect'
@@ -95,23 +94,6 @@ const AISettings: Component<{
           setPresetId={setPresetId}
         />
         <div class="hidden">
-          <Toggle
-            fieldName="useLocalPipeline"
-            label="Use Local Pipeline"
-            helperText={
-              <>
-                <A class="link" href="/guides/pipeline">
-                  Pipeline Guide.
-                </A>
-                &nbsp;If available, use local Agnaistic pipeline features (summarization for
-                images). This is extremely new and experimental. Expect this to change and improve
-                in the near future.
-                <span></span>
-              </>
-            }
-            value={state.user?.useLocalPipeline}
-          />
-
           <div class="my-2">
             <SolidCard bg="orange-500" class="mb-2">
               Are you using an external AI service such as OpenAI, NovelAI, or Horde? Provide your

@@ -13,7 +13,7 @@ const ServiceWarning: Component<{ preset?: Partial<AppSchema.GenSettings> }> = (
     if (!props.preset) return false
     return false
     if (props.preset.service !== 'agnaistic') return false
-    const userLevel = user.sub?.level ?? -1
+    const userLevel = user.admin ? Infinity : user.sub?.level ?? -1
     const sub = cfg.subs.find(
       (sub) => sub._id === props.preset?.registered?.agnaistic?.subscriptionId
     )

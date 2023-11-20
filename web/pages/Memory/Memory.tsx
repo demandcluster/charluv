@@ -1,33 +1,51 @@
 import { A } from '@solidjs/router'
 import { assertValid } from '/common/valid'
 import { Download, Plus, Trash, Upload, X } from 'lucide-solid'
-import { Component, createEffect, createSignal, For, onMount, Show } from 'solid-js'
+import { Component, createEffect, createSignal, For, Show } from 'solid-js'
 import { AppSchema } from '../../../common/types/schema'
 import Button from '../../shared/Button'
 import FileInput, { FileInputResult, getFileAsString } from '../../shared/FileInput'
-import Modal from '../../shared/Modal'
+import Modal, { ConfirmModal } from '../../shared/Modal'
 import PageHeader from '../../shared/PageHeader'
 import { memoryStore, toastStore } from '../../store'
-import { Card } from '/web/shared/Card'
+import { SolidCard } from '/web/shared/Card'
 import EmbedContent from './EmbedContent'
+import { embedApi } from '/web/store/embeddings'
 
 export const EmbedsTab: Component = (props) => {
   const state = memoryStore()
-
-  onMount(() => {
-    memoryStore.listCollections()
-  })
+  const [deleting, setDeleting] = createSignal<string>()
 
   return (
     <>
       <PageHeader title="Memory - Embeddings" />
       <EmbedContent />
 
-      <div class="flex flex-col gap-2">
-        <For each={state.embeds.filter((embed) => embed.metadata.type === 'user')}>
-          {(each) => <Card>{each.name}</Card>}
+      <div class="my-2 flex flex-col gap-2">
+        <For each={state.embeds}>
+          {(each) => (
+            <SolidCard
+              border
+              size="sm"
+              class="flex items-center justify-between overflow-hidden"
+              bg="bg-700"
+            >
+              <div class="ellipsis">{each.id}</div>
+              <div>
+                <Button schema="red" onClick={() => setDeleting(each.id)}>
+                  <Trash size={14} />
+                </Button>
+              </div>
+            </SolidCard>
+          )}
         </For>
       </div>
+      <ConfirmModal
+        confirm={() => embedApi.removeDocument(deleting()!)}
+        show={!!deleting()}
+        close={() => setDeleting()}
+        message={`Are you sure you wish to delete this embedding?\n\n${deleting()}`}
+      />
     </>
   )
 }
@@ -35,6 +53,7 @@ export const EmbedsTab: Component = (props) => {
 export const BooksTab: Component = (props) => {
   const state = memoryStore()
   const [showImport, setImport] = createSignal(false)
+  const [deleting, setDeleting] = createSignal<AppSchema.MemoryBook>()
 
   const removeBook = (book: AppSchema.MemoryBook) => {
     memoryStore.remove(book._id)
@@ -93,7 +112,7 @@ export const BooksTab: Component = (props) => {
               >
                 <Download />
               </a>
-              <div class="icon-button" onClick={() => removeBook(book)}>
+              <div class="icon-button" onClick={() => setDeleting(book)}>
                 <Trash />
               </div>
             </div>
@@ -103,6 +122,12 @@ export const BooksTab: Component = (props) => {
 
       <div class="flex flex-col items-center"></div>
       <ImportMemoryModal show={showImport()} close={() => setImport(false)} />
+      <ConfirmModal
+        confirm={() => removeBook(deleting()!)}
+        message={`Are you sure you wish to delete this memory book?\n\n${deleting()?.name}`}
+        close={() => setDeleting()}
+        show={!!deleting()}
+      />
     </>
   )
 }

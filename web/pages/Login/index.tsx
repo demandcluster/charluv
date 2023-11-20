@@ -1,10 +1,10 @@
 import { Component, createEffect, createMemo, createSignal, Show } from 'solid-js'
-import { A, useNavigate, useSearchParams, useLocation } from '@solidjs/router'
+import { A, useLocation, useNavigate, useSearchParams } from '@solidjs/router'
 import Alert from '../../shared/Alert'
 import Divider from '../../shared/Divider'
 import PageHeader from '../../shared/PageHeader'
-import { settingStore, toastStore, userStore } from '../../store'
-import { getStrictForm, setComponentPageTitle } from '../../shared/util'
+import { ACCOUNT_KEY, settingStore, toastStore, userStore } from '../../store'
+import { getStrictForm, setComponentPageTitle, storage } from '../../shared/util'
 import TextInput from '../../shared/TextInput'
 import Button from '../../shared/Button'
 import { isLoggedIn } from '/web/store/api'
@@ -42,16 +42,16 @@ const LoginPage: Component = () => {
       <PageHeader
         title={<div class="flex w-full justify-center">Welcome</div>}
         subtitle={
-          <span>
-            <a class="link" onClick={() => setRegister(false)}>
+          <div class="flex flex-wrap items-center justify-center">
+            <Button size="pill" onClick={() => setRegister(false)}>
               Login
-            </a>{' '}
-            to your account or&nbsp;
-            <a class="link" onClick={() => setRegister(true)}>
-              register
-            </a>
+            </Button>
+            &nbsp; to your account or&nbsp;
+            <Button size="pill" onClick={() => setRegister(true)}>
+              Register
+            </Button>
             &nbsp;or continue as a guest.
-          </span>
+          </div>
         }
       />
       <div class="w-full max-w-sm">
@@ -195,6 +195,7 @@ const RegisterForm: Component<FormProps> = (props) => {
 const LoginForm: Component<FormProps> = (props) => {
   const navigate = useNavigate()
   const [query] = useSearchParams()
+  const loc = useLocation()
   const state = settingStore()
   const [error, setError] = createSignal<string>()
 
@@ -233,7 +234,13 @@ const LoginForm: Component<FormProps> = (props) => {
   return (
     <form onSubmit={login} class="flex flex-col gap-6">
       <div class="flex flex-col gap-2">
-        <TextInput fieldName="username" placeholder="Username" autocomplete="username" required />
+        <TextInput
+          fieldName="username"
+          placeholder="Username"
+          autocomplete="username"
+          value={loc.pathname.includes('/remember') ? storage.localGetItem(ACCOUNT_KEY) || '' : ''}
+          required
+        />
         <TextInput
           fieldName="password"
           placeholder="Password"

@@ -5,12 +5,13 @@ import {
   toChat,
   toEntry,
   toPersona,
+  toScenarioBook,
   toUser,
   toUserMsg,
 } from '../common/dummy'
 import { getTokenCounter } from '/srv/tokenize'
 import { AppSchema } from '/common/types/schema'
-import { createPrompt, getPromptParts } from '/common/prompt'
+import { createPromptParts, buildPromptParts } from '/common/prompt'
 import { TemplateOpts, parseTemplate } from '/common/template-parser'
 
 export * from '../common/dummy'
@@ -60,6 +61,8 @@ const lines = history.map(
   (h) => `${h.characterId ? characters[h.characterId]?.name : profile.handle}: ${h.msg}`
 )
 
+const scenarioBook = toScenarioBook('scenario book', user)
+
 export const entities = {
   chat,
   user,
@@ -67,9 +70,10 @@ export const entities = {
   main,
   replyAs,
   book,
+  scenarioBook,
 }
 
-export function build(
+export async function build(
   messages: AppSchema.ChatMessage[],
   opts: {
     chat?: AppSchema.Chat
@@ -82,12 +86,13 @@ export function build(
     continue?: string
     settings?: Partial<AppSchema.GenSettings>
     replyAs?: AppSchema.Character
+    resolvedScenario?: string
   } = {}
 ) {
   const overChar = { ...main, ...opts.char }
   const characters = toMap([overChar, replyAs])
 
-  const result = createPrompt(
+  const result = await createPromptParts(
     {
       char: overChar,
       members: [profile],
@@ -104,6 +109,7 @@ export function build(
       lastMessage: '',
       chatEmbeds: [],
       userEmbeds: [],
+      resolvedScenario: opts.resolvedScenario ?? overChar.scenario,
     },
     getTokenCounter('main')
   )
@@ -119,12 +125,12 @@ export function toMsg(text: string) {
   return toUserMsg(profile, text)
 }
 
-export function template(
+export async function template(
   prompt: string,
   overrides: Partial<TemplateOpts>,
   main?: Partial<AppSchema.Character>
 ) {
-  return parseTemplate(prompt, getParseOpts(overrides, main))
+  return parseTemplate(prompt, await getParseOpts(overrides, main))
 }
 
 type TestOpts = Partial<
@@ -135,13 +141,16 @@ type TestOpts = Partial<
   }
 >
 
-function getParseOpts(overrides: TestOpts = {}, charOverrides: Partial<AppSchema.Character> = {}) {
+async function getParseOpts(
+  overrides: TestOpts = {},
+  charOverrides: Partial<AppSchema.Character> = {}
+) {
   const overChat = overrides.char ? toChat(overrides.char) : chat
   const overChar = { ...main, ...charOverrides }
   const characters = toMap([overChar, replyAs])
   const parts =
     overrides.parts ||
-    getPromptParts(
+    (await buildPromptParts(
       {
         char: overChar,
         sender: profile,
@@ -155,10 +164,11 @@ function getParseOpts(overrides: TestOpts = {}, charOverrides: Partial<AppSchema
         kind: 'send',
         chatEmbeds: [],
         userEmbeds: [],
+        resolvedScenario: overChar.scenario,
       },
       overrides.lines || lines,
       getTokenCounter('main')
-    )
+    ))
 
   const base: TemplateOpts = {
     char: overChar,

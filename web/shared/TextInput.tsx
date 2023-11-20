@@ -27,6 +27,7 @@ const TextInput: Component<{
   parentClass?: string
   tokenCount?: boolean | ((count: number) => void)
   step?: number
+  readonly?: boolean
   ref?: (ref: any) => void
 
   onKeyUp?: (
@@ -58,7 +59,7 @@ const TextInput: Component<{
 
   const [countTokens] = createDebounce(async (text: string) => {
     const tokenizer = await getEncoder()
-    const count = tokenizer(text)
+    const count = await tokenizer(text)
     setTokens(count)
 
     if (typeof props.tokenCount === 'function') {
@@ -142,7 +143,7 @@ const TextInput: Component<{
       <Show when={!!props.label || !!props.helperText}>
         <label for={props.fieldName}>
           <Show when={!!props.label}>
-            <div class={props.helperText ? '' : ' pb-1'}>
+            <div class="flex items-center gap-1" classList={{ 'pb-1': !props.helperText }}>
               {props.label}{' '}
               <Show when={props.tokenCount}>
                 <em class="ml-1 text-xs">({tokens()} tokens)</em>
@@ -171,7 +172,9 @@ const TextInput: Component<{
             name={props.fieldName}
             type={props.type || 'text'}
             required={props.required}
+            readOnly={props.readonly}
             placeholder={placeholder()}
+            aria-placeholder={placeholder()}
             value={value()}
             class={'form-field focusable-field w-full rounded-xl px-4 py-2 ' + (props.class || '')}
             onkeyup={(ev) => {
@@ -196,7 +199,9 @@ const TextInput: Component<{
           name={props.fieldName}
           ref={onRef}
           required={props.required}
+          readOnly={props.readonly}
           placeholder={placeholder()}
+          aria-placeholder={placeholder()}
           value={value()}
           class={
             'form-field focusable-field text-900 min-h-[40px] w-full rounded-xl px-4 py-2 ' +

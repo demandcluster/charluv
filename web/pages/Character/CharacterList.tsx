@@ -1,67 +1,41 @@
-import {
-  Component,
-  For,
-  Match,
-  Show,
-  Switch,
-  createEffect,
-  createMemo,
-  createSignal,
-} from 'solid-js'
-import { NewCharacter, characterStore, chatStore, userStore } from '../../store'
+import { Component, Match, Show, Switch, createEffect, createMemo, createSignal } from 'solid-js'
+import { NewCharacter, characterStore, chatStore, settingStore, userStore } from '../../store'
 import { tagStore } from '../../store'
 import PageHeader from '../../shared/PageHeader'
 import Select, { Option } from '../../shared/Select'
 import TextInput from '../../shared/TextInput'
 import { AppSchema } from '../../../common/types/schema'
-import {
-  Copy,
-  Download,
-  Edit,
-  Menu,
-  MoreHorizontal,
-  Trash,
-  VenetianMask,
-  Import,
-  Plus,
-  Star,
-  SortAsc,
-  SortDesc,
-  LayoutList,
-  Image,
-  User,
-  MessageCircle,
-} from 'lucide-solid'
-import { A, useNavigate, useSearchParams } from '@solidjs/router'
-import { CharacterAvatar } from '../../shared/AvatarIcon'
+import { Import, Plus, SortAsc, SortDesc, LayoutList, Image } from 'lucide-solid'
+import { A, useSearchParams } from '@solidjs/router'
 import ImportCharacterModal from '../Character/ImportCharacter'
 import DeleteCharacterModal from '../Character/DeleteCharacter'
-import { getAssetUrl, storage, setComponentPageTitle } from '../../shared/util'
-import { DropMenu } from '../../shared/DropMenu'
+import { storage, setComponentPageTitle } from '../../shared/util'
 import Button from '../../shared/Button'
 import Loading from '../../shared/Loading'
 import Divider from '../../shared/Divider'
 import Gauge from '../../shared/Gauge'
 
 import TagSelect from '../../shared/TagSelect'
-import AvatarContainer from '/web/shared/Avatar/Container'
 import { DownloadModal } from './DownloadModal'
+import { SortDirection, SortField, ViewType } from './components/types'
+import { CharacterListView } from './components/CharacterListView'
+import { CharacterCardView } from './components/CharacterCardView'
+import { CharacterFolderView } from './components/CharacterFolderView'
+import Modal from '/web/shared/Modal'
+import { CreateCharacterForm } from './CreateCharacterForm'
+import { ManualPaginate, usePagination } from '/web/shared/Paginate'
 
 const CACHE_KEY = 'agnai-charlist-cache'
 
-type ViewTypes = 'list' | 'cards'
-type SortFieldTypes = 'modified' | 'created' | 'name'
-type SortDirectionTypes = 'asc' | 'desc'
-
 type ListCache = {
-  view: ViewTypes
+  view: ViewType
   sort: {
-    field: SortFieldTypes
-    direction: SortDirectionTypes
+    field: SortField
+    direction: SortDirection
   }
 }
 
-const sortOptions: Option<SortFieldTypes>[] = [
+const sortOptions: Option<SortField>[] = [
   { value: 'modified', label: 'Last Modified' },
   { value: 'created', label: 'Created' },
   { value: 'name', label: 'Name' },
@@ -70,23 +44,63 @@ const sortOptions: Option<SortFieldTypes>[] = [
 const CharacterList: Component = () => {
   setComponentPageTitle('Matches')
 
-  const [query, setQuery] = useSearchParams()
-
-  const user = userStore()
-  const state = chatStore((s) => ({
-    list: s.allChars.list.filter((ch) => ch.userId === user.user?._id),
-    loading: s.allLoading,
-    loaded: s.loaded,
-  }))
-
   const cached = getListCache()
-  const [view, setView] = createSignal(cached.view || 'list')
+  const [query, setQuery] = useSearchParams()
+  const [search, setSearch] = createSignal('')
   const [sortField, setSortField] = createSignal(cached.sort.field)
   const [sortDirection, setSortDirection] = createSignal(cached.sort.direction)
-  const [search, setSearch] = createSignal('')
+
+  const tags = tagStore((s) => ({ filter: s.filter, hidden: s.hidden }))
+  const cfg = settingStore()
+  const user = userStore()
+  const state = chatStore((s) => {
+    const favorites = s.allChars.list.filter((ch) => ch.favorite)
+    return {
+      allChars: s.allChars.list,
+      list: s.allChars.list.filter((ch) => ch.userId === user.user?._id && !ch.favorite),
+
+      favorites,
+      loading: s.allLoading,
+      loaded: s.loaded,
+    }
+  })
+
+  const sortedChars = createMemo(() => {
+    const field = sortField()
+    const dir = sortDirection()
+    const sorted = state.list
+      .slice()
+      .filter((ch) => ch.name.toLowerCase().includes(search().toLowerCase().trim()))
+      .filter((ch) => tags.filter.length === 0 || ch.tags?.some((t) => tags.filter.includes(t)))
+      .filter((ch) => !ch.tags || !ch.tags.some((t) => tags.hidden.includes(t)))
+      .sort(getSortFunction(field, dir))
+    return sorted
+  })
+
+  const sortedFaves = createMemo(() => {
+    const field = sortField()
+    const dir = sortDirection()
+    const sorted = state.favorites
+      .slice()
+      .filter((ch) => ch.name.toLowerCase().includes(search().toLowerCase().trim()))
+      .filter((ch) => tags.filter.length === 0 || ch.tags?.some((t) => tags.filter.includes(t)))
+      .filter((ch) => !ch.tags || !ch.tags.some((t) => tags.hidden.includes(t)))
+      .sort(getSortFunction(field, dir))
+    return sorted
+  })
+
+  const [view, setView] = createSignal(cached.view || 'list')
   const [showImport, setImport] = createSignal(false)
   const [importPath, setImportPath] = createSignal<string | undefined>(query.import)
   const importQueue: NewCharacter[] = []
+
+  const [pageSize, _setPageSize] = createSignal(50)
+
+  const pager = usePagination({
+    name: 'character-list',
+    items: sortedChars,
+    pageSize: pageSize(),
+  })
 
   const onImport = (chars: NewCharacter[]) => {
     importQueue.push(...chars)
@@ -102,11 +116,18 @@ const CharacterList: Component = () => {
     characterStore.createCharacter(char, dequeue)
   }
 
-  const getNextView = () => (view() === 'list' ? 'cards' : 'list')
+  const getNextView = (): ViewType => {
+    const curr = view()
+    if (cfg.flags.folders) {
+      return curr === 'list' ? 'cards' : curr === 'cards' ? 'folders' : 'list'
+    }
+
+    return curr === 'list' ? 'cards' : 'list'
+  }
 
   createEffect(() => {
-    if (!state.list.length) return
-    tagStore.updateTags(state.list)
+    if (!state.allChars.length) return
+    tagStore.updateTags(state.allChars)
   })
 
   createEffect(() => {
@@ -165,7 +186,7 @@ const CharacterList: Component = () => {
               fieldName="sortBy"
               items={sortOptions}
               value={sortField()}
-              onChange={(next) => setSortField(next.value as SortFieldTypes)}
+              onChange={(next) => setSortField(next.value as SortField)}
             />
 
             <div class="mr-1 py-1">
@@ -194,14 +215,19 @@ const CharacterList: Component = () => {
                 <Match when={getNextView() === 'cards'}>
                   <span class="hidden sm:block">Cards View</span> <Image />
                 </Match>
+                <Match when={getNextView() === 'folders'}>
+                  <span class="hidden sm:block">Folder View</span> <Image />
+                </Match>
               </Switch>
             </Button>
           </div>
         </div>
       </div>
-
+      <div class="flex justify-center pb-2">
+        <ManualPaginate pager={pager} />
+      </div>
       <Characters
-        characters={state.list}
+        characters={pager.items()}
         loading={state.loading || false}
         loaded={!!state.loaded}
         type={view()}
@@ -209,7 +235,12 @@ const CharacterList: Component = () => {
         filter={search()}
         sortField={sortField()}
         sortDirection={sortDirection()}
+        favorites={sortedFaves()}
       />
+      <div class="flex justify-center pb-5 pt-2">
+        <ManualPaginate pager={pager} />
+      </div>
+
       <ImportCharacterModal
         charhubPath={importPath()}
         show={showImport() || !!importPath()}
@@ -222,27 +253,21 @@ const CharacterList: Component = () => {
 
 const Characters: Component<{
   characters: AppSchema.Character[]
+  favorites: AppSchema.Character[]
   loading: boolean
   loaded: boolean
-  type: ViewTypes
+  type: ViewType
   filter: string
   user: AppSchema.User
-  sortField: SortFieldTypes
-  sortDirection: SortDirectionTypes
+  sortField: SortField
+  sortDirection: SortDirection
 }> = (props) => {
-  const tags = tagStore((s) => ({ filter: s.filter, hidden: s.hidden }))
+  const [editChar, setEditChar] = createSignal<AppSchema.Character>()
   const [showGrouping, setShowGrouping] = createSignal(false)
   const groups = createMemo(() => {
-    const list = props.characters
-      .slice()
-      .filter((ch) => ch.name.toLowerCase().includes(props.filter.toLowerCase()))
-      .filter((ch) => tags.filter.length === 0 || ch.tags?.some((t) => tags.filter.includes(t)))
-      .filter((ch) => !ch.tags || !ch.tags.some((t) => tags.hidden.includes(t)))
-      .sort(getSortFunction(props.sortField, props.sortDirection))
-
     const groups = [
-      { label: 'Favorites', list: list.filter((c) => c.favorite) },
-      { label: '', list: list.filter((c) => !c.favorite) },
+      { label: 'Favorites', list: props.favorites },
+      { label: '', list: props.characters },
     ]
     if (groups[0].list.length === 0) {
       setShowGrouping(false)
@@ -270,77 +295,48 @@ const Characters: Component<{
           <NoCharacters />
         </Match>
         <Match when={props.loaded}>
-          <Show when={props.user.user?._id === 'anon'}>
-            <div class="gap-2 p-4 text-lg font-bold">
-              You are not <a href="/login">registered</a>. You can only chat with the helpdesk bot.
-              Registration is totally free and does not require any private information! When
-              registered you can Match, Like and Create characters.
-            </div>
+          <Show when={!props.type || props.type === 'list'}>
+            <CharacterListView
+              groups={groups()}
+              showGrouping={showGrouping()}
+              toggleFavorite={toggleFavorite}
+              setDownload={setDownload}
+              setDelete={setDelete}
+              setEdit={setEditChar}
+            />
           </Show>
-          <Show when={props.user.user?._id !== 'anon'}>
-            <Show when={!props.type || props.type === 'list'}>
-              <div class="flex w-full flex-col gap-2 pb-5">
-                <For each={groups()}>
-                  {(group) => (
-                    <>
-                      <Show when={showGrouping() && group.label}>
-                        <h2 class="text-xl font-bold">{group.label}</h2>
-                      </Show>
-                      <For each={group.list}>
-                        {(char) => (
-                          <Character
-                            type={props.type}
-                            char={char}
-                            user={props.user}
-                            delete={() => setDelete(char)}
-                            download={() => setDownload(char)}
-                            toggleFavorite={(value) => toggleFavorite(char._id, value)}
-                          />
-                        )}
-                      </For>
-                      <Divider />
-                    </>
-                  )}
-                </For>
-              </div>
-            </Show>
 
-            <Show when={props.type === 'cards'}>
-              <For each={groups()}>
-                {(group) => (
-                  <>
-                    <Show when={showGrouping()}>
-                      <h2 class="text-xl font-bold">{group.label}</h2>
-                    </Show>
-                    <div class="grid w-full grid-cols-[repeat(auto-fit,minmax(160px,1fr))] flex-row flex-wrap justify-start gap-2 py-2 md:gap-4">
-                      <For each={group.list}>
-                        {(char) => (
-                          <Character
-                            type={props.type}
-                            char={char}
-                            user={props.user}
-                            delete={() => setDelete(char)}
-                            download={() => setDownload(char)}
-                            toggleFavorite={(value) => toggleFavorite(char._id, value)}
-                          />
-                        )}
-                      </For>
-                      <Show when={group.list.length < 4}>
-                        <For each={new Array(4 - group.list.length)}>{() => <div></div>}</For>
-                      </Show>
-                    </div>
-                    <Divider />
-                  </>
-                )}
-              </For>
-            </Show>
+          <Show when={props.type === 'cards'}>
+            <CharacterCardView
+              groups={groups()}
+              showGrouping={showGrouping()}
+              toggleFavorite={toggleFavorite}
+              setDelete={setDelete}
+              setDownload={setDownload}
+              setEdit={setEditChar}
+            />
+          </Show>
 
+          <Show when={props.type === 'folders'}>
+            <CharacterFolderView
+              groups={groups()}
+              showGrouping={showGrouping()}
+              toggleFavorite={toggleFavorite}
+              setDelete={setDelete}
+              setDownload={setDownload}
+              sort={props.sortDirection}
+              characters={props.characters}
+              setEdit={setEditChar}
+            />
           </Show>
         </Match>
       </Switch>
 
       <Show when={download()}>
         <DownloadModal show close={() => setDownload()} charId={download()!._id} />
+      </Show>
+      <Show when={editChar()}>
+        <EditCharacter char={editChar()} close={() => setEditChar()} />
       </Show>
       <DeleteCharacterModal
         char={showDelete()}
@@ -351,260 +347,28 @@ const Characters: Component<{
   )
 }
 
-const Character: Component<{
-  type: string
-  char: AppSchema.Character
-  user: AppSchema.User
-  delete: () => void
-  download: () => void
-  toggleFavorite: (value: boolean) => void
-}> = (props) => {
-  const [opts, setOpts] = createSignal(false)
-  const [listOpts, setListOpts] = createSignal(false)
-  const nav = useNavigate()
-
-  if (props.type === 'list') {
-    return (
-      <div class="bg-800 flex w-full flex-row items-center justify-between gap-4 rounded-xl px-2 py-1 hover:bg-[var(--bg-700)]">
-        <A
-          class="ellipsis flex h-3/4 grow cursor-pointer items-center gap-4"
-          href={`/character/${props.char._id}/chats`}
-        >
-          <CharacterAvatar char={props.char} zoom={1.75} />
-          <div class="flex max-w-full flex-col overflow-hidden">
-            <span class="ellipsis font-bold">{props.char.name}</span>
-            <span class="ellipsis">{props.char.description}</span>
-          </div>
-        </A>
-        <div>
-          <div class="hidden flex-row items-center justify-center gap-2 sm:flex">
-            <Show when={props.char.name !== 'Aiva' && props.char?.parent}>
-              <Gauge showBar={false} currentXP={props.char.xp} />
-            </Show>
-            <Show when={props.char.favorite}>
-              <Star
-                class="icon-button fill-[var(--text-900)] text-[var(--text-900)]"
-                onClick={() => props.toggleFavorite(false)}
-              />
-            </Show>
-            <Show when={!props.char.favorite}>
-              <Star class="icon-button" onClick={() => props.toggleFavorite(true)} />
-            </Show>
-            <A href={`/chats/create/${props.char._id}`}>
-              <MessageCircle class="icon-button" />
-            </A>
-            <Show when={!props.char?.parent && props.char?.name !== 'Aiva'}>
-              <a onClick={props.download}>
-                <Download class="icon-button" />
-              </a>
-              <A href={`/character/${props.char._id}/edit`}>
-                <Edit class="icon-button" />
-              </A>
-              <A href={`/character/create/${props.char._id}`}>
-                <Copy class="icon-button" />
-              </A>
-            </Show>
-
-            <Trash class="icon-button" onClick={props.delete} />
-
-            <Show when={props.char?.parent}>
-              <User class="icon-button" onClick={() => nav(`/likes/${props.char._id}/profile`)} />
-            </Show>
-          </div>
-          <div class="flex items-center sm:hidden" onClick={() => setListOpts(true)}>
-            <Show when={props.char.name !== 'Aiva' && props.char?.parent}>
-              <Gauge showBar={false} currentXP={props.char.xp} />
-            </Show>
-            <MoreHorizontal class="icon-button" />
-          </div>
-          <DropMenu
-            class="bg-[var(--bg-700)]"
-            show={listOpts()}
-            close={() => setListOpts(false)}
-            customPosition="right-[10px] top-[4px]"
-            // horz="left"
-            vert="down"
-          >
-            <div class="flex flex-col gap-2 p-2 font-bold">
-              <Button onClick={() => props.toggleFavorite(!props.char.favorite)} size="sm">
-                <Show when={props.char.favorite}>
-                  <Star class="text-900 fill-[var(--text-900)]" /> Unfavorite
-                </Show>
-                <Show when={!props.char.favorite}>
-                  <Star /> Favorite
-                </Show>
-              </Button>
-              <Button onClick={() => nav(`/chats/create/${props.char._id}`)} alignLeft size="sm">
-                <MessageCircle /> Chat
-              </Button>
-              <Show when={!props.char?.parent && props.char?.name !== 'Aiva'}>
-                <Button alignLeft onClick={props.download} size="sm">
-                  <Download /> Download
-                </Button>
-                <Button
-                  alignLeft
-                  onClick={() => nav(`/character/${props.char._id}/edit`)}
-                  size="sm"
-                >
-                  <Edit /> Edit
-                </Button>
-                <Button
-                  alignLeft
-                  onClick={() => nav(`/character/create/${props.char._id}`)}
-                  size="sm"
-                >
-                  <Copy /> Duplicate
-                </Button>
-              </Show>
-              <Button alignLeft schema="red" onClick={props.delete} size="sm">
-                <Trash /> Delete
-              </Button>
-              <Show when={props.char?.parent && props.char?.name !== 'Aiva'}>
-                <Button alignLeft onClick={() => nav(`/likes/${props.char._id}/profile`)}>
-                  <User /> Profile
-                </Button>
-              </Show>
-            </div>
-          </DropMenu>
-        </div>
-      </div>
-    )
-  }
-
-  let ref: any
+const EditCharacter: Component<{ char?: AppSchema.Character; close: () => void }> = (props) => {
+  const [footer, setFooter] = createSignal<any>()
 
   return (
-    <div ref={ref} class="bg-800 flex flex-col items-center justify-between gap-1 rounded-md p-1">
-      <div class="w-full">
-        <Switch>
-          <Match when={props.char.visualType === 'sprite' && props.char.sprite}>
-            <A
-              href={`/character/${props.char._id}/chats`}
-              class="block h-44 w-full justify-center overflow-hidden rounded-lg"
-            >
-              <AvatarContainer container={ref} body={props.char.sprite} />
-            </A>
-          </Match>
-          <Match when={props.char.avatar}>
-            <A
-              href={`/character/${props.char._id}/chats`}
-              class="block h-44 w-full justify-center overflow-hidden rounded-lg"
-            >
-              <img
-                src={getAssetUrl(props.char.avatar!)}
-                class="h-full w-full object-cover"
-                style="object-position: 50% 30%;"
-              />
-            </A>
-          </Match>
-          <Match when>
-            <A
-              href={`/character/${props.char._id}/chats`}
-              class="bg-700 flex h-32 w-full items-center justify-center rounded-md"
-            >
-              <VenetianMask size={24} />
-            </A>
-          </Match>
-        </Switch>
-      </div>
-      <div class="h-18 w-full text-sm">
-        <div class="relative right-0 h-8 w-full overflow-x-hidden overflow-y-hidden px-2 text-right text-2xl text-white text-shadow md:right-1">
-          <span class=" font-black ">{props.char?.name}</span>{' '}
-          {props.char.persona?.attributes?.age
-            ? props.char?.persona?.attributes?.age[0].split(' ')[0]
-            : ''}
-        </div>
-        <div class="-mt-2 h-12 px-2">
-          <Show when={props.char?.parent && props.char?.name !== 'Aiva'}>
-            <div>
-              <Gauge showBar={true} currentXP={props.char.xp} />
-            </div>
-          </Show>
-        </div>
-
-        {/* hacky positioning shenanigans are necessary as opposed to using an
-            absolute positioning because if any of the DropMenu parent is
-            positioned, then DropMenu breaks because it relies on the nearest
-            positioned parent to be the sitewide container */}
-        <div
-          class="float-right mr-[4px] mt-[-248px] flex justify-end"
-          onClick={() => setOpts(true)}
-        >
-          <div class="rounded-md bg-[var(--bg-500)] p-[2px]">
-            <Menu size={24} class="icon-button" color="var(--bg-100)" />
-          </div>
-          <DropMenu
-            show={opts()}
-            close={() => setOpts(false)}
-            customPosition="right-[9px] top-[6px]"
-          >
-            <div class="flex flex-col gap-2 p-2">
-              <Button
-                onClick={() => props.toggleFavorite(!props.char.favorite)}
-                size="sm"
-                alignLeft
-              >
-                <Show when={props.char.favorite}>
-                  <Star class="text-900 fill-[var(--text-900)]" /> Unfavorite
-                </Show>
-                <Show when={!props.char.favorite}>
-                  <Star /> Favorite
-                </Show>
-              </Button>
-              <Button onClick={() => nav(`/chats/create/${props.char._id}`)} alignLeft size="sm">
-                <MessageCircle /> Chat
-              </Button>
-              <Show when={!props.char?.parent && props.char?.name !== 'Aiva'}>
-                <Button
-                  alignLeft
-                  size="sm"
-                  onClick={() => {
-                    setOpts(false)
-                    props.download()
-                  }}
-                >
-                  <Download /> Download
-                </Button>
-                <Button
-                  alignLeft
-                  onClick={() => nav(`/character/${props.char._id}/edit`)}
-                  size="sm"
-                >
-                  <Edit /> Edit
-                </Button>
-                <Button
-                  alignLeft
-                  onClick={() => nav(`/character/create/${props.char._id}`)}
-                  size="sm"
-                >
-                  <Copy /> Duplicate
-                </Button>
-              </Show>
-              <Button
-                alignLeft
-                size="sm"
-                schema="red"
-                onClick={() => {
-                  setOpts(false)
-                  props.delete()
-                }}
-              >
-                <Trash /> Delete
-              </Button>
-              <Show when={props.char?.parent}>
-                <Button alignLeft onClick={() => nav(`/likes/${props.char._id}/profile`)}>
-                  <User /> Profile
-                </Button>
-              </Show>
-            </div>
-          </DropMenu>
-        </div>
-      </div>
-    </div>
+    <Modal
+      title={`Editing: ${props.char?.name}`}
+      show
+      close={props.close}
+      maxWidth="half"
+      footer={footer()}
+    >
+      <CreateCharacterForm
+        editId={props.char?._id}
+        close={props.close}
+        noTitle
+        footer={setFooter}
+      />
+    </Modal>
   )
 }
 
-function getSortableValue(char: AppSchema.Character, field: SortFieldTypes) {
+function getSortableValue(char: AppSchema.Character, field: SortField) {
   switch (field) {
     case 'name':
       return char.name.toLowerCase()
@@ -617,7 +381,7 @@ function getSortableValue(char: AppSchema.Character, field: SortFieldTypes) {
   }
 }
 
-function getSortFunction(field: SortFieldTypes, direction: SortDirectionTypes) {
+function getSortFunction(field: SortField, direction: SortDirection) {
   return (left: AppSchema.Character, right: AppSchema.Character) => {
     const mod = direction === 'asc' ? 1 : -1
     const l = getSortableValue(left, field)
@@ -643,7 +407,15 @@ function saveListCache(cache: ListCache) {
 
 const NoCharacters: Component = () => (
   <div class="mt-16 flex w-full justify-center rounded-full text-xl">
-    You have no characters!&nbsp;
+    No characters found&nbsp;
+    <A class="text-[var(--hl-500)]" href="/likes">
+      Match a Date
+    </A>
+    &nbsp;or&nbsp;
+    <A class="text-[var(--hl-500)]" href="/character/create">
+      Create a character
+    </A>
+    &nbsp;to get started!
   </div>
 )
 
