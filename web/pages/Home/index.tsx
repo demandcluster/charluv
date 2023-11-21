@@ -246,7 +246,8 @@ const HomePage: Component = () => {
 export default HomePage
 
 const RecentChats: Component = (props) => {
-  const user = props.user
+  const user = userStore()
+
   const nav = useNavigate()
   const state = chatStore((s) => ({
     chars: s.allChars.list,
@@ -264,7 +265,7 @@ const RecentChats: Component = (props) => {
       </div>
       <div
         class="grid w-full grid-cols-2 gap-2 sm:grid-cols-4"
-        classList={{ hidden: state.last.length === 0 || !user?.loggedIn }}
+        classList={{ hidden: state.last.length === 0 || !state?.loggedIn }}
       >
         <For each={state.last}>
           {({ chat, char }) => (
