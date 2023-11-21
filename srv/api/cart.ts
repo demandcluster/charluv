@@ -251,7 +251,10 @@ const webHook = handle(async (req, res) => {
   const paymentId = bodyObj?.resource?.id || false
 
   if (!paymentId) return res?.sendStatus(400) || ''
-  const orderId = bodyObj?.resource?.purchase_units[0]?.custom_id || false
+
+  const orderId =
+    bodyObj?.resource?.custom_id || bodyObj?.resource.purchase_units[0]?.custom_id || false
+
   if (bodyObj?.resource?.status !== 'COMPLETED') return res?.sendStatus(400) || ''
 
   if (!orderId) return res?.sendStatus(400) || ''

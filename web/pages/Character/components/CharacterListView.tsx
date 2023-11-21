@@ -4,9 +4,19 @@ import { ViewProps } from './types'
 import { AppSchema } from '/common/types'
 import { A, useNavigate } from '@solidjs/router'
 import { CharacterAvatar } from '/web/shared/AvatarIcon'
-import { Copy, Download, Edit, MessageCircle, MoreHorizontal, Star, Trash } from 'lucide-solid'
+import {
+  Copy,
+  Download,
+  Edit,
+  MessageCircle,
+  MoreHorizontal,
+  Star,
+  Trash,
+  User,
+} from 'lucide-solid'
 import { DropMenu } from '/web/shared/DropMenu'
 import Button from '/web/shared/Button'
+import Gauge from '/web/shared/Gauge'
 
 export const CharacterListView: Component<ViewProps> = (props) => {
   return (
@@ -85,6 +95,10 @@ const CharacterListOptions: Component<{
   return (
     <div>
       <div class="hidden flex-row items-center justify-center gap-2 sm:flex">
+        <Show when={props.char.name !== 'Aiva' && props.char?.parent}>
+          <Gauge showBar={false} currentXP={props.char.xp} />
+        </Show>
+
         <Show when={props.char.favorite}>
           <a
             href="#"
@@ -112,29 +126,31 @@ const CharacterListOptions: Component<{
         >
           <MessageCircle class="icon-button" />
         </A>
-        <a
-          href="#"
-          onClick={props.download}
-          role="button"
-          aria-label={`Download character ${props.char.name}`}
-        >
-          <Download class="icon-button" />
-        </a>
-        <a
-          href="#"
-          onClick={props.edit}
-          role="button"
-          aria-label={`Edit character ${props.char.name}`}
-        >
-          <Edit class="icon-button" />
-        </a>
-        <A
-          href={`/character/create/${props.char._id}`}
-          role="button"
-          aria-label={`Duplicate character ${props.char.name}`}
-        >
-          <Copy class="icon-button" />
-        </A>
+        <Show when={!props.char?.parent && props.char?.name !== 'Aiva'}>
+          <a
+            href="#"
+            onClick={props.download}
+            role="button"
+            aria-label={`Download character ${props.char.name}`}
+          >
+            <Download class="icon-button" />
+          </a>
+          <a
+            href="#"
+            onClick={props.edit}
+            role="button"
+            aria-label={`Edit character ${props.char.name}`}
+          >
+            <Edit class="icon-button" />
+          </a>
+          <A
+            href={`/character/create/${props.char._id}`}
+            role="button"
+            aria-label={`Duplicate character ${props.char.name}`}
+          >
+            <Copy class="icon-button" />
+          </A>
+        </Show>
         <a
           href="#"
           onClick={props.delete}
@@ -143,10 +159,18 @@ const CharacterListOptions: Component<{
         >
           <Trash class="icon-button" />
         </a>
+        <Show when={props.char?.parent}>
+          <User class="icon-button" onClick={() => nav(`/likes/${props.char._id}/profile`)} />
+        </Show>
       </div>
-      <div class="flex items-center sm:hidden" onClick={() => setListOpts(true)}>
+
+      <div class="flex items-center gap-2 sm:hidden" onClick={() => setListOpts(true)}>
+        <Show when={props.char.name !== 'Aiva' && props.char?.parent}>
+          <Gauge showBar={false} currentXP={props.char.xp} />
+        </Show>
         <MoreHorizontal class="icon-button" />
       </div>
+
       <DropMenu
         class="bg-[var(--bg-700)]"
         show={listOpts()}
@@ -167,15 +191,17 @@ const CharacterListOptions: Component<{
           <Button onClick={() => nav(`/chats/create/${props.char._id}`)} alignLeft size="sm">
             <MessageCircle /> Chat
           </Button>
-          <Button alignLeft onClick={props.download} size="sm">
-            <Download /> Download
-          </Button>
-          <Button alignLeft onClick={props.edit} size="sm">
-            <Edit /> Edit
-          </Button>
-          <Button alignLeft onClick={() => nav(`/character/create/${props.char._id}`)} size="sm">
-            <Copy /> Duplicate
-          </Button>
+          <Show when={!props.char?.parent && props.char?.name !== 'Aiva'}>
+            <Button alignLeft onClick={props.download} size="sm">
+              <Download /> Download
+            </Button>
+            <Button alignLeft onClick={props.edit} size="sm">
+              <Edit /> Edit
+            </Button>
+            <Button alignLeft onClick={() => nav(`/character/create/${props.char._id}`)} size="sm">
+              <Copy /> Duplicate
+            </Button>
+          </Show>
           <Button alignLeft schema="red" onClick={props.delete} size="sm">
             <Trash /> Delete
           </Button>

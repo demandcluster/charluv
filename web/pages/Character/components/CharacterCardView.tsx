@@ -4,7 +4,17 @@ import Divider from '/web/shared/Divider'
 import { A, useNavigate } from '@solidjs/router'
 import AvatarContainer from '/web/shared/Avatar/Container'
 import { getAssetUrl } from '/web/shared/util'
-import { Copy, Download, Edit, Menu, MessageCircle, Star, Trash, VenetianMask } from 'lucide-solid'
+import {
+  Copy,
+  Download,
+  User,
+  Edit,
+  Menu,
+  MessageCircle,
+  Star,
+  Trash,
+  VenetianMask,
+} from 'lucide-solid'
 import { DropMenu } from '/web/shared/DropMenu'
 import Button from '/web/shared/Button'
 
@@ -123,26 +133,28 @@ const Character: Component<CardProps> = (props) => {
               <Button onClick={() => nav(`/chats/create/${props.char._id}`)} alignLeft size="sm">
                 <MessageCircle /> Chat
               </Button>
-              <Button
-                alignLeft
-                size="sm"
-                onClick={() => {
-                  setOpts(false)
-                  props.download()
-                }}
-              >
-                <Download /> Download
-              </Button>
-              <Button alignLeft onClick={props.edit} size="sm">
-                <Edit /> Edit
-              </Button>
-              <Button
-                alignLeft
-                onClick={() => nav(`/character/create/${props.char._id}`)}
-                size="sm"
-              >
-                <Copy /> Duplicate
-              </Button>
+              <Show when={!props.char?.parent && props.char?.name !== 'Aiva'}>
+                <Button
+                  alignLeft
+                  size="sm"
+                  onClick={() => {
+                    setOpts(false)
+                    props.download()
+                  }}
+                >
+                  <Download /> Download
+                </Button>
+                <Button alignLeft onClick={props.edit} size="sm">
+                  <Edit /> Edit
+                </Button>
+                <Button
+                  alignLeft
+                  onClick={() => nav(`/character/create/${props.char._id}`)}
+                  size="sm"
+                >
+                  <Copy /> Duplicate
+                </Button>
+              </Show>
               <Button
                 alignLeft
                 size="sm"
@@ -154,6 +166,17 @@ const Character: Component<CardProps> = (props) => {
               >
                 <Trash /> Delete
               </Button>
+              <Show when={props.char?.parent}>
+                <Button
+                  alignLeft
+                  size="sm"
+                  onClick={() => {
+                    nav(`/likes/${props.char._id}/profile`)
+                  }}
+                >
+                  <User /> Profile
+                </Button>
+              </Show>
             </div>
           </DropMenu>
         </div>

@@ -89,8 +89,8 @@ const GenerationSettings: Component<Props & { onSave: () => void }> = (props) =>
       <div class="flex flex-col gap-6">
         <Card class="hidden">
           <Select
+            class="hidden"
             fieldName="service"
-            label="AI Service"
             helperText={
               <>
                 <Show when={!service()}>

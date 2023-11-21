@@ -17,6 +17,7 @@ import {
   Users,
   Power,
   Settings,
+  Signal,
   ShoppingBag,
   Sliders,
   Speaker,
