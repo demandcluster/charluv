@@ -93,11 +93,18 @@ const PremiumOptions: Component = () => {
     <div class="container">
       <PageHeader title="Shop" subtitle="Premium & Credit Options" />
       <section>
+        <h1>
+          <s>BLACK</s> HAPPY FRIDAY DEAL TILL DEC 2nd!
+        </h1>
+        <h2>ONE YEAR PREMIUM ONLY €50</h2>
         <h4 class="text-bold mt-4 pb-4">
           None of our store options are reoccurring. Please renew yourself when you want to, they
-          are not subscriptions.
+          are not subscriptions. If you are already a member, new subscriptions will just be added
+          to the end of your current period.
         </h4>
-        <em>We slighty increased the monthly price, but have decreased the other prices.</em>
+        <em>
+          Anyone that already has annual premium will get €15 in credits added to their account..
+        </em>
 
         <Show when={!orderId()}>
           <div class="grid columns-3 grid-cols-1 gap-x-6 gap-y-10 shadow sm:grid-cols-2 xl:grid-cols-4 xl:gap-x-8">

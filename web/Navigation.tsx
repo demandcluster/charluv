@@ -195,7 +195,6 @@ const UserNavigation: Component = () => {
 
 
       </div> */}
-
       <UserProfile />
       <Show when={user.loggedIn}>
         <Item href="/likes/list">
@@ -209,9 +208,7 @@ const UserNavigation: Component = () => {
           CHUB
         </Item>
       </Show>
-
       <ChatLink />
-
       <Library />
       <MultiItem>
         <Item href="/presets" ariaLabel="Presets">
@@ -224,7 +221,6 @@ const UserNavigation: Component = () => {
           </A>
         </EndItem>
       </MultiItem>
-
       <Show when={menu.flags.sounds}>
         <Sounds />
       </Show>
@@ -233,7 +229,6 @@ const UserNavigation: Component = () => {
           <HeartHandshake /> Premium
         </Item>
       </Show>
-
       <Show when={user.user?.admin}>
         <Item href="/admin/metrics" ariaLabel="Manage">
           <Activity aria-hidden="true" />
@@ -251,7 +246,6 @@ const UserNavigation: Component = () => {
           </SubItem>
         </SubMenu>
       </Show>
-
       <div class="flex flex-wrap justify-center gap-[2px] text-sm">
         <Item href="/faq" ariaLabel="Open FAQ page">
           <HelpCircle aria-hidden="true" />
@@ -319,7 +313,7 @@ const UserNavigation: Component = () => {
           </Switch>
         </Item>
       </div>
-      <Slots />
+      <div class=" justify-center text-sm">HAPPY FRIDAY DEAL IN SHOP!</div>
     </>
   )
 }
