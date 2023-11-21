@@ -13,7 +13,7 @@ const Library: Component = () => {
   setComponentPageTitle('Library')
 
   const allowed = createMemo(() => {
-    const base = ['Memories', 'Scenarios', 'Prompt Templates', 'Embeddings']
+    const base = ['Memories', 'Scenarios', 'Embeddings']
 
     return base
   })

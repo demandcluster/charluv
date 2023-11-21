@@ -25,6 +25,7 @@ RUN pnpm run build:server && \
 RUN node -pe "require('./package.json').version" > /app/version.txt
 RUN mkdir /app/dist/.well-known
 COPY ./web/.well-known/assetlinks.json /app/dist/.well-known/assetlinks.json
+COPY ./slots.txt ./dist/slots.txt
 
 ENV LOG_LEVEL=info \
   INITIAL_USER=administrator \

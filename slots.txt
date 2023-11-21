@@ -1,0 +1,7 @@
+{
+  "provider": "demandcluster",
+  "publisherId": "charluv",
+  "inject": "",
+  "menu": "<!-- DADS Demandcluster Ads Asynchronous JS Tag - Generated with Revive Adserver v5.4.1 --><ins data-revive-zoneid="2" data-revive-id="6749bbe97aa40b08f5dc1f45213caa82"></ins><script async src="//ads.demandcluster.com/www/delivery/asyncjs.php"></script>",
+  "menuLg": "<!-- DADS Demandcluster Ads Asynchronous JS Tag - Generated with Revive Adserver v5.4.1 --><ins data-revive-zoneid="2" data-revive-id="6749bbe97aa40b08f5dc1f45213caa82"></ins><script async src="//ads.demandcluster.com/www/delivery/asyncjs.php"></script>"
+}
