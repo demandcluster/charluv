@@ -247,6 +247,7 @@ const webHook = handle(async (req, res) => {
   }
 
   const bodyObj = body || {}
+  console.log(JSON.stringify(bodyObj))
 
   const paymentId = bodyObj?.resource?.id || false
 
