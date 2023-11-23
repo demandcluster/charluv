@@ -265,7 +265,7 @@ const RecentChats: Component = (props) => {
       </div>
       <div
         class="grid w-full grid-cols-2 gap-2 sm:grid-cols-4"
-        classList={{ hidden: state.last.length === 0 || !state?.loggedIn }}
+        classList={{ hidden: state.last.length === 0 }}
       >
         <For each={state.last}>
           {({ chat, char }) => (
