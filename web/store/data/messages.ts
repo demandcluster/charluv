@@ -838,10 +838,13 @@ async function getChatSummary() {
   const template = getChatSummaryTemplate('horde')
   if (!template) throw new Error(`No chat summary template available for horde`)
 
-  const prompt = parseTemplate(template, opts).parsed
+  const parse = await parseTemplate(template, opts)
+  const prompt = parse.parsed
+
   settings.temp = 0
   settings.maxTokens = 180
   settings.maxContextLength = 3072
+
   const values = await msgsApi.guidance<{ summary: string }>({
     prompt,
     settings,
