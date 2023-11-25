@@ -253,15 +253,17 @@ const webHook = handle(async (req, res) => {
 
   if (!paymentId) return res?.sendStatus(400) || ''
 
-  const orderId =
-    bodyObj?.resource?.custom_id || bodyObj?.resource.purchase_units[0]?.custom_id || false
+  let orderId = bodyObj?.resource?.custom_id || false
+  if (orderId === false) {
+    orderId = bodyObj?.resource.purchase_units[0]?.custom_id || false
+  }
 
   if (bodyObj?.resource?.status !== 'COMPLETED') return res?.sendStatus(400) || ''
 
-  if (!orderId) return res?.sendStatus(400) || ''
+  if (!orderId) return res?.sendStatus(402) || ''
   const order = await store.shop.getShopOrder(orderId)
-  if (!order) return res?.sendStatus(400) || ''
-  if (order.paymentId !== paymentId) return { error: 'Invalid payment' }
+  if (!order) return res?.sendStatus(405) || ''
+  //  if (order.paymentId !== paymentId) return { error: 'Invalid payment' }
 
   if (order.status === 'success' || order.status === 'completed' || order.status === 'failed')
     return res?.sendStatus(400) || ''

@@ -1,2 +1,2 @@
-console.log(Date.now()+307*60*60*24*1000)
+console.log(Date.now()+30*60*60*24*1000)
 
