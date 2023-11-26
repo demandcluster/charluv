@@ -258,7 +258,11 @@ const webHook = handle(async (req, res) => {
     orderId = bodyObj?.resource.purchase_units[0]?.custom_id || false
   }
 
-  if (bodyObj?.resource?.status !== 'COMPLETED') return res?.sendStatus(400) || ''
+  if (
+    bodyObj?.resource?.status !== 'COMPLETED' &&
+    bodyObj?.event_type !== 'PAYMENT.CAPTURE.COMPLETED'
+  )
+    return res?.sendStatus(400) || ''
 
   if (!orderId) return res?.sendStatus(402) || ''
   const order = await store.shop.getShopOrder(orderId)
