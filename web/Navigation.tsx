@@ -313,7 +313,6 @@ const UserNavigation: Component = () => {
           </Switch>
         </Item>
       </div>
-      <div class=" justify-center text-sm">HAPPY FRIDAY DEAL IN SHOP!</div>
     </>
   )
 }

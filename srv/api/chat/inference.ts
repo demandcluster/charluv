@@ -120,7 +120,7 @@ export const guidance = wrap(async ({ userId, log, body, socketId }) => {
     const inference = await inferenceAsync({
       user: body.user,
       log,
-      maxTokens: 3072, // tokens,
+      maxTokens: 4096, // tokens,
       prompt: text,
       service: body.service,
       settings: body.settings,

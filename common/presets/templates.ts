@@ -12,13 +12,7 @@ export const templates = {
   The chat initiates on a virtual dating platform called Charluv at Charluv.com. Act as a dating simulator. 
 
   The relationship progresses and is based on the LEVEL in the Scenario.
-
-  LEVEL(NOVICE) First chat, no relationship, no sex.
-  LEVEL(SEX) {{char}} is horny and wants sex
-  There are many other levels, they are described in the scenarios of the conversation. 
-  
-  Do not decide what {{user}} says or does.
-  
+ 
   {{char}}'s Persona: {{personality}}
 
   {{#if memory}}{{char}}'s Memory: {{memory}}

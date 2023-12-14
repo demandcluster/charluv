@@ -804,7 +804,7 @@ function messageToLine(opts: {
 async function getChatSummary() {
   const opts = await msgsApi.getActiveTemplateParts()
   opts.limit = {
-    context: 3072,
+    context: 4096,
     encoder: await getEncoder(),
   }
   // check for previous summary
@@ -842,14 +842,14 @@ async function getChatSummary() {
   const prompt = parse.parsed
 
   settings.temp = 0
-  settings.maxTokens = 180
-  settings.maxContextLength = 3072
+  settings.maxTokens = 200
+  settings.maxContextLength = 4096
 
   const values = await msgsApi.guidance<{ summary: string }>({
     prompt,
     settings,
     service: 'horde',
-    maxTokens: 180,
+    maxTokens: 200,
   })
 
   const result = await createMessage(chat._id, {
