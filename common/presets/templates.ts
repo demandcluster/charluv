@@ -2,8 +2,6 @@ import { neat } from '../util'
 
 export const templates = {
   Charluv: neat`
-  {{system_prompt}}
-
   ### Instruction: 
   
   Below is an instruction that describes a task. Write a response that appropriately completes the request.
@@ -17,11 +15,19 @@ export const templates = {
 
   {{#if memory}}{{char}}'s Memory: {{memory}}
   {{/if}}
+  {{#if user_embed}}Relevant information to the conversation
+  {{user_embed}}
+  {{/if}}
   {{#if scenario}}The scenario of the conversation: {{scenario}}
+  {{/if}}
+  {{#if chat_embed}}Relevant past conversation history
+  {{chat_embed}}
   {{/if}}
   {{#if example_dialogue}}This is how {{char}} should talk: {{example_dialogue}}
   {{/if}}
   
+  {{system_prompt}}
+
   Then the roleplay chat between {{#each bot}}{{.name}}, {{/each}}{{char}} begins.
   
   {{#each msg}}{{#if .isbot}}### Response:\n{{.name}}: {{.msg}}{{/if}}{{#if .isuser}}### Instruction:\n{{.name}}: {{.msg}}{{/if}}
@@ -37,7 +43,9 @@ export const templates = {
   Below is an instruction that describes a task. Write a response that appropriately completes the request.
   
   Write {{char}}'s next reply in a fictional roleplay chat between {{#each bot}}{{.name}}, {{/each}}{{char}}.
-  
+  Write 1 reply only in internet RP style, italicize actions, and avoid quotation marks. Use markdown. Be proactive, creative, and drive the plot forward.
+
+
   {{char}}'s Persona:
   {{personality}}
 
