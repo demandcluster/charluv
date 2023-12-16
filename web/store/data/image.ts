@@ -187,10 +187,11 @@ function getSummaryTemplate(service: AIAdapter) {
       {{/each}}
 
       ### Instruction:
-      Write an image caption of the current scene using physical descriptions without names.
-
+      Write an image caption of the current scene using physical descriptions without names. Write a summary of facts based on the conversation.
+      Do not include level or any charluv related information. Only include information that is relevant to the conversation. No relationship level, just pure facts about the conversation.
+      
       ### Response:
-      Image caption: [summary | tokens=250]
+      Chat summary: 
       `
   }
 }

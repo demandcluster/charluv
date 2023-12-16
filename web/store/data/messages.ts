@@ -878,9 +878,8 @@ function getChatSummaryTemplate(service: AIAdapter) {
       {{/each}}
 
       ### Instruction:
-      Act as a database of facts for {{char}}. Find the facts in the roleplay chat above and summarize them into keywords.
-      DO NOT include facts from {{char}}'s Persona above. Agreed upon words and names should always be included.
-      Be like a database, short and keyword based. Make sure to include relationship LEVEL/status and any facts needed for coherence.
+      Summarize the above. Find the facts in the roleplay chat above and summarize them into keywords.
+      DO NOT include facts from {{char}}'s Persona above. DO NOT include LEVEL. DO NOT include the scenario.
       You be making a short list for continuity and coherence. Summarize as short as possible, important facts only.
 
       ### Response:
