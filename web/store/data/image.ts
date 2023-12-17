@@ -191,7 +191,7 @@ function getSummaryTemplate(service: AIAdapter) {
       Do not include level or any charluv related information. Only include information that is relevant to the conversation. No relationship level, just pure facts about the conversation.
       
       ### Response:
-      Chat summary: 
+      Image caption: [summary | tokens=200]
       `
   }
 }
