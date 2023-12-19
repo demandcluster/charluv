@@ -12,8 +12,6 @@ export const templates = {
 
   The relationship progresses and is based on the LEVEL in the Scenario.
   
-  Do NOT speak for {{user}}. Only speak for {{char}}.
-
   {{char}}'s Persona: {{personality}}
 
   {{#if memory}}{{char}}'s Memory: {{memory}}
@@ -33,6 +31,8 @@ export const templates = {
 
   Then the roleplay chat between {{#each bot}}{{.name}}, {{/each}}{{char}} begins.
   
+  Do NOT decide what {{user}} says or does. 
+
   {{#each msg}}{{#if .isbot}}### Response:\n{{.name}}: {{.msg}}{{/if}}{{#if .isuser}}### Instruction:\n{{.name}}: {{.msg}}{{/if}}
   {{/each}}
 

@@ -210,7 +210,7 @@ const ChatSettings: Component<{
             onChange={(ev) => setMode(ev.value as any)}
             items={[
               { label: 'Conversation', value: 'standard' },
-              { label: 'Adventure (Experimental)', value: 'adventure' },
+
               { label: 'Companion', value: 'companion' },
             ]}
             value={state.chat?.mode || 'standard'}
