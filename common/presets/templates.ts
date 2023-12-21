@@ -26,6 +26,8 @@ export const templates = {
   {{/if}}
   {{#if example_dialogue}}This is how {{char}} should talk: {{example_dialogue}}
   {{/if}}
+
+  {{impersonating}}
   
   {{system_prompt}}
 
