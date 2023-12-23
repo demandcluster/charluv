@@ -27,6 +27,7 @@ import {
   deleteElevenLabsKey,
   updateUI,
   updatePartialConfig,
+  getUserGift,
 } from './settings'
 import { deleteUserAccount } from './delete-user'
 
@@ -41,6 +42,9 @@ router.get('/services/openrouter', openRouterModels)
 router.post('/code', loggedIn, createApiKey)
 router.post('/verify', verifyOauthKey)
 router.get('/init', loggedIn, getInitialLoad)
+
+router.get('/getgift', loggedIn, getUserGift)
+
 router.get('/', loggedIn, getProfile)
 router.get('/presets', loggedIn, getUserPresets)
 router.get('/templates', loggedIn, getPromptTemplates)
