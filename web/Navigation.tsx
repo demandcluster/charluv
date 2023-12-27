@@ -224,11 +224,7 @@ const UserNavigation: Component = () => {
       <Show when={menu.flags.sounds}>
         <Sounds />
       </Show>
-      <Show when={!user.user?.premium}>
-        <Item onClick={() => userStore.getGift(user)} ariaLabel="Get gift">
-          <Star aria-hidden="true" /> Get xmas gift!
-        </Item>
-      </Show>
+
       <Show when={user.loggedIn}>
         <Item href="/premium">
           <HeartHandshake /> Premium
