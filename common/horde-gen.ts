@@ -149,7 +149,7 @@ export async function generateText(
 
   const params: any = {
     n: 1,
-    max_length: Math.min(preset.maxTokens ?? defaultPresets.horde.maxTokens, 180),
+    max_length: Math.min(preset.maxTokens ?? defaultPresets.horde.maxTokens, 200),
     top_a: preset.topA ?? defaultPresets.horde.topA,
     top_k: preset.topK ?? defaultPresets.horde.topK,
     top_p: preset.topP ?? defaultPresets.horde.topP,
