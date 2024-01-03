@@ -726,9 +726,9 @@ export function getContextLimit(
   model: string
 ): number {
   const configuredMax =
-    gen?.maxContextLength || getFallbackPreset(adapter)?.maxContextLength || 2048
+    gen?.maxContextLength || getFallbackPreset(adapter)?.maxContextLength || 4096
 
-  const genAmount = gen?.maxTokens || getFallbackPreset(adapter)?.maxTokens || 80
+  const genAmount = gen?.maxTokens || getFallbackPreset(adapter)?.maxTokens || 200
 
   switch (adapter) {
     case 'agnaistic':

@@ -156,7 +156,7 @@ export async function generateText(
     typical: preset.typicalP ?? defaultPresets.horde.typicalP,
     max_context_length: Math.min(
       preset.maxContextLength ?? defaultPresets.horde.maxContextLength,
-      2048
+      4096
     ),
     rep_pen: preset.repetitionPenalty ?? defaultPresets.horde.repetitionPenaltyRange,
     rep_pen_range: preset.repetitionPenaltyRange ?? defaultPresets.horde.repetitionPenaltyRange,
