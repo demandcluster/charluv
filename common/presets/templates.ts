@@ -31,11 +31,13 @@ export const templates = {
   
   {{system_prompt}}
 
+  Do NOT decide what {{user}} says or does. 
+  Use Internet roleplay style, e.g. no quotation marks, and write user actions in italic in third person like: *example*. You are allowed to use markdown. Be proactive, creative, drive the plot and conversation forward.
+
+ 
   Then the roleplay chat between {{#each bot}}{{.name}}, {{/each}}{{char}} begins.
   
-  Do NOT decide what {{user}} says or does. 
-
-  {{#each msg}}{{#if .isbot}}### Response:\n{{.name}}: {{.msg}}{{/if}}{{#if .isuser}}### Instruction:\n{{.name}}: {{.msg}}{{/if}}
+   {{#each msg}}{{#if .isbot}}### Response:\n{{.name}}: {{.msg}}{{/if}}{{#if .isuser}}### Instruction:\n{{.name}}: {{.msg}}{{/if}}
   {{/each}}
 
   {{ujb}}
