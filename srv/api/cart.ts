@@ -284,4 +284,5 @@ router.post('/webhook', webHook)
 router.get('/', loggedIn, getItems)
 router.post('/checkout', loggedIn, checkOut)
 
+export { paypalLogin, giveOrder }
 export default router
