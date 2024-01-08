@@ -22,10 +22,7 @@ const checkPaypalOrders = handle(async () => {
   const authToken = await paypalLogin()
   
   const dayold = new Date();
-  dayold.setDate(dayold.getDate() - 1);
-  
-  // show date of today in string
-
+  dayold.setHours(dayold.getHours() - 2);
   const orders = await store.shop.getShopOrdersFrom(dayold.toISOString())
   
   orders.forEach((order) => {
