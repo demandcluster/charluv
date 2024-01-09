@@ -56,6 +56,7 @@ router.post('/verify/patreon', loggedIn, verifyPatreonOauth)
 router.post('/unverify/patreon', loggedIn, unlinkPatreon)
 router.post('/verify', verifyOauthKey)
 router.get('/init', loggedIn, getInitialLoad)
+
 router.get('/', loggedIn, getProfile)
 router.get('/presets', loggedIn, getUserPresets)
 router.get('/templates', loggedIn, getPromptTemplates)

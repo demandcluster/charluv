@@ -279,6 +279,7 @@ const CreateChatForm: Component<{
               label="Scenario"
               helperText="The scenario to use for this conversation"
               items={currScenarios()}
+              value={state.char?.scenarioIds ? state.char?.scenarioIds[0] : ''}
               onChange={(option) => setScenarioById(option.value)}
               disabled={scenarios.length === 0 || state.char?.scenarioIds}
             />

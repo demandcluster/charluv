@@ -21,6 +21,7 @@ import freeCredits from './freecredits'
 import match from './match'
 
 import cart from './cart'
+import paypalcheck from './paypal'
 
 const router = Router()
 const keyedRouter = Router()
@@ -40,6 +41,7 @@ router.use('/freecredits', freeCredits)
 router.use('/shop', cart)
 router.use('/match', match)
 router.use('/announce', announcements)
+router.use('/paypalcheck', paypalcheck)
 
 if (config.jsonStorage) {
   router.use('/json', selfhost)

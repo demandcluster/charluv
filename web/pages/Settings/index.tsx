@@ -84,9 +84,9 @@ const Settings: Component<{ footer?: (children: any) => void }> = (props) => {
 
   const tabs: Tab[] = ['ui', 'ai', 'voice']
 
-  if (state.loggedIn && (state.tiers.length > 0 || state.user?.billing)) {
-    tabs.push('subscription')
-  }
+  // if (state.loggedIn && (state.tiers.length > 0 || state.user?.billing)) {
+  //   tabs.push('subscription')
+  // }
 
   if (!state.loggedIn) tabs.push('guest')
 

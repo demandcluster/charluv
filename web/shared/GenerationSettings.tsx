@@ -89,8 +89,8 @@ const GenerationSettings: Component<Props & { onSave: () => void }> = (props) =>
       <div class="flex flex-col gap-6">
         <Card class="hidden">
           <Select
+            class="hidden"
             fieldName="service"
-            label="AI Service"
             helperText={
               <>
                 <Show when={!service()}>
@@ -459,7 +459,7 @@ const GeneralSettings: Component<
           label="Max New Tokens"
           helperText="Number of tokens the AI should generate. Higher numbers will take longer to generate."
           min={16}
-          max={180}
+          max={200}
           step={1}
           value={props.inherit?.maxTokens || 150}
           disabled={props.disabled}
@@ -478,7 +478,7 @@ const GeneralSettings: Component<
             </>
           }
           min={16}
-          max={props.service === 'claude' ? 200000 : 32000}
+          max={props.service === 'claude' ? 100000 : 4096}
           step={1}
           value={props.inherit?.maxContextLength || defaultPresets.basic.maxContextLength}
           disabled={props.disabled}

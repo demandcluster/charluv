@@ -17,6 +17,7 @@ import {
   Users,
   Power,
   Settings,
+  Signal,
   ShoppingBag,
   Sliders,
   Speaker,
@@ -203,7 +204,6 @@ const UserNavigation: Component = () => {
 
 
       </div> */}
-
       <UserProfile />
       <Show when={user.loggedIn}>
         <Item href="/likes/list">
@@ -217,7 +217,6 @@ const UserNavigation: Component = () => {
           CHUB
         </Item>
       </Show>
-
       <ChatLink />
 
       <Show when={guidance()}>
@@ -239,16 +238,15 @@ const UserNavigation: Component = () => {
           </A>
         </EndItem>
       </MultiItem>
-
       <Show when={menu.flags.sounds}>
         <Sounds />
       </Show>
+
       <Show when={user.loggedIn}>
         <Item href="/premium">
           <HeartHandshake /> Premium
         </Item>
       </Show>
-
       <Show when={user.user?.admin}>
         <Item href="/admin/metrics" ariaLabel="Manage">
           <Activity aria-hidden="true" />
@@ -269,7 +267,6 @@ const UserNavigation: Component = () => {
           </SubItem>
         </SubMenu>
       </Show>
-
       <div class="flex flex-wrap justify-center gap-[2px] text-sm">
         <Item href="/faq" ariaLabel="Open FAQ page">
           <HelpCircle aria-hidden="true" />
@@ -337,7 +334,6 @@ const UserNavigation: Component = () => {
           </Switch>
         </Item>
       </div>
-      <Slots />
     </>
   )
 }

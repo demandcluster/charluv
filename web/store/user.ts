@@ -141,6 +141,15 @@ export const userStore = createStore<UserState>(
       }
     },
 
+    async getGift({ user }) {
+      const res = await api.get('/user/getgift')
+      // if (res.result) {
+      //   toastStore.success(`You have received your xmas gift! 🤶❤️`)
+      // }
+      console.log(res.result)
+      return { user: res.result }
+    },
+
     async *startCheckout({ billingLoading }, tierId: string) {
       if (billingLoading) return
       yield { billingLoading: true }

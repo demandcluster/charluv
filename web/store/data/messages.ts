@@ -806,7 +806,7 @@ function messageToLine(opts: {
 async function getChatSummary() {
   const opts = await msgsApi.getActiveTemplateParts()
   opts.limit = {
-    context: 3072,
+    context: 4096,
     encoder: await getEncoder(),
   }
   // check for previous summary
@@ -840,15 +840,18 @@ async function getChatSummary() {
   const template = getChatSummaryTemplate('horde')
   if (!template) throw new Error(`No chat summary template available for horde`)
 
-  const prompt = parseTemplate(template, opts).parsed
+  const parse = await parseTemplate(template, opts)
+  const prompt = parse.parsed
+
   settings.temp = 0
-  settings.maxTokens = 180
-  settings.maxContextLength = 3072
+  settings.maxTokens = 200
+  settings.maxContextLength = 4096
+
   const values = await msgsApi.guidance<{ summary: string }>({
     prompt,
     settings,
     service: 'horde',
-    maxTokens: 180,
+    maxTokens: 200,
   })
 
   const result = await createMessage(chat._id, {
@@ -877,9 +880,8 @@ function getChatSummaryTemplate(service: AIAdapter) {
       {{/each}}
 
       ### Instruction:
-      Act as a database of facts for {{char}}. Find the facts in the roleplay chat above and summarize them into keywords.
-      DO NOT include facts from {{char}}'s Persona above. Agreed upon words and names should always be included.
-      Be like a database, short and keyword based. Make sure to include relationship LEVEL/status and any facts needed for coherence.
+      Summarize the above. Find the facts in the roleplay chat above and summarize them into keywords.
+      DO NOT include facts from {{char}}'s Persona above. DO NOT include LEVEL. DO NOT include the scenario.
       You be making a short list for continuity and coherence. Summarize as short as possible, important facts only.
 
       ### Response:

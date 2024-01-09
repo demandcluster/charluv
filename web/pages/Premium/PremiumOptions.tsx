@@ -95,9 +95,9 @@ const PremiumOptions: Component = () => {
       <section>
         <h4 class="text-bold mt-4 pb-4">
           None of our store options are reoccurring. Please renew yourself when you want to, they
-          are not subscriptions.
+          are not subscriptions. If you are already a member, new subscriptions will just be added
+          to the end of your current period.
         </h4>
-        <em>We slighty increased the monthly price, but have decreased the other prices.</em>
 
         <Show when={!orderId()}>
           <div class="grid columns-3 grid-cols-1 gap-x-6 gap-y-10 shadow sm:grid-cols-2 xl:grid-cols-4 xl:gap-x-8">

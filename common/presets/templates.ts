@@ -84,51 +84,47 @@ export function replaceTags(prompt: string, format: FormatTags | ModelFormat) {
 
 export const templates = {
   Charluv: neat`
-  {{system_prompt}}
-
   ### Instruction: 
   
   Below is an instruction that describes a task. Write a response that appropriately completes the request.
   
-  Write {{char}}'s next reply in a fictional roleplay chat between {{#each bot}}{{.name}}, {{/each}}{{char}}.
+  Write {{char}}'s next reply in a fictional roleplay chat between {{char}} and {{user}}.
+  Write 1 reply only in internet RP style, italicize actions, and avoid quotation marks. Use markdown. Be proactive, creative, and drive the plot forward.
   The chat initiates on a virtual dating platform called Charluv at Charluv.com. Act as a dating simulator. 
 
   The relationship progresses and is based on the LEVEL in the Scenario.
-
-  LEVEL(NOVICE) First chat, no relationship, no sex.
-  LEVEL(SEX) {{char}} is horny and wants sex
-  There are many other levels, they are described in the scenarios of the conversation. 
-  
-  Do not decide what {{user}} says or does.
   
   {{char}}'s Persona: {{personality}}
 
-
-  {{#if memory}}{{char}}'s Memory:
-  {{memory}}
+  {{#if memory}}{{char}}'s Memory: {{memory}}
   {{/if}}
   {{#if user_embed}}Relevant information to the conversation
   {{user_embed}}
   {{/if}}
-  {{#if scenario}}The scenario of the conversation:
-  {{scenario}}
+  {{#if scenario}}The scenario of the conversation: {{scenario}}
   {{/if}}
   {{#if chat_embed}}Relevant past conversation history
   {{chat_embed}}
   {{/if}}
-  {{#if example_dialogue}}This is how {{char}} should talk:
-  {{example_dialogue}}
+  {{#if example_dialogue}}This is how {{char}} should talk: {{example_dialogue}}
   {{/if}}
-  
+
+  {{system_prompt}}
+
+  Do NOT decide what {{user}} says or does. 
+  Use Internet roleplay style, e.g. no quotation marks, and write user actions in italic in third person like: *example*. You are allowed to use markdown. Be proactive, creative, drive the plot and conversation forward.
+
+ 
   Then the roleplay chat between {{#each bot}}{{.name}}, {{/each}}{{char}} begins.
   
-  {{#each msg}}{{#if .isbot}}### Response:\n{{.name}}: {{.msg}}{{/if}}{{#if .isuser}}### Instruction:\n{{.name}}: {{.msg}}{{/if}}
+   {{#each msg}}{{#if .isbot}}### Response:\n{{.name}}: {{.msg}}{{/if}}{{#if .isuser}}### Instruction:\n{{.name}}: {{.msg}}{{/if}}
   {{/each}}
 
   {{ujb}}
   ### Response:
   {{post}}
   `,
+  
   Universal: neat`
 {{#if system_prompt}}<system>{{system_prompt}}</system>
 {{/if}}

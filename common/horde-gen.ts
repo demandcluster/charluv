@@ -152,14 +152,14 @@ export async function generateText(
 
   const params: any = {
     n: 1,
-    max_length: Math.min(preset.maxTokens ?? defaultPresets.horde.maxTokens, 180),
+    max_length: Math.min(preset.maxTokens ?? defaultPresets.horde.maxTokens, 200),
     top_a: preset.topA ?? defaultPresets.horde.topA,
     top_k: preset.topK ?? defaultPresets.horde.topK,
     top_p: preset.topP ?? defaultPresets.horde.topP,
     typical: preset.typicalP ?? defaultPresets.horde.typicalP,
     max_context_length: Math.min(
       preset.maxContextLength ?? defaultPresets.horde.maxContextLength,
-      2048
+      4096
     ),
     rep_pen: preset.repetitionPenalty ?? defaultPresets.horde.repetitionPenaltyRange,
     rep_pen_range: preset.repetitionPenaltyRange ?? defaultPresets.horde.repetitionPenaltyRange,

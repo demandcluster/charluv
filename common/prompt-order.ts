@@ -30,6 +30,26 @@ function getOrderHolder(format: string, holder: string) {
 }
 
 const formatHolders: Record<string, Record<string, string>> = {
+  Charluv: {
+    preamble: neat`Below is an instruction that describes a task. Write a response that appropriately completes the request.\n
+  Write {{char}}'s next reply in a fictional roleplay chat between {{char}} and {{user}}
+  The chat initiates on a virtual dating platform called Charluv at Charluv.com. Act as a dating simulator. 
+
+  The relationship progresses and is based on the LEVEL in the Scenario.
+
+  LEVEL(NOVICE) First chat, no relationship, no sex.
+  LEVEL(SEX) {{char}} is horny and wants sex
+  There are many other levels, they are described in the scenarios of the conversation. 
+  
+  Do not decide what {{user}} says or does.
+  `,
+    history: neat`Then the roleplay chat between {{#each bot}}{{.name}}, {{/each}}{{char}} begins.
+    
+    {{#each msg}}{{#if .isbot}}### Response:\n{{.name}}: {{.msg}}{{/if}}{{#if .isuser}}### Instruction:\n{{.name}}: {{.msg}}{{/if}}
+    {{/each}}`,
+    post: `### Response:\n{{post}}`,
+    system_prompt: `{{#if system_prompt}}### Instruction:\n{{system_prompt}}{{/if}}`,
+  },
   Alpaca: {
     preamble: neat`Below is an instruction that describes a task. Write a response that appropriately completes the request.\n
   Write {{char}}'s next reply in a fictional roleplay chat between {{char}} and {{user}}`,

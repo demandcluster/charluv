@@ -8,7 +8,6 @@ export const loggedIn: any = (req: AppRequest, _: any, next: NextFunction) => {
 }
 
 export const isAdmin: any = (req: AppRequest, _: any, next: NextFunction) => {
- 
   if (!req.user?.admin) return next(errors.Forbidden)
   next()
 }
@@ -40,6 +39,7 @@ export const apiKeyUsage: any = async (req: AppRequest, _: any, next: NextFuncti
     iat: 0,
     userId: access.user._id,
     username: access.user.username,
+    premium: access.user.premium,
   }
 
   req.fullUser = access.user

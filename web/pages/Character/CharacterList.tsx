@@ -144,24 +144,23 @@ const CharacterList: Component = () => {
         title={
           <div class="flex w-full justify-between">
             <div>Matches</div>
-            <Show when={user.user._id !== 'anon'}>
-              <div class="flex text-base">
-                <div class="px-1">
-                  <Button onClick={() => setImport(true)}>
-                    <Import />
-                    <span class="hidden sm:inline">Import</span>
-                  </Button>
-                </div>
-                <div class="px-1">
-                  <A href="/character/create">
-                    <Button>
-                      <Plus />
-                      <span class="hidden sm:inline">Create</span>
-                    </Button>
-                  </A>
-                </div>
+
+            <div class="flex text-base">
+              <div class="px-1">
+                <Button onClick={() => setImport(true)}>
+                  <Import />
+                  <span class="hidden sm:inline">Import</span>
+                </Button>
               </div>
-            </Show>
+              <div class="px-1">
+                <A href="/character/create">
+                  <Button>
+                    <Plus />
+                    <span class="hidden sm:inline">Create</span>
+                  </Button>
+                </A>
+              </div>
+            </div>
           </div>
         }
       />
@@ -290,6 +289,7 @@ const Characters: Component<{
         <Match when={props.characters.length === 0 && props.loaded}>
           <NoCharacters />
         </Match>
+
         <Match when={props.loaded}>
           <Show when={!props.type || props.type === 'list'}>
             <CharacterListView

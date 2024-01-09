@@ -11,7 +11,7 @@ type PromptOpts = {
   continue?: string
 }
 
-const DEFAULT_MAX_TOKENS = 2048
+const DEFAULT_MAX_TOKENS = 4096
 
 export async function getMessagesForPrompt(
   { chat, settings, char, members, retry }: PromptOpts,

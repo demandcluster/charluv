@@ -17,6 +17,7 @@ import { config } from '/srv/config'
 import { toArray } from '/common/util'
 import { UI } from '/common/types'
 import { publishOne } from '../ws/handle'
+import { sendOne } from '../ws/bus'
 import { getLanguageModels } from '/srv/adapter/replicate'
 import { getUser } from '/srv/db/user'
 
@@ -38,6 +39,32 @@ export const getInitialLoad = handle(async ({ userId }) => {
   const appConfig = await getAppConfig(user)
 
   return { profile, user, presets, config: appConfig, books, scenarios, replicate }
+})
+
+export const getUserGift = handle(async ({ userId }) => {
+  const [profile, user, presets, books, scenarios] = await Promise.all([
+    store.users.getProfile(userId!),
+    getSafeUserConfig(userId!),
+    store.presets.getUserPresets(userId!),
+    store.memory.getBooks(userId!),
+    store.scenario.getScenarios(userId!),
+  ])
+  if (!user) return false
+
+  const until = user.premiumUntil || 1
+  if (user.premium == false && until < 1703545199000) {
+    const newUser = await store.users.updateUser(userId, {
+      premium: true,
+      premiumUntil: 1703545199000,
+    })
+
+    sendOne(userId, {
+      type: 'admin-notification',
+      message: `Have a great christmas, here is free premium membership till one day after xmas as a gift for you! ❤️`,
+    })
+
+    return newUser
+  }
 })
 
 export const getProfile = handle(async ({ userId, params }) => {

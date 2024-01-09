@@ -174,29 +174,31 @@ const ChatSettings: Component<{
       <Show when={user.user?.admin}>
         <Card class="text-xs">{state.chat?._id}</Card>
       </Show>
-      <Show when={adapterText()}>
-        <Card>
-          <FormLabel label="AI Service" helperText={adapterText()?.text} />
-        </Card>
-      </Show>
+      <div class="hidden">
+        <Show when={adapterText()}>
+          <Card>
+            <FormLabel label="AI Service..." helperText={adapterText()?.text} />
+          </Card>
+        </Show>
 
-      <Show when={!adapterText()}>
-        <Card>
-          <Select
-            class={`mb-2 ${adapterText() ? 'hidden' : ''}`}
-            fieldName="adapter"
-            helperText={`Default is set to: ${
-              ADAPTER_LABELS[user.user?.defaultAdapter || 'horde']
-            }`}
-            label="AI Service"
-            value={state.chat?.adapter}
-            items={[
-              { label: 'Default', value: 'default' },
-              ...adaptersToOptions(cfg.config.adapters),
-            ]}
-          />
-        </Card>
-      </Show>
+        <Show when={!adapterText()}>
+          <Card>
+            <Select
+              class={`mb-2 ${adapterText() ? 'hidden' : ''}`}
+              fieldName="adapter"
+              helperText={`Default is set to: ${
+                ADAPTER_LABELS[user.user?.defaultAdapter || 'horde']
+              }`}
+              label="AI Service..."
+              value={state.chat?.adapter}
+              items={[
+                { label: 'Default', value: 'default' },
+                ...adaptersToOptions(cfg.config.adapters),
+              ]}
+            />
+          </Card>
+        </Show>
+      </div>
 
       <Show when={activePreset()?.service !== 'horde'}>
         <Card>
@@ -219,6 +221,7 @@ const ChatSettings: Component<{
             onChange={(ev) => setMode(ev.value as any)}
             items={[
               { label: 'Conversation', value: 'standard' },
+
               { label: 'Companion', value: 'companion' },
             ]}
             value={state.chat?.mode || 'standard'}

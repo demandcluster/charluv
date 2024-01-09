@@ -335,7 +335,7 @@ const InputBar: Component<{
           </Button>
           <Show when={!!state.lastMsg?.characterId && isOwner()}>
             <Button schema="secondary" class="w-full" onClick={respondAgain} alignLeft>
-              <PlusCircle size={18} /> Respond Again
+              <PlusCircle size={18} /> Continue
             </Button>
             <Button schema="secondary" class="w-full" onClick={more} alignLeft>
               <PlusCircle size={18} /> Generate More

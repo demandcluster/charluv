@@ -209,13 +209,13 @@ const HomePage: Component = () => {
             <a href="https://github.com/demandcluster/aivohorde" class="link" target="_blank">
               own AI Horde
             </a>{' '}
-            on a massive fine-tuned 20B model{' '}
+            on a massive fine-tuned 13B model{' '}
             <a
-              href="[https://huggingface.co/TheBloke/MLewd-ReMM-L2-Chat-20B-GGUF"
+              href="https://huggingface.co/dcbv/charluv-13B-tiefighter-merged"
               class="link"
               target="_blank"
             >
-              MLewd-ReMM-L2-Chat-20B
+              Charluv-13B-Tiefighter
             </a>
             !<br />
             The software we use for the Horde is made possible by{' '}
@@ -246,7 +246,8 @@ const HomePage: Component = () => {
 export default HomePage
 
 const RecentChats: Component = (props) => {
-  const user = props.user
+  const user = userStore()
+
   const nav = useNavigate()
   const state = chatStore((s) => ({
     chars: s.allChars.list,
@@ -264,7 +265,7 @@ const RecentChats: Component = (props) => {
       </div>
       <div
         class="grid w-full grid-cols-2 gap-2 sm:grid-cols-4"
-        classList={{ hidden: state.last.length === 0 || !user?.loggedIn }}
+        classList={{ hidden: state.last.length === 0 }}
       >
         <For each={state.last}>
           {({ chat, char }) => (
