@@ -12,6 +12,7 @@ type StorageKey = keyof typeof KEYS
 const ID = 'anon'
 
 const emptyCfg: AppSchema.AppConfig = {
+  serverConfig: {} as any,
   adapters: [],
   canAuth: false,
   version: '',
@@ -133,7 +134,9 @@ export async function handleGuestInit() {
       !res.result.books ||
       !res.result.scenario ||
       !res.result.characters ||
-      !res.result.chats
+      !res.result.chats ||
+      !res.result.trees ||
+      !res.result.templates
     ) {
       const entities = await migrateToJson()
       entities.user._id = 'anon'
@@ -150,6 +153,7 @@ export async function handleGuestInit() {
       localStore.set('scenario', res.result.scenario)
       localStore.set('characters', res.result.characters)
       localStore.set('chats', res.result.chats)
+      localStore.set('trees', res.result.trees)
       localStore.set('templates', res.result.templates)
       return res
     }

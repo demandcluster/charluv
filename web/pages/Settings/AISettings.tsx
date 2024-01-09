@@ -24,6 +24,8 @@ import { useSearchParams } from '@solidjs/router'
 import OpenRouterOauth from './OpenRouterOauth'
 import { SolidCard, TitleCard } from '/web/shared/Card'
 import { PresetSelect } from '/web/shared/PresetSelect'
+import TextInput from '/web/shared/TextInput'
+import Button from '/web/shared/Button'
 
 const AISettings: Component<{
   onHordeWorkersChange: (workers: string[]) => void
@@ -33,6 +35,21 @@ const AISettings: Component<{
   const state = userStore()
   const cfg = settingStore()
   const presets = presetStore((s) => s.presets.filter((pre) => !!pre.service))
+
+  let keyRef: any
+  const [apiKey, setApiKey] = createSignal(state.user?.apiKey || '')
+
+  const revealKey = () => {
+    userStore.revealApiKey((key) => {
+      setApiKey(key)
+    })
+  }
+
+  const generateKey = () => {
+    userStore.generateApiKey((key) => {
+      setApiKey(key)
+    })
+  }
 
   createEffect(() => {
     const tabs = cfg.config.adapters
@@ -85,22 +102,62 @@ const AISettings: Component<{
         <Show when={!state.user?.premium}>
           Creation of Presets is only available to premium members.
         </Show>
-        <PresetSelect
-          fieldName="defaultPreset"
-          label="Default Preset"
-          helperText="The default preset your chats will use"
-          options={presetOptions()}
-          selected={presetId()}
-          setPresetId={setPresetId}
-        />
-        <div class="hidden">
-          <div class="my-2">
-            <SolidCard bg="orange-500" class="mb-2">
-              Are you using an external AI service such as OpenAI, NovelAI, or Horde? Provide your
-              API key below.
-            </SolidCard>
-            <Tabs tabs={tabs()} selected={tab} select={setTab} />
-          </div>
+        <Show when={!cfg.config.apiAccess}>
+          <PresetSelect
+            fieldName="defaultPreset"
+            label="Default Preset"
+            helperText="The initially selected preset when creating a new chat. "
+            options={presetOptions()}
+            selected={presetId()}
+            setPresetId={setPresetId}
+          />
+        </Show>
+
+        <Show when={cfg.config.apiAccess}>
+          <PresetSelect
+            fieldName="defaultPreset"
+            label="Default/API Access Preset"
+            helperText="Preset used when using API access. Also the initially selected preset when creating a new chat."
+            options={presetOptions()}
+            selected={presetId()}
+            setPresetId={setPresetId}
+          />
+
+          <TextInput
+            fieldName="apiKeyPlaceholder"
+            helperText={
+              <div class="text-900 flex gap-1">
+                <Show when={apiKey().includes('***')}>
+                  <Button size="pill" onClick={revealKey}>
+                    Reveal Key
+                  </Button>
+                </Show>
+                <Show when={apiKey() === 'Not set'}>
+                  <Button size="pill" onClick={generateKey}>
+                    Generate Key
+                  </Button>
+                </Show>
+                <Show when={apiKey() !== 'Not set'}>
+                  <Button size="pill" onClick={generateKey}>
+                    Regenerate Key
+                  </Button>
+                </Show>
+              </div>
+            }
+            ref={keyRef}
+            label="API Key"
+            readonly
+            placeholder="API Key Hidden"
+            value={apiKey()}
+          />
+        </Show>
+
+        <div class="my-2">
+          <SolidCard bg="orange-500" class="mb-2">
+            Are you using an external AI service such as OpenAI, NovelAI, or Horde? Provide your API
+            key below.
+          </SolidCard>
+          <Tabs tabs={tabs()} selected={tab} select={setTab} />
         </div>
       </Show>
 

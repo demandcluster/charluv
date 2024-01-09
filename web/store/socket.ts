@@ -63,11 +63,13 @@ function onMessage(msg: MessageEvent<any>) {
     const onceHandlers = onceListeners.get(payload.type) || []
 
     if (!squelched.has(payload.type)) {
-      if (payload.type !== 'image-generated') {
+      if (payload.type === 'service-prompt') {
+        console.log(`Prompt\n${payload.prompt}`)
+      } else if (payload.type !== 'image-generated') {
         console.log(JSON.stringify(payload))
       } else {
         console.log(
-          JSON.stringify({ ...payload, image: (payload.image || '').slice(0, 40) + '...' })
+          JSON.stringify({ ...payload, image: (payload.image || '').slice(0, 60) + '...' })
         )
       }
     } else {

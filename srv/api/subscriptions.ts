@@ -8,12 +8,14 @@ import { encryptText } from '../db/util'
 import billing, { stripe } from './billing'
 import { config } from '../config'
 import { publishAll } from './ws/handle'
+import { patreon } from './user/patreon'
 
 const subSetting = {
   ...presetValidator,
   subLevel: 'number',
   subModel: 'string?',
   subApiKey: 'string?',
+  tokenizer: 'string?',
   isDefaultSub: 'boolean?',
 } as const
 
@@ -106,9 +108,13 @@ const createTier = handle(async ({ body }) => {
       enabled: 'boolean',
       disableSlots: 'boolean',
       description: 'string',
+      apiAccess: 'boolean',
+      guidanceAccess: 'boolean',
+      patreon: 'any?',
     },
     body
   )
+
   const tier = await store.subs.createTier(body)
   return tier
 })
@@ -123,6 +129,9 @@ const updateTier = handle(async ({ body, params }) => {
       enabled: 'boolean',
       disableSlots: 'boolean',
       description: 'string',
+      apiAccess: 'boolean',
+      patreon: 'any?',
+      guidanceAccess: 'boolean',
     },
     body,
     true
@@ -136,6 +145,16 @@ const getProducts = handle(async (req) => {
 
   const products = await stripe.products.list()
   const prices = await stripe.prices.list()
+
+  if (config.patreon.access_token && config.patreon.campaign_id) {
+    const tiers = await patreon.getCampaignTiers()
+    return {
+      products: products.data,
+      prices: prices.data,
+      tiers,
+    }
+  }
+
   return { products: products.data, prices: prices.data }
 })
 

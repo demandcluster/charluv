@@ -9,6 +9,8 @@ import { handleSDImage } from './stable-diffusion'
 import { sendGuest, sendMany, sendOne } from '../api/ws'
 import { handleHordeImage } from './horde'
 
+const DEFAULT_NEGATIVE = `disfigured, deformed, poorly, blurry, lowres, fused, malformed, misshapen, duplicated, grainy, distorted`
+
 export async function generateImage(
   { user, chatId, messageId, ...opts }: ImageGenerateRequest,
   log: AppLog,
@@ -54,6 +56,16 @@ export async function generateImage(
   }
 
   log.debug({ prompt, type: user.images?.type }, 'Image prompt')
+  const negative = user.images?.negative || DEFAULT_NEGATIVE
+
+  if (!guestId) {
+    sendOne(user._id, {
+      type: 'image-generation-started',
+      prompt,
+      negative,
+      service: user.images?.type,
+    })
+  }
 
   user.images = {
     type: 'horde',
@@ -80,16 +92,16 @@ export async function generateImage(
   try {
     switch (user.images?.type || 'horde') {
       case 'novel':
-        image = await handleNovelImage({ user, prompt }, log, guestId)
+        image = await handleNovelImage({ user, prompt, negative }, log, guestId)
         break
 
       case 'sd':
-        image = await handleSDImage({ user, prompt }, log, guestId)
+        image = await handleSDImage({ user, prompt, negative }, log, guestId)
         break
 
       case 'horde':
       default:
-        image = await handleHordeImage({ user, prompt }, log, guestId)
+        image = await handleHordeImage({ user, prompt, negative }, log, guestId)
         break
     }
   } catch (ex: any) {
@@ -120,6 +132,7 @@ export async function generateImage(
           messageId,
           imagePrompt: opts.prompt,
           append: opts.append,
+          meta: { negative },
         })
 
         if (msg) return
@@ -153,6 +166,7 @@ async function createImageMessage(opts: {
   memberIds: string[]
   imagePrompt: string
   append?: boolean
+  meta?: any
 }) {
   const chat = opts.chatId ? await store.chats.getChatOnly(opts.chatId) : undefined
   if (!chat) return
@@ -164,6 +178,7 @@ async function createImageMessage(opts: {
     const msg = await store.msgs.editMessage(opts.messageId, {
       msg: opts.filename,
       adapter: 'image',
+      meta: opts.meta,
     })
     sendMany(opts.memberIds, {
       type: 'message-retry',
@@ -201,6 +216,7 @@ async function createImageMessage(opts: {
       ooc: false,
       imagePrompt: opts.imagePrompt,
       event: undefined,
+      meta: opts.meta,
     })
 
     sendMany(opts.memberIds, { type: 'message-created', msg, chatId: opts.chatId })

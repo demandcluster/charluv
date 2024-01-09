@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { loggedIn } from '../auth'
+import { apiKeyUsage, loggedIn } from '../auth'
 import { createChat, importChat } from './create'
 import {
   restartChat,
@@ -7,6 +7,7 @@ import {
   updateChatGenPreset,
   updateMessage,
   updateMessageProps,
+  swapMessage,
 } from './edit'
 import { getAllChats, getCharacterChats, getChatDetail } from './get'
 import { guestGenerateMsg } from './guest-msg'
@@ -16,13 +17,14 @@ import { generateMessageV2, getMessages, createMessage } from './message'
 import { deleteChat, deleteMessages } from './remove'
 import { textToSpeech } from './texttospeech'
 import { addCharacter, upsertTempCharacter, removeCharacter } from './characters'
-import { generateActions, guidance, inference, rerunGuidance } from './inference'
+import { generateActions, guidance, inference, inferenceApi } from './inference'
 
 const router = Router()
 
 router.post('/inference', inference)
+router.post('/completion', apiKeyUsage, inferenceApi)
 router.post('/guidance', guidance)
-router.post('/reguidance', rerunGuidance)
+router.post('/reguidance', guidance)
 router.post('/:id/actions', generateActions)
 router.post('/:id/send', createMessage)
 router.post('/:id/generate', generateMessageV2)
@@ -53,6 +55,7 @@ router.get('/:id/chats', getCharacterChats)
 
 router.put('/:id/message', updateMessage)
 router.put('/:id/message-props', updateMessageProps)
+router.put('/:id/message-swap', swapMessage)
 router.delete('/:id/messages', deleteMessages)
 router.delete('/:id', deleteChat)
 

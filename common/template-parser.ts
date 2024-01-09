@@ -6,23 +6,35 @@ import peggy from 'peggy'
 import { elapsedSince } from './util'
 import { v4 } from 'uuid'
 
-const parser = peggy.generate(grammar.trim(), {
-  error: (stage, msg, loc) => {
-    console.error({ loc, stage }, msg)
-  },
-})
+const parser = loadParser()
 
-type PNode = PlaceHolder | ConditionNode | IteratorNode | InsertNode | string
+function loadParser() {
+  try {
+    const parser = peggy.generate(grammar.trim(), {
+      error: (stage, msg, loc) => {
+        console.error({ loc, stage }, msg)
+      },
+    })
+    return parser
+  } catch (ex) {
+    console.error(ex)
+    throw ex
+  }
+}
+
+type PNode = PlaceHolder | ConditionNode | IteratorNode | InsertNode | LowPriorityNode | string
 
 type PlaceHolder = { kind: 'placeholder'; value: Holder; values?: any; pipes?: string[] }
 type ConditionNode = { kind: 'if'; value: Holder; values?: any; children: PNode[] }
 type IteratorNode = { kind: 'each'; value: IterableHolder; children: CNode[] }
 type InsertNode = { kind: 'history-insert'; values: number; children: PNode[] }
+type LowPriorityNode = { kind: 'lowpriority'; children: PNode[] }
 
 type CNode =
   | Exclude<PNode, { kind: 'each' }>
   | { kind: 'bot-prop'; prop: BotsProp }
   | { kind: 'history-prop'; prop: HistoryProp }
+  | { kind: 'chat-embed-prop'; prop: ChatEmbedProp }
   | { kind: 'history-if'; prop: HistoryProp; children: CNode[] }
   | { kind: 'bot-if'; prop: BotsProp; children: CNode[] }
 
@@ -60,23 +72,24 @@ const repeatableHolders = new Set<RepeatableHolder>([
   'roll',
 ])
 
-type IterableHolder = 'history' | 'bots'
+type IterableHolder = 'history' | 'bots' | 'chat_embed'
 
+type ChatEmbedProp = 'i' | 'name' | 'text'
 type HistoryProp = 'i' | 'message' | 'dialogue' | 'name' | 'isuser' | 'isbot'
 type BotsProp = 'i' | 'personality' | 'name'
 
 export type TemplateOpts = {
   continue?: boolean
-  parts: Partial<PromptParts>
+  parts?: Partial<PromptParts>
   chat: AppSchema.Chat
 
   char: AppSchema.Character
-  replyAs: AppSchema.Character
+  replyAs?: AppSchema.Character
   impersonate?: AppSchema.Character
   sender: AppSchema.Profile
 
-  lines: string[]
-  characters: Record<string, AppSchema.Character>
+  lines?: string[]
+  characters?: Record<string, AppSchema.Character>
   lastMessage?: string
 
   chatEmbed?: Memory.UserEmbed<{ name: string }>[]
@@ -86,7 +99,11 @@ export type TemplateOpts = {
   limit?: {
     context: number
     encoder: TokenCounter
-    output?: Record<string, string[]>
+    output?: Record<string, { src: string; lines: string[] }>
+    history?: {
+      id: string
+      lines: string[]
+    }
   }
 
   /**
@@ -94,6 +111,7 @@ export type TemplateOpts = {
    */
   repeatable?: boolean
   inserts?: Map<number, string>
+  lowpriority?: Array<{ id: string; content: string }>
 }
 
 /**
@@ -103,44 +121,80 @@ export type TemplateOpts = {
 export async function parseTemplate(
   template: string,
   opts: TemplateOpts
-): Promise<{ parsed: string; inserts: Map<number, string>; length?: number }> {
+): Promise<{
+  parsed: string
+  inserts: Map<number, string>
+  length?: number
+  linesAddedCount: number
+  history?: string[]
+}> {
   if (opts.limit) {
     opts.limit.output = {}
   }
 
-  if (opts.parts.systemPrompt) {
-    opts.parts.systemPrompt = render(opts.parts.systemPrompt, opts)
+  const parts = opts.parts || {}
+
+  if (parts.systemPrompt) {
+    parts.systemPrompt = render(parts.systemPrompt, opts)
   }
 
-  if (opts.parts.ujb) {
-    opts.parts.ujb = render(opts.parts.ujb, opts)
+  if (parts.ujb) {
+    parts.ujb = render(parts.ujb, opts)
   }
 
   const ast = parser.parse(template, {}) as PNode[]
-  readInserts(template, opts, ast)
+  readInserts(opts, ast)
   let output = render(template, opts, ast)
+  let unusedTokens = 0
+  let linesAddedCount = 0
 
+  /**
+   * Typically for embeddings (chat or user)
+   */
   if (opts.limit && opts.limit.output) {
-    // const lastIndex = Object.keys(opts.limit.output).reduce((prev, curr) => {
-    //   const index = output.lastIndexOf(curr) + curr.length
-    //   return index > prev ? index : prev
-    // }, -1)
+    for (const [id, { lines, src }] of Object.entries(opts.limit.output)) {
+      src
+      const filled = await fillPromptWithLines({
+        encoder: opts.limit.encoder,
+        tokenLimit: opts.limit.context,
+        context: output,
+        lines,
+        optional: opts.lowpriority,
+      })
+      unusedTokens = filled.unusedTokens
+      output = output.replace(id, filled.adding.join('\n'))
+    }
 
-    // if (lastIndex > -1 && opts.continue) {
-    //   output = output.slice(0, lastIndex)
-    // }
+    /**
+     * We ensure that history is done last
+     */
+    if (opts.limit.history) {
+      const filled = await fillPromptWithLines({
+        encoder: opts.limit.encoder,
+        tokenLimit: opts.limit.context,
+        context: output,
+        lines: opts.limit.history.lines,
+        inserts: opts.inserts,
+        optional: opts.lowpriority,
+      })
+      unusedTokens = filled.unusedTokens
+      const trimmed = filled.adding.slice().reverse()
+      output = output.replace(opts.limit.history.id, trimmed.join('\n'))
+      linesAddedCount += filled.linesAddedCount
+    }
 
-    for (const [id, lines] of Object.entries(opts.limit.output)) {
-      const trimmed = (
-        await fillPromptWithLines(
-          opts.limit.encoder,
-          opts.limit.context,
-          output,
-          lines,
-          opts.inserts
-        )
-      ).reverse()
-      output = output.replace(id, trimmed.join('\n'))
+    // Adding the low priority blocks if we still have the budget for them,
+    // now that we inserted the conversation history.
+    // We start from the bottom (somewhat arbitrary design choice),
+    // hence the reverse().
+    for (const { id, content } of (opts.lowpriority ?? []).reverse()) {
+      const contentLength = await opts.limit.encoder(content)
+      if (contentLength > unusedTokens) {
+        output = output.replace(id, '')
+      } else {
+        output = output.replace(id, content)
+        unusedTokens -= contentLength
+      }
     }
   }
 
@@ -149,12 +203,13 @@ export async function parseTemplate(
     parsed: result,
     inserts: opts.inserts ?? new Map(),
     length: await opts.limit?.encoder?.(result),
+    linesAddedCount,
+    history: opts.limit?.history?.lines,
   }
 }
 
-function readInserts(template: string, opts: TemplateOpts, existingAst?: PNode[]): void {
+function readInserts(opts: TemplateOpts, ast: PNode[]): void {
   if (opts.inserts) return
-  const ast = existingAst ?? (parser.parse(template, {}) as PNode[])
 
   const inserts = ast.filter(
     (node) => typeof node !== 'string' && node.kind === 'history-insert'
@@ -164,13 +219,12 @@ function readInserts(template: string, opts: TemplateOpts, existingAst?: PNode[]
   if (opts.char.insert) {
     opts.inserts.set(opts.char.insert.depth, opts.char.insert.prompt)
   }
+
   for (const insert of inserts) {
-    const oldInsert = opts.inserts.get(insert.values)
-    opts.inserts.set(
-      insert.values,
-      // If multiple inserts are in the same depth, we want to combine them
-      (oldInsert ? oldInsert + '\n' : '') + renderNodes(insert.children, opts)
-    )
+    const prev = opts.inserts.get(insert.values)
+    // If multiple inserts are in the same depth, we want to combine them
+    const prefix = prev ? `${prev}\n` : ''
+    opts.inserts.set(insert.values, prefix + renderNodes(insert.children, opts))
   }
 }
 
@@ -247,7 +301,32 @@ function renderNode(node: PNode, opts: TemplateOpts) {
 
     case 'if':
       return renderCondition(node, node.children, opts)
+
+    case 'lowpriority':
+      return renderLowPriority(node, opts)
   }
+}
+
+/**
+ * This only returns an UUID, but adds the string meant to replace the UUID to the
+ * opts object. The UUID is only replaced with the actual content (or object) after
+ * the prompt is built once, because low priority content is NOT added if the
+ * rest of the prompt takes up the token budget already.
+ * It's up to the rest of the prompt-building to remove the UUIDs when
+ * calculating their token budget.
+ * This somewhat  grungy string manipulation but unavoidable with the way prompt
+ * segments get turned into strings at the same time as their tokens are counted.
+ */
+function renderLowPriority(node: LowPriorityNode, opts: TemplateOpts) {
+  const output: string[] = []
+  for (const child of node.children) {
+    const result = renderNode(child, opts)
+    if (result) output.push(result)
+  }
+  opts.lowpriority = opts.lowpriority ?? []
+  const lowpriorityBlockId = '__' + v4() + '__'
+  opts.lowpriority.push({ id: lowpriorityBlockId, content: output.join('') })
+  return lowpriorityBlockId
 }
 
 function renderProp(node: CNode, opts: TemplateOpts, entity: unknown, i: number) {
@@ -270,6 +349,25 @@ function renderProp(node: CNode, opts: TemplateOpts, entity: unknown, i: number)
             bot.persona,
             bot.persona.kind /* || opts.chat.overrides.kind */ // looks like the || operator's left hand side is always truthy - @malfoyslastname
           )
+      }
+    }
+
+    case 'chat-embed-prop': {
+      const line = entity as string
+      switch (node.prop) {
+        case 'i': {
+          return i.toString()
+        }
+
+        case 'text': {
+          const index = line.indexOf(':')
+          return line.slice(index + 1).trim()
+        }
+
+        case 'name': {
+          const index = line.indexOf(':')
+          return line.slice(0, index)
+        }
       }
     }
 
@@ -324,22 +422,32 @@ function renderCondition(node: ConditionNode, children: PNode[], opts: TemplateO
   return output.join('')
 }
 
+function getEntities(holder: IterableHolder, opts: TemplateOpts) {
+  switch (holder) {
+    case 'bots':
+      return Object.values(opts.characters || {}).filter((b) => {
+        if (!b) return false
+        if (b._id === (opts.replyAs || opts.char)._id) return false
+        if (b.deletedAt) return false
+        if (b._id.startsWith('temp-') && b.favorite === false) return false
+        return true
+      })
+    case 'chat_embed':
+      return opts.parts?.chatEmbeds || []
+    case 'history':
+    default:
+      return opts.lines || []
+  }
+}
+
 function renderIterator(holder: IterableHolder, children: CNode[], opts: TemplateOpts) {
   if (opts.repeatable) return ''
   let isHistory = holder === 'history'
+  let isChatEmbed = holder === 'chat_embed'
 
   const output: string[] = []
 
-  const entities =
-    holder === 'bots'
-      ? Object.values(opts.characters).filter((b) => {
-          if (!b) return false
-          if (b._id === opts.replyAs._id) return false
-          if (b.deletedAt) return false
-          if (b._id.startsWith('temp-') && b.favorite === false) return false
-          return true
-        })
-      : opts.lines
+  const entities = getEntities(holder, opts)
 
   let i = 0
   for (const entity of entities) {
@@ -366,6 +474,7 @@ function renderIterator(holder: IterableHolder, children: CNode[], opts: Templat
         }
 
         case 'bot-prop':
+        case 'chat-embed-prop':
         case 'history-prop': {
           if (
             child.prop === 'personality' ||
@@ -395,11 +504,11 @@ function renderIterator(holder: IterableHolder, children: CNode[], opts: Templat
 
   if (isHistory && opts.limit) {
     const id = '__' + v4() + '__'
-    opts.limit.output![id] = output
+    opts.limit.history = { id, lines: output }
     return id
   }
 
-  return isHistory ? output.join('\n') : output.join('')
+  return isHistory || isChatEmbed ? output.join('\n') : output.join('')
 }
 
 function renderEntityCondition(nodes: CNode[], opts: TemplateOpts, entity: unknown, i: number) {
@@ -418,41 +527,44 @@ function getPlaceholder(node: PlaceHolder | ConditionNode, opts: TemplateOpts) {
 
   switch (node.value) {
     case 'char':
-      return opts.replyAs.name || ''
+      return (opts.replyAs || opts.char).name || ''
 
     case 'user':
       return opts.impersonate?.name || opts.sender?.handle || 'You'
 
     case 'example_dialogue':
-      return opts.parts.sampleChat?.join('\n') || ''
+      return opts.parts?.sampleChat?.join('\n') || ''
 
     case 'scenario':
-      return opts.parts.scenario || opts.chat.scenario || opts.char.scenario || ''
+      return opts.parts?.scenario || opts.chat.scenario || opts.char.scenario || ''
 
     case 'memory':
-      return opts.parts.memory || ''
+      return opts.parts?.memory || ''
 
     case 'impersonating':
-      return opts.parts.impersonality || ''
+      return opts.parts?.impersonality || ''
 
     case 'personality':
-      return opts.parts.persona || ''
+      return opts.parts?.persona || ''
 
     case 'ujb':
-      return opts.parts.ujb || ''
+      return opts.parts?.ujb || ''
 
     case 'post': {
-      return opts.parts.post?.join('\n') || ''
+      return opts.parts?.post?.join('\n') || ''
     }
 
     case 'history': {
       if (opts.limit) {
         const id = `__${v4()}__`
-        opts.limit.output![id] = opts.lines
+        opts.limit.history = {
+          id,
+          lines: opts.lines || [],
+        }
         return id
       }
 
-      return opts.lines.join('\n')
+      return opts.lines?.join('\n') || ''
     }
 
     case 'chat_age':
@@ -462,16 +574,16 @@ function getPlaceholder(node: PlaceHolder | ConditionNode, opts: TemplateOpts) {
       return lastMessage(opts.lastMessage || '')
 
     case 'all_personalities':
-      return opts.parts.allPersonas?.join('\n') || ''
+      return opts.parts?.allPersonas?.join('\n') || ''
 
     case 'chat_embed':
-      return opts.parts.chatEmbeds?.join('\n') || ''
+      return opts.parts?.chatEmbeds?.join('\n') || ''
 
     case 'user_embed':
-      return opts.parts.userEmbeds?.join('\n') || ''
+      return opts.parts?.userEmbeds?.join('\n') || ''
 
     case 'system_prompt':
-      return opts.parts.systemPrompt || ''
+      return opts.parts?.systemPrompt || ''
 
     case 'random': {
       const values = node.values as string[]

@@ -6,7 +6,7 @@ import { settingStore } from '../store'
 import { AppSchema } from '/common/types'
 
 const ServiceWarning: Component<{ preset?: Partial<AppSchema.GenSettings> }> = (props) => {
-  const user = userStore((s) => ({ ...s.user }))
+  const user = userStore((s) => ({ ...s.user, sub: s.sub }))
   const cfg = settingStore((s) => s.config)
 
   const noSub = createMemo(() => {

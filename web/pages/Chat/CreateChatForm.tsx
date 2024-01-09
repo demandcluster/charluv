@@ -53,7 +53,7 @@ const CreateChatForm: Component<{
   const nav = useNavigate()
   const scenarios = scenarioStore((s) => s.scenarios)
   const cfg = settingStore()
-  const user = userStore((s) => ({ ...s.user }))
+  const user = userStore((s) => ({ ...s.user, sub: s.sub }))
   const state = characterStore((s) => ({
     char: s.editing,
     chars: (s.characters?.list || []).filter((c) => !isLoggedIn() || c.userId === user._id),
@@ -236,7 +236,6 @@ const CreateChatForm: Component<{
               }
               items={[
                 { label: 'Conversation', value: 'standard' },
-
                 { label: 'Companion', value: 'companion' },
               ]}
               value={'standard'}

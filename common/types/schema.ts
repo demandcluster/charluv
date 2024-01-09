@@ -13,6 +13,7 @@ import type { ImageSettings } from './image-schema'
 import type { TTSSettings, VoiceSettings } from './texttospeech-schema'
 import { UISettings } from './ui'
 import { FullSprite } from './sprite'
+import { ModelFormat } from '../presets/templates'
 
 export type AllDoc =
   | AppSchema.Announcement
@@ -36,6 +37,7 @@ export type AllDoc =
   | AppSchema.ScenarioBook
   | AppSchema.ApiKey
   | AppSchema.PromptTemplate
+  | AppSchema.Configuration
 
 export type OAuthScope = keyof typeof oauthScopes
 
@@ -47,6 +49,38 @@ export type ChatBranch = {
 }
 
 export namespace AppSchema {
+  export interface Configuration {
+    kind: 'configuration'
+
+    /** JSON - merges with slots.txt, but this takes precedence when field collisions occur */
+    slots: string
+
+    /** Determines who can use API access for inferencing */
+    apiAccess: 'off' | 'users' | 'subscribers' | 'admins'
+
+    maintenance: boolean
+
+    /** Markdown */
+    maintenanceMessage: string
+
+    /** Not yet implemented */
+    policiesEnabled: boolean
+
+    /** Not yet implemented */
+    tosUpdated: string
+    /** Not yet implemented */
+    termsOfService: string
+
+    /** Not yet implemented */
+    privacyUpdated: string
+    /** Not yet implemented */
+    privacyStatement: string
+
+    /** Concatenated to adapters listed in ADAPTERS envvar */
+    /** Not yet implemented */
+    enabledAdapters: string[]
+  }
+
   export interface Announcement {
     kind: 'announcement'
     _id: string
@@ -69,6 +103,12 @@ export namespace AppSchema {
 
     productId: string
     priceId: string
+    patreon?: {
+      tierId: string
+      cost: number
+    }
+    apiAccess: boolean
+    guidanceAccess: boolean
 
     name: string
     description: string
@@ -86,6 +126,8 @@ export namespace AppSchema {
     name: string
     level: number
     service: AIAdapter
+    guidance: boolean
+    preset: GenSettings
   }
 
   export interface AppConfig {
@@ -99,7 +141,12 @@ export namespace AppSchema {
     maintenance?: string
     patreon?: boolean
     policies?: boolean
+    apiAccess?: boolean
+    guidanceAccess?: boolean
     flags?: string
+    patreonAuth?: {
+      clientId: string
+    }
 
     pipelineProxyEnabled: boolean
     authUrls: string[]
@@ -109,6 +156,10 @@ export namespace AppSchema {
     }
     openRouter: { models: OpenRouterModel[] }
     subs: Array<SubscriptionOption>
+
+    /** @todo remove after next deployment */
+    tier?: AppSchema.SubscriptionTier
+    serverConfig?: Configuration
   }
 
   export type ChatMode = 'standard' | 'adventure'
@@ -138,6 +189,7 @@ export namespace AppSchema {
     kind: 'user'
     username: string
     hash: string
+    apiKey?: string
 
     admin: boolean
     lastIp?: string
@@ -197,9 +249,27 @@ export namespace AppSchema {
     ui?: UISettings
 
     sub?: {
+      type?: 'native' | 'patreon' | 'manual'
       tierId: string
       level: number
       last?: string
+    }
+
+    patreonUserId?: string | null
+    patreon?: {
+      access_token: string
+      refresh_token: string
+      expires_in: number
+      scope: string
+      token_type: string
+      expires: string
+      user: Patreon.User
+      tier?: Patreon.Tier
+      member?: Patreon.Member
+      sub?: {
+        tierId: string
+        level: number
+      }
     }
 
     billing?: {
@@ -209,7 +279,9 @@ export namespace AppSchema {
       lastRenewed: string
       customerId: string
       subscriptionId: string
+      lastChecked?: string
     }
+    stripeSessions?: string[]
   }
 
   export interface ApiKey {
@@ -287,6 +359,7 @@ export namespace AppSchema {
     kind: 'chat-message'
     chatId: string
     msg: string
+    retries: string[]
     extras?: string[]
     characterId?: string
     userId?: string
@@ -303,6 +376,7 @@ export namespace AppSchema {
     meta?: any
     event?: EventTypes | undefined
     state?: string
+    values?: Record<string, string | number | boolean>
   }
 
   export type EventTypes = 'world' | 'character' | 'hidden' | 'ooc'
@@ -456,6 +530,8 @@ export namespace AppSchema {
     allowGuestUsage?: boolean
     isDefaultSub?: boolean
     deletedAt?: string
+    tokenizer?: string
+    guidanceCapable?: boolean
   }
 
   export interface GenSettings {
@@ -473,7 +549,6 @@ export namespace AppSchema {
     topP: number
     topK: number
     topA: number
-    topG?: number
     mirostatTau?: number
     mirostatLR?: number
     tailFreeSampling: number
@@ -485,6 +560,11 @@ export namespace AppSchema {
     banEosToken?: boolean
     earlyStopping?: boolean
     stopSequences?: string[]
+    trimStop?: boolean
+    etaCutoff?: number
+    epsilonCutoff?: number
+    swipesPerGeneration?: number
+    mirostatToggle?: boolean
 
     order?: number[]
     disabledSamplers?: number[]
@@ -499,10 +579,13 @@ export namespace AppSchema {
     systemPrompt?: string
     ignoreCharacterSystemPrompt?: boolean
     gaslight?: string
-    useAdvancedPrompt?: boolean
+    promptTemplateId?: string
+    modelFormat?: ModelFormat
+    useAdvancedPrompt?: 'basic' | 'validate' | 'no-validation'
     promptOrderFormat?: string
     promptOrder?: Array<{ placeholder: string; enabled: boolean }>
     ultimeJailbreak?: string
+    prefixNameAppend?: boolean
     prefill?: string
     ignoreCharacterUjb?: boolean
     antiBond?: boolean
@@ -649,6 +732,11 @@ export namespace AppSchema {
     label: string
     previewUrl?: string
   }
+
+  export interface VoiceModelDefinition {
+    id: string
+    label: string
+  }
 }
 
 export type Doc<T extends AllDoc['kind'] = AllDoc['kind']> = Extract<AllDoc, { kind: T }>
@@ -658,3 +746,75 @@ export const defaultGenPresets: AppSchema.GenSettings[] = []
 export type NewBook = Omit<AppSchema.MemoryBook, 'userId' | '_id' | 'kind'>
 
 export type NewScenario = Omit<AppSchema.ScenarioBook, 'userId' | '_id' | 'kind'>
+
+export namespace Patreon {
+  export type Include = Tier | Member
+
+  export type Tier = {
+    id: string
+    type: 'tier'
+    attributes: {
+      amount_cents: number
+      description: string
+      title: string
+    }
+    relationships: {
+      campaign: {
+        data: {
+          id: string
+          type: 'campaign'
+        }
+      }
+    }
+  }
+
+  export type Member = {
+    type: 'member'
+    id: string
+    attributes: {
+      campaign_lifetime_support_cents: number
+      campaign_entitled_amount_cents: number
+      last_charge_date: string
+      last_charge_status:
+        | 'Paid'
+        | 'Declined'
+        | 'Deleted'
+        | 'Pending'
+        | 'Refunded'
+        | 'Fraud'
+        | 'Other'
+        | null
+      next_charge_date: string
+      patron_status: 'active_patron' | 'declined_patron' | 'former_patron'
+      pledge_relationship_start: string
+      will_pay_amount_cents: number
+    }
+    relationships: {
+      currently_entitled_tiers: { data: Array<{ type: 'tier'; id: string }> }
+    }
+  }
+
+  export type User = {
+    type: 'user'
+    id: string
+    attributes: {
+      created: string
+      email: string
+      full_name: string
+    }
+    relationships: {
+      memberships: {
+        data: Array<{ id: string; type: 'member' }>
+      }
+    }
+  }
+
+  export type Authorize = {
+    access_token: string
+    refresh_token: string
+    scope: string
+    expires_in: number
+    token_type: string
+    version: string
+  }
+}

@@ -1,6 +1,16 @@
 import { Router } from 'express'
 import { loggedIn, isPremium } from '../auth'
-import { changePassword, createApiKey, login, register, remoteLogin, verifyOauthKey } from './auth'
+import {
+  changePassword,
+  createApiKey,
+  login,
+  register,
+  remoteLogin,
+  resyncPatreon,
+  unlinkPatreon,
+  verifyOauthKey,
+  verifyPatreonOauth,
+} from './auth'
 import {
   createUserPreset,
   getUserPresets,
@@ -27,6 +37,8 @@ import {
   deleteElevenLabsKey,
   updateUI,
   updatePartialConfig,
+  revealApiKey,
+  generateApiKey,
 } from './settings'
 import { deleteUserAccount } from './delete-user'
 
@@ -39,6 +51,9 @@ router.post('/services/novel', novelLogin)
 router.post('/services/horde-stats', hordeStats)
 router.get('/services/openrouter', openRouterModels)
 router.post('/code', loggedIn, createApiKey)
+router.post('/resync/patreon', loggedIn, resyncPatreon)
+router.post('/verify/patreon', loggedIn, verifyPatreonOauth)
+router.post('/unverify/patreon', loggedIn, unlinkPatreon)
 router.post('/verify', verifyOauthKey)
 router.get('/init', loggedIn, getInitialLoad)
 router.get('/', loggedIn, getProfile)
@@ -46,6 +61,8 @@ router.get('/presets', loggedIn, getUserPresets)
 router.get('/templates', loggedIn, getPromptTemplates)
 router.get('/config', loggedIn, getConfig)
 router.post('/config/service/:service', loggedIn, updateService)
+router.post('/config/reveal-key', loggedIn, revealApiKey)
+router.post('/config/generate-key', loggedIn, generateApiKey)
 router.delete('/my-account', loggedIn, deleteUserAccount)
 router.delete('/config/scale', loggedIn, deleteScaleKey)
 router.delete('/config/horde', loggedIn, deleteHordeKey)

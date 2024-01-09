@@ -51,7 +51,6 @@ export const presetValidator = {
   oaiModel: 'string',
   openRouterModel: 'any?',
 
-  topG: 'number?',
   mirostatTau: 'number?',
   mirostatLR: 'number?',
   cfgScale: 'number?',
@@ -59,6 +58,7 @@ export const presetValidator = {
   phraseRepPenalty: 'string?',
 
   stopSequences: ['string?'],
+  trimStop: 'boolean?',
   thirdPartyUrl: 'string?',
   thirdPartyFormat: [...THIRDPARTY_FORMATS, null],
   thirdPartyUrlNoSuffix: 'boolean?',
@@ -70,6 +70,7 @@ export const presetValidator = {
   claudeModel: 'string',
   streamResponse: 'boolean?',
   ultimeJailbreak: 'string?',
+  prefixNameAppend: 'boolean?',
   prefill: 'string?',
   antiBond: 'boolean?',
 
@@ -80,6 +81,11 @@ export const presetValidator = {
   order: 'string?',
   disabledSamplers: 'string?',
   registered: 'any?',
+
+  swipesPerGeneration: 'number?',
+  epsilonCutoff: 'number?',
+  etaCutoff: 'number?',
+  mirostatToggle: 'boolean?',
 } as const
 
 const disabledValues: { [key in keyof GenMap]?: AppSchema.GenSettings[key] } = {

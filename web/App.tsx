@@ -52,6 +52,9 @@ import PerformanceModal from './pages/Settings/PerformanceModal'
 import { CheckoutCancel, CheckoutSuccess } from './pages/Profile/Checkout'
 import { markdown } from './shared/markdown'
 import SoundsPage from './pages/Sounds'
+import PatreonOauth from './pages/Settings/PatreonOauth'
+import { AdventureDetail } from './pages/Modes/Adventure/Detail'
+import { AdventureList } from './pages/Modes/Adventure/List'
 
 const App: Component = () => {
   const state = userStore()
@@ -71,6 +74,10 @@ const App: Component = () => {
           <Route path="/chats/create/:id?" component={CreateChatForm} />
           <Route path="/chats" component={CharacterChats} />
           <Route path="/chat" component={ChatDetail} />
+          <Show when={cfg.config.guidanceAccess || state.user?.admin}>
+            <Route path="/mode/preview" component={AdventureList} />
+            <Route path="/mode/preview/:id" component={AdventureDetail} />
+          </Show>
           <Route path="/chat/:id" component={ChatDetail} />
           <Route path={['/info', '/']} component={HomePage} />
           <Route path="/changelog" component={ChangeLog} />
@@ -82,6 +89,7 @@ const App: Component = () => {
           <Show when={cfg.flags.sounds}>
             <Route path="/sounds" component={SoundsPage} />
           </Show>
+          <Route path="/oauth/patreon" component={PatreonOauth} />
           <Route path="/profile" component={ProfilePage} />
           <Route path="/settings" component={Settings} />
           <Route path="/privacy" component={lazy(() => import('./pages/Home/policy'))} />
@@ -135,6 +143,12 @@ const App: Component = () => {
                 path="/admin/metrics"
                 component={lazy(() => import('./pages/Admin/Metrics'))}
               />
+
+              <Route
+                path="/admin/configuration"
+                component={lazy(() => import('./pages/Admin/Configuration'))}
+              />
+
               <Route
                 path="/admin/users"
                 component={lazy(() => import('./pages/Admin/UsersPage'))}
@@ -199,7 +213,7 @@ const Layout: Component = () => {
   })
 
   const isChat = createMemo(() => {
-    return location.pathname.startsWith('/chat/')
+    return location.pathname.startsWith('/chat/') || location.pathname.startsWith('/mode/')
   })
 
   const bg = createMemo(() => {

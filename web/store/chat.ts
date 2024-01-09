@@ -60,6 +60,7 @@ export type ChatRightPane =
   | 'ui'
   | 'chat-settings'
   | 'memory'
+  | 'other'
 
 export type ImportChat = {
   name: string
@@ -157,10 +158,11 @@ export const chatStore = createStore<ChatState>('chat', {
 
   events.on(EVENTS.charUpdated, (char: AppSchema.Character, action: 'created' | 'updated') => {
     const { active, allChars } = get()
-    const list =
-      action === 'created'
-        ? allChars.list.concat(char)
-        : allChars.list.map((ch) => (ch._id === char._id ? char : ch))
+
+    const isCreated = allChars.list.every((ch) => ch._id !== char._id)
+    const list = isCreated
+      ? allChars.list.concat(char)
+      : allChars.list.map((ch) => (ch._id === char._id ? char : ch))
 
     const map = Object.assign({}, allChars.map, { [char._id]: char })
     if (active?.char?._id !== char._id) {
@@ -518,7 +520,7 @@ export const chatStore = createStore<ChatState>('chat', {
       await api.get(`/chat/${chatId}/summary`)
     },
 
-    async showPrompt({ active }, msg: AppSchema.ChatMessage) {
+    async computePrompt({ active }, msg: AppSchema.ChatMessage, shown: boolean) {
       if (!active) return
 
       const { msgs } = msgStore.getState()
@@ -549,7 +551,7 @@ export const chatStore = createStore<ChatState>('chat', {
         encoder
       )
 
-      return { prompt }
+      return { prompt: { ...prompt, shown } }
     },
 
     closePrompt() {

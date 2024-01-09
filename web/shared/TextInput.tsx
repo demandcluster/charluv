@@ -41,9 +41,12 @@ const TextInput: Component<{
   onChange?: (
     ev: Event & { target: Element; currentTarget: HTMLInputElement | HTMLTextAreaElement }
   ) => void
+
   onInput?: (
     ev: Event & { target: Element; currentTarget: HTMLInputElement | HTMLTextAreaElement }
   ) => void
+
+  onInputText?: (value: string) => void
 
   service?: AIAdapter
   format?: ThirdPartyFormat
@@ -131,6 +134,7 @@ const TextInput: Component<{
   ) => {
     resize()
     props.onInput?.(ev)
+    props.onInputText?.(ev.currentTarget.value)
   }
 
   const hide = createMemo(() => {
@@ -176,7 +180,10 @@ const TextInput: Component<{
             placeholder={placeholder()}
             aria-placeholder={placeholder()}
             value={value()}
-            class={'form-field focusable-field w-full rounded-xl px-4 py-2 ' + (props.class || '')}
+            class={'form-field focusable-field rounded-xl px-4 py-2 ' + (props.class || '')}
+            classList={{
+              'w-full': !props.class?.includes('w-'),
+            }}
             onkeyup={(ev) => {
               updateCount()
               props.onKeyUp?.(ev)
@@ -204,9 +211,10 @@ const TextInput: Component<{
           aria-placeholder={placeholder()}
           value={value()}
           class={
-            'form-field focusable-field text-900 min-h-[40px] w-full rounded-xl px-4 py-2 ' +
+            'form-field focusable-field text-900 min-h-[40px] w-full rounded-xl px-4 ' +
             (props.class || '')
           }
+          classList={{ 'py-2': !props.class?.includes('py-') }}
           disabled={props.disabled}
           spellcheck={props.spellcheck}
           lang={props.lang}

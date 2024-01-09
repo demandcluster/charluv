@@ -1,5 +1,6 @@
 import { AppSchema } from '../../common/types/schema'
 import { EVENTS, events } from '../emitter'
+import { downloadJson } from '../shared/util'
 import { api } from './api'
 import { createStore } from './create'
 import { PresetCreate, PresetUpdate, SubscriptionUpdate, presetApi } from './data/presets'
@@ -187,11 +188,16 @@ export const presetStore = createStore<PresetState>(
         toastStore.error(`Could not retrieve templates: ${res.error}`)
       }
     },
-    async *createTemplate({ templates }, name: string, template: string, done?: () => void) {
+    async *createTemplate(
+      { templates },
+      name: string,
+      template: string,
+      done?: (templateId: string) => void
+    ) {
       const res = await presetApi.createTemplate({ name, template })
       if (res.result) {
         yield { templates: templates.concat(res.result) }
-        done?.()
+        done?.(res.result._id)
         return
       }
 
@@ -248,3 +254,92 @@ subscribe(
     presetStore.setState({ presets: next })
   }
 )
+
+type SafePreset = Pick<
+  AppSchema.UserGenPreset,
+  | 'addBosToken'
+  | 'antiBond'
+  | 'banEosToken'
+  | 'cfgOppose'
+  | 'cfgScale'
+  | 'disabledSamplers'
+  | 'doSample'
+  | 'earlyStopping'
+  | 'encoderRepitionPenalty'
+  | 'epsilonCutoff'
+  | 'etaCutoff'
+  | 'frequencyPenalty'
+  | 'gaslight'
+  | 'ignoreCharacterSystemPrompt'
+  | 'ignoreCharacterUjb'
+  | 'kind'
+  | 'maxContextLength'
+  | 'maxTokens'
+  | 'memoryChatEmbedLimit'
+  | 'memoryContextLimit'
+  | 'memoryDepth'
+  | 'memoryReverseWeight'
+  | 'memoryUserEmbedLimit'
+  | 'minP'
+  | 'mirostatLR'
+  | 'mirostatTau'
+  | 'mirostatToggle'
+  | 'modelFormat'
+  | 'numBeams'
+  | 'order'
+  | 'penaltyAlpha'
+  | 'phraseBias'
+  | 'phraseRepPenalty'
+  | 'prefixNameAppend'
+  | 'prefill'
+  | 'promptOrder'
+  | 'promptOrderFormat'
+  | 'presencePenalty'
+  | 'repetitionPenalty'
+  | 'repetitionPenaltyRange'
+  | 'repetitionPenaltySlope'
+  | 'service'
+  | 'skipSpecialTokens'
+  | 'trimStop'
+  | 'stopSequences'
+  | 'tailFreeSampling'
+  | 'temp'
+  | 'streamResponse'
+  | 'swipesPerGeneration'
+  | 'systemPrompt'
+  | 'topA'
+  | 'topK'
+  | 'topP'
+  | 'typicalP'
+  | 'ultimeJailbreak'
+  | 'useAdvancedPrompt'
+>
+
+export async function exportPreset(preset: AppSchema.UserGenPreset) {
+  const {
+    registered,
+    _id,
+    oaiModel,
+    novelModel,
+    name,
+    userId,
+    claudeModel,
+    images,
+    thirdPartyModel,
+    thirdPartyKey,
+    thirdPartyFormat,
+    thirdPartyUrl,
+    thirdPartyUrlNoSuffix,
+    openRouterModel,
+    replicateModelName,
+    replicateModelType,
+    replicateModelVersion,
+    temporary,
+    src,
+    ...json
+  } = preset
+
+  const safe: SafePreset = json
+
+  downloadJson(safe, `preset-${_id.slice(0, 4)}`)
+}

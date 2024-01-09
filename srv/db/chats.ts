@@ -4,6 +4,8 @@ import { db } from './client'
 import { AppSchema } from '../../common/types/schema'
 import { now } from './util'
 import { StatusError, errors } from '../api/wrap'
+import { parseTemplate } from '/common/template-parser'
+import { config } from '../config'
 
 export async function getChatOnly(id: string) {
   const chat = await db('chat').findOne({ _id: id })
@@ -65,7 +67,9 @@ export async function create(
     | 'overrides'
     | 'genPreset'
     | 'mode'
-  >
+  >,
+  profile: AppSchema.Profile,
+  impersonating?: AppSchema.Character
 ) {
   const id = `${v4()}`
   const char = await getCharacter(props.userId, characterId)
@@ -97,14 +101,21 @@ export async function create(
   await db('chat').insertOne(doc)
 
   if (props.greeting) {
+    const { parsed } = await parseTemplate(props.greeting, {
+      chat: doc,
+      char,
+      impersonate: impersonating,
+      sender: profile,
+    })
     const msg: AppSchema.ChatMessage = {
       kind: 'chat-message',
       _id: v4(),
       chatId: id,
-      msg: props.greeting,
+      msg: parsed,
       characterId: char._id,
       createdAt: now(),
       updatedAt: now(),
+      retries: char.alternateGreetings || [],
     }
     await db('chat-message').insertOne(msg)
   }
@@ -143,6 +154,55 @@ export async function canViewChat(senderId: string, chat: AppSchema.Chat) {
 export async function getAllChats(userId: string) {
   const memberships = await db('chat-member').find({ userId }).toArray()
 
+  if (config.ui.chatCounts) {
+    const list = await db('chat')
+      .aggregate([
+        {
+          $match: {
+            $or: [{ userId }, { _id: { $in: memberships.map((mem) => mem.chatId) } }],
+          },
+        },
+        {
+          $lookup: {
+            from: 'character',
+            localField: 'characterId',
+            foreignField: '_id',
+            as: 'character',
+          },
+        },
+        {
+          $lookup: {
+            from: 'chat-message',
+            localField: '_id',
+            foreignField: 'chatId',
+            as: 'chatMessages',
+          },
+        },
+        {
+          $addFields: {
+            messageCount: { $size: '$chatMessages' },
+          },
+        },
+        { $unwind: { path: '$character' } },
+        {
+          $project: {
+            _id: 1,
+            userId: 1,
+            name: 1,
+            characterId: 1,
+            characters: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            messageCount: 1,
+            'character.name': 1,
+          },
+        },
+      ])
+      .toArray()
+
+    return list
+  }
+
   const list = await db('chat')
     .aggregate([
       {
@@ -169,22 +229,10 @@ export async function getAllChats(userId: string) {
           createdAt: 1,
           updatedAt: 1,
           'character.name': 1,
-
-          // memoryId: 0,
-          // memberIds: 0,
-          // genPreset: 0,
-          // genSettings: 0,
-          // adapter: 0,
-          // greeting: 0,
-          // scenario: 0,
-          // scenarioIds: 0,
-          // sampleChat: 0,
-          // overrides: 0,
         },
       },
     ])
     .toArray()
-
   return list
 }
 
@@ -203,7 +251,12 @@ export async function setChatCharacter(chatId: string, charId: string, state: bo
   )
 }
 
-export async function restartChat(userId: string, chatId: string) {
+export async function restartChat(
+  userId: string,
+  chatId: string,
+  profile: AppSchema.Profile,
+  impersonate?: AppSchema.Character
+) {
   const chat = await getChatOnly(chatId)
   if (!chat) throw errors.NotFound
 
@@ -213,15 +266,23 @@ export async function restartChat(userId: string, chatId: string) {
   const char = chat.characterId ? await db('character').findOne({ _id: chat.characterId }) : null
   const greeting = char?.greeting
 
-  if (char && greeting) {
-    await db('chat-message').insertOne({
-      _id: v4(),
-      kind: 'chat-message',
-      chatId,
-      msg: greeting,
-      characterId: char._id,
-      createdAt: now(),
-      updatedAt: now(),
-    })
-  }
+  if (!char || !greeting) return
+
+  const { parsed } = await parseTemplate(greeting, {
+    char,
+    chat,
+    sender: profile,
+    impersonate,
+  })
+
+  await db('chat-message').insertOne({
+    _id: v4(),
+    kind: 'chat-message',
+    chatId,
+    msg: parsed,
+    characterId: char._id,
+    createdAt: now(),
+    updatedAt: now(),
+    retries: [],
+  })
 }

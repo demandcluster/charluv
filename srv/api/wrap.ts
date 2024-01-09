@@ -51,10 +51,12 @@ export type Handler = (req: AppRequest, res: express.Response, next: express.Nex
 
 export type AppRequest = Omit<express.Request, 'log'> & {
   user?: AppSchema.Token
+  requestId: string
   userId: string
   log: AppLog
   socketId: string
   scopes?: string[]
+  fullUser?: AppSchema.User
 }
 
 export const errors = {

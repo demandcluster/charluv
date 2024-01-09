@@ -13,6 +13,7 @@ import { UI } from '/common/types'
 import { defaultUIsettings } from '/common/types/ui'
 import type { FindUserResponse } from '/common/horde-gen'
 import { AIAdapter } from '/common/adapters'
+import { getUserSubscriptionTier } from '/common/util'
 
 const BACKGROUND_KEY = 'ui-bg'
 export const ACCOUNT_KEY = 'agnai-username'
@@ -46,7 +47,6 @@ export type UserState = {
   hordeStatsLoading: boolean
   showProfile: boolean
   tiers: AppSchema.SubscriptionTier[]
-  tier?: AppSchema.SubscriptionTier
   billingLoading: boolean
   subStatus?: {
     status: 'active' | 'cancelling' | 'cancelled' | 'new'
@@ -60,6 +60,7 @@ export type UserState = {
       activeAt: string
     }
   }
+  sub?: { level: number; type: 'native' | 'patreon'; tier: AppSchema.SubscriptionTier }
 }
 
 export const userStore = createStore<UserState>(
@@ -72,6 +73,14 @@ export const userStore = createStore<UserState>(
 
   events.on(EVENTS.init, (init) => {
     userStore.setState({ user: init.user, profile: init.profile })
+
+    if (init.user?.patreonUserId) {
+      userStore.syncPatreonAccount(true)
+    }
+
+    if (init.user.billing) {
+      userStore.validateSubscription(true)
+    }
 
     if (init.user?._id !== 'anon') {
       userStore.getTiers()
@@ -98,6 +107,24 @@ export const userStore = createStore<UserState>(
     modal({ showProfile }, show?: boolean) {
       return { showProfile: show ?? !showProfile }
     },
+    async revealApiKey(_, cb: (key: string) => void) {
+      const res = await api.post('/user/config/reveal-key')
+      if (res.result) {
+        cb(res.result.apiKey)
+      }
+      if (res.error) {
+        toastStore.error(`Could get retrieve key: ${res.error}`)
+      }
+    },
+    async generateApiKey(_, cb: (key: string) => void) {
+      const res = await api.post('/user/config/generate-key')
+      if (res.result) {
+        cb(res.result.apiKey)
+      }
+      if (res.error) {
+        toastStore.error(`Could get retrieve key: ${res.error}`)
+      }
+    },
     async getProfile() {
       const res = await usersApi.getProfile()
       if (res.error) return toastStore.error(`Failed to get profile`)
@@ -109,10 +136,8 @@ export const userStore = createStore<UserState>(
     async getTiers({ user }) {
       const res = await api.get('/admin/tiers')
       if (res.result) {
-        const tier = res.result.tiers.find(
-          (tier: AppSchema.SubscriptionTier) => tier._id === user?.sub?.tierId
-        )
-        return { tiers: res.result.tiers, tier }
+        const sub = user ? getUserSubscriptionTier(user, res.result.tiers) : undefined
+        return { tiers: res.result.tiers, sub }
       }
     },
 
@@ -197,11 +222,20 @@ export const userStore = createStore<UserState>(
       }
     },
 
-    async *validateSubscription({ billingLoading }) {
+    async *validateSubscription({ billingLoading, tiers }, quiet?: boolean) {
       if (billingLoading) return
       yield { billingLoading: true }
       const res = await api.post('/admin/billing/subscribe/verify')
       yield { billingLoading: false }
+
+      if (res.result) {
+        yield { user: res.result }
+
+        const sub = getUserSubscriptionTier(res.result, tiers)
+        yield { sub }
+      }
+
+      if (quiet) return
       if (res.result) {
         toastStore.success('You are currently subscribed')
       }
@@ -219,7 +253,7 @@ export const userStore = createStore<UserState>(
       }
     },
 
-    async getConfig({ ui, tiers }) {
+    async getConfig() {
       const res = await usersApi.getConfig()
 
       if (res.error) return toastStore.error(`Failed to get user config`)
@@ -228,8 +262,7 @@ export const userStore = createStore<UserState>(
           storage.localSetItem(ACCOUNT_KEY, res.result.username)
         }
         window.usePipeline = res.result.useLocalPipeline
-        const tier = tiers.find((tier) => tier._id === res.result?.sub?.tierId)
-        return { user: res.result, tier }
+        return { user: res.result }
       }
     },
 
@@ -247,25 +280,23 @@ export const userStore = createStore<UserState>(
       }
     },
 
-    async updateConfig({ tiers }, config: ConfigUpdate) {
+    async updateConfig(_, config: ConfigUpdate) {
       const res = await usersApi.updateConfig(config)
       if (res.error) toastStore.error(`Failed to update config: ${res.error}`)
       if (res.result) {
         window.usePipeline = res.result.useLocalPipeline
-        const tier = tiers.find((tier) => tier._id === res.result?.sub?.tierId)
         toastStore.success(`Updated settings`)
-        return { user: res.result, tier }
+        return { user: res.result }
       }
     },
 
-    async updatePartialConfig({ tiers }, config: ConfigUpdate) {
+    async updatePartialConfig(_, config: ConfigUpdate) {
       const res = await usersApi.updatePartialConfig(config)
       if (res.error) toastStore.error(`Failed to update config: ${res.error}`)
       if (res.result) {
-        const tier = tiers.find((tier) => tier._id === res.result?.sub?.tierId)
         window.usePipeline = res.result.useLocalPipeline
         toastStore.success(`Updated settings`)
-        return { user: res.result, tier }
+        return { user: res.result }
       }
     },
 
@@ -301,6 +332,55 @@ export const userStore = createStore<UserState>(
       if (res.error) {
         toastStore.error(`Could not authenticate: ${res.error}`)
       }
+    },
+
+    async verifyPatreon(_, body: any, onDone: (error?: any) => void) {
+      const res = await api.post(`/user/verify/patreon`, body)
+      if (res.result) {
+        onDone()
+        return
+      }
+
+      if (res.error) {
+        onDone(res.error)
+        return
+      }
+    },
+
+    async unverifyPatreon() {
+      const res = await api.post('/user/unverify/patreon')
+      if (res.result) {
+        toastStore.success('Unlinked Patreon account')
+        userStore.getConfig()
+        return
+      }
+
+      if (res.error) {
+        toastStore.error(`Could not unlink Patreon account: ${res.error}`)
+        return
+      }
+    },
+
+    async *syncPatreonAccount(_, quiet?: boolean) {
+      const res = await api.post('/user/resync/patreon')
+
+      if (res.result) {
+        yield { user: res.result }
+      }
+
+      if (quiet) return
+
+      if (res.result) {
+        toastStore.success('Successfully updated Patreon information')
+        return { user: res.result }
+      }
+
+      if (res.error) {
+        toastStore.error(`Could not sync Patreon info: ${res.error}`)
+        return
+      }
+
+      userStore.getConfig()
     },
 
     async *login(_, username: string, password: string, onSuccess?: (token: string) => void) {
@@ -773,6 +853,7 @@ async function checkout(sessionUrl: string) {
         clearInterval(interval)
         if (success) {
           userStore.getConfig()
+          events.emit('checkout-success', true)
           toastStore.success('Subscription successful!')
         }
         return
@@ -785,4 +866,13 @@ async function checkout(sessionUrl: string) {
       success = result
     } catch (ex) {}
   })
+
+  setTimeout(() => {
+    if (!child) {
+      toastStore.error(
+        'Popups are required to open the checkout window. Please check your browser settings.'
+      )
+      clearInterval(interval)
+    }
+  }, 3000)
 }

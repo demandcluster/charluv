@@ -81,6 +81,7 @@ export function toBotMsg(
     createdAt: new Date(++counter).toISOString(),
     kind: 'chat-message',
     msg,
+    retries: [],
     characterId: bot._id,
     updatedAt: '',
     ...props,
@@ -98,6 +99,7 @@ export function toUserMsg(
     createdAt: new Date(++counter).toISOString(),
     kind: 'chat-message',
     msg,
+    retries: [],
     userId: user.userId,
     updatedAt: new Date().toISOString(),
     ...props,
@@ -170,7 +172,6 @@ export function toScenarioBook(
   name: string,
   user: AppSchema.User,
   overrides?: Partial<AppSchema.ScenarioBook>
-
 ): AppSchema.ScenarioBook {
   return {
     kind: 'scenario',
@@ -183,6 +184,6 @@ export function toScenarioBook(
     instructions: '',
     entries: [],
     states: [],
-    ...overrides
+    ...overrides,
   }
 }

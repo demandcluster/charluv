@@ -37,17 +37,23 @@ export async function getAppConfig(user?: AppSchema.User) {
   const models = getHordeModels()
   const openRouter = await getOpenRouterModels()
 
+  const configuration = await store.admin.getServerConfiguration().catch(() => undefined)
+
   if (!appConfig) {
-    await store.subs.prepSubscriptionCache()
+    await Promise.all([store.subs.prepSubscriptionCache(), store.subs.prepTierCache()])
+
     const subs = store.subs.getCachedSubscriptions(user)
     updateRegisteredSubs()
+
     appConfig = {
       adapters: config.adapters,
       version: '',
       selfhosting: config.jsonStorage,
       canAuth: false,
       imagesSaved: config.storage.saveImages,
-      assetPrefix: config.storage.enabled
+      assetPrefix: config.assetUrl
+        ? config.assetUrl
+        : config.storage.enabled
         ? `https://${config.storage.bucket}.${config.storage.endpoint}`
         : '',
       registered: getRegisteredAdapters(user).map(toRegisteredAdapter),
@@ -62,11 +68,44 @@ export async function getAppConfig(user?: AppSchema.User) {
       },
       openRouter: { models: openRouter },
       subs,
+      serverConfig: configuration,
     }
   }
 
   const subs = store.subs.getCachedSubscriptions()
+  const userTier = user ? store.users.getUserSubTier(user) : undefined
 
+  if (user && configuration) {
+    switch (configuration.apiAccess) {
+      case 'off':
+        break
+
+      case 'admins':
+        appConfig.apiAccess = !!user.admin
+        break
+
+      case 'subscribers':
+        if (!userTier || userTier.level <= 0) break
+        appConfig.apiAccess = !!userTier.tier.apiAccess
+        break
+
+      case 'users':
+        appConfig.apiAccess = true
+        break
+    }
+  }
+
+  const patreonEnabled = !!(
+    config.patreon.campaign_id &&
+    config.patreon.client_id &&
+    config.patreon.client_secret &&
+    config.patreon.access_token
+  )
+
+  appConfig.guidanceAccess = !!userTier?.tier.guidanceAccess
+  appConfig.tier = userTier?.tier
+  appConfig.patreonAuth = patreonEnabled ? { clientId: config.patreon.client_id } : undefined
+  appConfig.serverConfig = configuration
   appConfig.subs = subs
   appConfig.registered = getRegisteredAdapters(user).map(toRegisteredAdapter)
   appConfig.openRouter.models = openRouter

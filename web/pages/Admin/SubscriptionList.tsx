@@ -73,6 +73,16 @@ const SubscriptionList: Component = () => {
                       class="w-full cursor-pointer"
                     >
                       {each.name}
+                      <Show when={each.cost > 0 && !!each.priceId}>
+                        <span class="text-600 ml-2 text-xs italic">Stripe: ${each.cost / 100}</span>
+                      </Show>
+
+                      <Show when={each.patreon?.cost! > 0}>
+                        <span class="text-600 ml-2 text-xs italic">
+                          Patreon: ${(each.patreon?.cost! / 100).toFixed(2)}
+                        </span>
+                      </Show>
+
                       <Show when={!each.enabled}>
                         <span class="text-600 ml-2 text-xs italic">disabled</span>
                       </Show>
@@ -110,7 +120,7 @@ const SubscriptionList: Component = () => {
                 href={`/admin/subscriptions/${sub._id}`}
                 class="flex h-12 w-full gap-2 rounded-xl hover:bg-[var(--bg-600)]"
                 classList={{
-                  'bg-500': sub.subDisabled && !sub.isDefaultSub,
+                  'bg-red-900': sub.subDisabled && !sub.isDefaultSub,
                   'text-500': sub.subDisabled && !sub.isDefaultSub,
                   'bg-800': !sub.subDisabled && !sub.isDefaultSub,
                   'bg-[var(--hl-800)]': sub.isDefaultSub,

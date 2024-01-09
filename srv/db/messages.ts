@@ -7,10 +7,7 @@ import { store } from '.'
 import { config } from '../config'
 
 let PAGE_SIZE = config.limits.msgPageSize
-if (PAGE_SIZE < 100) {
-  PAGE_SIZE = 100
-}
-if (isNaN(PAGE_SIZE)) {
+if (isNaN(PAGE_SIZE) || PAGE_SIZE < 20) {
   PAGE_SIZE = 100
 }
 
@@ -27,6 +24,7 @@ export type NewMessage = {
   actions?: AppSchema.ChatMessage['actions']
   meta?: any
   event: AppSchema.EventTypes | undefined
+  retries?: string[]
 }
 
 export type ImportedMessage = NewMessage & { createdAt: string }
@@ -43,6 +41,7 @@ export async function createChatMessage(creating: NewMessage, ephemeral?: boolea
     actions,
     meta,
     event,
+    retries,
   } = creating
   const doc: AppSchema.ChatMessage = {
     _id: creating._id || v4(),
@@ -51,6 +50,7 @@ export async function createChatMessage(creating: NewMessage, ephemeral?: boolea
     characterId,
     userId: senderId,
     msg: message,
+    retries: retries || [],
     adapter,
     actions,
     createdAt: new Date().toISOString(),
@@ -89,6 +89,7 @@ export async function importMessages(userId: string, messages: NewMessage[]) {
     adapter: msg.adapter,
     createdAt: new Date(start + i).toISOString(),
     updatedAt: new Date(start + i).toISOString(),
+    retries: [],
   }))
 
   await db('chat-message').insertMany(docs)
@@ -107,7 +108,10 @@ export async function deleteMessages(messageIds: string[]) {
 export async function editMessage(
   id: string,
   update: Partial<
-    Pick<AppSchema.ChatMessage, 'msg' | 'actions' | 'adapter' | 'meta' | 'state' | 'extras'>
+    Pick<
+      AppSchema.ChatMessage,
+      'msg' | 'actions' | 'adapter' | 'meta' | 'state' | 'extras' | 'retries'
+    >
   >
 ) {
   const edit: any = { ...update, updatedAt: now() }
@@ -119,12 +123,11 @@ export async function editMessage(
 }
 
 export async function getMessages(chatId: string, before?: string) {
-  // The initial fetch will retrieve 100 messages.
+  // The initial fetch will retrieve PAGE_SIZE messages.
   // This is to ensure that users have sufficient messages in their application state to build prompts with enough context.
   let pageSize = PAGE_SIZE
   if (!before) {
     before = now()
-    pageSize = 100
   }
 
   const docs = await db('chat-message')

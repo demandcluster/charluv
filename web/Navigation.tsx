@@ -24,6 +24,7 @@ import {
   VenetianMask,
   Volume2,
   VolumeX,
+  Wand2,
   X,
 } from 'lucide-solid'
 import {
@@ -59,7 +60,7 @@ import { soundEmitter } from './shared/Audio/playable-events'
 
 const MobileNavHeader = () => {
   const user = userStore()
-  const suffix = createMemo(() => (user.user?.sub?.level ?? 0 > 0 ? '+' : ''))
+  const suffix = createMemo(() => (user.sub?.level ?? -1 > 0 ? '+' : ''))
 
   return (
     <div class="flex min-h-[2rem] justify-between sm:hidden">
@@ -85,7 +86,7 @@ const Navigation: Component = () => {
   const chat = chatStore()
   const size = useWindowSize()
 
-  const suffix = createMemo(() => (user.user?.sub?.level ?? 0 > 0 ? '+' : ''))
+  const suffix = createMemo(() => (user.sub?.level ?? -1 > 0 ? '+' : ''))
 
   createEffect(() => {
     if (!state.overlay && state.showMenu) {
@@ -181,6 +182,14 @@ const UserNavigation: Component = () => {
   const toasts = toastStore()
   const invites = inviteStore()
 
+  const guidance = createMemo(() => {
+    const usable = menu.config.subs.some((sub) => sub.guidance)
+    if (!usable) return false
+
+    const access = !!menu.config.guidanceAccess || !!user.user?.admin
+    return access
+  })
+
   const count = createMemo(() => {
     return toasts.unseen + invites.invites.length
   })
@@ -211,6 +220,13 @@ const UserNavigation: Component = () => {
 
       <ChatLink />
 
+      <Show when={guidance()}>
+        <Item href="/mode/preview/" ariaLabel="Sagas Preview">
+          <Wand2 aria-hidden="true" />
+          Sagas Preview
+        </Item>
+      </Show>
+
       <Library />
       <MultiItem>
         <Item href="/presets" ariaLabel="Presets">
@@ -239,6 +255,9 @@ const UserNavigation: Component = () => {
           <span aria-hidden="true">Manage</span>
         </Item>
         <SubMenu>
+          <SubItem href="/admin/configuration" parent="/admin/" ariaLabel="Configuration">
+            Configuration
+          </SubItem>
           <SubItem href="/admin/users" parent="/admin/" ariaLabel="Users">
             Users
           </SubItem>

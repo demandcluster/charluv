@@ -23,6 +23,7 @@ import {
   saveListCache,
 } from './util'
 import Loading from '/web/shared/Loading'
+import { ManualPaginate, usePagination } from '/web/shared/Paginate'
 
 const sortOptions = [
   { value: 'chat-updated', label: 'Chat Activity', kind: 'chat' },
@@ -51,6 +52,7 @@ const CharacterChats: Component = () => {
       updatedAt: chat.updatedAt,
       characterId: chat.characterId,
       characters: toChatListState(s.allChars.map, chat),
+      messageCount: chat.messageCount,
     })),
     chars: s.allChars.map,
   }))
@@ -102,6 +104,12 @@ const CharacterChats: Component = () => {
       if (chat.characters.some((c) => c.description.toLowerCase().includes(trimmed))) return true
       return false
     })
+  })
+
+  const pager = usePagination({
+    name: 'chat-list',
+    items: chats,
+    pageSize: 50,
   })
 
   onMount(() => {
@@ -187,19 +195,28 @@ const CharacterChats: Component = () => {
         </div>
       </div>
 
+      <div class="flex justify-center pb-5 pt-2">
+        <ManualPaginate pager={pager} />
+      </div>
+
       <Show
-        when={chats().length}
+        when={pager.items().length}
         fallback={<NoChats character={chars.list.find((c) => c._id === params.id)?.name} />}
       >
         <Chats
           allChars={state.chars}
-          chats={chats()}
+          chats={pager.items()}
           chars={chars.list}
           sortField={sortField()}
           sortDirection={sortDirection()}
           charId={charId()}
         />
       </Show>
+
+      <div class="flex justify-center pb-5 pt-2">
+        <ManualPaginate pager={pager} />
+      </div>
+
       <ImportChatModal
         show={showImport()}
         close={() => setImport(false)}
@@ -281,6 +298,9 @@ const Chats: Component<{
                           </Show>
                           <span class="flex text-xs italic text-[var(--text-600)]">
                             {toDuration(new Date(chat.updatedAt))} ago
+                            <Show when={chat.messageCount !== undefined}>
+                              &nbsp;({chat.messageCount})
+                            </Show>
                           </span>
                         </div>
                       </div>

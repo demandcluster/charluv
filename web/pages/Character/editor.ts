@@ -162,8 +162,7 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
     }
 
     {
-      const tier = user.tiers.find((t) => t._id === user.user?.sub?.tierId)
-      const level = tier?.level ?? user.user.sub?.level ?? -1
+      const level = user.sub?.level ?? -1
       const subs = settings.config.subs.filter((s) => user.user?.admin || s.level <= level)
 
       for (const sub of subs) {
@@ -217,7 +216,9 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
     const avatar = await generateAvatar(char)
 
     if (avatar) {
-      setImageData(avatar)
+      const base64 = await getImageData(avatar)
+      setState('avatar', avatar)
+      setImageData(base64)
     }
   }
 
@@ -395,7 +396,7 @@ async function generateAvatar(char: NewCharacter) {
     return toastStore.error(`Image generation settings missing`)
   }
 
-  return new Promise<string>((resolve, reject) => {
+  return new Promise<File>((resolve, reject) => {
     characterStore.generateAvatar(user, char.appearance || char.persona, (err, image) => {
       if (image) return resolve(image)
       reject(err)

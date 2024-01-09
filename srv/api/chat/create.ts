@@ -19,6 +19,7 @@ export const createChat = handle(async ({ body, user, userId }) => {
       useOverrides: 'boolean?',
       scenarioId: 'string?',
       scenarioStates: 'string?',
+      impersonating: 'string?',
     },
     body
   )
@@ -30,6 +31,10 @@ export const createChat = handle(async ({ body, user, userId }) => {
   }
 
   const character = await store.characters.getCharacter(userId, body.characterId)
+  const profile = await store.users.getProfile(userId)
+  const impersonating = body.impersonating
+    ? await store.characters.getCharacter(userId, body.impersonating)
+    : undefined
 
   let scenarios: string[] = []
   let lvl: string[] = []
@@ -43,13 +48,18 @@ export const createChat = handle(async ({ body, user, userId }) => {
     scenarios = body.scenarioId !== undefined ? [body.scenarioId] : []
   }
 
-  const chat = await store.chats.create(body.characterId, {
-    ...body,
-    greeting: body.greeting ?? character?.greeting,
-    userId: user?.userId!,
-    scenarioIds: scenarios,
-    scenarioStates: lvl,
-  })
+  const chat = await store.chats.create(
+    body.characterId,
+    {
+      ...body,
+      greeting: body.greeting ?? character?.greeting,
+      userId: user?.userId!,
+      scenarioIds: body.scenarioId ? [body.scenarioId] : [],
+      scenarioStates: lvl,
+    },
+    profile!,
+    impersonating
+  )
   return chat
 })
 // tes
@@ -68,6 +78,7 @@ export const importChat = handle(async ({ body, userId }) => {
           userId: 'string?',
           handle: 'string?',
           ooc: 'boolean?',
+          retries: ['string?'],
         },
       ],
     },
@@ -87,15 +98,21 @@ export const importChat = handle(async ({ body, userId }) => {
     throw new StatusError(`Character not found`, 404)
   }
 
-  const chat = await store.chats.create(body.characterId, {
-    name: body.name,
-    greeting: body.greeting ?? character.greeting,
-    scenario: body.scenario,
-    overrides: character.persona,
-    sampleChat: '',
-    userId,
-    scenarioIds: body.scenarioId ? [body.scenarioId] : [],
-  })
+  const profile = await store.users.getProfile(userId)
+
+  const chat = await store.chats.create(
+    body.characterId,
+    {
+      name: body.name,
+      greeting: body.greeting ?? character.greeting,
+      scenario: body.scenario,
+      overrides: character.persona,
+      sampleChat: '',
+      userId,
+      scenarioIds: body.scenarioId ? [body.scenarioId] : [],
+    },
+    profile!
+  )
 
   const messages = body.messages.map<NewMessage>((msg) => ({
     chatId: chat._id,
@@ -105,6 +122,7 @@ export const importChat = handle(async ({ body, userId }) => {
     senderId: msg.userId ? msg.userId : undefined,
     handle: msg.handle,
     ooc: msg.ooc ?? false,
+    retries: character.alternateGreetings,
     event: undefined,
   }))
 

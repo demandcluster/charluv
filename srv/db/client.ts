@@ -18,7 +18,7 @@ export async function connect(verbose = false) {
   retrying = false
   const cli = new MongoClient(uri, { ignoreUndefined: true })
   try {
-    const timer = setTimeout(() => cli.close(), 2000)
+    const timer = setTimeout(() => cli.close(), 10000)
     await cli.connect()
     clearTimeout(timer)
 
@@ -79,4 +79,10 @@ export async function createIndexes() {
   await db('apikey').createIndex({ code: 1 }, { name: 'apikey_code' })
   await db('chat-tree').createIndex({ chatId: 1 }, { name: 'chat-trees_chatId' })
   await db('prompt-template').createIndex({ userId: 1 }, { name: 'prompt-templates_userId' })
+  await db('configuration').createIndex(
+    { kind: 1 },
+    { unique: true, name: 'configuration_unique_kind' }
+  )
+  await db('user').createIndex({ apiKey: 1 }, { name: 'user_apiKey' })
+  await db('user').createIndex({ patreonUserId: 1 }, { name: 'user_patreonUserId' })
 }

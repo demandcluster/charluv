@@ -1,7 +1,7 @@
 import type { PromptParts } from '../../common/prompt'
 import { AppSchema } from '../../common/types/schema'
 import { AppLog } from '../logger'
-import { Memory } from '/common/types'
+import { Memory, TokenCounter } from '/common/types'
 
 export type GenerateRequestV2 = {
   requestId: string
@@ -59,10 +59,17 @@ export type AdapterProps = {
   prompt: string
   parts: PromptParts
   lines: string[]
+  retries?: string[]
   characters?: Record<string, AppSchema.Character>
   impersonate: AppSchema.Character | undefined
   lastMessage?: string
   requestId: string
+  encoder?: TokenCounter
+
+  guidance?: boolean
+  placeholders?: Record<string, string>
+  lists?: Record<string, string[]>
+  previous?: Record<string, string>
 
   subscription?: {
     level: number
@@ -84,6 +91,7 @@ export type ModelAdapter = (
   opts: AdapterProps
 ) => AsyncGenerator<
   | string
+  | { gens: string[] }
   | { partial: string }
   | { error: any }
   | { meta: any }

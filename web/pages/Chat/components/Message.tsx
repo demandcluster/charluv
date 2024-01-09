@@ -67,6 +67,19 @@ type MessageProps = {
   showHiddenEvents?: boolean
   textBeforeGenMore?: string
   voice?: VoiceState
+  firstInserted?: boolean
+}
+
+const anonNames = new Map<string, number>()
+
+let anonId = 0
+function getAnonName(entityId: string) {
+  if (!anonNames.has(entityId)) {
+    anonNames.set(entityId, ++anonId)
+  }
+
+  const id = anonNames.get(entityId)
+  return `User ${id}`
 }
 
 const Message: Component<MessageProps> = (props) => {
@@ -129,25 +142,22 @@ const Message: Component<MessageProps> = (props) => {
     editRef?.focus()
   }
 
-  const handleToShow = () => {
-    if (ctx.anonymize) return getAnonName(state.chatProfiles, props.msg.userId!)
-    const handle = state.memberIds[props.msg.userId!]?.handle || props.msg.handle || 'You'
-    return handle
-  }
-
   const opacityClass = props.msg.ooc ? 'opacity-50' : ''
 
   const format = createMemo(() => ({ size: user.ui.avatarSize, corners: user.ui.avatarCorners }))
 
   return (
     <div
-      class="flex w-full rounded-md px-2 py-2 pr-2 sm:px-4"
+      class={'flex w-full rounded-md px-2 py-2 pr-2 sm:px-4'}
       style={bgStyles()}
       data-sender={props.msg.characterId ? 'bot' : 'user'}
       data-bot={props.msg.characterId ? ctx.char?.name : ''}
       data-user={props.msg.userId ? state.memberIds[props.msg.userId]?.handle : ''}
       data-last={props.last?.toString()}
       data-lastsplit="true"
+      classList={{
+        'first-in-ctx-window': user.ui.contextWindowLine && props.firstInserted,
+      }}
     >
       <div class={`flex w-full ${opacityClass}`}>
         <div class={`flex h-fit w-full select-text flex-col gap-1`}>
@@ -223,14 +233,9 @@ const Message: Component<MessageProps> = (props) => {
                     'sm:text-lg': !props.isPaneOpen,
                   }}
                 >
-                  <Switch>
-                    <Match when={props.msg.characterId}>
-                      {ctx.allBots[props.msg.characterId!]?.name ||
-                        (props.msg.split && props.msg.characterId) ||
-                        ctx.char?.name!}
-                    </Match>
-                    <Match when={true}>{handleToShow()}</Match>
-                  </Switch>
+                  {ctx.anonymize && !props.msg.characterId
+                    ? getAnonName(props.msg.userId!)
+                    : props.msg.handle || ''}
                 </b>
 
                 <span
@@ -302,7 +307,7 @@ const Message: Component<MessageProps> = (props) => {
                 </Match>
               </Switch>
             </span>
-            <div ref={avatarRef}>
+            <div ref={avatarRef} classList={{ 'overflow-hidden': !user.ui.imageWrap }}>
               <Switch>
                 <Match when={props.msg.adapter === 'image'}>
                   <div class="flex flex-wrap gap-2">
@@ -338,7 +343,7 @@ const Message: Component<MessageProps> = (props) => {
                 </Match>
                 <Match when={!edit() && content().type !== 'waiting'}>
                   <p
-                    class={`rendered-markdown px-1 ${content().class}`}
+                    class={`rendered-markdown pr-1 ${content().class}`}
                     data-bot-message={!props.msg.userId}
                     data-user-message={!!props.msg.userId}
                     innerHTML={content().message}
@@ -392,14 +397,6 @@ export default Message
 
 export type SplitMessage = AppSchema.ChatMessage & { split?: boolean; handle?: string }
 
-function getAnonName(members: AppSchema.Profile[], id: string) {
-  for (let i = 0; i < members.length; i++) {
-    if (members[i].userId === id) return `User #${i + 1}`
-  }
-
-  return `User ??`
-}
-
 function anonymizeText(text: string, profile: AppSchema.Profile, i: number) {
   return text.replace(new RegExp(profile.handle.trim(), 'gi'), 'User ' + (i + 1))
 }
@@ -421,7 +418,7 @@ const MessageOptions: Component<{
     <div class="flex items-center gap-3 text-sm">
       <Show when={props.chatEditing && props.msg.characterId && props.msg.adapter !== 'image'}>
         <div
-          onClick={() => !props.partial && chatStore.showPrompt(props.msg)}
+          onClick={() => !props.partial && chatStore.computePrompt(props.msg, true)}
           class="icon-button prompt-btn"
           classList={{ disabled: !!props.partial }}
         >

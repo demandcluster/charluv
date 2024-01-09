@@ -9,9 +9,7 @@ const HORDE_GUEST_KEY = '0000000000'
 const imageUrl = 'https://horde.aivo.chat/api/v2'
 const hordeUrl = 'https://horde.aivo.chat/api/v2'
 
-//const imageUrl = 'http://localhost:7001/api/v2'
-//const hordeUrl = 'https://051f-2a01-4f9-2b-26e3-00-2.ngrok-free.app/api/v2'
-const defaults = {
+export const defaults = {
   image: {
     sampler: SD_SAMPLER['DPM++ 2M'],
     model: [],
@@ -91,12 +89,17 @@ type GenerateOpts = {
   key: string
 }
 
-export async function generateImage(user: AppSchema.User, prompt: string, log: AppLog = logger) {
+export async function generateImage(
+  user: AppSchema.User,
+  prompt: string,
+  negative: string,
+  log: AppLog = logger
+) {
   const base = user.images
   const settings = user.images?.horde || defaults.image
 
   const payload = {
-    prompt: `${prompt.slice(0, 500)} ### ${user.images?.negative || defaults.image.negative}`,
+    prompt: `${prompt.slice(0, 500)} ### ${negative}`,
     params: {
       height: base?.height ?? 512,
       width: base?.width ?? 512,

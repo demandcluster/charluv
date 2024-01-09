@@ -61,7 +61,9 @@ export const config = {
   jwtPrivateKey: env('JWT_PRIVATE_KEY', ''),
   jwtPublicKey: env('JWT_PUBLIC_KEY', ''),
   jwtExpiry: env('JWT_EXPIRY', '30d'),
+  host: env('APP_HOST', '0.0.0.0'),
   port: +env('PORT', '3001'),
+  assetUrl: env('ASSET_URL', ''),
   assetFolder: env('ASSET_FOLDER', resolve(__dirname, '..', 'dist', 'assets')),
   extraFolder: env('EXTRA_FOLDER', ''),
   billing: {
@@ -126,6 +128,16 @@ export const config = {
     patreon: !!env('PATREON', ''),
     policies: !!env('SHOW_POLICIES', ''),
     inject: env('INJECT', ''),
+    chatCounts: !!env('CHAT_COUNTS', ''),
+  },
+
+  patreon: {
+    redirect: env('PATREON_REDIRECT_URI', 'http://localhost:1234/oauth/patreon'),
+    campaign_id: env('PATREON_CAMPAIGN_ID', ''),
+    client_id: env('PATREON_CLIENT_ID', ''),
+    client_secret: env('PATREON_CLIENT_SECRET', ''),
+    access_token: env('PATREON_ACCESS_TOKEN', ''),
+    refresh_token: env('PATREON_REFRESH_TOKEN', ''),
   },
 
   inference: {

@@ -1,9 +1,10 @@
 import { StatusError, handle } from '../wrap'
 import { assertValid } from '/common/valid'
 import { store } from '../../db'
-import { stripe } from './stripe'
+import { resyncSubscription, stripe } from './stripe'
 import { subsCmd } from '../../domains/subs/cmd'
 import { domain } from '/srv/domains'
+import { getSafeUserConfig } from '../user/settings'
 
 export const modifySubscription = handle(async ({ body, userId }) => {
   assertValid({ tierId: 'string' }, body)
@@ -30,11 +31,19 @@ export const modifySubscription = handle(async ({ body, userId }) => {
 
   const item = sub.items.data[0]
   if (upgrading) {
-    await stripe.subscriptions.update(sub.id, {
-      proration_behavior: 'always_invoice',
-      metadata: { tierId: body.tierId, upgradedAt: new Date().toISOString() },
-      items: [{ id: item.id, price: tier.priceId }],
-    })
+    const result = await stripe.subscriptions
+      .update(sub.id, {
+        payment_behavior: 'error_if_incomplete',
+        proration_behavior: 'always_invoice',
+        metadata: { tierId: body.tierId, upgradedAt: new Date().toISOString() },
+        items: [{ id: item.id, price: tier.priceId }],
+      })
+      .catch((err) => ({ err }))
+
+    if ('err' in result) {
+      throw new StatusError(`Payment failed: ${result.err.message}`, 402)
+    }
+
     await subsCmd.upgrade(userId, { priceId: tier.priceId, tierId: tier._id })
     await store.users.updateUser(userId, {
       sub: {
@@ -64,11 +73,13 @@ export const verifySubscription = handle(async ({ userId }) => {
   const user = await store.users.getUser(userId)
 
   if (!user?.billing?.subscriptionId) throw new StatusError('No subscription present', 402)
-  const result = await store.users.validateSubscription(user)
+  const result = await resyncSubscription(user)
   if (result instanceof Error) {
     throw new StatusError(result.message, 402)
   }
-  return { success: true }
+
+  const next = await getSafeUserConfig(userId)
+  return next
 })
 
 export const subscriptionStatus = handle(async ({ userId, params, user }) => {

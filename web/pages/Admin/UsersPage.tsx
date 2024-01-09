@@ -5,11 +5,12 @@ import Modal from '../../shared/Modal'
 import PageHeader from '../../shared/PageHeader'
 import TextInput from '../../shared/TextInput'
 import { getAssetUrl, getStrictForm, setComponentPageTitle } from '../../shared/util'
-import { adminStore, presetStore, userStore } from '../../store'
+import { adminStore, presetStore, toastStore, userStore } from '../../store'
 import { AppSchema } from '/common/types'
 import Select from '/web/shared/Select'
 import { A } from '@solidjs/router'
 import { elapsedSince } from '/common/util'
+import type Stripe from 'stripe'
 
 const UsersPage: Component = () => {
   let ref: any
@@ -113,8 +114,19 @@ export default UsersPage
 const InfoModel: Component<{ show: boolean; close: () => void; userId: string; name: string }> = (
   props
 ) => {
+  let subId: any
   const state = adminStore()
   const tiers = userStore((s) => ({ list: s.tiers }))
+  const [session, setSession] = createSignal<Stripe.Checkout.Session>()
+
+  const assignSub = () => {
+    const id = subId.value
+    if (!id) {
+      return toastStore.error(`No subscription ID`)
+    }
+
+    adminStore.manualSubscription(props.userId, id)
+  }
 
   return (
     <Modal
@@ -130,6 +142,7 @@ const InfoModel: Component<{ show: boolean; close: () => void; userId: string; n
             <img src={getAssetUrl(state.info?.avatar!)} class="h-[128px]" />
           </div>
         </Show>
+        <Button onClick={() => adminStore.impersonate(state.info?.userId!)}>Impersonate</Button>
         <table class="w-full table-auto">
           <tbody>
             <tr>
@@ -151,17 +164,46 @@ const InfoModel: Component<{ show: boolean; close: () => void; userId: string; n
               <td>{state.info?.chats}</td>
             </tr>
 
-            <Show when={state.info?.sub}>
+            <tr>
+              <td colSpan={2}>
+                <div class="bg-700 mt-4 flex justify-center">Subscription Details</div>
+              </td>
+            </tr>
+            <tr>
+              <th>Assign Sub</th>
+              <td>
+                <div class="flex gap-1">
+                  <TextInput
+                    ref={subId}
+                    parentClass="w-full"
+                    fieldName="subscriptionId"
+                    placeholder="Stripe Subscription ID"
+                  />
+                  <Button onClick={assignSub}>Assign</Button>
+                </div>
+              </td>
+            </tr>
+            <Show when={state.info?.stripeSessions?.length}>
               <tr>
-                <td colSpan={2}>
-                  <div class="bg-700 mt-4 flex justify-center">Subscription Details</div>
+                <th>Session IDs</th>
+                <td>
+                  <For each={state.info?.stripeSessions}>
+                    {(id) => (
+                      <Button size="pill" onClick={() => adminStore.viewSession(id, setSession)}>
+                        {id.slice(8, 16)}...
+                      </Button>
+                    )}
+                  </For>
                 </td>
               </tr>
-              <tr>
-                <th>Subscription Level</th>
-                <td>{state.info?.sub?.level}</td>
-              </tr>
             </Show>
+            <tr>
+              <th>Subscription Level</th>
+              <td>
+                Native:{state.info?.sub?.level ?? '-1'} / Patreon:
+                {state.info?.patreon?.sub?.level ?? '-1'}
+              </td>
+            </tr>
 
             <Show when={state.info?.billing}>
               <tr>
@@ -221,6 +263,18 @@ const InfoModel: Component<{ show: boolean; close: () => void; userId: string; n
                   )
                 }}
               </For>
+            </Show>
+            <Show when={!!session()}>
+              <tr>
+                <td colSpan={2}>
+                  <div class="bg-700 mt-4 flex justify-center">Session: {session()?.id}</div>
+                </td>
+              </tr>
+              <tr>
+                <td colSpan={2}>
+                  <pre class="text-xs">{JSON.stringify(session(), null, 2)}</pre>
+                </td>
+              </tr>
             </Show>
           </tbody>
         </table>

@@ -9,7 +9,7 @@ export const defaultChars = {
     premium: false,
     avatar: '/assets/aiva.png',
     persona: {
-      kind: 'boostyle',
+      kind: 'attributes',
       attributes: {
         species: ['robot'],
         mind: ['kind', 'compassionate', 'caring', 'tender', 'forgiving', 'enthusiastic'],

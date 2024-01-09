@@ -86,6 +86,7 @@ const initState: SettingState = {
   },
   imageWorkers: [],
   config: {
+    serverConfig: {} as any,
     registered: [],
     adapters: [],
     canAuth: true,
@@ -123,6 +124,15 @@ export const settingStore = createStore<SettingState>(
     settingStore.init()
   })
 
+  events.on(EVENTS.configUpdated, (config) => {
+    const prev = get().config
+    settingStore.setState({ config: { ...prev, serverConfig: config } })
+  })
+
+  events.on('checkout-success', () => {
+    settingStore.getConfig()
+  })
+
   return {
     modal({ showSettings }, show?: boolean) {
       const next = show ?? !showSettings
@@ -131,7 +141,6 @@ export const settingStore = createStore<SettingState>(
     async *init({ config: prev }) {
       yield { initLoading: true }
       const res = await usersApi.getInit()
-      yield { initLoading: false }
 
       if (res.result) {
         setAssetPrefix(res.result.config.assetPrefix)
@@ -141,7 +150,12 @@ export const settingStore = createStore<SettingState>(
           events.emit(EVENTS.init, res.result)
         }
 
-        yield { init: res.result, config: res.result.config, replicate: res.result.replicate || {} }
+        yield {
+          init: res.result,
+          config: res.result.config,
+          replicate: res.result.replicate || {},
+          initLoading: false,
+        }
 
         const maint = res.result.config?.maintenance
 
@@ -157,6 +171,7 @@ export const settingStore = createStore<SettingState>(
       if (res.error) {
         if (res.status === 500) {
           toastStore.error(`Could not get settings from server.`)
+          yield { initLoading: false }
           return
         }
         setTimeout(() => settingStore.init(), 2500)
@@ -402,6 +417,16 @@ setInterval(async () => {
   }
   settingStore.setState({ config: next })
 }, 60000)
+
+subscribe('configuration-update', { configuration: 'any' }, (body) => {
+  const { config } = settingStore.getState()
+  settingStore.setState({
+    config: {
+      ...config,
+      serverConfig: body.configuration,
+    },
+  })
+})
 
 subscribe(
   'subscription-replaced',

@@ -13,6 +13,7 @@ const Select: Component<{
   fieldName: string
   label?: string
   helperText?: string | JSX.Element
+  helperMarkdown?: string
   items: Option[]
   value?: string
   class?: string
@@ -22,6 +23,7 @@ const Select: Component<{
   service?: AIAdapter
   format?: ThirdPartyFormat
   aiSetting?: keyof PresetAISettings
+  ref?: (ref: HTMLSelectElement) => void
   hide?: boolean
 }> = (props) => {
   const onChange = (ev: Event & { currentTarget: EventTarget & HTMLSelectElement }) => {
@@ -38,10 +40,15 @@ const Select: Component<{
 
   return (
     <div class={`${hide()} max-w-full`}>
-      <FormLabel label={props.label} helperText={props.helperText} />
+      <FormLabel
+        label={props.label}
+        helperText={props.helperText}
+        helperMarkdown={props.helperMarkdown}
+      />
       <div class="flex items-center">
         <div class="relative overflow-hidden rounded-xl bg-transparent">
           <select
+            ref={(ele) => props.ref?.(ele)}
             name={props.fieldName}
             class={`form-field cursor-pointer appearance-none rounded-xl bg-[var(--hl-700)] py-2 pl-3 pr-8 shadow-none ${
               props.class || ''

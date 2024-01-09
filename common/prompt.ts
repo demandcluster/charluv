@@ -6,9 +6,10 @@ import { defaultTemplate } from './mode-templates'
 import { buildMemoryPrompt } from './memory'
 import { defaultPresets, getFallbackPreset, isDefaultPreset } from './presets'
 import { parseTemplate } from './template-parser'
-import { getBotName, trimSentence } from './util'
+import { getMessageAuthor, getBotName, trimSentence } from './util'
 import { Memory } from './types'
 import { promptOrderToTemplate } from './prompt-order'
+import { ModelFormat, replaceTags } from './presets/templates'
 
 export const SAMPLE_CHAT_MARKER = `System: New conversation started. Previous conversations are examples only.`
 export const SAMPLE_CHAT_PREAMBLE = `How {{char}} speaks:`
@@ -35,9 +36,11 @@ export type Prompt = {
   template: {
     parsed: string
     inserts: Map<number, string>
+    linesAddedCount: number
   }
   lines: string[]
   parts: PromptParts
+  shown: boolean
 }
 
 export type PromptConfig = {
@@ -67,6 +70,7 @@ export type PromptOpts = {
   chatEmbeds: Memory.UserEmbed<{ name: string }>[]
   userEmbeds: Memory.UserEmbed[]
   resolvedScenario: string
+  modelFormat?: ModelFormat
 }
 
 export type BuildPromptOpts = {
@@ -130,11 +134,7 @@ export const HOLDERS = {
  * @param opts
  * @returns
  */
-export async function createPromptParts(
-  opts: PromptOpts,
-  encoder: TokenCounter,
-  maxContext?: number
-) {
+export async function createPromptParts(opts: PromptOpts, encoder: TokenCounter) {
   if (opts.trimSentences) {
     const nextMsgs = opts.messages.slice()
     for (let i = 0; i < nextMsgs.length; i++) {
@@ -159,9 +159,20 @@ export async function createPromptParts(
   /**
    * The lines from `getLinesForPrompt` are returned in time-descending order
    */
+  const template = getTemplate(opts)
+  const templateSize = await encoder(template)
+  /**
+   * It's important for us to pass in a max context that is _realistic-ish_ as the embeddings
+   * are retrieved based on the number of history messages we return here.
+   *
+   * If we ambitiously include the entire history then embeddings will never be included.
+   * The queryable embeddings are messages that are _NOT_ included in the context
+   */
+  const maxContext = opts.settings
+    ? opts.settings.maxContextLength! - templateSize - opts.settings.maxTokens!
+    : undefined
   const lines = await getLinesForPrompt(opts, encoder, maxContext)
   const parts = await buildPromptParts(opts, lines, encoder)
-  const template = getTemplate(opts, parts)
 
   const prompt = await injectPlaceholders(template, {
     opts,
@@ -171,6 +182,7 @@ export async function createPromptParts(
     characters: opts.characters,
     encoder,
   })
+
   return { lines: lines.reverse(), parts, template: prompt }
 }
 
@@ -189,9 +201,10 @@ export async function assemblePrompt(
   encoder: TokenCounter
 ) {
   const post = createPostPrompt(opts)
-  const template = getTemplate(opts, parts)
+  const template = getTemplate(opts)
+
   const history = { lines, order: 'asc' } as const
-  const { parsed, inserts, length } = await injectPlaceholders(template, {
+  let { parsed, inserts, length } = await injectPlaceholders(template, {
     opts,
     parts,
     history,
@@ -199,16 +212,18 @@ export async function assemblePrompt(
     lastMessage: opts.lastMessage,
     encoder,
   })
+
+  if (opts.settings?.modelFormat) {
+    parsed = replaceTags(parsed, opts.settings.modelFormat)
+  }
+
   return { lines: history.lines, prompt: parsed, inserts, parts, post, length }
 }
 
-export function getTemplate(
-  opts: Pick<GenerateRequestV2, 'settings' | 'chat'>,
-  parts: PromptParts
-) {
+export function getTemplate(opts: Pick<GenerateRequestV2, 'settings' | 'chat'>) {
   const fallback = getFallbackPreset(opts.settings?.service!)
   if (
-    opts.settings?.useAdvancedPrompt === false &&
+    opts.settings?.useAdvancedPrompt === 'basic' &&
     opts.settings.promptOrderFormat &&
     opts.settings.promptOrder
   ) {
@@ -216,11 +231,24 @@ export function getTemplate(
       opts.settings.promptOrderFormat,
       opts.settings.promptOrder
     )
-    return ensureValidTemplate(template, parts)
+    return template
+    // return ensureValidTemplate(template)
   }
 
   const template = opts.settings?.gaslight || fallback?.gaslight || defaultTemplate
-  return ensureValidTemplate(template, parts)
+
+  const validate =
+    opts.settings?.useAdvancedPrompt === undefined
+      ? true
+      : typeof opts.settings?.useAdvancedPrompt === 'boolean'
+      ? opts.settings.useAdvancedPrompt
+      : opts.settings?.useAdvancedPrompt === 'validate'
+
+  if (!validate) {
+    return template
+  }
+
+  return ensureValidTemplate(template)
 }
 
 type InjectOpts = {
@@ -234,25 +262,26 @@ type InjectOpts = {
 
 export async function injectPlaceholders(template: string, inject: InjectOpts) {
   const { opts, parts, history: hist, encoder, ...rest } = inject
-  const sender = opts.impersonate?.name || inject.opts.sender?.handle || 'You'
 
   // Automatically inject example conversation if not included in the prompt
-  const sampleChat = parts.sampleChat?.join('\n')
-  if (!template.match(HOLDERS.sampleChat) && sampleChat && hist) {
-    const next = hist.lines.filter((line) => !line.includes(SAMPLE_CHAT_MARKER))
+  /** @todo assess whether or not this should be here -- it ignores 'unvalidated' prompt rules */
+  // const sender = opts.impersonate?.name || inject.opts.sender?.handle || 'You'
+  // const sampleChat = parts.sampleChat?.join('\n')
+  // if (!template.match(HOLDERS.sampleChat) && sampleChat && hist) {
+  //   const next = hist.lines.filter((line) => !line.includes(SAMPLE_CHAT_MARKER))
 
-    const svc = opts.settings?.service
-    const postSample =
-      svc === 'openai' || svc === 'openrouter' || svc === 'scale' ? SAMPLE_CHAT_MARKER : '<START>'
+  //   const svc = opts.settings?.service
+  //   const postSample =
+  //     svc === 'openai' || svc === 'openrouter' || svc === 'scale' ? SAMPLE_CHAT_MARKER : '<START>'
 
-    const msg = `${SAMPLE_CHAT_PREAMBLE}\n${sampleChat}\n${postSample}`
-      .replace(BOT_REPLACE, opts.replyAs.name)
-      .replace(SELF_REPLACE, sender)
-    if (hist.order === 'asc') next.unshift(msg)
-    else next.push(msg)
+  //   const msg = `${SAMPLE_CHAT_PREAMBLE}\n${sampleChat}\n${postSample}`
+  //     .replace(BOT_REPLACE, opts.replyAs.name)
+  //     .replace(SELF_REPLACE, sender)
+  //   if (hist.order === 'asc') next.unshift(msg)
+  //   else next.push(msg)
 
-    hist.lines = next
-  }
+  //   hist.lines = next
+  // }
 
   const { adapter, model } = getAdapter(opts.chat, opts.user, opts.settings)
 
@@ -282,7 +311,6 @@ export async function injectPlaceholders(template: string, inject: InjectOpts) {
  */
 export function ensureValidTemplate(
   template: string,
-  _parts: PromptParts,
   skip?: Array<'history' | 'post' | 'persona' | 'scenario' | 'userEmbed' | 'chatEmbed'>
 ) {
   const skips = new Set(skip || [])
@@ -399,8 +427,7 @@ export async function buildPromptParts(
   if (replyAs.characterBook) books.push(replyAs.characterBook)
   if (opts.book) books.push(opts.book)
 
-  const memory = await buildMemoryPrompt({ ...opts, books, lines: linesForMemory }, encoder)
-  parts.memory = memory?.prompt
+  parts.memory = await buildMemoryPrompt({ ...opts, books, lines: linesForMemory }, encoder)
 
   const supplementary = getSupplementaryParts(opts, replyAs)
   parts.ujb = supplementary.ujb
@@ -410,23 +437,23 @@ export async function buildPromptParts(
 
   if (opts.userEmbeds) {
     const embeds = opts.userEmbeds.map((line) => line.text)
-    const fit = await fillPromptWithLines(
+    const { adding: fit } = await fillPromptWithLines({
       encoder,
-      opts.settings?.memoryUserEmbedLimit || 500,
-      '',
-      embeds
-    )
+      tokenLimit: opts.settings?.memoryUserEmbedLimit || 500,
+      context: '',
+      lines: embeds,
+    })
     parts.userEmbeds = fit
   }
 
   if (opts.chatEmbeds) {
     const embeds = opts.chatEmbeds.map((line) => `${line.name}: ${line.text}`)
-    const fit = await fillPromptWithLines(
+    const { adding: fit } = await fillPromptWithLines({
       encoder,
-      opts.settings?.memoryChatEmbedLimit || 500,
-      '',
-      embeds
-    )
+      tokenLimit: opts.settings?.memoryChatEmbedLimit || 500,
+      context: '',
+      lines: embeds,
+    })
     parts.chatEmbeds = fit
   }
 
@@ -499,7 +526,7 @@ function removeEmpty(value?: string) {
  * In `createPrompt()`, we trim this down to fit into the context with all of the chat and character context
  */
 export async function getLinesForPrompt(
-  { settings, char, members, messages, continue: cont, book, ...opts }: PromptOpts,
+  { settings, members, messages, continue: cont, book, ...opts }: PromptOpts,
   encoder: TokenCounter,
   maxContext?: number
 ) {
@@ -512,25 +539,40 @@ export async function getLinesForPrompt(
   }
 
   const formatMsg = (msg: AppSchema.ChatMessage) => {
+    const profile = msg.userId ? profiles.get(msg.userId) : opts.sender
     const sender = opts.impersonate
       ? opts.impersonate.name
       : profiles.get(msg.userId || opts.chat.userId)?.handle || 'You'
 
-    const botName = getBotName(
+    const author = getMessageAuthor(
+      opts.chat,
+      msg,
+      opts.characters,
+      profiles,
+      opts.sender,
+      opts.impersonate
+    )
+    const char = getBotName(
       opts.chat,
       msg,
       opts.characters,
       opts.replyAs,
-      char,
+      opts.char,
+      profile || opts.sender,
       opts.impersonate
     )
 
-    return fillPlaceholders(msg, botName, sender).trim()
+    return fillPlaceholders({ msg, author, char, user: sender }).trim()
   }
 
   const history = messages.slice().sort(sortMessagesDesc).map(formatMsg)
 
-  const lines = await fillPromptWithLines(encoder, maxContext, '', history)
+  const { adding: lines } = await fillPromptWithLines({
+    encoder,
+    tokenLimit: maxContext,
+    context: '',
+    lines: history,
+  })
 
   if (opts.trimSentences) {
     return lines.map(trimSentence)
@@ -553,16 +595,26 @@ export function formatInsert(insert: string): string {
  * - srv/adapter/chat-completion.ts toChatCompletionPayload
  * - srv/adapter/claude.ts createClaudePrompt
  */
-export async function fillPromptWithLines(
-  encoder: TokenCounter,
-  tokenLimit: number,
-  amble: string,
-  lines: string[],
-  inserts: Map<number, string> = new Map()
-) {
-  const insertsCost = await encoder([...inserts.values()].join(' '))
+export async function fillPromptWithLines(opts: {
+  encoder: TokenCounter
+  tokenLimit: number
+  context: string
+  lines: string[]
+
+  /** Nodes to be inserted at a particular depth in the `lines` */
+  inserts?: Map<number, string>
+  optional?: Array<{ id: string; content: string }>
+}) {
+  const { encoder, tokenLimit, context, lines, inserts = new Map(), optional = [] } = opts
+  const insertsCost = await encoder(Array.from(inserts.values()).join(' '))
   const tokenLimitMinusInserts = tokenLimit - insertsCost
-  let count = await encoder(amble)
+
+  /**
+   * Optional placeholders do not count towards token counts.
+   * They are optional after everything else has been inserted therefore we remove them from the prompt
+   */
+  const cleanContext = optional.reduce((amble, { id }) => amble.replace(id, ''), context)
+  let count = await encoder(cleanContext)
   const adding: string[] = []
 
   let linesAddedCount = 0
@@ -578,6 +630,7 @@ export async function fillPromptWithLines(
     adding.push(line)
     linesAddedCount++
   }
+
   // We don't omit inserts with depth > message count in context size
   // instead we put them at the top of the conversation history
   const remainingInserts = insertsDeeperThanConvoHistory(inserts, linesAddedCount)
@@ -585,7 +638,8 @@ export async function fillPromptWithLines(
     adding.push(formatInsert(remainingInserts))
   }
 
-  return adding
+  const unusedTokens = tokenLimitMinusInserts - count
+  return { adding, unusedTokens, linesAddedCount }
 }
 
 export function insertsDeeperThanConvoHistory(
@@ -598,9 +652,14 @@ export function insertsDeeperThanConvoHistory(
     .join('\n')
 }
 
-function fillPlaceholders(chatMsg: AppSchema.ChatMessage, char: string, user: string): string {
-  const prefix = chatMsg.system ? 'System' : chatMsg.characterId ? char : user
-  const msg = chatMsg.msg.replace(BOT_REPLACE, char).replace(SELF_REPLACE, user)
+function fillPlaceholders(opts: {
+  msg: AppSchema.ChatMessage
+  author: string
+  char: string
+  user: string
+}): string {
+  const prefix = opts.msg.system ? 'System' : opts.author
+  const msg = opts.msg.msg.replace(BOT_REPLACE, opts.char).replace(SELF_REPLACE, opts.user)
 
   return `${prefix}: ${msg}`
 }
@@ -671,10 +730,7 @@ export function getAdapter(
   config: AppSchema.User,
   preset: Partial<AppSchema.GenSettings> | undefined
 ) {
-  const chatAdapter =
-    !chat.adapter || chat.adapter === 'default' ? config.defaultAdapter : chat.adapter
-
-  let adapter = preset?.service ? preset.service : chatAdapter
+  let adapter = preset?.service!
 
   const thirdPartyFormat = preset?.thirdPartyFormat || config.thirdPartyFormat
   const isThirdParty = thirdPartyFormat in THIRDPARTY_HANDLERS && adapter === 'kobold'

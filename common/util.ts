@@ -155,23 +155,48 @@ export function escapeRegex(string: string) {
   return string.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&')
 }
 
+export function getMessageAuthor(
+  chat: AppSchema.Chat,
+  msg: AppSchema.ChatMessage,
+  chars: Record<string, AppSchema.Character>,
+  members: Map<string, AppSchema.Profile>,
+  sender: AppSchema.Profile,
+  impersonate?: AppSchema.Character
+) {
+  if (msg.characterId) {
+    const char =
+      msg.characterId === impersonate?._id
+        ? impersonate
+        : chars[msg.characterId] || chat.tempCharacters?.[msg.characterId]
+    return char!.name
+  }
+
+  if (msg.userId) {
+    return members.get(msg.userId)?.handle || sender.handle || 'You'
+  }
+
+  return impersonate?.name || sender.handle || 'You'
+}
+
 export function getBotName(
   chat: AppSchema.Chat,
   msg: AppSchema.ChatMessage,
   chars: Record<string, AppSchema.Character>,
   replyAs: AppSchema.Character,
   main: AppSchema.Character,
+  sender: AppSchema.Profile,
   impersonate?: AppSchema.Character
 ) {
-  if (!msg.characterId) return replyAs?.name || main.name
-  if (msg.characterId.startsWith('temp-')) {
-    const temp = chat.tempCharacters?.[msg.characterId]
+  const charId = msg.characterId || ''
+  if (!charId) return replyAs?.name || main.name
+
+  if (charId.startsWith('temp-')) {
+    const temp = chat.tempCharacters?.[charId]
     if (!temp) return main.name
     return temp.name
   }
 
-  const char =
-    msg.characterId && impersonate?._id === msg.characterId ? impersonate : chars[msg.characterId]
+  const char = msg.characterId && impersonate?._id === msg.characterId ? impersonate : chars[charId]
 
   if (!char) {
     return main.name
@@ -180,7 +205,13 @@ export function getBotName(
   return char.name
 }
 
-export function eventGenerator<T = any>() {
+export type EventGenerator<T> = {
+  stream: AsyncGenerator<T, T>
+  push: (value: T) => void
+  done: () => void
+}
+
+export function eventGenerator<T = any>(): EventGenerator<T> {
   const queue: Array<Promise<any>> = []
   let done = false
   let signal = false
@@ -260,4 +291,53 @@ export function deepClone<T extends object>(obj: T): T {
   }
 
   return copy
+}
+
+export function getUserSubscriptionTier(user: AppSchema.User, tiers: AppSchema.SubscriptionTier[]) {
+  let nativeTier = tiers.find((t) => user.sub && t._id === user.sub.tierId)
+  let patronTier = tiers.find((t) => user.patreon?.sub && t._id === user.patreon.sub.tierId)
+
+  const nativeExpired = isExpired(user.billing?.validUntil) || user.billing?.status === 'cancelled'
+  const patronExpired =
+    isExpired(user.patreon?.member?.attributes.next_charge_date) ||
+    user.patreon?.member?.attributes.patron_status !== 'active_patron'
+
+  if (nativeExpired) {
+    nativeTier = undefined
+  }
+
+  if (patronExpired) {
+    patronTier = undefined
+  }
+
+  if (!nativeTier && !patronTier) return
+
+  if (!nativeTier || !patronTier) {
+    const tier = nativeTier || patronTier
+    const level = tier!.level
+    const type: 'native' | 'patreon' = nativeTier ? 'native' : 'patreon'
+
+    return { tier: tier!, level, type }
+  }
+
+  const type: 'native' | 'patreon' = nativeTier.level >= patronTier.level ? 'native' : 'patreon'
+  const tier = type === 'native' ? nativeTier : patronTier
+  const level = tier.level
+
+  return { type, tier, level }
+}
+
+function isExpired(expiresAt?: string) {
+  if (!expiresAt) return true
+
+  const expires = new Date(expiresAt).valueOf()
+  if (Date.now() > expires) return true
+  return false
+}
+
+export function isPastDate(date: Date | string) {
+  const ms = typeof date === 'string' ? new Date(date).valueOf() : date.valueOf()
+
+  if (Date.now() > ms) return true
+  return false
 }

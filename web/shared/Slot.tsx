@@ -54,16 +54,21 @@ const Slot: Component<{
   size?: SlotSize
 }> = (props) => {
   let ref: HTMLDivElement | undefined = undefined
+  const cfg = settingStore((s) => {
+    const parsed = tryParse<Partial<SettingState['slots']>>(s.config.serverConfig?.slots || '{}')
+    const config = {
+      provider: parsed.provider || s.slots.provider,
+      publisherId: parsed.publisherId || s.slots.publisherId,
+      slots: Object.assign(s.slots, parsed) as SettingState['slots'],
+      flags: s.flags,
+      ready: s.slotsLoaded && s.initLoading === false,
+      config: s.config.serverConfig,
+    }
+    return config
+  })
   const user = userStore((s) => ({
-    tier: s.tiers.find((t) => t._id === s.user?.sub?.tierId),
     user: s.user,
-  }))
-  const cfg = settingStore((s) => ({
-    publisherId: s.slots.publisherId,
-    slots: s.slots,
-    slotsLoaded: s.slotsLoaded,
-    flags: s.flags,
-    ready: s.initLoading === false,
+    sub: s.sub,
   }))
 
   const [stick, setStick] = createSignal(props.sticky)
@@ -77,8 +82,7 @@ const Slot: Component<{
   const [actualId, setActualId] = createSignal('...')
 
   const id = createMemo(() => {
-    if (cfg.slots.provider === 'ez' || cfg.flags.reporting)
-      return `ezoic-pub-ad-placeholder-${uniqueId() || '###'}`
+    if (cfg.provider === 'ez') return `ezoic-pub-ad-placeholder-${uniqueId() || '###'}`
     return `${props.slot}-${uniqueId()}`
   })
 
@@ -99,6 +103,8 @@ const Slot: Component<{
   }
 
   const specs = createMemo(() => {
+    if (!cfg.ready) return null
+
     resize.size()
     props.parent?.clientWidth
     parentSize.size()
@@ -193,7 +199,7 @@ const Slot: Component<{
     idLocks.delete(uniqueId()!)
     log('Cleanup')
 
-    if (cfg.slots.provider === 'ez' || cfg.flags.reporting) {
+    if (cfg.provider === 'ez') {
       if (!ezstandalone.getSelectedPlaceholders) return
       const id = uniqueId()
       const holders = ezstandalone.getSelectedPlaceholders()
@@ -214,20 +220,16 @@ const Slot: Component<{
       return
     }
 
-    if (!cfg.slotsLoaded) {
-      return log('Slot not ready')
-    }
-
     if (!cfg.publisherId) {
       return log('No publisher id')
     }
 
-    if (user.tier?.disableSlots) {
+    if (user.sub?.tier?.disableSlots) {
       props.parent.style.display = 'hidden'
       return log('Slots are tier disabled')
     }
 
-    if (!cfg.slots.provider) {
+    if (!cfg.provider) {
       return log('No provider configured')
     }
 
@@ -252,36 +254,9 @@ const Slot: Component<{
     const num = uniqueId() || getUniqueId(props.slot, cfg.slots, uniqueId())
     setUniqueId(num)
 
-    if (cfg.slots.provider === 'ez' || cfg.flags.reporting) {
+    if (cfg.provider === 'ez') {
       invoke(log, num)
-      // ezReady.then(() => {
-      // ezstandalone.cmd.push(() => {
-      //   if (!ezstandalone.enabled) {
-      //     log('[ez]', num, `dispatched #${num}`)
-      //     ezstandalone.define(num)
-      //     ezstandalone.enable()
-      //     ezstandalone.display()
-      //   } else {
-      //     log('[ez]', num, `dispatched #${num} (more)`)
-      //     // ezstandalone.define(...nums)
-      //     ezstandalone.displayMore(num)
-      //   }
-      // })
-
-      // const timer = setInterval(() => {
-      //   const holders = ezstandalone.getSelectedPlaceholders()
-      //   const inUse = idLocks.has(num)
-      //   if (!inUse || holders[num]) {
-      //     clearInterval(timer)
-      //   } else {
-      //     ezstandalone.cmd.push(() => {
-      //       log('[ez]', num, 'retrying display')
-      //       ezstandalone.displayMore(num)
-      //     })
-      //   }
-      // }, 200)
-      // })
-    } else if (cfg.slots.provider === 'google') {
+    } else if (cfg.provider === 'google') {
       gtmReady.then(() => {
         googletag.cmd.push(function () {
           const slotId = getSlotId(`/${cfg.publisherId}/${spec.id}`)
@@ -336,7 +311,9 @@ const Slot: Component<{
   return (
     <>
       <Switch>
-        <Match when={!user.user || !specs() || user.tier?.disableSlots}>{null}</Match>
+        <Match when={!cfg.ready || !user.user || !specs() || user.sub?.tier?.disableSlots}>
+          {null}
+        </Match>
         <Match when={specs()!.video && cfg.slots.gtmVideoTag}>
           <div
             id={id()}
@@ -591,3 +568,14 @@ const [invoke] = createDebounce((log: (typeof console)['log'], self: number) => 
     })
   })
 }, 1000)
+
+function tryParse<T = any>(json: string) {
+  if (!json) return {} as T
+
+  try {
+    const obj = JSON.parse(json)
+    return obj as T
+  } catch (ex) {
+    return {} as T
+  }
+}

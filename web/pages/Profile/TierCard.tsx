@@ -1,6 +1,6 @@
-import { Component, createMemo } from 'solid-js'
+import { Component, Show, createMemo } from 'solid-js'
 import { AppSchema } from '/common/types'
-import { TitleCard } from '/web/shared/Card'
+import { SolidCard } from '/web/shared/Card'
 import { markdown } from '/web/shared/markdown'
 
 type TierPreview = OmitId<
@@ -11,18 +11,60 @@ type TierPreview = OmitId<
 export const TierCard: Component<{ tier: TierPreview; children?: any; class?: string }> = (
   props
 ) => {
-  const cost = createMemo(() => {
-    if (props.tier.cost > 0) return '$' + (props.tier.cost / 100).toFixed(2) + '/mo'
-    return 'None'
+  const stripeCost = createMemo(() => {
+    const prices: any[] = []
+    if (props.tier.cost > 0) {
+      const cost = (
+        <div>
+          ${(props.tier.cost / 100).toFixed(2)}/mo <span class="text-600 text-xs">Stripe</span>
+        </div>
+      )
+      return cost
+    }
+
+    if (props.tier.patreon?.cost) {
+      const cost = (props.tier.patreon?.cost / 100).toFixed(2)
+      prices.push(`Patreon: $${cost}/mo`)
+    }
+
+    return null
   })
+
+  const patreonCost = createMemo(() => {
+    if (props.tier.patreon?.cost) {
+      const cost = (
+        <div>
+          ${(props.tier.patreon.cost / 100).toFixed(2)}/mo{' '}
+          <span class="text-600 text-xs">Patreon</span>
+        </div>
+      )
+      return cost
+    }
+
+    return null
+  })
+
   return (
-    <TitleCard class={`flex w-full flex-col gap-2 sm:w-1/2 ${props.class || ''}`}>
-      <div class="flex justify-center text-lg font-bold text-[var(--hl-500)]">
-        {props.tier.name}
+    <SolidCard
+      border
+      class={`flex w-full flex-col justify-between gap-1 sm:w-1/2 ${props.class || ''}`}
+    >
+      <div>
+        <div class="flex justify-center text-lg font-bold text-[var(--hl-500)]">
+          {props.tier.name}
+        </div>
+        <div class="markdown text-sm" innerHTML={markdown.makeHtml(props.tier.description)} />
       </div>
-      <div class="markdown text-sm" innerHTML={markdown.makeHtml(props.tier.description)} />
-      <div class="flex justify-center text-lg font-bold">{cost()}</div>
-      {props.children}
-    </TitleCard>
+      <div>
+        <div class="text-md flex flex-col items-center font-bold">
+          {stripeCost()}
+          <Show when={props.tier.cost > 0 && !!props.tier.patreon?.cost}>
+            <div class="text-xs">or</div>
+          </Show>
+          {patreonCost()}
+        </div>
+        {props.children}
+      </div>
+    </SolidCard>
   )
 }

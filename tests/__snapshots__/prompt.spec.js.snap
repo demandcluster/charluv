@@ -1,5 +1,17 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`Prompt building will allow using wildcards in keywords 1`] = `
+"MainChar's Persona: MainCharacter talks a lot
+
+Scenario: MAIN MainChar
+Facts:ENTRY 1
+How MainChar speaks: SAMPLECHAT MainChar
+
+<START>
+ChatOwner: ebooks
+MainChar:"
+`;
+
 exports[`Prompt building will build a basic prompt 1`] = `
 "OtherBot's Persona: OtherBot replies a lot
 
@@ -22,6 +34,18 @@ How MainChar speaks: SAMPLECHAT MainChar
 MainChar: FIRST
 MainChar: ORIGINAL
 MainChar:"
+`;
+
+exports[`Prompt building will disallow injecting arbitrary regexes 1`] = `
+"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa's Persona: MainCharacter talks a lot
+
+Scenario: MAIN aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+Facts:ENTRY 1
+How aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa speaks: SAMPLECHAT aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+<START>
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: books
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:"
 `;
 
 exports[`Prompt building will exclude lowest priority memory to fit in budget 1`] = `
@@ -81,9 +105,6 @@ OtherBot:"
 
 exports[`Prompt building will exclude scenario when empty in condition 1`] = `
 "Roleplay instructions
-How OtherBot speaks:
-SAMPLECHAT OtherBot
-<START>
 MainChar: first
 OtherBot:"
 `;
@@ -95,9 +116,6 @@ OtherBot
 Facts: ENTRY ONE
 ENTRY TIE
 ENTRY THREE
-How OtherBot speaks:
-SAMPLECHAT OtherBot
-<START>
 MainChar: FIRST
 ChatOwner: 1-TRIGGER
 ChatOwner: TIE-TRIGGER
@@ -107,9 +125,6 @@ OtherBot:"
 
 exports[`Prompt building will include gaslight for non-turbo adapter 1`] = `
 "GASLIGHT ChatOwner
-How OtherBot speaks:
-SAMPLECHAT OtherBot
-<START>
 MainChar: FIRST
 ChatOwner: 1-TRIGGER
 ChatOwner: TIE-TRIGGER
@@ -124,9 +139,6 @@ OtherBot
 Facts:ENTRY ONE
 ENTRY TIE
 ENTRY THREE
-How OtherBot speaks:
-SAMPLECHAT OtherBot
-<START>
 MainChar: FIRST
 ChatOwner: 1-TRIGGER
 ChatOwner: TIE-TRIGGER
@@ -136,9 +148,6 @@ OtherBot:"
 
 exports[`Prompt building will include sample chat when gaslight does not contain sample chat placeholder 1`] = `
 "Gaslight
-How OtherBot speaks:
-SAMPLECHAT OtherBot
-System: New conversation started. Previous conversations are examples only.
 MainChar: FIRST
 ChatOwner: SECOND
 MainChar: ORIGINAL
@@ -148,10 +157,22 @@ OtherBot:"
 exports[`Prompt building will include scenario when populated in condition 1`] = `
 "Roleplay instructions
 Scenario: Populated scenario
-How OtherBot speaks:
-SAMPLECHAT OtherBot
-<START>
 MainChar: first
+OtherBot:"
+`;
+
+exports[`Prompt building will include two memories by weight when triggered 1`] = `
+"OtherBot's Persona: OtherBot replies a lot
+
+Scenario: MAIN MainChar
+Facts:ENTRY ONE
+ENTRY TWO
+How OtherBot speaks: SAMPLECHAT OtherBot
+
+<START>
+MainChar: FIRST
+ChatOwner: 10-TRIGGER
+ChatOwner: 1-TRIGGER
 OtherBot:"
 `;
 
@@ -180,42 +201,26 @@ Object {
     "userEmbeds": Array [],
   },
   "template": Object {
+    "history": Array [
+      "MainChar: bot response",
+    ],
     "inserts": Map {},
-    "length": 48,
+    "length": 31,
+    "linesAddedCount": 1,
     "parsed": "GASLIGHT TEMPLATE
 ChatOwner
 OtherBot
 Auto-injected text:
-How OtherBot speaks:
-SAMPLECHAT OtherBot
-<START>
 MainChar: bot response
 OtherBot:",
   },
 }
 `;
 
-exports[`Prompt building will include will two memories by weight when triggered 1`] = `
-"OtherBot's Persona: OtherBot replies a lot
-
-Scenario: MAIN MainChar
-Facts:ENTRY ONE
-ENTRY TWO
-How OtherBot speaks: SAMPLECHAT OtherBot
-
-<START>
-MainChar: FIRST
-ChatOwner: 10-TRIGGER
-ChatOwner: 1-TRIGGER
-OtherBot:"
-`;
-
 exports[`Prompt building will not use other character book 1`] = `
 "OtherBot's Persona: OtherBot replies a lot
 
 Scenario: MAIN MainChar
-Facts:
-
 How OtherBot speaks: SAMPLECHAT OtherBot
 
 <START>
@@ -230,9 +235,6 @@ OtherBot
 Facts: ENTRY ONE
 ENTRY TIE
 ENTRY THREE
-How OtherBot speaks:
-SAMPLECHAT OtherBot
-<START>
 MainChar: FIRST
 ChatOwner: 1-TRIGGER
 ChatOwner: TIE-TRIGGER
@@ -266,6 +268,32 @@ ChatOwner: 20-TRIGGER
 OtherBot:"
 `;
 
+exports[`Prompt building will put char book entries with higher weight after mem book entries 1`] = `
+"MainChar's Persona: MainCharacter talks a lot
+
+Scenario: MAIN MainChar
+Facts:ENTRY 10
+ENTRY 20
+How MainChar speaks: SAMPLECHAT MainChar
+
+<START>
+ChatOwner: TRIGGER
+MainChar:"
+`;
+
+exports[`Prompt building will put mem book entries with higher weight after char book entries 1`] = `
+"MainChar's Persona: MainCharacter talks a lot
+
+Scenario: MAIN MainChar
+Facts:ENTRY 10
+ENTRY 20
+How MainChar speaks: SAMPLECHAT MainChar
+
+<START>
+ChatOwner: TRIGGER
+MainChar:"
+`;
+
 exports[`Prompt building will use correct placeholders in scenario and sample chat 1`] = `
 "OtherBot's Persona: OtherBot replies a lot
 
@@ -282,7 +310,6 @@ exports[`Prompt building will use currently speaking character book 1`] = `
 
 Scenario: MAIN MainChar
 Facts:ENTRY
-
 How OtherBot speaks: SAMPLECHAT OtherBot
 
 <START>

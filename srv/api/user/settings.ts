@@ -18,6 +18,7 @@ import { toArray } from '/common/util'
 import { UI } from '/common/types'
 import { publishOne } from '../ws/handle'
 import { getLanguageModels } from '/srv/adapter/replicate'
+import { getUser } from '/srv/db/user'
 
 export const getInitialLoad = handle(async ({ userId }) => {
   const replicate = await getLanguageModels()
@@ -48,6 +49,24 @@ export const getProfile = handle(async ({ userId, params }) => {
 export const getConfig = handle(async ({ userId }) => {
   const user = await getSafeUserConfig(userId!)
   return user
+})
+
+export const revealApiKey = handle(async ({ userId }) => {
+  const user = await getUser(userId!)
+  if (!user?.apiKey) {
+    throw new StatusError('No API key set - Please generate an API key first', 400)
+  }
+
+  return { apiKey: user.apiKey }
+})
+
+export const generateApiKey = handle(async ({ userId }) => {
+  const user = await getUser(userId!)
+  if (!user) throw errors.Unauthorized
+
+  const key = `${userId}_${v4().replace(/-/g, '')}`
+  await store.users.updateUser(userId, { apiKey: key })
+  return { apiKey: key }
 })
 
 export const deleteScaleKey = handle(async ({ userId }) => {
@@ -157,6 +176,7 @@ export const updatePartialConfig = handle(async ({ userId, body }) => {
       scaleApiKey: 'string?',
       claudeApiKey: 'string?',
       elevenLabsApiKey: 'string?',
+      patreonToken: 'string?',
     },
     body
   )
@@ -394,11 +414,19 @@ export async function getSafeUserConfig(userId: string) {
   const user = await store.users.getUser(userId!)
   if (!user) return
 
+  if (user.patreon) {
+    user.patreon.access_token = ''
+    user.patreon.refresh_token = ''
+    user.patreon.scope = ''
+    user.patreon.token_type = ''
+  }
+
   if (user.novelApiKey) {
     user.novelApiKey = ''
   }
 
   user.hordeKey = ''
+  user.apiKey = user.apiKey ? '*********' : 'Not set'
 
   if (user.oaiKey) {
     user.oaiKeySet = true

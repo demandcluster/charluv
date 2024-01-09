@@ -24,6 +24,7 @@ import { neat } from '/common/util'
 import { getServiceTempConfig, getUserPreset } from '/web/shared/adapter'
 import { msgStore } from '../message'
 import { embedApi } from '../embeddings'
+import { replaceTags } from '/common/presets/templates'
 
 export type PromptEntities = {
   chat: AppSchema.Chat
@@ -43,6 +44,7 @@ export type PromptEntities = {
 }
 
 export const msgsApi = {
+  swapMessage,
   editMessage,
   editMessageProps,
   getMessages,
@@ -50,10 +52,7 @@ export const msgsApi = {
   generateResponse,
   deleteMessages,
   basicInference,
-  createActiveChatPrompt,
   guidance,
-  rerunGuidance,
-  generateActions,
   getActiveTemplateParts,
   getChatSummary,
 }
@@ -63,32 +62,6 @@ type InferenceOpts = {
   settings?: Partial<AppSchema.GenSettings>
   service?: string
   maxTokens?: number
-}
-
-export async function generateActions() {
-  const { settings, impersonating, profile, user, messages, ...entities } =
-    await getPromptEntities()
-  const { prompt } = await createActiveChatPrompt({ kind: 'continue' }, 1024)
-
-  const last = messages.slice(-1)[0]
-
-  if (!last) {
-    toastStore.warn('Cannot generate actions: No messages')
-    return
-  }
-
-  const res = await api.post<{ actions: AppSchema.ChatAction[] }>(`/chat/${last._id}/actions`, {
-    service: settings.service,
-    settings,
-    impersonating,
-    profile,
-    user,
-    lines: prompt.lines,
-    char: entities.char,
-    chat: entities.chat,
-    characters: entities.characters,
-  })
-  return res
 }
 
 export async function basicInference({ prompt, settings }: InferenceOpts) {
@@ -111,13 +84,16 @@ export async function basicInference({ prompt, settings }: InferenceOpts) {
   return res
 }
 
-export async function guidance<T = any>({
-  prompt,
-  service,
-  maxTokens,
-  settings,
-  previous,
-}: InferenceOpts & { previous?: any }): Promise<T> {
+export async function guidance<T = any>(
+  opts: InferenceOpts & {
+    presetId?: string
+    previous?: any
+    lists?: Record<string, string[]>
+    placeholders?: Record<string, string | string[]>
+    rerun?: string[]
+  }
+): Promise<T> {
+  const { prompt, service, maxTokens, settings, previous, lists, rerun, placeholders } = opts
   const requestId = v4()
   const { user } = userStore.getState()
 
@@ -125,51 +101,43 @@ export async function guidance<T = any>({
     throw new Error(`Could not get user settings. Refresh and try again.`)
   }
 
-  const fallback = service === 'default' ? getUserPreset(user.defaultPreset) : undefined
+  const fallback = service === 'default' || !service ? getUserPreset(user.defaultPreset) : undefined
 
   const res = await api.method<{ result: string; values: T }>('post', `/chat/guidance`, {
     requestId,
     user,
-    settings: settings || fallback,
+    presetId: opts.presetId,
+    settings: opts.presetId ? undefined : settings || fallback,
     prompt,
-    service,
+    service: service || settings?.service || fallback?.service,
     maxTokens,
     previous,
+    lists,
+    placeholders,
+    reguidance: rerun,
   })
 
   if (res.error) throw new Error(res.error)
   return res.result!.values
 }
 
-export async function rerunGuidance<T = any>({
-  prompt,
-  service,
-  maxTokens,
-  rerun,
-  previous,
-}: InferenceOpts & { previous?: any; rerun: string[] }): Promise<T> {
-  const requestId = v4()
-  const { user } = userStore.getState()
+export async function swapMessage(msg: AppSchema.ChatMessage, _msg: string, _retries: string[]) {
+  return swapMessageProps(msg, { msg: _msg, retries: _retries })
+}
 
-  if (!user) {
-    throw new Error(`Could not get user settings. Refresh and try again.`)
+export async function swapMessageProps(
+  msg: AppSchema.ChatMessage,
+  update: Partial<AppSchema.ChatMessage>
+) {
+  if (isLoggedIn()) {
+    const res = await api.method('put', `/chat/${msg._id}/message-swap`, update)
+    return res
   }
 
-  const settings = service === 'default' ? getUserPreset(user.defaultPreset) : undefined
-
-  const res = await api.method<{ result: string; values: T }>('post', `/chat/reguidance`, {
-    requestId,
-    user,
-    prompt,
-    service,
-    maxTokens,
-    settings,
-    rerun,
-    previous,
-  })
-
-  if (res.error) throw new Error(res.error)
-  return res.result!.values
+  const messages = await localApi.getMessages(msg.chatId)
+  const next = replace(msg._id, messages, update)
+  await localApi.saveMessages(msg.chatId, next)
+  return localApi.result({ success: true })
 }
 
 export async function editMessage(msg: AppSchema.ChatMessage, replace: string) {
@@ -362,8 +330,7 @@ async function getActivePromptOptions(
 }
 
 async function createActiveChatPrompt(
-  opts: Exclude<GenerateOpts, { kind: 'ooc' | 'send-noreply' }>,
-  maxContext?: number
+  opts: Exclude<GenerateOpts, { kind: 'ooc' | 'send-noreply' }>
 ) {
   const { active } = chatStore.getState()
   const { ui } = userStore.getState()
@@ -411,18 +378,16 @@ async function createActiveChatPrompt(
       userEmbeds,
       resolvedScenario,
     },
-    encoder,
-    maxContext
+    encoder
   )
 
-  const retrieveBefore = props.messages[props.messages.length - prompt.lines.length - 1]
-  const chats =
-    !!retrieveBefore && text
-      ? await embedApi.query(entities.chat._id, text, retrieveBefore.createdAt)
-      : null
+  if (entities.settings.modelFormat) {
+    prompt.template.parsed = replaceTags(prompt.template.parsed, entities.settings.modelFormat)
+  }
 
-  const users =
-    text && entities.chat.userEmbedId ? await embedApi.query(entities.chat.userEmbedId, text) : null
+  const embedLines = (prompt.template.history || prompt.lines).slice()
+
+  const { users, chats } = await getRetrievalBreakpoint(text, entities, props.messages, embedLines)
 
   if (chats?.messages.length) {
     for (const chat of chats.messages) {
@@ -441,6 +406,38 @@ async function createActiveChatPrompt(
     }
   }
   return { prompt, props, entities, chatEmbeds, userEmbeds }
+}
+
+async function getRetrievalBreakpoint(
+  text: string | undefined,
+  { settings, chat }: PromptEntities,
+  messages: AppSchema.ChatMessage[],
+  lines: string[]
+) {
+  if (!text) return { users: undefined, chats: undefined }
+
+  const embedLimit = (settings.memoryChatEmbedLimit ?? 0) + (settings.memoryUserEmbedLimit ?? 0)
+
+  const encoder = await getEncoder()
+  let removed = 0
+  let count = 0
+  for (const line of lines) {
+    const size = await encoder(line)
+    removed += size
+    count++
+
+    if (removed > embedLimit) break
+  }
+
+  const users = text && chat.userEmbedId ? await embedApi.query(chat.userEmbedId, text) : undefined
+
+  const bp = messages[messages.length - count - 1]
+  if (!bp) return { users, chats: undefined }
+
+  const chats = settings.memoryChatEmbedLimit
+    ? await embedApi.query(chat._id, text, bp.createdAt)
+    : undefined
+  return { users, chats }
 }
 
 export type GenerateProps = {
@@ -488,8 +485,6 @@ async function getGenerateProps(
       char: active.char,
       characters: entities.characters,
       chat: active.chat,
-      lines: [],
-      parts: {} as any,
       replyAs: props.replyAs,
       sender: entities.profile,
       impersonate: props.impersonate,
@@ -568,7 +563,13 @@ async function getGenerateProps(
       if (!entities.autoReplyAs) throw new Error(`No character selected to reply with`)
       props.impersonate = entities.impersonating
       props.replyAs = getBot(entities.autoReplyAs)
-      props.messages.push(emptyMsg(entities.chat, { msg: opts.text, userId: entities.user._id }))
+      props.messages.push(
+        emptyMsg(entities.chat, {
+          msg: opts.text,
+          userId: entities.user._id,
+          characterId: entities.impersonating?._id,
+        })
+      )
       break
     }
 
@@ -754,6 +755,7 @@ function emptyMsg(
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     msg: '',
+    retries: [],
     ...props,
   }
 }

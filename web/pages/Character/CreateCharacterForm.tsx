@@ -47,12 +47,15 @@ import { rootModalStore } from '/web/store/root-modal'
 import { getAssetUrl } from '/web/shared/util'
 
 const formatOptions = [
-  { value: 'wpp', label: 'W++' },
-  { value: 'boostyle', label: 'Boostyle' },
-  { value: 'sbf', label: 'SBF' },
-  { value: 'attributes', label: 'Attributes' },
+  { value: 'attributes', label: 'Attributes (Key: value)' },
   { value: 'text', label: 'Plain Text' },
 ]
+
+const backupFormats: any = {
+  sbf: { value: 'sbf', label: 'SBF' },
+  wpp: { value: 'wpp', label: 'W++' },
+  boostyle: { value: 'boostyle', label: 'Boostyle' },
+}
 
 export const CreateCharacterForm: Component<{
   chat?: AppSchema.Chat
@@ -114,6 +117,14 @@ export const CreateCharacterForm: Component<{
   const [showBuilder, setShowBuilder] = createSignal(false)
   const [converted, setConverted] = createSignal<AppSchema.Character>()
   const [showImport, setImport] = createSignal(false)
+
+  const personaFormats = createMemo(() => {
+    const options = formatOptions.slice()
+    if (editor.state.personaKind in backupFormats) {
+      options.push(backupFormats[editor.state.personaKind])
+    }
+    return options
+  })
 
   const totalTokens = createMemo(() => {
     const t = tokens()
@@ -211,17 +222,16 @@ export const CreateCharacterForm: Component<{
     const file = files[0].file
     editor.update('avatar', file)
     const data = await getImageData(file)
-
     setImage(data)
   }
 
   const onSubmit = async (ev: Event) => {
     const payload = editor.payload()
-    payload.avatar = state.avatar.blob || editor.state.avatar
+    payload.avatar = editor.state.avatar
 
     if (props.temp && props.chat) {
-      if (payload.avatar) {
-        const data = await getImageData(payload.avatar)
+      if (editor.state.avatar) {
+        const data = await getImageData(editor.state.avatar)
         payload.avatar = data
       }
       chatStore.upsertTempCharacter(props.chat._id, { ...payload, _id: props.editId }, (result) => {
@@ -269,6 +279,7 @@ export const CreateCharacterForm: Component<{
     <>
       <Show when={!props.noTitle && (isPage || paneOrPopup() === 'pane')}>
         <PageHeader
+          noslot={!!query.import}
           title={`${
             forceNew() ? 'Create' : props.editId ? 'Edit' : props.duplicateId ? 'Copy' : 'Create'
           } a Character`}
@@ -349,24 +360,21 @@ export const CreateCharacterForm: Component<{
                   rootModalStore.info(
                     'AI Character Generation',
                     <>
-                      <TitleCard class="text-sm" type="hl">
-                        <div class="font-bold">AI Generated Characters</div>
-                        1. Fill out the <Pill small>Description</Pill> field
-                        <br />
-                        2. Select the Service you wish to use
-                        <br />
-                        3. Click{' '}
-                        <Pill inverse type="hl" small>
-                          Generate
-                        </Pill>
-                        &nbsp;- It may take 30-60 seconds to generate.
-                        <br />
-                        4. Adjust the <Pill small>Description</Pill> and click{' '}
-                        <Pill type="hl" inverse small>
-                          Regenerate
-                        </Pill>
-                        &nbsp;to regenerate a specific field.
-                      </TitleCard>
+                      1. Fill out the <Pill small>Description</Pill> field
+                      <br />
+                      2. Select the Service you wish to use
+                      <br />
+                      3. Click{' '}
+                      <Pill inverse type="hl" small>
+                        Generate
+                      </Pill>
+                      &nbsp;- It may take 30-60 seconds to generate.
+                      <br />
+                      4. Adjust the <Pill small>Description</Pill> and click{' '}
+                      <Pill type="hl" inverse small>
+                        Regenerate
+                      </Pill>
+                      &nbsp;to regenerate a specific field.
                     </>
                   )
                 }}
@@ -441,11 +449,11 @@ export const CreateCharacterForm: Component<{
                       <div
                         class="flex items-baseline justify-center"
                         style={{ cursor: state.avatar.image || image() ? 'pointer' : 'unset' }}
-                        onClick={() => setImageUrl(state.avatar.image || image())}
+                        onClick={() => setImageUrl(editor.avatar() || image())}
                       >
                         <AvatarIcon
                           format={{ corners: 'sm', size: '3xl' }}
-                          avatarUrl={state.avatar.image || image()}
+                          avatarUrl={editor.avatar() || image()}
                         />
                       </div>
                     </Match>
@@ -565,7 +573,7 @@ export const CreateCharacterForm: Component<{
                       <div class="flex items-center gap-1">
                         Persona Schema{' '}
                         <Regenerate
-                          fields={['personality', 'behaviour', 'speech']}
+                          fields={['personality', 'behaviour']}
                           service={genService()}
                           editor={editor}
                           allowed={editor.canGuidance}
@@ -585,7 +593,7 @@ export const CreateCharacterForm: Component<{
                   />
                   <Select
                     fieldName="kind"
-                    items={formatOptions}
+                    items={personaFormats()}
                     value={editor.state.personaKind}
                     onChange={(kind) => editor.update({ personaKind: kind.value as any })}
                   />
@@ -607,7 +615,7 @@ export const CreateCharacterForm: Component<{
                     <>
                       Sample Conversation{' '}
                       <Regenerate
-                        fields={['example1', 'example2', 'example3']}
+                        fields={['example1', 'example2']}
                         service={genService()}
                         editor={editor}
                         allowed={editor.canGuidance}

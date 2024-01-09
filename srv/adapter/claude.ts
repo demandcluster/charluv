@@ -247,7 +247,6 @@ const streamCompletion: CompletionGenerator = async function* (url, body, header
  * - common/prompt.ts fillPromptWithLines
  * - srv/adapter/chat-completion.ts toChatCompletionPayload
  */
-
 async function createClaudePrompt(opts: AdapterProps) {
   if (opts.kind === 'plain') {
     return `\n\nHuman: ${opts.prompt}\n\nAssistant:`
@@ -259,41 +258,44 @@ async function createClaudePrompt(opts: AdapterProps) {
   const maxContextLength = gen.maxContextLength || defaultPresets.claude.maxContextLength
   const maxResponseTokens = gen.maxTokens ?? defaultPresets.claude.maxTokens
 
-  const { parsed: gaslight, inserts } = await injectPlaceholders(
-    ensureValidTemplate(gen.gaslight || defaultPresets.claude.gaslight, opts.parts, [
-      'history',
-      'post',
-    ]),
+  // Some API keys require that prompts start with this
+  const mandatoryPrefix = '\n\nHuman: '
+
+  const enc = encoder()
+
+  const { parsed: rawGaslight, inserts } = await injectPlaceholders(
+    ensureValidTemplate(gen.gaslight || defaultPresets.claude.gaslight, ['history', 'post']),
     {
       opts,
       parts,
       lastMessage: opts.lastMessage,
       characters: opts.characters || {},
-      encoder: encoder(),
+      encoder: enc,
     }
   )
-  const gaslightCost = await encoder()('Human: ' + gaslight)
-  let ujb = parts.ujb ? `Human: <system_note>${parts.ujb}</system_note>` : ''
-  ujb = (
-    await injectPlaceholders(ujb, {
-      opts,
-      parts,
-      encoder: encoder(),
-      characters: opts.characters || {},
-    })
-  ).parsed
+  const gaslight = processLine('system', rawGaslight)
+  const gaslightCost = await encoder()(mandatoryPrefix + gaslight)
+  let ujb = parts.ujb ? processLine('system', parts.ujb) : ''
+  const { parsed } = await injectPlaceholders(ujb, {
+    opts,
+    parts,
+    encoder: enc,
+    characters: opts.characters || {},
+  })
+
+  ujb = parsed
 
   const prefill = opts.gen.prefill ? opts.gen.prefill + '\n' : ''
-  const prefillCost = await encoder()(prefill)
+  const prefillCost = await enc(prefill)
 
   const maxBudget =
     maxContextLength -
     maxResponseTokens -
     gaslightCost -
     prefillCost -
-    (await encoder()(ujb)) -
-    (await encoder()(opts.replyAs.name + ':')) -
-    (await encoder()([...inserts.values()].join(' ')))
+    (await enc(ujb)) -
+    (await enc(opts.replyAs.name + ':')) -
+    (await enc([...inserts.values()].join(' ')))
 
   let tokens = 0
   const history: string[] = []
@@ -327,7 +329,7 @@ async function createClaudePrompt(opts: AdapterProps) {
     }
 
     const processedLine = processLine(lineType, line)
-    const cost = await encoder()(processedLine)
+    const cost = await enc(processedLine)
     if (cost + tokens >= maxBudget) break
     const insert = inserts.get(distanceFromBottom)
     if (insert) history.push(processLine('system', insert))
@@ -341,20 +343,25 @@ async function createClaudePrompt(opts: AdapterProps) {
     addedAllInserts = true
   }
 
-  const messages = [`\n\nHuman: ${gaslight}`, ...history.reverse()]
+  const messages = [gaslight, ...history.reverse()]
 
   if (ujb) {
     messages.push(ujb)
   }
 
   const continueAddon =
-    opts.kind === 'continue'
-      ? `\n\nHuman: <system_note>Continue ${replyAs.name}'s reply.</system_note>`
-      : ''
+    opts.kind === 'continue' ? processLine('system', `Continue ${replyAs.name}'s reply.`) : ''
 
+  const appendName = opts.gen.prefixNameAppend ?? true
   // <https://console.anthropic.com/docs/prompt-design#what-is-a-prompt>
   return (
-    messages.join('\n\n') + continueAddon + '\n\n' + 'Assistant: ' + prefill + replyAs.name + ':'
+    mandatoryPrefix +
+    messages.join('') +
+    continueAddon +
+    '\n\n' +
+    'Assistant: ' +
+    prefill +
+    (appendName ? replyAs.name + ':' : '')
   )
 }
 
@@ -363,18 +370,18 @@ type LineType = 'system' | 'char' | 'user' | 'example'
 function processLine(type: LineType, line: string) {
   switch (type) {
     case 'user':
-      return `Human: ${line}`
+      return `\n\nHuman: ${line}`
 
     case 'system':
-      return `Human:\n<system_note>\n${line}\n</system_note>`
+      return `\n\nSystem: ${line}`
 
     case 'example':
       const mid = line
-        .replace(START_REPLACE, '<system_note>New conversation started.</system_note>')
+        .replace(START_REPLACE, '<mod>New conversation started.</mod>')
         .replace('\n' + SAMPLE_CHAT_MARKER, '')
-      return `Human:\n<example_dialogue>\n${mid}\n</example_dialogue>`
+      return `\n\nHuman:\n<example_dialogue>\n${mid}\n</example_dialogue>`
 
     case 'char':
-      return `Assistant: ${line || ''}`
+      return `\n\nAssistant: ${line || ''}`
   }
 }

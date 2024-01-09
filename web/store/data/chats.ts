@@ -4,6 +4,8 @@ import { AppSchema } from '../../../common/types/schema'
 import { api, isLoggedIn } from '../api'
 import { loadItem, localApi, saveChats } from './storage'
 import { replace } from '/common/util'
+import { getStore } from '../create'
+import { parseTemplate } from '/common/template-parser'
 
 export type AllChat = AppSchema.Chat & { character?: { name: string } }
 
@@ -58,8 +60,11 @@ export async function getChat(id: string) {
 }
 
 export async function restartChat(chatId: string) {
+  const impersonating = getStore('character').getState().impersonating
   if (isLoggedIn()) {
-    const res = await api.method('post', `/chat/${chatId}/restart`)
+    const res = await api.method('post', `/chat/${chatId}/restart`, {
+      impersonating: impersonating?._id,
+    })
     return res
   }
 
@@ -73,15 +78,23 @@ export async function restartChat(chatId: string) {
   const greeting = char?.greeting
 
   if (char && greeting) {
+    const profile = getStore('user').getState().profile
+    const { parsed } = await parseTemplate(greeting, {
+      char,
+      chat,
+      sender: profile!,
+      impersonate: impersonating,
+    })
     await localApi.saveMessages(chatId, [
       {
         _id: v4(),
         kind: 'chat-message',
-        msg: greeting,
+        msg: parsed,
         characterId: char._id,
         chatId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        retries: char.alternateGreetings || [],
       },
     ])
   } else {
@@ -118,8 +131,13 @@ export async function editChat(
 }
 
 export async function createChat(characterId: string, props: NewChat) {
+  const impersonating = getStore('character').getState().impersonating
   if (isLoggedIn()) {
-    const res = await api.post<AppSchema.Chat>('/chat', { characterId, ...props })
+    const res = await api.post<AppSchema.Chat>('/chat', {
+      characterId,
+      ...props,
+      impersonating: impersonating?._id,
+    })
     return res
   }
 
@@ -129,6 +147,18 @@ export async function createChat(characterId: string, props: NewChat) {
   if (!char) return localApi.error(`Character not found`)
 
   const { chat, msg } = createNewChat(char, props)
+
+  // If there is a greeting, parse it before persisting
+  if (msg?.msg) {
+    const profile = getStore('user').getState().profile
+    const { parsed } = await parseTemplate(msg.msg, {
+      chat,
+      char: char!,
+      sender: profile!,
+      impersonate: impersonating,
+    })
+    msg.msg = parsed
+  }
 
   await localApi.saveChats(chats.concat(chat))
 
@@ -168,6 +198,7 @@ export async function importChat(characterId: string, props: ImportChat) {
     userId: msg.userId ? localApi.ID : undefined,
     createdAt: new Date(start + i).toISOString(),
     updatedAt: new Date(start + i).toISOString(),
+    retries: [],
   }))
 
   const nextChats = await localApi.loadItem('chats').then((res) => res.concat(chat))
@@ -282,6 +313,7 @@ export function createNewChat(char: AppSchema.Character, props: NewChat) {
     kind: 'chat-message',
     msg: char.greeting,
     characterId: char._id,
+    retries: char.alternateGreetings || [],
   }
 
   return { chat, msg }
