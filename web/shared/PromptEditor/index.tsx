@@ -407,12 +407,10 @@ export const BasicPromptTemplate: Component<{
   inherit?: Partial<AppSchema.GenSettings>
   hide?: boolean
 }> = (props) => {
-  const items = ['Charluv', 'Alpaca', 'Vicuna', 'Metharme', 'ChatML', 'Pyg/Simple'].map(
-    (label) => ({
-      label: `Format: ${label}`,
-      value: label,
-    })
-  )
+  const items = ['Alpaca', 'Vicuna', 'Metharme', 'ChatML', 'Pyg/Simple'].map((label) => ({
+    label: `Format: ${label}`,
+    value: label,
+  }))
 
   const [mod, setMod] = createSignal(
     props.inherit?.promptOrder?.map((o) => ({
