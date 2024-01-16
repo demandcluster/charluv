@@ -60,7 +60,7 @@ export async function resyncSubscription(user: AppSchema.User) {
     user.billing.lastChecked = new Date().toISOString()
     user.billing.validUntil = validUntil.toISOString()
     user.billing.lastRenewed = renewedAt.toISOString()
-    await store.users.updateUser(user._id, { billing: user.billing })
+    await store.users.updateUser(user._id, { premium: true, billing: user.billing })
     return expectedTier.level
   }
 
@@ -70,7 +70,7 @@ export async function resyncSubscription(user: AppSchema.User) {
     user.billing.lastRenewed = renewedAt.toISOString()
     user.billing.status = 'cancelled'
     user.billing.cancelling = false
-    await store.users.updateUser(user._id, { billing: user.billing })
+    await store.users.updateUser(user._id, { premium: false, billing: user.billing })
     return new Error('Your subscripion has expired')
   }
 
@@ -79,6 +79,10 @@ export async function resyncSubscription(user: AppSchema.User) {
   user.billing.lastChecked = new Date().toISOString()
   user.billing.status = subscription.status === 'active' ? 'active' : 'cancelled'
   user.sub = { level: expectedTier.level, tierId: expectedTier._id }
-  await store.users.updateUser(user._id, { billing: user.billing, sub: user.sub })
+  await store.users.updateUser(user._id, {
+    premium: subscription.status === 'active' ? true : false,
+    billing: user.billing,
+    sub: user.sub,
+  })
   return expectedTier.level
 }

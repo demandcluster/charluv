@@ -157,16 +157,18 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
 
     const opts: Option[] = []
 
-    if (preset?.service && preset.service !== 'horde') {
+    if (preset?.service && preset.service !== 'agnaistic') {
       opts.push({ label: `Default (${ADAPTER_LABELS[preset.service!]})`, value: 'default' })
     }
 
     {
       const level = user.sub?.level ?? -1
-      const subs = settings.config.subs.filter((s) => user.user?.admin || s.level <= level)
+      const subs = settings.config.subs.filter(
+        (s) => user.user?.admin || (s.level <= level && s.guidanceAccess === true)
+      )
 
       for (const sub of subs) {
-        opts.push({ label: `Agnastic: ${sub.name}`, value: `agnaistic/${sub._id}` })
+        opts.push({ label: `Charluv: ${sub.name}`, value: `agnaistic/${sub._id}` })
       }
     }
 
@@ -188,7 +190,8 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
       opts.push({ label: 'Claude', value: 'claude' })
     }
 
-    return opts
+    //    return opts
+    return []
   })
 
   createEffect(async () => {
@@ -334,7 +337,7 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
     createAvatar,
     avatar: imageData,
     generating,
-    canGuidance: false, //genOptions().length > 0,
+    canGuidance: genOptions().length > 0,
     generateCharacter,
     generateAvatar,
     prepare: setForm,

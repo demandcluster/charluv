@@ -7,13 +7,18 @@ import logoDark from '../../asset/logoDark.png'
 
 const text = `
 
+# Our Patreon
+
+The easiest and most complete form of premium is subscribing to our [Patreon](https://patreon.com/charluv) Premium Tier. You get all the benefits of premium and more.
+
+
 # Why get premium?
 
-Premium members get their credits continously refilled to **1,000 credits** (instead of 200) and at a much faster rate than regular members do. Their messages are handled with higher priority (they skip the queue if there is one). They also get access to some premium characters that have custom ElevenLabs voices *(more premium characters to be added)*. **NEW FEATURE FOR PREMIUM:** Premium users can now create presets and change most of the AI settings.
+Premium members get their credits continously refilled to **1,000 credits** (instead of 200) and at a much faster rate than regular members do. Your messages are handled with higher priority (they skip the queue if there is one). You also get longer outputs and large history (memory) than regular users.  You also get access to some premium characters that have custom ElevenLabs voices *(more premium characters to be added)*. **NEW FEATURE FOR PREMIUM:** Premium users can now create presets and change most of the AI settings.
 
 # Can I support you in other ways?
 
-Yes, you can! Tell everyone about us, Reddit, Twitter, YouTube, Facebook, Instagram, TikTok, whatever you use. The more people know about us, the more likely we will survive.
+Yes, you can! Join the free tier on [Patreon](https://patreon.com/charluv). Tell everyone about us, Reddit, Twitter, YouTube, Facebook, Instagram, TikTok, whatever you use. The more people know about us, the more likely we will survive.
 We also looking for new characters that can be used as matches, if you created a character that you want to contribute, share the ID with us on [Discord](https://charluv.com/discord) and if it passes moderation, we add it to the matches and reward you with 1,000 credits.
 Since Matches have scripted scenarios (other than the self-made characters), we will do that step for you.
 
@@ -37,14 +42,12 @@ The recharge rate for regular members is dynamic and based on the average total 
 | Amount increase   | 5          | 20        |
 | Capped at*   | 200 | 1000|
 
-**Can be charged manual from shop to any amount*
 
-## Shop
+## Subscription
 
-The [shop](/shop) is where you can buy credits and premium membership. 
-For support about the shop, please contact us on [Discord](https://charluv.com/discord).
-Transactions are handled external by Paypal and you don't fill any details on our site, so it is safe.
-There is no subscriptions, you would have to renew your membership manually. We don't like subscriptions, you might forget about them and we don't want to charge you if you don't use our site.
+The [subscriptions](/settings?tab=3) can be activated from the tab under settings and under your user profile. 
+For support about subscriptions, please contact us on [Discord](https://charluv.com/discord), or on [Patreon](https://patreon.com/charluv).
+Transactions are handled externally by Stripe, PayPal or Patreon and you don't fill any details on our site.
 
 `
 

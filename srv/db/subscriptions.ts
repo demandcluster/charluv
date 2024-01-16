@@ -15,6 +15,10 @@ export async function getSubscriptions() {
 }
 
 export async function getSubscription(id: string) {
+  if (id === 'paypal') {
+    const mysub = await db('subscription-setting').findOne({ subLevel: 10 })
+    return mysub ? mysub : undefined
+  }
   const sub = await db('subscription-setting').findOne({ _id: id })
   return sub ? sub : undefined
 }

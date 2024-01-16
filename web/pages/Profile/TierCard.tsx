@@ -16,7 +16,7 @@ export const TierCard: Component<{ tier: TierPreview; children?: any; class?: st
     if (props.tier.cost > 0) {
       const cost = (
         <div>
-          ${(props.tier.cost / 100).toFixed(2)}/mo <span class="text-600 text-xs">Stripe</span>
+          €{(props.tier.cost / 100).toFixed(2)}/mo <span class="text-600 text-xs">Stripe</span>
         </div>
       )
       return cost
@@ -24,7 +24,7 @@ export const TierCard: Component<{ tier: TierPreview; children?: any; class?: st
 
     if (props.tier.patreon?.cost) {
       const cost = (props.tier.patreon?.cost / 100).toFixed(2)
-      prices.push(`Patreon: $${cost}/mo`)
+      prices.push(`Patreon: €${cost}/mo`)
     }
 
     return null
@@ -34,7 +34,7 @@ export const TierCard: Component<{ tier: TierPreview; children?: any; class?: st
     if (props.tier.patreon?.cost) {
       const cost = (
         <div>
-          ${(props.tier.patreon.cost / 100).toFixed(2)}/mo{' '}
+          €{(props.tier.patreon.cost / 100).toFixed(2)}/mo{' '}
           <span class="text-600 text-xs">Patreon</span>
         </div>
       )

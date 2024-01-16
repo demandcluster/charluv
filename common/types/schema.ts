@@ -249,7 +249,7 @@ export namespace AppSchema {
     ui?: UISettings
 
     sub?: {
-      type?: 'native' | 'patreon' | 'manual'
+      type?: 'native' | 'patreon' | 'manual' | 'paypal'
       tierId: string
       level: number
       last?: string

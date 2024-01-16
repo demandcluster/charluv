@@ -96,10 +96,10 @@ async function identity(token: string) {
   const sub = getCachedTiers().reduce((prev, curr) => {
     if (!curr.enabled || curr.deletedAt) return prev
     if (!curr.patreon?.tierId) return prev
-    if (curr.patreon.cost > contrib) return prev
+    if (curr.patreon.cost >= contrib) return prev
 
     if (!prev) return curr
-    if (prev.patreon?.cost! > curr.patreon.cost) return prev
+    if (prev.patreon?.cost! >= curr.patreon.cost) return prev
     return curr
   })
 
@@ -144,7 +144,12 @@ async function revalidatePatron(userId: string) {
     },
     patreonUserId: patron.user.id,
   })
-
+  if (next?.premium === false && patron.sub?.level && patron.sub?.level > 0) {
+    next.premium = true
+    await store.users.updateUser(userId, {
+      premium: true,
+    })
+  }
   return next
 }
 
@@ -168,6 +173,12 @@ async function initialVerifyPatron(userId: string, code: string) {
     },
     patreonUserId: patron.user.id,
   })
+  if (next?.premium === false && patron.sub?.level && patron.sub?.level > 0) {
+    next.premium = true
+    await store.users.updateUser(userId, {
+      premium: true,
+    })
+  }
 
   return next
 }

@@ -272,7 +272,7 @@ const RecentChats: Component = (props) => {
             <>
               <div
                 role="link"
-                aria-label={`Chat with ${char.name}, ${elapsedSince(chat.updatedAt)} ago ${
+                aria-label={`Chat with ${char?.name}, ${elapsedSince(chat.updatedAt)} ago ${
                   chat.name
                 }`}
                 class="bg-800 hover:bg-700 hidden h-24 w-full cursor-pointer rounded-md border-[1px] border-[var(--bg-700)] transition duration-300 sm:flex"
@@ -299,7 +299,7 @@ const RecentChats: Component = (props) => {
 
                 <div class="flex w-full flex-col justify-between text-sm" aria-hidden="true">
                   <div class="flex flex-col px-1">
-                    <div class="text-sm font-bold">{char.name}</div>
+                    <div class="text-sm font-bold">{char?.name}</div>
                     <div class="text-500 text-xs">{elapsedSince(chat.updatedAt)} ago</div>
                     <Show when={chat.name}>
                       <p class="line-clamp-2 max-h-10 overflow-hidden text-ellipsis">{chat.name}</p>
@@ -315,7 +315,7 @@ const RecentChats: Component = (props) => {
 
               <div
                 role="link"
-                aria-label={`Chat with ${char.name}, ${elapsedSince(chat.updatedAt)} ago ${
+                aria-label={`Chat with ${char?.name}, ${elapsedSince(chat.updatedAt)} ago ${
                   chat.name
                 }`}
                 class="bg-800 hover:bg-700 flex w-full cursor-pointer flex-col rounded-md border-[1px] border-[var(--bg-700)] transition duration-300 sm:hidden"
@@ -330,7 +330,7 @@ const RecentChats: Component = (props) => {
                     />
                   </div>
                   <div class="flex flex-col overflow-hidden text-ellipsis whitespace-nowrap px-1">
-                    <div class="overflow-hidden text-ellipsis text-sm font-bold">{char.name}</div>
+                    <div class="overflow-hidden text-ellipsis text-sm font-bold">{char?.name}</div>
                     <div class="text-500 text-xs">{elapsedSince(chat.updatedAt)} ago</div>
                   </div>
                 </div>

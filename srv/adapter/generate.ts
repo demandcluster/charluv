@@ -36,7 +36,7 @@ configure(async (opts) => {
     headers: {
       'Content-Type': 'application/json',
       apikey: opts.key || HORDE_GUEST_KEY,
-      'Client-Agent': `Agnaistic:${version}:`,
+      'Client-Agent': `Charluv:${version}:`,
     },
   })
 
@@ -107,7 +107,7 @@ export async function inferenceAsync(opts: InferenceRequest) {
       }
     }
 
-    if (opts.guidance && opts.service === 'agnaistic') {
+    if (opts.guidance && (opts.service === 'horde' || opts.service === 'agnaistic')) {
       try {
         const values = JSON.parse(generated)
         return { generated, prompt, meta, values: Object.assign({}, opts.previous, values) }
@@ -144,7 +144,7 @@ export async function guidanceAsync(opts: InferenceRequest) {
     return inference
   }
 
-  if (sub?.preset?.guidanceCapable && (sub.tier?.guidanceAccess || opts.user.admin)) {
+  if (sub?.preset?.guidanceCapable && sub.tier?.guidanceAccess) {
     const result = await infer({ prompt: opts.prompt, tokens: 200, stop: opts.stop }, true)
     if (!result.values) {
       const values = JSON.parse(result.generated)
@@ -212,8 +212,8 @@ function setRequestService(opts: InferenceRequest) {
       case 'novel':
         settings.novelModel = model
         break
-
-      case 'agnaistic': {
+      case 'agnaistic':
+      case 'horde': {
         if (model) {
           const preset = getCachedSubscriptionPresets().find((pre) => pre._id === model)
           if (preset) settings = deepClone(preset)
@@ -405,7 +405,7 @@ export async function getResponseEntities(
   }
 
   const { adapter, model } = getAdapter(chat, user, gen)
-  console.log('getAdapter')
+
   const genSettings = await getGenerationSettings(user, chat, adapter)
   const settings = mapPresetsToAdapter(genSettings, adapter)
 

@@ -294,9 +294,13 @@ export function deepClone<T extends object>(obj: T): T {
 }
 
 export function getUserSubscriptionTier(user: AppSchema.User, tiers: AppSchema.SubscriptionTier[]) {
+  const now = new Date().getTime()
   let nativeTier = tiers.find((t) => user.sub && t._id === user.sub.tierId)
   let patronTier = tiers.find((t) => user.patreon?.sub && t._id === user.patreon.sub.tierId)
+  let paypalTier = tiers.find((t) => t.level === 10)
 
+  const paypalExpired =
+    (user.premiumUntil && user.premiumUntil < now) || user.premium === false ? true : false
   const nativeExpired = isExpired(user.billing?.validUntil) || user.billing?.status === 'cancelled'
   const patronExpired =
     isExpired(user.patreon?.member?.attributes.next_charge_date) ||
@@ -309,19 +313,30 @@ export function getUserSubscriptionTier(user: AppSchema.User, tiers: AppSchema.S
   if (patronExpired) {
     patronTier = undefined
   }
+  if (paypalExpired) {
+    paypalTier = undefined
+  }
+  if (!nativeTier && !patronTier && !paypalTier) return
 
-  if (!nativeTier && !patronTier) return
-
-  if (!nativeTier || !patronTier) {
-    const tier = nativeTier || patronTier
+  if (!nativeTier || !patronTier || !paypalTier) {
+    const tier = nativeTier || patronTier || paypalTier
     const level = tier!.level
-    const type: 'native' | 'patreon' = nativeTier ? 'native' : 'patreon'
+    const type: 'native' | 'patreon' | 'paypal' = nativeTier
+      ? 'native'
+      : paypalTier
+      ? 'paypal'
+      : 'patreon'
 
     return { tier: tier!, level, type }
   }
 
-  const type: 'native' | 'patreon' = nativeTier.level >= patronTier.level ? 'native' : 'patreon'
-  const tier = type === 'native' ? nativeTier : patronTier
+  const type: 'native' | 'patreon' | 'paypal' =
+    nativeTier.level >= patronTier.level
+      ? 'native'
+      : paypalTier.level >= patronTier.level
+      ? 'paypal'
+      : 'patreon'
+  const tier = type === 'native' ? nativeTier : type === 'paypal' ? paypalTier : patronTier
   const level = tier.level
 
   return { type, tier, level }

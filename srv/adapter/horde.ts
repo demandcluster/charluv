@@ -32,8 +32,14 @@ export const handleHorde: ModelAdapter = async function* ({
 
     yield { prompt }
 
-    if ('subscription' in opts === false || opts.subscription === undefined) {
-      opts.subscription = await getSubscriptionPreset(user, false, gen)
+    let newLevel = await store.users.validateSubscription(user)
+
+    if (
+      'subscription' in opts === false ||
+      opts.subscription === undefined ||
+      newLevel === undefined
+    ) {
+      opts.subscription = await getSubscriptionPreset(user, false, gen, newLevel)
     }
 
     if (!opts.subscription || !opts.subscription.preset) {
@@ -53,7 +59,6 @@ export const handleHorde: ModelAdapter = async function* ({
     const level = opts.subscription.level ?? -1
     const preset = opts.subscription.preset
 
-    let newLevel = await store.users.validateSubscription(user)
     if (newLevel === undefined) {
       newLevel = -1
     }
@@ -97,9 +102,10 @@ export const handleHorde: ModelAdapter = async function* ({
 
     // Max tokens and max context limit are decided by the subscription preset
     // We've already set the max context length prior to calling this handler
-    console.log(preset, gen)
+
     gen.maxTokens = Math.min(preset?.maxTokens, gen.maxTokens || 200)
-    gen.maxContextLength = 4096 // Math.min(preset?.maxContextLength, gen.maxContextLength) || 4096
+
+    gen.maxContextLength = Math.min(preset?.maxContextLength || 4096, gen.maxContextLength || 4096)
     const result = await horde.generateText({ ...user, hordeKey: key }, gen, prompt, opts.log)
     const sanitised = sanitise(result.text)
     const stops = gen.stopSequences || []
@@ -141,20 +147,26 @@ export const handleHorde: ModelAdapter = async function* ({
 export async function getSubscriptionPreset(
   user: AppSchema.User,
   guest: boolean,
-  gen?: Partial<AppSchema.GenSettings>
+  gen?: Partial<AppSchema.GenSettings>,
+  newLevel?: number | Error
 ) {
   if (!isConnected()) return
   if (!gen) return
-  if (gen.service !== 'horde') return
+  if (newLevel instanceof Error) return
+  // if (gen.service !== 'horde') return
 
-  const level = user.admin ? Infinity : user.sub?.level ?? -1
+  const level = user.admin ? Infinity : user.sub?.level ? user.sub?.level : newLevel ?? -1
   let error: string | undefined = undefined
   let warning: string | undefined = undefined
-
+  let preset
   const fallback = await store.subs.getDefaultSubscription()
-  const subId = gen.registered?.agnaistic?.subscriptionId
-  let preset = subId ? await store.subs.getSubscription(subId) : fallback
-
+  if (gen.registered) {
+    const subId = gen.registered?.agnaistic?.subscriptionId
+    preset = subId ? await store.subs.getSubscription(subId) : fallback
+  } else {
+    preset = await store.subs.getSubscription('paypal')
+    console.log('preeeeeeeeeeeset', preset)
+  }
   if (guest && preset?.allowGuestUsage === false) {
     error = 'Please sign in to use this model.'
   }

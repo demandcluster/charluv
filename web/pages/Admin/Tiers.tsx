@@ -52,7 +52,7 @@ const TiersPage: Component = (props) => {
 
     for (const tier of admin.patreonTiers) {
       items.push({
-        label: `$${(tier.attributes.amount_cents / 100).toFixed(2)} ${tier.attributes.title}`,
+        label: `€${(tier.attributes.amount_cents / 100).toFixed(2)} ${tier.attributes.title}`,
         value: tier.id,
       })
     }

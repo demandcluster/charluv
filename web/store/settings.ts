@@ -149,7 +149,7 @@ export const settingStore = createStore<SettingState>(
         if (!isMaint) {
           events.emit(EVENTS.init, res.result)
         }
-
+       
         yield {
           init: res.result,
           config: res.result.config,
@@ -213,12 +213,11 @@ export const settingStore = createStore<SettingState>(
         return { models: res.result.models }
       }
     },
-    async getHordePerformance() {
+    async *getHordePerformance() {
       const res = await api.get<{ performance: Performance }>('/horde/performance')
       if (res.result) {
-        return { performance: res.result.performance }
+        yield { performance: res.result.performance }
       }
-      console.log('----------------------')
     },
     async getHordeWorkers() {
       try {
@@ -275,7 +274,6 @@ subscribe('connected', { uid: 'string' }, (body) => {
 
   const { initLoading } = settingStore.getState()
   if (initLoading) return
-
   settingStore.getConfig()
 })
 

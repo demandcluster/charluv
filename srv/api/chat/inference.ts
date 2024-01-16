@@ -146,6 +146,7 @@ export const guidance = wrap(async ({ userId, log, body, socketId }) => {
   )
 
   if (!body.service && !userId) {
+    console.log('--- BAD REQUEST ---')
     throw errors.BadRequest
   }
 

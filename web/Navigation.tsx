@@ -140,7 +140,6 @@ const Navigation: Component = () => {
                 alt="Charluv"
                 src={user.ui?.mode === 'light' ? logoDark : logo}
               />
-              {suffix()}
             </A>
           </div>
 
@@ -273,7 +272,7 @@ const UserNavigation: Component = () => {
         </Item>
 
         <Show when={user.loggedIn && !user.user?.admin}>
-          <Item href="/shop">
+          <Item href="/settings?tab=3">
             <ShoppingCart />
           </Item>
         </Show>
@@ -295,6 +294,7 @@ const UserNavigation: Component = () => {
         <Item
           onClick={() => {
             settingStore.togglePerformance(true)
+            settinsStore.getPerformance()
             settingStore.closeMenu()
           }}
         >
@@ -302,7 +302,7 @@ const UserNavigation: Component = () => {
             <Signal color="green" />
           </Show>
           <Show when={menu.performance?.text_worker_count === 0}>
-            <Signal color="red" />
+            <Signal />
           </Show>
         </Item>
 

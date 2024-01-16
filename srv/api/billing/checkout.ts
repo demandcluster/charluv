@@ -106,6 +106,7 @@ export const manualSubscribe = handle(async ({ body, log }) => {
   })
 
   const next = await store.users.updateUser(user._id, {
+    premium: true,
     sub: {
       tierId: tier._id,
       level: tier.level,
@@ -164,6 +165,7 @@ export const finishCheckout = handle(async ({ body, userId }) => {
     })
 
     const config = await store.users.updateUser(userId, {
+      premium: true,
       sub: {
         tierId: agg.tierId,
         level: tier.level,

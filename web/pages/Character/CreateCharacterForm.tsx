@@ -242,10 +242,14 @@ export const CreateCharacterForm: Component<{
         const data = await getImageData(editor.state.avatar)
         payload.avatar = data
       }
-      chatStore.upsertTempCharacter(props.chat._id, { ...payload, _id: props.editId }, (result) => {
-        props.onSuccess?.(result)
-        if (paneOrPopup() === 'popup') props.close?.()
-      })
+      chatStore.upsertTempCharacter(
+        props.chat._id,
+        { ...payload, _id: props.editId, xp: undefined },
+        (result) => {
+          props.onSuccess?.(result)
+          if (paneOrPopup() === 'popup') props.close?.()
+        }
+      )
     } else if (!forceNew() && props.editId) {
       characterStore.editCharacter(props.editId, payload, () => {
         if (isPage) {
@@ -504,7 +508,7 @@ export const CreateCharacterForm: Component<{
                     fieldName="scenario"
                     label={
                       <>
-                        Persona Schema{' '}
+                        Scenario{' '}
                         <Regenerate
                           fields={['scenario']}
                           service={genService()}
@@ -575,7 +579,7 @@ export const CreateCharacterForm: Component<{
                     />
                     <Select
                       fieldName="kind"
-                      items={formatOptions}
+                      items={personaFormats()}
                       value={editor.state.personaKind}
                       onChange={(kind) => editor.update({ personaKind: kind.value as any })}
                     />

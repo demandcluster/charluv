@@ -25,7 +25,8 @@ RUN pnpm run build:server && \
 RUN node -pe "require('./package.json').version" > /app/version.txt
 RUN mkdir /app/dist/.well-known
 COPY ./web/.well-known/assetlinks.json /app/dist/.well-known/assetlinks.json
-COPY ./slots.txt ./dist/slots.txt
+COPY ./web/.well-known/apple-developer-merchantid-domain-association /app/dist/.well-known/apple-developer-merchantid-domain-association
+COPY ./web/charluv512.png /app/dist/charluv512.png
 
 ENV LOG_LEVEL=info \
   INITIAL_USER=administrator \

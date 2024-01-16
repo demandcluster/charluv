@@ -12,26 +12,46 @@ export const SubscriptionPage: Component = (props) => {
   const cfg = userStore((s) => {
     const nativeLevel = s.user?.sub?.level ?? -1
     const patronLevel = s.user?.patreon?.sub?.level ?? -1
+    const paypalLevel = s.user?.premium ? 10 : -1
 
     const patronTier = s.tiers.find((t) => t._id === s.user?.patreon?.sub?.tierId)
     const nativeTier = s.tiers.find((t) => t._id === s.user?.sub?.tierId)
-
+    const paypalTier = s.user?.premiumUntil > Date.now() ? s.tiers[0] : false
+    console.log(s.tiers)
     const type =
-      patronTier && nativeTier
-        ? patronLevel > nativeLevel
+      patronTier && nativeTier && paypalTier
+        ? patronLevel > nativeLevel && patronLevel > paypalLevel
           ? 'patreon'
-          : 'native'
+          : nativeLevel > patronLevel && nativeLevel > paypalLevel
+          ? 'native'
+          : 'paypal'
         : !!patronTier
         ? 'patreon'
         : !!nativeTier
         ? 'native'
+        : !!paypalTier
+        ? 'paypal'
         : 'none'
 
     return {
       tiers: s.tiers.sort((l, r) => r.level - l.level),
-      type: type as 'patreon' | 'native' | 'none',
-      tier: type === 'patreon' ? patronTier : type === 'native' ? nativeTier : undefined,
-      level: type === 'patreon' ? patronLevel : type === 'native' ? nativeLevel : -1,
+      type: type as 'patreon' | 'native' | 'paypal' | 'none',
+      tier:
+        type === 'patreon'
+          ? patronTier
+          : type === 'paypal'
+          ? paypalTier
+          : type === 'native'
+          ? nativeTier
+          : undefined,
+      level:
+        type === 'patreon'
+          ? patronLevel
+          : type === 'native'
+          ? nativeLevel
+          : type === 'paypal'
+          ? paypalLevel
+          : -1,
       // For testing Patreon logic
       // type: 'patreon',
       // tier: patronTier,
@@ -47,6 +67,7 @@ export const SubscriptionPage: Component = (props) => {
   const hasExpired = createMemo(() => {
     if (cfg.type === 'patreon') return false
     // if (!user.user?.billing?.cancelling) return false
+    if (user.user?.premium) return false
     if (!user.user?.billing) return true
     const threshold = new Date(user.user.billing.validUntil)
     return threshold.valueOf() < Date.now()
@@ -57,7 +78,6 @@ export const SubscriptionPage: Component = (props) => {
       .filter((t) => {
         const isPatronOf = cfg.type === 'patreon' && cfg.tier?._id === t._id
         if (isPatronOf) return false
-
         const usable = t.level === cfg.level ? hasExpired() : true
         return usable && t.enabled && !t.deletedAt && !!t.productId
       })
@@ -65,6 +85,7 @@ export const SubscriptionPage: Component = (props) => {
   })
 
   const renews = createMemo(() => {
+    if (cfg.type === 'paypal') return new Date(user.user.premiumUntil).toLocaleDateString()
     if (!user.user?.billing) return ''
     if (cfg.type === 'patreon') return ''
     const last = new Date(user.user.billing.validUntil)
@@ -122,9 +143,19 @@ export const SubscriptionPage: Component = (props) => {
                 </div>
                 <Pill type="green">
                   Subscribed via{' '}
-                  {cfg.type === 'patreon' ? 'Patreon' : cfg.type === 'native' ? 'Stripe' : 'None'}
+                  {cfg.type === 'patreon'
+                    ? 'Patreon'
+                    : cfg.type === 'paypal'
+                    ? 'PayPal'
+                    : cfg.type === 'native'
+                    ? 'Stripe'
+                    : 'None'}
                 </Pill>
                 <Switch>
+                  <Match when={cfg.type === 'paypal'}>
+                    Your membership thru PayPal does not auto-renew (use Stripe or Patreon if you
+                    want auto-renew)
+                  </Match>
                   <Match when={cfg.downgrade && cfg.tier!._id !== cfg.downgrade}>
                     Your subscription is set to downgrade
                     <Button
@@ -225,13 +256,19 @@ export const SubscriptionPage: Component = (props) => {
             </For>
           </div>
 
-          <div class="flex justify-center">All prices are in USD</div>
-
+          <div class="flex justify-center">All prices are in EUR</div>
+          <div class="flex justify-center">
+            <a href="/shop">
+              <Button schema="green" disabled={user.billingLoading}>
+                Non-Subscription (Legacy) Shop
+              </Button>
+            </a>
+          </div>
           <div class="mt-4 flex gap-4">
             {/* <Button onClick={userStore.validateSubscription} disabled={user.billingLoading}>
               Validate
             </Button> */}
-            <Show when={cfg.tier && !hasExpired()}>
+            <Show when={cfg.tier && !cfg.type === 'paypal' && !hasExpired()}>
               <Button schema="red" onClick={() => setUnsub(true)} disabled={user.billingLoading}>
                 Unsubscribe
               </Button>

@@ -94,11 +94,20 @@ const PremiumOptions: Component = () => {
       <PageHeader title="Shop" subtitle="Premium & Credit Options" />
       <section>
         <h4 class="text-bold mt-4 pb-4">
-          None of our store options are reoccurring. Please renew yourself when you want to, they
-          are not subscriptions. If you are already a member, new subscriptions will just be added
-          to the end of your current period.
+          This is our "legacy" shop, it is still functional if you don't like to have an actual
+          subscription or you are afraid you might not remember to cancel in time. We switched to
+          Stripe and Patreon for a more modern approach.
         </h4>
-
+        <h4 class="text-bold mt-4 pb-4">
+          Be aware that when getting premium, it is near impossible to run out of credits. This
+          makes the credit option a bit obsolete.
+        </h4>
+        <h3 class="text-bold text-lg">
+          New subsciption page is{' '}
+          <a class="text-blue-500" href="/settings?tab=3">
+            here
+          </a>
+        </h3>
         <Show when={!orderId()}>
           <div class="grid columns-3 grid-cols-1 gap-x-6 gap-y-10 shadow sm:grid-cols-2 xl:grid-cols-4 xl:gap-x-8">
             <For each={items.list}>

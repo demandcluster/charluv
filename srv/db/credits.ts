@@ -80,7 +80,12 @@ export async function getFreeCredits() {
     .find({ kind: 'user', nextCredits: { $lte: now }, credits: { $lt: 1000 }, premium: true })
     .toArray()
   const expiredPremium = await db('user')
-    .find({ kind: 'user', premiumUntil: { $lte: now }, premium: true })
+    .find({
+      kind: 'user',
+      premiumUntil: { $lte: now },
+      billing: { $exists: false },
+      premium: true,
+    })
     .toArray()
 
   for (const usr of users) {
@@ -109,10 +114,13 @@ export async function getFreeCredits() {
   }
   for (const usr of expiredPremium) {
     // set premiumstatus to false
-    await db('user')
-      .updateOne({ kind: 'user', _id: usr._id }, { $set: { premium: false } })
-      .catch((err) => {
-        throw new StatusError('Database error', 500)
-      })
+    if (!usr.billing?.validUntil && !usr.patreon?.user?.relationships?.memberships?.data.length) {
+      console.log('---DEACTIVATE PREMIUM---', usr._id)
+      await db('user')
+        .updateOne({ kind: 'user', _id: usr._id }, { $set: { premium: false } })
+        .catch((err) => {
+          throw new StatusError('Database error', 500)
+        })
+    }
   }
 }

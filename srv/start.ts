@@ -95,7 +95,7 @@ if (config.clustering) {
 
 async function startTunnel() {
   const proxy = await lt({ port: config.port })
-  logger.info(`[LocalTunnel] Agnaistic public URL: ${proxy.url}`)
+  logger.info(`[LocalTunnel] Charluv public URL: ${proxy.url}`)
 
   proxy.on('close', () => {
     logger.warn('[LocalTunnel] Agnaistic public URL close')

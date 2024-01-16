@@ -129,7 +129,7 @@ function getTemplate(service: AIAdapter | 'default') {
   const template =
     service === 'novel'
       ? novelGenTemplate
-      : service === 'agnaistic' || service === 'ooba' || service === 'kobold'
+      : service === 'agnaistic' || service == 'horde' || service === 'ooba' || service === 'kobold'
       ? alpacaTemplate
       : INSTRUCT_SERVICES[service as AIAdapter]
       ? instructGenTemplate

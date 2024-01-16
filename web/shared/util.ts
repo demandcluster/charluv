@@ -17,7 +17,7 @@ const [css, hooks] = createHooks(recommended)
 
 export { hooks, css }
 
-export function downloadJson(content: string | object, filename: string = 'agnai_export') {
+export function downloadJson(content: string | object, filename: string = 'charluv_export') {
   const output = encodeURIComponent(
     typeof content === 'string' ? content : JSON.stringify(content, null, 2)
   )

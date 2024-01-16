@@ -251,7 +251,7 @@ export async function updateUserTier(userId: string, tierId: string) {
   const tier = await getTier(tierId)
   await db('user').updateOne(
     { _id: userId },
-    { $set: { 'sub.level': tier.level, 'sub.tierId': tierId } },
+    { $set: { 'sub.level': tier.level, premium: !!tier.level, 'sub.tierId': tierId } },
     { upsert: false }
   )
 }
@@ -311,11 +311,15 @@ export async function validateSubscription(user: AppSchema.User) {
   if (user.admin) return Infinity
 
   const sub = getUserSubTier(user)
+  console.log('----------------SUB--------------', sub)
   if (!sub) return -1
 
   const { type, tier, level } = sub
   if (!tier.enabled) return tier.level ?? -1
 
+  if (type === 'paypal') {
+    return level
+  }
   if (type === 'patreon') {
     if (!user.patreon) return -1
 

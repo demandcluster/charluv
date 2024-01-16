@@ -11,10 +11,10 @@ export const register = handle(async (req) => {
     req.body
   )
   const valid = await store.invitecode.checkInviteCode(req.body.invitecode)
-  if (!valid) {
-    throw new StatusError('Invalid invite code', 403)
-    return
-  }
+  // if (!valid) {
+  //   throw new StatusError('Invalid invite code', 403)
+  //   return
+  // }
   const alreadyRegisterd = await store.users.checkIp(req.ip)
 
   if (alreadyRegisterd) {
@@ -22,7 +22,7 @@ export const register = handle(async (req) => {
   }
 
   const { profile, token, user } = await store.users.createUser(req.body)
-  await store.invitecode.takeInviteCode(req.body.invitecode, user._id)
+  //await store.invitecode.takeInviteCode(req.body.invitecode, user._id)
 
   req.log.info({ user: user.username, id: user._id }, 'User registered')
   return { profile, token, user }

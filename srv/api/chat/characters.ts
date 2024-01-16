@@ -76,7 +76,7 @@ export const upsertTempCharacter = handle(async ({ body, params, userId }) => {
       greeting: 'string',
       scenario: 'string',
       match: 'boolean?',
-      xp: 'string?',
+      xp: 'number?',
       premium: 'boolean?',
       avatar: 'string?',
       favorite: 'boolean?',

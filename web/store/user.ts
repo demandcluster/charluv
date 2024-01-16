@@ -60,7 +60,7 @@ export type UserState = {
       activeAt: string
     }
   }
-  sub?: { level: number; type: 'native' | 'patreon'; tier: AppSchema.SubscriptionTier }
+  sub?: { level: number; type: 'native' | 'patreon' | 'paypal'; tier: AppSchema.SubscriptionTier }
 }
 
 export const userStore = createStore<UserState>(
@@ -139,15 +139,6 @@ export const userStore = createStore<UserState>(
         const sub = user ? getUserSubscriptionTier(user, res.result.tiers) : undefined
         return { tiers: res.result.tiers, sub }
       }
-    },
-
-    async getGift({ user }) {
-      const res = await api.get('/user/getgift')
-      // if (res.result) {
-      //   toastStore.success(`You have received your xmas gift! 🤶❤️`)
-      // }
-      console.log(res.result)
-      return { user: res.result }
     },
 
     async *startCheckout({ billingLoading }, tierId: string) {

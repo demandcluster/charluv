@@ -49,6 +49,7 @@ const UsersPage: Component = () => {
         label: `[${tier.level}] ${tier.name} ${!tier.enabled ? '(disabled)' : ''}`,
         value: tier._id,
       })) || []
+    tiers.push({ label: '[10] PayPal', value: 'paypal' })
     return base.concat(tiers).sort((l, r) => +l.value - +r.value)
   })
 
@@ -81,7 +82,7 @@ const UsersPage: Component = () => {
                 <Select
                   class="text-xs"
                   fieldName="subTier"
-                  value={user.sub?.tierId ?? ''}
+                  value={user.sub?.tierId ? user.sub?.tierId : user.premium ? 'paypal' : ''}
                   items={subTiers()}
                   onChange={(ev) => {
                     adminStore.changeUserTier(user._id, ev.value)
@@ -201,7 +202,11 @@ const InfoModel: Component<{ show: boolean; close: () => void; userId: string; n
               <th>Subscription Level</th>
               <td>
                 Native:{state.info?.sub?.level ?? '-1'} / Patreon:
-                {state.info?.patreon?.sub?.level ?? '-1'}
+                {state.info?.patreon?.sub?.level ?? '-1'} / PayPal:
+                {(state.info?.premium &&
+                  !state.info?.patreon?.sub?.level &&
+                  !state.info?.sub?.level) ??
+                  '-1'}
               </td>
             </tr>
 

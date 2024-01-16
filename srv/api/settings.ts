@@ -90,7 +90,7 @@ export async function getAppConfig(user?: AppSchema.User) {
         break
 
       case 'users':
-        appConfig.apiAccess = true
+        appConfig.apiAccess = false
         break
     }
   }

@@ -21,10 +21,7 @@ export const CheckoutSuccess: Component = (props) => {
         <SolidCard class="flex flex-col items-center gap-4">
           <p class="font-bold">Thank you for subscribing!</p>
 
-          <p>
-            Start using your subscription by creating and using an <Pill type="hl">Agnaistic</Pill>{' '}
-            preset.
-          </p>
+          <p>All premium benefits have been activated for your account.</p>
         </SolidCard>
         <Button onClick={() => window.close()}>Close Window</Button>
       </div>

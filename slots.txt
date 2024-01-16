@@ -1,7 +1,39 @@
 {
-  "provider": "demandcluster",
-  "publisherId": "charluv",
-  "inject": "",
-  "menu": "<!-- DADS Demandcluster Ads Asynchronous JS Tag - Generated with Revive Adserver v5.4.1 --><ins data-revive-zoneid="2" data-revive-id="6749bbe97aa40b08f5dc1f45213caa82"></ins><script async src="//ads.demandcluster.com/www/delivery/asyncjs.php"></script>",
-  "menuLg": "<!-- DADS Demandcluster Ads Asynchronous JS Tag - Generated with Revive Adserver v5.4.1 --><ins data-revive-zoneid="2" data-revive-id="6749bbe97aa40b08f5dc1f45213caa82"></ins><script async src="//ads.demandcluster.com/www/delivery/asyncjs.php"></script>"
+  "provider": "google",
+  "publisherId": "pub-4911002739669349",
+  "inject": "<script async src='https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4911002739669349'
+     crossorigin='anonymous'></script>",
+  "menu": "<!-- in-menu -->
+<ins class='adsbygoogle'
+     style='display:inline-block;width:300px;height:250px'
+     data-ad-client='ca-pub-4911002739669349'
+     data-ad-slot='1819982548'></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>",
+  "menuLg": "<!-- in-menu-lg -->
+<ins class='adsbygoogle'
+     style='display:inline-block;width:300px;height:600px'
+     data-ad-client='ca-pub-4911002739669349'
+     data-ad-slot='9558871767'></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>',
+"banner": "<!-- banner -->
+<ins class='adsbygoogle'
+     style='display:inline-block;width:728px;height:90px'
+     data-ad-client='ca-pub-4911002739669349'
+     data-ad-slot='1314917212'></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>",
+"mobile": "<!-- mobile -->
+<ins class='adsbygoogle'
+     style='display:inline-block;width:320px;height:50px'
+     data-ad-client='ca-pub-4911002739669349'
+     data-ad-slot='5428055068'></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>"
+
 }

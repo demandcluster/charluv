@@ -766,6 +766,7 @@ subscribe('chat-temp-character', { chatId: 'string', character: 'any' }, (body) 
       chat: replaceTemp(active.chat, body.character),
     },
   })
+  toastStore.success('Temporary character updated')
 })
 
 function replaceTemp(chat: AppSchema.Chat, char: AppSchema.Character): AppSchema.Chat {

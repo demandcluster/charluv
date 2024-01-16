@@ -156,12 +156,7 @@ const ProfilePage: Component<{ footer?: (children: any) => void }> = (props) => 
             </div>
           </TitleCard>
           <Show when={state.user?.premium}>
-            <TextInput
-              label="Premium"
-              helperText="You are a premium user till"
-              value={timeStamp(state.user?.premiumUntil)}
-              disabled
-            />
+            <TextInput label="Premium" helperText="You are a premium user" value="" disabled />
           </Show>
           <TextInput
             label="ID"

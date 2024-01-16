@@ -268,7 +268,7 @@ export const Subscription: Component = () => {
                       required
                     />
 
-                    <Card hide={service() !== 'agnaistic'} class="mt-4">
+                    <Card hide={service() !== 'horde'} class="mt-4">
                       <TextInput
                         fieldName="subModel"
                         label="Model"

@@ -82,7 +82,7 @@ const Settings: Component<{ footer?: (children: any) => void }> = (props) => {
     }
   })
 
-  const tabs: Tab[] = ['ui', 'ai', 'voice']
+  const tabs: Tab[] = ['ui', 'ai', 'voice', 'subscription']
 
   // if (state.loggedIn && (state.tiers.length > 0 || state.user?.billing)) {
   //   tabs.push('subscription')
@@ -171,10 +171,9 @@ const Settings: Component<{ footer?: (children: any) => void }> = (props) => {
 
   const tabClass = `flex flex-col gap-4`
 
-  const version = (window.agnai_version?.includes('unknown') ? '' : window.agnai_version).slice(
-    0,
-    7
-  )
+  const version = (
+    window.charluv_version?.includes('unknown') ? '' : <window className="charluv"></window>
+  ).slice(0, 7)
 
   onMount(() => {
     props.footer?.(footer)

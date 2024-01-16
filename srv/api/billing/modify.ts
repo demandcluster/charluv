@@ -46,6 +46,7 @@ export const modifySubscription = handle(async ({ body, userId }) => {
 
     await subsCmd.upgrade(userId, { priceId: tier.priceId, tierId: tier._id })
     await store.users.updateUser(userId, {
+      premium: true,
       sub: {
         level: tier.level,
         tierId: body.tierId,
