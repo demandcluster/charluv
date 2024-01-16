@@ -27,6 +27,7 @@ RUN mkdir /app/dist/.well-known
 COPY ./web/.well-known/assetlinks.json /app/dist/.well-known/assetlinks.json
 COPY ./web/.well-known/apple-developer-merchantid-domain-association /app/dist/.well-known/apple-developer-merchantid-domain-association
 COPY ./web/charluv512.png /app/dist/charluv512.png
+COPY ./slots.txt /app/dist/slots.txt
 
 ENV LOG_LEVEL=info \
   INITIAL_USER=administrator \
