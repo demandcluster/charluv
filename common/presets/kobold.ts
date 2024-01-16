@@ -28,6 +28,5 @@ export const koboldPresets = {
     memoryContextLimit: 500,
     memoryReverseWeight: false,
     antiBond: false,
-    promptOrderFormat: 'Charluv',
   },
 } satisfies Record<string, Partial<AppSchema.GenSettings>>
