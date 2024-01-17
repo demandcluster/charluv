@@ -240,8 +240,6 @@ export function getTemplate(opts: Pick<GenerateRequestV2, 'settings' | 'chat'>) 
   const validate =
     opts.settings?.useAdvancedPrompt === undefined
       ? true
-      : typeof opts.settings?.useAdvancedPrompt === 'boolean'
-      ? opts.settings.useAdvancedPrompt
       : opts.settings?.useAdvancedPrompt === 'validate'
 
   if (!validate) {
