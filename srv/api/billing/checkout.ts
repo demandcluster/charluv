@@ -30,7 +30,7 @@ export const startCheckout = handle(async ({ body, userId }) => {
     cancel_url: `${domain}/checkout/cancel?session_id={CHECKOUT_SESSION_ID}&request_id=${requestId}`,
     mode: 'subscription',
     billing_address_collection: 'auto',
-    payment_method_types: ['card', 'paypal', 'p24', 'eps', 'giropay'],
+    payment_method_types: ['card', 'paypal', 'giropay'],
     line_items: [{ price: tier.priceId, quantity: 1 }],
     metadata: { tierId: body.tierId, userId },
   })
