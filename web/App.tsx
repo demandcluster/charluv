@@ -128,16 +128,16 @@ const App: Component = () => {
             <Route path="/shop/error" component={Error} />
             <Route path="/premium" component={PremiumInfo} />
             <Route path="/invites" component={lazy(() => import('./pages/Invite/InvitesPage'))} />
-            <Show when={state.user?.premium}>
-              <Route
-                path="/presets/:id"
-                component={lazy(() => import('./pages/GenerationPresets'))}
-              />
-              <Route
-                path="/presets"
-                component={lazy(() => import('./pages/GenerationPresets/PresetList'))}
-              />
-            </Show>
+
+            <Route
+              path="/presets/:id"
+              component={lazy(() => import('./pages/GenerationPresets'))}
+            />
+            <Route
+              path="/presets"
+              component={lazy(() => import('./pages/GenerationPresets/PresetList'))}
+            />
+
             <Show when={state.user?.admin}>
               <Route
                 path="/admin/metrics"
