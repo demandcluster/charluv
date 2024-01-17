@@ -68,19 +68,19 @@ export const handleHorde: ModelAdapter = async function* ({
       return
     }
 
-    if (preset.subLevel > -1 && preset.subLevel > newLevel) {
-      opts.log.error(
-        {
-          preset: preset.name,
-          presetLevel: preset.subLevel,
-          newLevel,
-          userLevel: user.sub?.level,
-        },
-        `Subscription insufficient`
-      )
-      yield { error: 'Your account is ineligible for this model - Subscription tier insufficient' }
-      return
-    }
+    // if (preset.subLevel > -1 && preset.subLevel > newLevel) {
+    //   opts.log.error(
+    //     {
+    //       preset: preset.name,
+    //       presetLevel: preset.subLevel,
+    //       newLevel,
+    //       userLevel: user.sub?.level,
+    //     },
+    //     `Subscription insufficient`
+    //   )
+    //   yield { error: 'Your account is ineligible for this model - Subscription tier insufficient' }
+    //   return
+    // }
 
     if (!preset.allowGuestUsage && guest) {
       yield { error: 'Please sign in to use this model' }
