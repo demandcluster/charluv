@@ -151,7 +151,7 @@ const PromptEditor: Component<
     noDummyPreview?: boolean
   } & Optionals
 > = (props) => {
-  let ref: HTMLTextAreaElement = null as any
+  let ref: HTMLTextAreaElement //= null as any
 
   const adapters = createMemo(() => getAISettingServices(props.aiSetting || 'gaslight'))
   const presets = presetStore()
@@ -457,7 +457,10 @@ export const BasicPromptTemplate: Component<{
         <TextInput
           fieldName="promptOrder"
           parentClass="hidden"
-          ref={(ele) => (ref = ele)}
+          //ref={(ele) => (ref = ele)}
+          value={mod()
+            .map((o) => `${o.value}=${o.enabled ? 'on' : 'off'}`)
+            .join(',')}
           // value={''}
         />
       </div>
