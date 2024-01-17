@@ -297,8 +297,7 @@ export function getUserSubscriptionTier(user: AppSchema.User, tiers: AppSchema.S
   const now = new Date().getTime()
   let nativeTier = tiers.find((t) => user.sub && t._id === user.sub.tierId)
   let patronTier = tiers.find((t) => user.patreon?.sub && t._id === user.patreon.sub.tierId)
-  let paypalTier = tiers.find((t) => t.level === 10)
-
+  let paypalTier = tiers.find((t) => t.level > 1)
   const paypalExpired =
     (user.premiumUntil && user.premiumUntil < now) || user.premium === false ? true : false
   const nativeExpired = isExpired(user.billing?.validUntil) || user.billing?.status === 'cancelled'
@@ -316,6 +315,7 @@ export function getUserSubscriptionTier(user: AppSchema.User, tiers: AppSchema.S
   if (paypalExpired) {
     paypalTier = undefined
   }
+
   if (!nativeTier && !patronTier && !paypalTier) return
 
   if (!nativeTier || !patronTier || !paypalTier) {

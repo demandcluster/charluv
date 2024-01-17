@@ -311,7 +311,7 @@ export async function validateSubscription(user: AppSchema.User) {
   if (user.admin) return Infinity
 
   const sub = getUserSubTier(user)
-  console.log('----------------SUB--------------', sub)
+
   if (!sub) return -1
 
   const { type, tier, level } = sub

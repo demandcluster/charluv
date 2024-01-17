@@ -39,9 +39,8 @@ export const handleHorde: ModelAdapter = async function* ({
       opts.subscription === undefined ||
       newLevel === undefined
     ) {
-      opts.subscription = await getSubscriptionPreset(user, false, gen, newLevel)
+      opts.subscription = await getSubscriptionPreset(user, false, gen)
     }
-
     if (!opts.subscription || !opts.subscription.preset) {
       yield { error: 'Subscriptions are not enabled' }
       return
@@ -68,19 +67,19 @@ export const handleHorde: ModelAdapter = async function* ({
       return
     }
 
-    // if (preset.subLevel > -1 && preset.subLevel > newLevel) {
-    //   opts.log.error(
-    //     {
-    //       preset: preset.name,
-    //       presetLevel: preset.subLevel,
-    //       newLevel,
-    //       userLevel: user.sub?.level,
-    //     },
-    //     `Subscription insufficient`
-    //   )
-    //   yield { error: 'Your account is ineligible for this model - Subscription tier insufficient' }
-    //   return
-    // }
+    if (preset.subLevel > -1 && preset.subLevel > newLevel) {
+      opts.log.error(
+        {
+          preset: preset.name,
+          presetLevel: preset.subLevel,
+          newLevel,
+          userLevel: user.sub?.level,
+        },
+        `Subscription insufficient`
+      )
+      yield { error: 'Your account is ineligible for this model - Subscription tier insufficient' }
+      return
+    }
 
     if (!preset.allowGuestUsage && guest) {
       yield { error: 'Please sign in to use this model' }
@@ -147,15 +146,15 @@ export const handleHorde: ModelAdapter = async function* ({
 export async function getSubscriptionPreset(
   user: AppSchema.User,
   guest: boolean,
-  gen?: Partial<AppSchema.GenSettings>,
-  newLevel?: number | Error
+  gen?: Partial<AppSchema.GenSettings>
 ) {
   if (!isConnected()) return
   if (!gen) return
-  if (newLevel instanceof Error) return
+
   // if (gen.service !== 'horde') return
 
-  const level = user.admin ? Infinity : user.sub?.level ? user.sub?.level : newLevel ?? -1
+  const level = user.admin ? Infinity : user.sub?.level ? user.sub?.level : user?.premium ? 10 : -1
+
   let error: string | undefined = undefined
   let warning: string | undefined = undefined
   let preset
@@ -163,7 +162,8 @@ export async function getSubscriptionPreset(
   if (gen.registered) {
     const subId = gen.registered?.agnaistic?.subscriptionId
     preset = subId ? await store.subs.getSubscription(subId) : fallback
-  } else {
+  }
+  if (user?.premium && !user.sub?.level) {
     preset = await store.subs.getSubscription('paypal')
   }
   if (guest && preset?.allowGuestUsage === false) {
@@ -174,8 +174,8 @@ export async function getSubscriptionPreset(
     // If the subscription they're using becomes unavailable, gracefully fallback to the default and let them know
     if (fallback && !fallback.subDisabled && fallback.subLevel <= level) {
       preset = fallback
-      warning =
-        'Your configured Charluv model is no longer available. Using a fallback. Please update your preset.'
+      // warning =
+      //   'Your configured Charluv model is no longer available. Using a fallback. Please update your preset.'
     } else {
       error = 'Model selected is invalid or disabled. Try another.'
     }

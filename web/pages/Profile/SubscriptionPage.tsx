@@ -257,6 +257,12 @@ export const SubscriptionPage: Component = (props) => {
           </div>
 
           <div class="flex justify-center">All prices are in EUR</div>
+
+          <div class="flex justify-center text-sm">
+            Patreon pricing shown might be excl. VAT, if so we will adjust the pricing accordingly
+            soon
+          </div>
+
           <div class="flex justify-center">
             <a href="/shop">
               <Button schema="green" disabled={user.billingLoading}>
