@@ -24,17 +24,9 @@ export type FormatTags = {
   closeSystem: string
 }
 
-export type ModelFormat = 'Charluv' | 'Alpaca' | 'Vicuna' | 'ChatML' | 'Mistral'
+export type ModelFormat = 'Alpaca' | 'Vicuna' | 'ChatML' | 'Mistral'
 
 export const BUILTIN_FORMATS: { [key in ModelFormat]: FormatTags } = {
-  Charluv: {
-    openUser: '### Instruction:\n',
-    closeUser: '\n',
-    openBot: '### Response:\n',
-    closeBot: '\n',
-    openSystem: '### System:\n',
-    closeSystem: '\n',
-  },
   Alpaca: {
     openUser: '### Instruction:\n',
     closeUser: '\n',
