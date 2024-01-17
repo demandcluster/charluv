@@ -24,7 +24,7 @@ export type FormatTags = {
   closeSystem: string
 }
 
-export type ModelFormat = 'Alpaca' | 'Vicuna' | 'ChatML' | 'Mistral'
+export type ModelFormat = 'Charluv','Alpaca' | 'Vicuna' | 'ChatML' | 'Mistral'
 
 export const BUILTIN_FORMATS: { [key in ModelFormat]: FormatTags } = {
   Alpaca: {
