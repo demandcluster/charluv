@@ -165,7 +165,6 @@ export async function getSubscriptionPreset(
     preset = subId ? await store.subs.getSubscription(subId) : fallback
   } else {
     preset = await store.subs.getSubscription('paypal')
-    console.log('preeeeeeeeeeeset', preset)
   }
   if (guest && preset?.allowGuestUsage === false) {
     error = 'Please sign in to use this model.'
