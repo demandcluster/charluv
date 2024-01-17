@@ -28,7 +28,7 @@ export const koboldPresets = {
     memoryContextLimit: 500,
     memoryReverseWeight: false,
     antiBond: false,
-    useAdvancedPrompt: true,
+    useAdvancedPrompt: 'validate',
     promptOrderFormat: 'Charluv',
   },
 } satisfies Record<string, Partial<AppSchema.GenSettings>>

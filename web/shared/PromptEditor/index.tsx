@@ -422,9 +422,9 @@ export const BasicPromptTemplate: Component<{
     })) || SORTED_LABELS.map((h) => ({ ...h, enabled: true }))
   )
 
-  const updateRef = (items: SortItem[]) => {
-    ref.value = items.map((n) => `${n.value}=${n.enabled ? 'on' : 'off'}`).join(',')
-  }
+  // const updateRef = (items: SortItem[]) => {
+  //   ref.value = items.map((n) => `${n.value}=${n.enabled ? 'on' : 'off'}`).join(',')
+  // }
 
   const onClick = (id: number) => {
     const prev = mod()
@@ -436,9 +436,9 @@ export const BasicPromptTemplate: Component<{
     updateRef(next)
   }
 
-  onMount(() => {
-    updateRef(mod())
-  })
+  // onMount(() => {
+  //   updateRef(mod())
+  // })
 
   return (
     <Card border hide={props.hide}>
@@ -453,7 +453,7 @@ export const BasicPromptTemplate: Component<{
           items={items}
           value={props.inherit?.promptOrderFormat || 'Alpaca'}
         />
-        <Sortable items={mod()} onChange={updateRef} onItemClick={onClick} />
+        <Sortable items={mod()} onItemClick={onClick} />
         <TextInput
           fieldName="promptOrder"
           parentClass="hidden"

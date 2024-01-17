@@ -28,7 +28,7 @@ export const hordePresets = {
     memoryContextLimit: 500,
     memoryReverseWeight: false,
     antiBond: false,
-    useAdvancedPrompt: true,
-    promptOrderFormat: 'Charluv',
+    useAdvancedPrompt: 'validate',
+    promptOrderFormat: 'Charluv'
   },
 } satisfies Record<string, Partial<AppSchema.GenSettings>>
