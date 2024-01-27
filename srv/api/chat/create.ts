@@ -54,7 +54,7 @@ export const createChat = handle(async ({ body, user, userId }) => {
       ...body,
       greeting: body.greeting ?? character?.greeting,
       userId: user?.userId!,
-      scenarioIds: body.scenarioId ? [body.scenarioId] : [],
+      scenarioIds: scenarios,
       scenarioStates: lvl,
     },
     profile!,

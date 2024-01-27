@@ -28,7 +28,7 @@ Yes. In your **Chat Options**, you can add characters and invite users from **Pa
 Yes. In the **Chat Options** enable *Chat Editing* and extra buttons will appear in your chat messages.
 
 ### My response was cut off mid-sentence, can I continue it?
-Yes. In the **Input Options** you can choose to *Generate More*.
+Yes. In the **Input Options** you can choose to *Continue*.
 
 ### Can I generate images based on my conversation?
 Yes, you can generate images by clicking the **generate image** button on the chat input.

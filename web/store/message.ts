@@ -290,6 +290,7 @@ export const msgStore = createStore<MsgState>(
       }
 
       if (res.result) {
+        console.log('result', res.result)
         msgStore.setState({ textBeforeGenMore })
         onSuccess?.()
       }
