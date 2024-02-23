@@ -36,7 +36,7 @@ export const voiceStore = createStore<VoiceState>(
 
       if (!user) return { services }
 
-      if (user.elevenLabsApiKeySet || user.elevenLabsApiKey) {
+      if (user.elevenLabsApiKeySet || user.elevenLabsApiKey || user.admin) {
         services.push({
           type: 'elevenlabs',
           label: 'ElevenLabs',

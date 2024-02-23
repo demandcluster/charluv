@@ -62,7 +62,7 @@ export type AppRequest = Omit<express.Request, 'log'> & {
 export const errors = {
   NotFound: new StatusError('Resource not found', 404),
   Unauthorized: new StatusError('Unauthorized', 401),
-  Forbidden: new StatusError('Forbidden', 403),
+  Forbidden: new StatusError('Forbidden/Premium', 403),
   BadRequest: new StatusError('Bad request', 400),
   MissingCredits: new StatusError('Not enough credits', 402),
 }
