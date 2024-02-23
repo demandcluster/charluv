@@ -37,7 +37,7 @@ type SendModes =
   | 'self'
   | 'send-noreply'
 
-type ChatMessageExt = AppSchema.ChatMessage & { voiceUrl?: string }
+export type ChatMessageExt = AppSchema.ChatMessage & { voiceUrl?: string }
 
 export type MsgState = {
   activeChatId: string
@@ -700,7 +700,7 @@ subscribe(
     adapter: 'string',
     extras: ['string?'],
     meta: 'any?',
-    retries: ['string'],
+    retries: ['string?'],
     actions: [{ emote: 'string', action: 'string' }, '?'],
   },
   async (body) => {
@@ -1034,18 +1034,3 @@ subscribe(
     onCharacterMessageReceived(msg)
   }
 )
-
-// function addMsgToRetries(msg: Pick<AppSchema.ChatMessage, '_id' | 'msg'>) {
-//   if (!msg) return
-
-//   const { msgs } = msgStore.getState()
-
-//   const next = msgs.map((m) => {
-//     if (m._id !== msg._id) return m
-//     const retries = m.retries || []
-//     retries.unshift(msg.msg)
-//     return { ...m, retries }
-//   })
-
-//   msgStore.setState({ msgs: next })
-// }

@@ -29,19 +29,19 @@ export const subsCmd = createCommands<SubsEvt, SubsAgg, SubsCmd>(domain.subscrip
     }
   },
   async subscribe(cmd, agg) {
-    if (agg.state !== 'new' && agg.state !== 'cancelled') {
-      const user = await store.users.getUser(cmd.aggregateId)
-      if (!user) {
-        throw new CommandError(`Cannot locate user for subscription update`, 'INVALID_USER')
-      }
-      // if (!user.billing?.validUntil) {
-      //   throw new CommandError(`Subscription valid - No expiry found`, 'NO_VALID_UNTIL')
-      // }
-      // const expiry = new Date(user.billing.validUntil)
-      // if (expiry.valueOf() > Date.now()) {
-      //   throw new CommandError(`Cannot subscribe - Already subscribed`, 'ALREADY_SUBSCRIBED')
-      // }
+    const user = await store.users.getUser(cmd.aggregateId)
+    if (!user) {
+      throw new CommandError(`Cannot locate user for subscription update`, 'INVALID_USER')
     }
+    // if (agg.state !== 'new' && agg.state !== 'cancelled') {
+    // if (!user.billing?.validUntil) {
+    //   throw new CommandError(`Subscription valid - No expiry found`, 'NO_VALID_UNTIL')
+    // }
+    // const expiry = new Date(user.billing.validUntil)
+    // if (expiry.valueOf() > Date.now()) {
+    //   throw new CommandError(`Cannot subscribe - Already subscribed`, 'ALREADY_SUBSCRIBED')
+    // }
+    // }
 
     return {
       type: 'subscribed',
@@ -95,5 +95,13 @@ export const subsCmd = createCommands<SubsEvt, SubsAgg, SubsCmd>(domain.subscrip
     }
 
     return { type: 'cancelled' }
+  },
+  async adminManual(cmd, agg) {
+    return {
+      type: 'admin-manual',
+      tierId: cmd.tierId,
+      byAdminId: cmd.byAdminId,
+      expiresAt: cmd.expiresAt,
+    }
   },
 })

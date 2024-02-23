@@ -1,14 +1,15 @@
 import { A, useNavigate } from '@solidjs/router'
-import { Copy, Plus, Trash } from 'lucide-solid'
-import { Component, createMemo, createSignal, For, onMount } from 'solid-js'
+import { Copy, Import, Plus, Trash } from 'lucide-solid'
+import { Component, createMemo, createSignal, For, onMount, Show } from 'solid-js'
 import Button from '../../shared/Button'
-import { ConfirmModal } from '../../shared/Modal'
-import { Card } from '../../shared/Card'
+import Modal, { ConfirmModal } from '../../shared/Modal'
 import PageHeader from '../../shared/PageHeader'
-import { defaultPresets } from '../../../common/presets'
-import { presetStore, settingStore } from '../../store'
+import { defaultPresets, presetValidator } from '../../../common/presets'
+import { presetStore, settingStore, toastStore } from '../../store'
 import { getUsableServices, setComponentPageTitle } from '../../shared/util'
 import { getServiceName, sortByLabel } from '/web/shared/adapter'
+import FileInput, { FileInputResult, getFileAsString } from '/web/shared/FileInput'
+import { validateBody } from '/common/valid'
 
 const PresetList: Component = () => {
   setComponentPageTitle('Presets')
@@ -31,7 +32,9 @@ const PresetList: Component = () => {
     })
     .map(([id, cfg]) => ({ ...cfg, label: `[${cfg.service}] ${cfg.name}`, _id: id }))
     .sort(sortByLabel)
+
   const [deleting, setDeleting] = createSignal<string>()
+  const [importing, setImporting] = createSignal(false)
 
   const deletePreset = () => {
     const presetId = deleting()
@@ -56,7 +59,7 @@ const PresetList: Component = () => {
         {/* <A href="/presets/new">
           <Button>
             <Plus />
-            New Preset
+            New
           </Button>
         </A> */}
       </div>
@@ -116,6 +119,10 @@ const PresetList: Component = () => {
         </For>
       </div>
 
+      <Show when={importing()}>
+        <ImportPreset success={() => nav(`/presets/new`)} close={() => setImporting(false)} />
+      </Show>
+
       <ConfirmModal
         show={!!deleting()}
         close={() => setDeleting()}
@@ -123,6 +130,47 @@ const PresetList: Component = () => {
         message="Are you sure you wish to delete this preset?"
       />
     </>
+  )
+}
+
+const importValid = {
+  ...presetValidator,
+  order: 'any',
+  disabledSamplers: 'any',
+  name: 'string?',
+  oaiModel: 'string?',
+  claudeModel: 'string?',
+} as const
+
+const ImportPreset: Component<{ close: () => void; success: () => void }> = (props) => {
+  const onChange = async (files: FileInputResult[]) => {
+    if (!files.length) {
+      return
+    }
+
+    try {
+      const content = await getFileAsString(files[0])
+      const parsed = JSON.parse(content)
+
+      const { errors, actual } = validateBody(importValid, parsed, { notThrow: true })
+      if (errors.length) {
+        toastStore.error(`Preset is not valid: ${errors.join(', ')}`)
+        console.log(errors)
+        return
+      }
+
+      presetStore.setImportPreset(actual as any)
+      props.success()
+    } catch (ex: any) {
+      toastStore.error(`Could not parse preset: ${ex.message}`)
+      return
+    }
+  }
+
+  return (
+    <Modal show close={props.close} title="Import Preset">
+      <FileInput fieldName="file" label="Preset JSON" onUpdate={onChange} />
+    </Modal>
   )
 }
 

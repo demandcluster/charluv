@@ -20,7 +20,7 @@ import {
 } from '../../common/adapters'
 import Divider from './Divider'
 import { Toggle } from './Toggle'
-import { chatStore, presetStore, settingStore, userStore } from '../store'
+import { presetStore, settingStore, userStore } from '../store'
 import PromptEditor, { BasicPromptTemplate } from './PromptEditor'
 import { Card } from './Card'
 import { FormLabel } from './FormLabel'
@@ -45,6 +45,7 @@ import { A, useSearchParams } from '@solidjs/router'
 import { PhraseBias, StoppingStrings } from './PhraseBias'
 import { AgnaisticSettings } from '../pages/Settings/Agnaistic'
 import { BUILTIN_FORMATS, templates } from '/common/presets/templates'
+import { usePaneManager } from './hooks'
 
 export { GenerationSettings as default }
 
@@ -57,9 +58,9 @@ type Props = {
 }
 
 const GenerationSettings: Component<Props & { onSave: () => void }> = (props) => {
-  const opts = chatStore((s) => s.opts)
   const userState = userStore()
   const [search, setSearch] = useSearchParams()
+  const pane = usePaneManager()
 
   const services = createMemo<Option[]>(() => {
     const list = getUsableServices().map((adp) => ({ value: adp, label: ADAPTER_LABELS[adp] }))
@@ -133,7 +134,7 @@ const GenerationSettings: Component<Props & { onSave: () => void }> = (props) =>
 
           <RegisteredSettings service={service()} inherit={props.inherit} />
         </Card>
-        <Show when={!!opts.pane}>
+        <Show when={pane.showing()}>
           <TempSettings service={props.inherit?.service} />
         </Show>
         <Tabs
@@ -149,7 +150,7 @@ const GenerationSettings: Component<Props & { onSave: () => void }> = (props) =>
           inherit={props.inherit}
           service={service()}
           format={format()}
-          pane={!!opts.pane}
+          pane={pane.showing()}
           setFormat={setFormat}
           tab={tabs[tab()]}
         />
@@ -158,7 +159,7 @@ const GenerationSettings: Component<Props & { onSave: () => void }> = (props) =>
           inherit={props.inherit}
           service={service()}
           format={format()}
-          pane={!!opts.pane}
+          pane={pane.showing()}
           tab={tabs[tab()]}
         />
         <GenSettings
@@ -166,7 +167,7 @@ const GenerationSettings: Component<Props & { onSave: () => void }> = (props) =>
           inherit={props.inherit}
           service={service()}
           format={format()}
-          pane={!!opts.pane}
+          pane={pane.showing()}
           tab={tabs[tab()]}
         />
       </div>
@@ -738,7 +739,34 @@ const GenSettings: Component<Props & { pane: boolean; format?: ThirdPartyFormat;
           service={props.service}
           aiSetting={'temp'}
         />
-
+        <RangeInput
+          fieldName="dynatemp_range"
+          label="Dynamic Temperature"
+          helperText="The range to use for dynamic temperature.  When used,
+          the actual temperature is allowed to be automatically adjusted
+          dynamically between DynaTemp ± DynaTempRange. For example,
+          setting `temperature=0.4` and `dynatemp_range=0.1` will result
+          in a minimum temp of 0.3 and max of 0.5."
+          min={0.1}
+          max={20}
+          step={0.01}
+          value={props.inherit?.dynatemp_range || 0}
+          disabled={props.disabled}
+          service={props.service}
+          aiSetting={'dynatemp_range'}
+        />
+        <RangeInput
+          fieldName="dynatemp_exponent"
+          label="Dynamic Temperature Exponent"
+          helperText="Exponent for dynatemp sampling. Range [0, inf)."
+          min={0}
+          max={20}
+          step={0.01}
+          value={props.inherit?.dynatemp_exponent || 1}
+          disabled={props.disabled}
+          service={props.service}
+          aiSetting={'dynatemp_exponent'}
+        />
         <RangeInput
           fieldName="cfgScale"
           label="CFG Scale"

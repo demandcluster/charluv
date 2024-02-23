@@ -320,6 +320,10 @@ export async function validateSubscription(user: AppSchema.User) {
   if (type === 'paypal') {
     return level
   }
+  if (type === 'manual') {
+    return sub.level
+  }
+
   if (type === 'patreon') {
     if (!user.patreon) return -1
 

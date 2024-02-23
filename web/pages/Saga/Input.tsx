@@ -2,7 +2,7 @@ import { Component } from 'solid-js'
 import TextInput from '/web/shared/TextInput'
 import { userStore } from '/web/store'
 
-export const AdventureInput: Component<{
+export const SagaInput: Component<{
   text?: (value: string) => void
   onEnter: (prompt: string, onSuccess: () => void) => void
   loading: boolean
@@ -35,6 +35,7 @@ export const AdventureInput: Component<{
         class="input-bar min-h-[80px] w-full py-0"
         onInput={updateText}
         onChange={updateText}
+        disabled={props.loading}
         onKeyDown={(ev) => {
           const isMobileDevice = /Mobi/i.test(window.navigator.userAgent)
           const canMobileSend = isMobileDevice ? user.ui.mobileSendOnEnter : true

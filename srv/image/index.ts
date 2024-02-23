@@ -47,12 +47,15 @@ export async function generateImage(
   }
 
   prompt = prompt.trim()
-  if (user.images?.prefix) {
-    prompt = user.images.prefix + ' ' + prompt
-  }
 
-  if (user.images?.suffix) {
-    prompt += ' ' + user.images.suffix
+  if (!opts.noAffix) {
+    if (user.images?.prefix) {
+      prompt = user.images.prefix + ' ' + prompt
+    }
+
+    if (user.images?.suffix) {
+      prompt += ' ' + user.images.suffix
+    }
   }
 
   log.debug({ prompt, type: user.images?.type }, 'Image prompt')

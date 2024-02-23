@@ -181,6 +181,8 @@ export namespace AppSchema {
     avatar?: string
   }
 
+  export type SubscriptionType = 'native' | 'patreon' | 'manual' | 'paypal'
+
   export interface User {
     _id: string
 
@@ -249,10 +251,16 @@ export namespace AppSchema {
     ui?: UISettings
 
     sub?: {
-      type?: 'native' | 'patreon' | 'manual' | 'paypal'
+      type?: SubscriptionType
       tierId: string
       level: number
       last?: string
+    }
+
+    manualSub?: {
+      tierId: string
+      level: number
+      expiresAt: string
     }
 
     patreonUserId?: string | null
@@ -359,7 +367,7 @@ export namespace AppSchema {
     kind: 'chat-message'
     chatId: string
     msg: string
-    retries: string[]
+    retries?: string[]
     extras?: string[]
     characterId?: string
     userId?: string
@@ -539,6 +547,8 @@ export namespace AppSchema {
     service?: AIAdapter
 
     temp: number
+    dynatemp_range?: number
+    dynatemp_exponent?: number
     maxTokens: number
     maxContextLength?: number
     repetitionPenalty: number

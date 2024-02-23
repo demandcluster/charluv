@@ -1,5 +1,5 @@
 import { Menu, MoreHorizontal } from 'lucide-solid'
-import { Component, Show, createMemo, createSignal } from 'solid-js'
+import { Component, Show, createMemo } from 'solid-js'
 import { A, useLocation } from '@solidjs/router'
 import { ChatRightPane, chatStore, settingStore } from '../store'
 import ChatOptions, { ChatModal } from '../pages/Chat/ChatOptions'
@@ -7,10 +7,12 @@ import { DropMenu } from './DropMenu'
 import logoDark from '../asset/logoDark.png'
 import { getClientPreset } from './adapter'
 import { ADAPTER_LABELS } from '/common/adapters'
+import { usePaneManager } from './hooks'
 
 const NavBar: Component = () => {
   const cfg = settingStore()
   const location = useLocation()
+  const pane = usePaneManager()
   const chats = chatStore((s) => ({
     chat: s.active?.chat,
     char: s.active?.char,
@@ -18,20 +20,17 @@ const NavBar: Component = () => {
     opts: s.opts,
   }))
 
-  const [showOpts, setShowOpts] = createSignal(false)
-
   const isChat = createMemo(() => {
     return location.pathname.startsWith('/chat/')
   })
 
   const setModal = (modal: ChatModal) => {
-    setShowOpts(false)
-    chatStore.option('modal', modal)
+    chatStore.option({ options: false, modal })
   }
 
   const togglePane = (paneType: ChatRightPane) => {
-    setShowOpts(false)
-    chatStore.option('pane', chatStore.getState().opts.pane === paneType ? undefined : paneType)
+    chatStore.option({ options: false })
+    pane.update(paneType)
   }
 
   const Title = (
@@ -77,14 +76,18 @@ const NavBar: Component = () => {
             </Show>
           </div>
           <Show when={isChat()} fallback={<div class="w-8 sm:hidden"></div>}>
-            <div class="" onClick={() => setShowOpts(true)}>
+            <div onClick={() => chatStore.option({ options: 'mobile' })}>
               <MoreHorizontal class="icon-button" />
-              <DropMenu show={showOpts()} close={() => setShowOpts(false)} horz="left" vert="down">
+              <DropMenu
+                show={chats.opts.options === 'mobile'}
+                close={() => chatStore.option({ options: false })}
+                horz="left"
+                vert="down"
+              >
                 <ChatOptions
                   setModal={setModal}
                   togglePane={togglePane}
                   adapterLabel={adapterLabel()}
-                  close={() => setShowOpts(false)}
                 />
               </DropMenu>
             </div>

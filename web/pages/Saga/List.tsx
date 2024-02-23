@@ -1,5 +1,5 @@
 import { Component, For, createEffect, createMemo, onMount } from 'solid-js'
-import { gameStore } from './state'
+import { sagaStore } from './state'
 import { Pill, SolidCard } from '/web/shared/Card'
 import { toDuration, toEntityMap } from '/web/shared/util'
 import PageHeader from '/web/shared/PageHeader'
@@ -10,12 +10,13 @@ import { markdown } from '/web/shared/markdown'
 import { neat } from '/common/util'
 import Button from '/web/shared/Button'
 import { PlusIcon } from 'lucide-solid'
+import { SagaSession } from '/web/store/data/saga'
 
-export const AdventureList: Component = (props) => {
-  const state = gameStore()
+export const SagaList: Component = (props) => {
+  const state = sagaStore()
   const nav = useNavigate()
 
-  onMount(() => gameStore.init())
+  onMount(() => sagaStore.init())
 
   const sessions = createMemo(() => {
     const temps = toEntityMap(state.templates)
@@ -66,7 +67,7 @@ export const AdventureList: Component = (props) => {
     const template = state.templates[0]
     if (!template) return
 
-    gameStore.newSession(template._id)
+    sagaStore.newSession(template._id)
   })
 
   return (
@@ -84,7 +85,7 @@ export const AdventureList: Component = (props) => {
         <div>
           <Button
             onClick={() => {
-              gameStore.createTemplate()
+              sagaStore.createTemplate()
               nav(toSessionUrl('new'))
             }}
           >
@@ -93,28 +94,21 @@ export const AdventureList: Component = (props) => {
         </div>
         <For each={templates()}>
           {(template) => {
-            const sess = template.sessions[0]
-            const url = toSessionUrl(sess?._id || 'new')
+            if (!template.sessions.length) return null
+
             return (
-              <a
-                onClick={() => {
-                  if (!sess?._id) gameStore.loadTemplate(template._id)
-                  else gameStore.loadSession(sess._id)
-                  nav(url)
-                }}
-              >
-                <SolidCard bg="bg-700" class="flex cursor-pointer justify-between">
-                  <div class="font-bold">
-                    <Pill small type="hl">
-                      {template.sessions.length}
-                    </Pill>{' '}
-                    {template.name}
-                  </div>
-                  <div>
+              <SolidCard bg="bg-700" class="flex flex-col justify-between">
+                <div class="font-bold">
+                  <Pill small type="hl">
+                    {template.sessions.length}
+                  </Pill>{' '}
+                  {template.name}
+                </div>
+                <Sessions sessions={template.sessions} />
+                {/* <div>
                     <sub>{sess ? `${toDuration(new Date(sess.updated))} ago` : 'no sessions'}</sub>
-                  </div>
-                </SolidCard>
-              </a>
+                  </div> */}
+              </SolidCard>
             )
           }}
         </For>
@@ -122,5 +116,33 @@ export const AdventureList: Component = (props) => {
         <Divider />
       </div>
     </>
+  )
+}
+
+const Sessions: Component<{ sessions: SagaSession[] }> = (props) => {
+  const nav = useNavigate()
+
+  return (
+    <div class="flex flex-wrap gap-1">
+      <For each={props.sessions}>
+        {(session) => (
+          <a
+            class="cursor-pointer"
+            onClick={() => {
+              sagaStore.loadSession(session._id)
+              nav(toSessionUrl(session._id))
+            }}
+          >
+            <Pill type="hl">
+              <Pill small type="bg">
+                {session.responses.length}
+              </Pill>
+              &nbsp;
+              {toDuration(new Date(session.updated))} ago
+            </Pill>
+          </a>
+        )}
+      </For>
+    </div>
   )
 }

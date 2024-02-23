@@ -339,7 +339,12 @@ export function getUserSubscriptionTier(user: AppSchema.User, tiers: AppSchema.S
   const tier = type === 'native' ? nativeTier : type === 'paypal' ? paypalTier : patronTier
   const level = tier.level
 
-  return { type, tier, level }
+  const result = { type: highest.source, tier: highest.tier, level: highest.tier.level }
+  if (previous) {
+    return result.level > previous.level ? result : previous
+  }
+
+  return result
 }
 
 function isExpired(expiresAt?: string) {
@@ -355,4 +360,11 @@ export function isPastDate(date: Date | string) {
 
   if (Date.now() > ms) return true
   return false
+}
+
+function getHighestTier(
+  ...tiers: Array<{ source: AppSchema.SubscriptionType; tier?: AppSchema.SubscriptionTier }>
+): { source: AppSchema.SubscriptionType; tier: AppSchema.SubscriptionTier } {
+  const sorted = tiers.filter((t) => !!t.tier).sort((l, r) => r.tier!.level - l.tier!.level)
+  return sorted[0] as any
 }
