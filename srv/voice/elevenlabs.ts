@@ -142,6 +142,7 @@ async function handleElevenLabsModelsList(
 
 function getKey(user: AppSchema.User, guestId: string | undefined) {
   let key: string | undefined
+  return undefined
   // else if (user.elevenLabsApiKey) key = decryptText(user.elevenLabsApiKey!)
   if (!key && !user.premium && !user.admin) throw errors.Forbidden
   const { elevenLabsPremium } = config
