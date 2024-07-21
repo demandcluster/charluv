@@ -59,6 +59,8 @@ export async function generateTextToSpeech(
   voice: VoiceSettings
 ) {
   const service = getVoiceService(voice.service)
+  // banned elevenlabs
+  return { output: undefined }
   if (!service) return { output: undefined }
 
   let audio: TextToSpeechAdapterResponse | undefined
