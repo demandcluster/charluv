@@ -83,7 +83,6 @@ export async function getFreeCredits() {
     .find({
       kind: 'user',
       premiumUntil: { $lte: now },
-      billing: { $exists: false },
       premium: true,
     })
     .toArray()
@@ -114,7 +113,10 @@ export async function getFreeCredits() {
   }
   for (const usr of expiredPremium) {
     // set premiumstatus to false
-    if (!usr.billing?.validUntil && !usr.patreon?.user?.relationships?.memberships?.data.length) {
+    if (
+      !usr.billing?.status !== 'active' &&
+      user.patreon?.member?.attributes.patron_status !== 'active_patron'
+    ) {
       console.log('---DEACTIVATE PREMIUM---', usr._id)
       await db('user')
         .updateOne({ kind: 'user', _id: usr._id }, { $set: { premium: false } })
