@@ -114,8 +114,8 @@ export async function getFreeCredits() {
   for (const usr of expiredPremium) {
     // set premiumstatus to false
     if (
-      !usr.billing?.status !== 'active' &&
-      user.patreon?.member?.attributes.patron_status !== 'active_patron'
+      usr.billing?.status !== 'active' &&
+      usr.patreon?.member?.attributes.patron_status !== 'active_patron'
     ) {
       console.log('---DEACTIVATE PREMIUM---', usr._id)
       await db('user')
