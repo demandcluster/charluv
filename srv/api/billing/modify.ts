@@ -130,6 +130,7 @@ export const adminGift = handle(async ({ userId, body, params }) => {
   })
 
   await store.users.updateUser(body.userId, {
+    premium: true,
     manualSub: {
       expiresAt: body.expiresAt,
       level: tier.level,
