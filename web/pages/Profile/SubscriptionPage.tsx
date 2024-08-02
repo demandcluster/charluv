@@ -242,6 +242,7 @@ export const SubscriptionPage: Component = (props) => {
             {/* <Button onClick={userStore.validateSubscription} disabled={user.billingLoading}>
               Validate
             </Button> */}
+
             <Show when={cfg.tier && !cfg.tier === 'paypal' && !hasExpired()}>
               <Button schema="red" onClick={() => setUnsub(true)} disabled={user.billingLoading}>
                 Unsubscribe
