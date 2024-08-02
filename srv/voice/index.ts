@@ -59,7 +59,7 @@ export async function generateTextToSpeech(
   voice: VoiceSettings
 ) {
   const service = getVoiceService(voice.service)
-  
+
   if (!service) return { output: undefined }
 
   let audio: TextToSpeechAdapterResponse | undefined
@@ -67,7 +67,7 @@ export async function generateTextToSpeech(
   const processedText = processText(text, user.texttospeech?.filterActions ?? true)
 
   try {
-    audio = undefined //await service.generateVoice({ user, text: processedText, voice }, log, guestId)
+    audio = await service.generateVoice({ user, text: processedText, voice }, log, guestId)
   } catch (ex: any) {
     log.error({ err: ex }, 'Failed to generate audio')
     throw new StatusError(`Could not generate audio: ${ex.message || ex}`, 400)
