@@ -1,7 +1,15 @@
 import { AppSchema } from './types/schema'
+import { GenerateRequestV2 } from '/srv/adapter/type'
+
+export const PING_INTERVAL_MS = 30000
 
 export function replace<T extends { _id: string }>(id: string, list: T[], item: Partial<T>) {
   return list.map((li) => (li._id === id ? { ...li, ...item } : li))
+}
+
+export function exclude<T extends { _id: string }>(list: T[], ids: string[]) {
+  const set = new Set(ids)
+  return list.filter((item) => !set.has(item._id))
 }
 
 export function findOne<T extends { _id: string }>(id: string, list: T[]): T | void {
@@ -90,8 +98,9 @@ export function elapsedSince(date: string | Date, offsetMs: number = 0) {
   return toDuration(Math.floor(elapsed))
 }
 
-const ONE_HOUR = 3600
-const ONE_DAY = 86400
+const ONE_HOUR_MS = 60000 * 60
+const ONE_HOUR_SECS = 3600
+const ONE_DAY_SECS = 86400
 
 type Days = number
 type Hours = number
@@ -101,8 +110,8 @@ type Seconds = number
 type Duration = [Days, Hours, Minutes, Seconds]
 
 function toRawDuration(valueSecs: number) {
-  const days = Math.floor(valueSecs / ONE_DAY)
-  const hours = Math.floor(valueSecs / ONE_HOUR) % 24
+  const days = Math.floor(valueSecs / ONE_DAY_SECS)
+  const hours = Math.floor(valueSecs / ONE_HOUR_SECS) % 24
   const mins = Math.floor(valueSecs / 60) % 60
   const secs = Math.ceil(valueSecs % 60)
 
@@ -130,15 +139,45 @@ export function neat(params: TemplateStringsArray, ...rest: string[]) {
     .trim()
 }
 
-const end = `."'*!?)}]\``.split('')
-export function trimSentence(text: string) {
-  const last = end.reduce((last, char) => {
-    const index = text.lastIndexOf(char)
-    return index > last ? index : last
-  }, -1)
+const END_SYMBOLS = new Set(`."”;’'*!！?？)}]\`>~`.split(''))
+const MID_SYMBOLS = new Set(`.)}’'!?\``.split(''))
 
-  if (last === -1) return text
-  return text.slice(0, last + 1)
+export function trimSentence(text: string) {
+  let index = -1,
+    checkpoint = -1
+  for (let i = text.length - 1; i >= 0; i--) {
+    if (END_SYMBOLS.has(text[i])) {
+      // Skip ahead if the punctuation mark is preceded by white space
+      if (i && /[\p{White_Space}\n<]/u.test(text[i - 1])) {
+        index = i - 1
+        continue
+      }
+
+      // Save if there are several punctuation marks in a row
+      if (i && END_SYMBOLS.has(text[i - 1])) {
+        if (checkpoint < i) checkpoint = i
+        continue
+      }
+
+      // Skip if the punctuation mark is in the middle of a word
+      if (
+        MID_SYMBOLS.has(text[i]) &&
+        i > 0 &&
+        i < text.length - 1 &&
+        /\p{L}/u.test(text[i - 1]) &&
+        /\p{L}/u.test(text[i + 1])
+      ) {
+        continue
+      }
+
+      index = checkpoint > i ? checkpoint : i
+      break
+    } else {
+      checkpoint = -1
+    }
+  }
+
+  return index === -1 ? text.trimEnd() : text.slice(0, index + 1).trimEnd()
 }
 
 export function slugify(str: string) {
@@ -155,14 +194,17 @@ export function escapeRegex(string: string) {
   return string.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&')
 }
 
-export function getMessageAuthor(
-  chat: AppSchema.Chat,
-  msg: AppSchema.ChatMessage,
-  chars: Record<string, AppSchema.Character>,
-  members: Map<string, AppSchema.Profile>,
-  sender: AppSchema.Profile,
+export function getMessageAuthor(opts: {
+  kind?: GenerateRequestV2['kind']
+  chat: AppSchema.Chat
+  msg: AppSchema.ChatMessage
+  chars: Record<string, AppSchema.Character>
+  members: Map<string, AppSchema.Profile>
+  sender: AppSchema.Profile
   impersonate?: AppSchema.Character
-) {
+}) {
+  const { chat, msg, chars, members, sender, impersonate } = opts
+
   if (msg.characterId) {
     const char =
       msg.characterId === impersonate?._id
@@ -260,7 +302,7 @@ export function clamp(toClamp: number, max: number, min?: number) {
 }
 
 export function now() {
-  return new Date().toISOString()
+  return new Date(Date.now()).toISOString()
 }
 
 export function parseStops(stops?: string[]) {
@@ -279,9 +321,22 @@ const copyables: Record<string, boolean> = {
 }
 
 export function deepClone<T extends object>(obj: T): T {
+  if (copyables[typeof obj] || !obj) return obj
+
   let copy: any = {}
 
   for (const [key, value] of Object.entries(obj)) {
+    if (Array.isArray(value)) {
+      const subCopy = []
+
+      for (const subval of value) {
+        subCopy.push(deepClone(subval))
+      }
+
+      copy[key] = subCopy
+      continue
+    }
+
     if (copyables[typeof value] || !value) {
       copy[key] = value
       continue
@@ -292,6 +347,7 @@ export function deepClone<T extends object>(obj: T): T {
 
   return copy
 }
+
 type UserSub = {
   type: AppSchema.SubscriptionType
   tier: AppSchema.SubscriptionTier
@@ -299,7 +355,10 @@ type UserSub = {
 }
 
 export function getUserSubscriptionTier(
-  user: AppSchema.User,
+  user: Pick<
+    AppSchema.User,
+    'patreon' | 'billing' | 'sub' | 'manualSub' | '_id' | 'premium' | 'premiumUntil' | 'username'
+  >,
   tiers: AppSchema.SubscriptionTier[],
   previous?: UserSub
 ): UserSub | undefined {
@@ -309,6 +368,10 @@ export function getUserSubscriptionTier(
   let paypalTier = tiers.find((t) => t.level > 1)
   const paypalExpired =
     (user.premiumUntil && user.premiumUntil < now) || user.premium === false ? true : false
+
+  const manualId = !isExpired(user.manualSub?.expiresAt) ? user.manualSub?.tierId : null
+  let manualTier = manualId ? tiers.find((t) => t._id === manualId) : undefined
+
   const nativeExpired = isExpired(user.billing?.validUntil) || user.billing?.status === 'cancelled'
   const patronExpired =
     isExpired(user.patreon?.member?.attributes.next_charge_date) ||
@@ -318,42 +381,25 @@ export function getUserSubscriptionTier(
     nativeTier = undefined
   }
 
-  if (patronExpired) {
-    patronTier = undefined
-  }
   if (paypalExpired) {
     paypalTier = undefined
   }
 
-  if (!nativeTier && !patronTier && !paypalTier) return
-
-  if (!nativeTier || !patronTier || !paypalTier) {
-    const tier = nativeTier || patronTier || paypalTier
-    const level = tier!.level
-    const type: 'native' | 'patreon' | 'paypal' = nativeTier
-      ? 'native'
-      : paypalTier
-      ? 'paypal'
-      : 'patreon'
-
-    return { tier: tier!, level, type }
+  if (patronExpired) {
+    patronTier = undefined
   }
 
-  const type: 'native' | 'patreon' | 'paypal' =
-    nativeTier.level >= patronTier.level
-      ? 'native'
-      : paypalTier.level >= patronTier.level
-      ? 'paypal'
-      : 'patreon'
-  const tier = type === 'native' ? nativeTier : type === 'paypal' ? paypalTier : patronTier
-  const level = tier.level
+  if (!nativeTier && !patronTier && !manualTier) {
+    return previous
+  }
 
   const highest = getHighestTier(
     { source: 'native', tier: nativeTier },
+    { source: 'patreon', tier: patronTier },
     { source: 'paypal', tier: paypalTier },
-    { source: 'patreon', tier: patronTier }
-    // { source: 'manual', tier: manualTier }
+    { source: 'manual', tier: manualTier }
   )
+
   const result = { type: highest.source, tier: highest.tier, level: highest.tier.level }
   if (previous) {
     return result.level > previous.level ? result : previous
@@ -362,11 +408,13 @@ export function getUserSubscriptionTier(
   return result
 }
 
-function isExpired(expiresAt?: string) {
+function isExpired(expiresAt?: string, graceHrs = 3) {
   if (!expiresAt) return true
 
+  const threshold = Date.now() - graceHrs * ONE_HOUR_MS
+
   const expires = new Date(expiresAt).valueOf()
-  if (Date.now() > expires) return true
+  if (threshold > expires) return true
   return false
 }
 
@@ -382,4 +430,12 @@ function getHighestTier(
 ): { source: AppSchema.SubscriptionType; tier: AppSchema.SubscriptionTier } {
   const sorted = tiers.filter((t) => !!t.tier).sort((l, r) => r.tier!.level - l.tier!.level)
   return sorted[0] as any
+}
+
+export function tryParse(value?: any) {
+  if (!value) return
+  try {
+    const obj = JSON.parse(value)
+    return obj
+  } catch (ex) {}
 }

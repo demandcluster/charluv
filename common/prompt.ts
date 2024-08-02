@@ -542,14 +542,14 @@ export async function getLinesForPrompt(
       ? opts.impersonate.name
       : profiles.get(msg.userId || opts.chat.userId)?.handle || 'You'
 
-    const author = getMessageAuthor(
-      opts.chat,
+    const author = getMessageAuthor({
+      chat: opts.chat,
       msg,
-      opts.characters,
-      profiles,
-      opts.sender,
-      opts.impersonate
-    )
+      chars: opts.characters,
+      members: profiles,
+      sender: opts.sender,
+      impersonate: opts.impersonate,
+    })
     const char = getBotName(
       opts.chat,
       msg,
