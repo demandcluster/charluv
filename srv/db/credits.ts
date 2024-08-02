@@ -115,6 +115,7 @@ export async function getFreeCredits() {
     // set premiumstatus to false
     if (
       usr.billing?.status !== 'active' &&
+      new Date(usr.manualSub?.expiresAt ?? 0).getTime() < now &&
       usr.patreon?.member?.attributes.patron_status !== 'active_patron'
     ) {
       console.log('---DEACTIVATE PREMIUM---', usr._id)
