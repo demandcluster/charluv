@@ -238,10 +238,18 @@ export const SubscriptionPage: Component = (props) => {
 
           <div class="flex justify-center">All prices are in EUR</div>
 
-          <div class="flex justify-center text-sm">
-            Patreon pricing shown might be excl. VAT, if so we will adjust the pricing accordingly
-            soon
+          <div class="mt-4 flex gap-4">
+            {/* <Button onClick={userStore.validateSubscription} disabled={user.billingLoading}>
+              Validate
+            </Button> */}
+            <Show when={cfg.tier && !cfg.tier === 'paypal' && !hasExpired()}>
+              <Button schema="red" onClick={() => setUnsub(true)} disabled={user.billingLoading}>
+                Unsubscribe
+              </Button>
+            </Show>
           </div>
+
+          <div class="flex justify-center text-sm">Patreon price shown is excl. VAT.</div>
 
           <div class="flex justify-center">
             <a href="/shop">
@@ -249,16 +257,6 @@ export const SubscriptionPage: Component = (props) => {
                 Non-Subscription (Legacy) Shop
               </Button>
             </a>
-          </div>
-          <div class="mt-4 flex gap-4">
-            {/* <Button onClick={userStore.validateSubscription} disabled={user.billingLoading}>
-              Validate
-            </Button> */}
-            <Show when={cfg.tier && !cfg.type === 'paypal' && !hasExpired()}>
-              <Button schema="red" onClick={() => setUnsub(true)} disabled={user.billingLoading}>
-                Unsubscribe
-              </Button>
-            </Show>
           </div>
         </div>
       </div>
