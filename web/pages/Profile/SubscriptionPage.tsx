@@ -29,7 +29,7 @@ export const SubscriptionPage: Component = (props) => {
   const hasExpired = createMemo(() => {
     if (cfg.type === 'patreon' || cfg.type === 'manual') return false
     // if (!user.user?.billing?.cancelling) return false
-    if (user.user?.premium) return false
+    //if (user.user?.premium) return false
     if (!user.user?.billing) return true
     const threshold = new Date(user.user.billing.validUntil)
     return threshold.valueOf() < Date.now()
