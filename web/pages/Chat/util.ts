@@ -73,8 +73,8 @@ function tempSort(a: AppSchema.Character, b: AppSchema.Character) {
 export function isEligible() {
   const cfg = settingStore.getState()
   const user = userStore.getState()
-
-  const userLevel = user.sub?.level ?? -1
+  const premiumFallback = user.premium ? 10 : -1
+  const userLevel = user.sub?.level ?? premiumFallback
   const eligible = cfg.config.subs.some((sub) => userLevel >= sub.level)
 
   return eligible

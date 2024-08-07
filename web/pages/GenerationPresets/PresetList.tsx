@@ -2,6 +2,8 @@ import { A, useNavigate } from '@solidjs/router'
 import { Copy, Import, Plus, Trash } from 'lucide-solid'
 import { Component, createMemo, createSignal, For, onMount, Show } from 'solid-js'
 import Button from '../../shared/Button'
+import { Card } from '../../shared/Card'
+
 import Modal, { ConfirmModal } from '../../shared/Modal'
 import PageHeader from '../../shared/PageHeader'
 import { defaultPresets, presetValidator } from '../../../common/presets'
@@ -51,17 +53,14 @@ const PresetList: Component = () => {
   return (
     <>
       <PageHeader title="Generation Presets" />
-      <Card class="text-gray-500">
-        This is a premium feature. You will not loose your presets when your membership expires.
-        Thank you for supporting us.
-      </Card>
+
       <div class="mb-4 flex w-full justify-end">
-        {/* <A href="/presets/new">
+        <A href="/presets/new">
           <Button>
             <Plus />
             New
           </Button>
-        </A> */}
+        </A>
       </div>
 
       <div class="flex flex-col items-center gap-2">

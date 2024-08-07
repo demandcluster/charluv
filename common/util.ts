@@ -366,6 +366,7 @@ export function getUserSubscriptionTier(
   let nativeTier = tiers.find((t) => user.sub && t._id === user.sub.tierId)
   let patronTier = tiers.find((t) => user.patreon?.sub && t._id === user.patreon.sub.tierId)
   let paypalTier = tiers.find((t) => t.level > 1)
+
   const paypalExpired =
     (user.premiumUntil && user.premiumUntil < now) || user.premium === false ? true : false
 
@@ -389,7 +390,7 @@ export function getUserSubscriptionTier(
     patronTier = undefined
   }
 
-  if (!nativeTier && !patronTier && !manualTier) {
+  if (!nativeTier && !patronTier && !paypalTier && !manualTier) {
     return previous
   }
 

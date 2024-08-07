@@ -63,7 +63,7 @@ export const SubscriptionPage: Component = (props) => {
   }
 
   const currentText = createMemo(() => {
-    if (cfg.type === 'manaul') return 'Valid until'
+    if (cfg.type === 'manual') return 'Valid until'
     if (cfg.type === 'patreon') return `Patreon Subscriber`
 
     if (user.user?.billing?.status === 'active') {

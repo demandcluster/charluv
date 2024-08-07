@@ -113,7 +113,7 @@ export const PresetSelect: Component<{
       </Show>
 
       <Show when={props.fieldName}>
-        <TextInput class="hidden" fieldName={props.fieldName!} value={props.selected} />
+        <TextInput fieldName={props.fieldName!} value={props.selected} />
       </Show>
 
       <div class="flex w-full gap-2">
