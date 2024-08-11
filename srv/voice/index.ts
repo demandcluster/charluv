@@ -68,7 +68,7 @@ export async function generateTextToSpeech(
 
   try {
     const moderated = await textModeration(text)
-    console.log('moderated', moderated)
+    if (!moderated) throw new StatusError('Illagal', 400)
 
     audio = await service.generateVoice({ user, text: processedText, voice }, log, guestId)
   } catch (ex: any) {
