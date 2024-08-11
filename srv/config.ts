@@ -104,6 +104,7 @@ export const config = {
   paypalID: env('PAYPAL_ID', ''),
   paypalSecret: env('PAYPAL_KEY', ''),
   paypalWebhook: env('PAYPAL_WEBHOOK', ''),
+  moderationKey: env('MODERATE_OPENAI', ''),
   discordToken: env('DISCORD_TOKEN', ''),
   discordId: env('DISCORD_ID', ''),
   hordeKeyPremium: env('HORDE_KEY_PREMIUM', ''),

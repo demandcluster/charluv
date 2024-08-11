@@ -12,6 +12,7 @@ const textToSpeechValid = { text: 'string', voice: 'any' } as const
 const textToSpeech = handle(async ({ body, userId, socketId, log, params }) => {
   const user = userId ? await store.users.getUser(userId) : body.user
   const guestId = userId ? undefined : socketId
+
   assertValid(textToSpeechValid, body)
   return generateTextToSpeech(user, log, guestId, body.text, body.voice)
 })

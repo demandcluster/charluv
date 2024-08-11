@@ -18,7 +18,7 @@ import { novelTtsHandler } from './novel'
 import { webSpeechSynthesisHandler } from './webspeechsynthesis'
 import { TTSService, VoiceSettings } from '../../common/types/texttospeech-schema'
 import { AppSchema } from '../../common/types/schema'
-
+import { textModeration } from './moderation'
 export async function getVoicesList(
   { user, ttsService }: VoicesListRequest,
   log: AppLog,
@@ -67,6 +67,9 @@ export async function generateTextToSpeech(
   const processedText = processText(text, user.texttospeech?.filterActions ?? true)
 
   try {
+    const moderated = await textModeration(text)
+    console.log('moderated', moderated)
+
     audio = await service.generateVoice({ user, text: processedText, voice }, log, guestId)
   } catch (ex: any) {
     log.error({ err: ex }, 'Failed to generate audio')
@@ -109,6 +112,10 @@ export async function generateVoice(
   const text = processText(opts.text, user.texttospeech?.filterActions ?? true)
 
   log.debug({ text, service: voice.service }, 'Text to speech')
+
+  // moderate request
+  const moderated = await textModeration(text)
+  if (!moderated) throw new StatusError('Illagal', 400)
 
   const generatingMessage = { chatId, messageId, type: 'voice-generating' }
   if (broadcastIds.length) {
