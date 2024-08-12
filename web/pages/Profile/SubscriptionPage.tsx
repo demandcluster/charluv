@@ -28,8 +28,8 @@ export const SubscriptionPage: Component = (props) => {
 
   const hasExpired = createMemo(() => {
     if (cfg.type === 'patreon' || cfg.type === 'manual') return false
-    // if (!user.user?.billing?.cancelling) return false
-    //if (user.user?.premium) return false
+    if (!user.user?.billing?.cancelling) return false
+    if (user.user?.premium) return false
     if (!user.user?.billing) return true
     const threshold = new Date(user.user.billing.validUntil)
     return threshold.valueOf() < Date.now()
@@ -65,7 +65,7 @@ export const SubscriptionPage: Component = (props) => {
   const currentText = createMemo(() => {
     if (cfg.type === 'manual') return 'Valid until'
     if (cfg.type === 'patreon') return `Patreon Subscriber`
-
+    if (cfg.type === 'paypal') return `Paypal Subscriber`
     if (user.user?.billing?.status === 'active') {
       if (user.user?.billing?.cancelling) return 'Cancels at'
       return `Renews at`
@@ -101,7 +101,7 @@ export const SubscriptionPage: Component = (props) => {
 
           <PatreonControls />
 
-          <Show when={cfg.tier && !hasExpired()}>
+          <Show when={(cfg.tier || user.premium) && !hasExpired())}>
             <h3 class="font-bold">Current Subscription</h3>
             <TierCard tier={cfg.tier!}>
               <div class="flex flex-col items-center gap-2">
