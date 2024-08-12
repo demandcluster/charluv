@@ -101,7 +101,7 @@ export const SubscriptionPage: Component = (props) => {
 
           <PatreonControls />
 
-          <Show when={(cfg.tier || user.premium) && !hasExpired())}>
+          <Show when={(cfg.tier || user.premium) && !hasExpired()}>
             <h3 class="font-bold">Current Subscription</h3>
             <TierCard tier={cfg.tier!}>
               <div class="flex flex-col items-center gap-2">
