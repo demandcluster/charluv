@@ -1,12 +1,16 @@
 import { Component, createEffect, createMemo, createSignal, For, Show } from 'solid-js'
 import Button from '../../shared/Button'
 import PageHeader from '../../shared/PageHeader'
+import { MatchLike } from './MatchLike'
+import { VenetianMask } from 'lucide-solid'
+import { CharacterCardView } from '../Character/components/CharacterCardView'
 import {
   Check,
   Delete,
   Heart,
   Undo2,
   X,
+  Menu,
   AlignLeft,
   LayoutList,
   Image,
@@ -15,7 +19,7 @@ import {
   SortDesc,
   User,
 } from 'lucide-solid'
-
+import { DropMenu } from '../../shared/DropMenu'
 import { AppSchema } from '../../../srv/db/schema'
 import { A, useNavigate } from '@solidjs/router'
 import AvatarIcon from '../../shared/AvatarIcon'
@@ -83,10 +87,10 @@ const MatchList: Component = () => {
   })
   createEffect(() => {
     curApiref = ''
-    if(getNextView() === 'likes'){ 
-      swipeStore.getSwipe() 
+    if (getNextView() === 'likes') {
+      swipeStore.getSwipe()
       matchStore.getMatches(swipeCount.lastid)
-    }else{
+    } else {
       matchStore.getMatches('')
     }
     // getNextView() === 'likes' ?  swipeStore.getSwipe() : ''
@@ -331,10 +335,10 @@ const MatchList: Component = () => {
           >
             <Switch>
               <Match when={getNextView() == 'list'}>
-                <span>Swipe View</span> <LayoutList />
+                <span>Swipe View</span> <Image />
               </Match>
               <Match when={getNextView() == 'likes'}>
-                <span>List View</span> <Image />
+                <span>Cards View</span> <Image />
               </Match>
             </Switch>
           </Button>
@@ -378,10 +382,17 @@ const MatchList: Component = () => {
           </Show>
           <Switch>
             <Match when={getNextView() == 'list'}>
-              <div class="flex w-full flex-col gap-2">
+              <div class="block h-auto w-full py-2">
+                Click on any image to match with this character!
+              </div>
+
+              <div class="grid w-full grid-cols-[repeat(auto-fit,minmax(160px,1fr))] flex-row flex-wrap justify-start gap-2 py-2">
                 <For each={groupslist()}>
-                  {(char) => <MatchLike character={char} match={createMatch} />}
+                  {(char) => <Character char={char} match={createMatch} />}
                 </For>
+                <Show when={groupslist().length < 4}>
+                  <For each={new Array(4 - groupslist().length)}>{() => <div></div>}</For>
+                </Show>
               </div>
             </Match>
             <Match when={getNextView() == 'likes'}>
@@ -503,36 +514,6 @@ const DSwipeCard: Component<{ character: AppSchema.Character; match: Any }> = (p
   )
 }
 
-// [TODO] this should be in a seperate file and breaks the philosophy of solidjs and react
-
-const MatchLike: Component<{ character: AppSchema.Character; match: Any }> = (props) => {
-  return (
-    <div class="flex w-full  gap-2">
-      <div class="bg-800 flex  w-full flex-row items-center justify-between gap-4 rounded-xl px-2 py-1 hover:bg-[var(--bg-700)]">
-        
-        <A
-          class="ellipsis flex w-5/6 h-3/4 grow cursor-pointer items-center gap-4"
-          href={`/likes/${props.character._id}/profile`}
-        >
-          <CharacterAvatar char={props.character} zoom={1.75} />
-          <div class="flex max-w-full flex-col overflow-hidden h-[52px]">
-            <span class="ellipsis font-bold">{props.character.name}</span>
-            <span class="ellipsis">{props.character.description}</span>
-          </div>
-        </A>
-        <div class="flex flex-row items-center justify-center gap-2 w-1/6">
-          <Button
-            class="ml-4 flex h-3/4 cursor-pointer items-center rounded-2xl sm:w-9/12"
-            onClick={() => props.match(props.character._id)}
-          >
-            MATCH <Check class="cursor-pointer text-white/25 hover:text-white hidden sm:block text-xs sm:text-sm " />
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function charToJson(char: AppSchema.Character) {
   const { _id, updatedAt, createdAt, kind, summary, premium, xp, match, avatar, ...json } = char
   return JSON.stringify(json, null, 2)
@@ -550,4 +531,85 @@ function repeat<T>(list: T[], times = 20) {
     next.push(...list)
   }
   return next
+}
+
+const Character: Component<CardProps> = (props) => {
+  const [opts, setOpts] = createSignal(false)
+  const nav = useNavigate()
+
+  let ref: any
+
+  return (
+    <div
+      ref={ref}
+      class="bg-800 flex flex-col items-center justify-between gap-1 rounded-lg border-[1px] border-[var(--bg-600)]"
+    >
+      <div class="w-full">
+        <Switch>
+          <Match when={props.char.avatar}>
+            <div
+              onClick={() => {
+                props.match(props.char._id)
+              }}
+              class="block h-32 w-full cursor-pointer justify-center overflow-hidden rounded-lg rounded-b-none"
+            >
+              <img
+                src={getAssetUrl(props.char.avatar!)}
+                class="h-full w-full object-cover"
+                style="object-position: 50% 30%;"
+              />
+            </div>
+          </Match>
+          <Match when>
+            <div
+              title="MATCH"
+              onClick={() => {
+                props.match(props.char._id)
+              }}
+              class="bg-700 flex h-32 w-full cursor-pointer items-center justify-center rounded-lg rounded-b-none"
+            >
+              <VenetianMask size={24} />
+            </div>
+          </Match>
+        </Switch>
+      </div>
+      <div class="w-full text-sm">
+        <div class="overflow-hidden text-ellipsis whitespace-nowrap px-1 text-center font-bold">
+          {props.char.name}
+        </div>
+        <div class="text-600 line-clamp-3 h-[3rem] text-ellipsis px-1 text-center text-xs font-normal">
+          {props.char.description}
+        </div>
+        {/* hacky positioning shenanigans are necessary as opposed to using an
+            absolute positioning because if any of the DropMenu parent is
+            positioned, then DropMenu breaks because it relies on the nearest
+            positioned parent to be the sitewide container */}
+        <div
+          class="float-right mr-[3px] mt-[-195px] flex justify-end"
+          onClick={() => setOpts(true)}
+        >
+          <div class="rounded-md border-[1px] border-[var(--bg-400)] bg-[var(--bg-700)] p-[2px]">
+            <Menu size={24} class="icon-button" color="var(--bg-100)" />
+          </div>
+          <DropMenu
+            show={opts()}
+            close={() => setOpts(false)}
+            customPosition="right-[9px] top-[6px]"
+          >
+            <div class="flex flex-col gap-2 p-2">
+              <Button
+                alignLeft
+                size="sm"
+                onClick={() => {
+                  nav(`/likes/${props.char._id}/profile`)
+                }}
+              >
+                <User /> Profile
+              </Button>
+            </div>
+          </DropMenu>
+        </div>
+      </div>
+    </div>
+  )
 }
