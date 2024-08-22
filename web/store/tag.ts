@@ -24,7 +24,7 @@ const defaultTags: Tag[] = [
   'male',
   'female',
   'fantasy',
-  'trans',
+  'transgender',
   'lore+',
   'imported',
   'archived',
