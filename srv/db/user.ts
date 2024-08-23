@@ -8,12 +8,12 @@ import { NOVEL_MODELS } from '../../common/adapters'
 import { logger } from '../logger'
 import { errors, StatusError } from '../api/wrap'
 import { encryptPassword, now } from './util'
-import { defaultChars } from '/common/characters'
+import { defaultChars } from '../../common/characters'
 import { resyncSubscription } from '../api/billing/stripe'
 import { getCachedTiers, getTier } from './subscriptions'
 import { store } from '.'
 import { patreon } from '../api/user/patreon'
-import { getUserSubscriptionTier } from '/common/util'
+import { getUserSubscriptionTier } from '../../common/util'
 
 export type NewUser = {
   username: string

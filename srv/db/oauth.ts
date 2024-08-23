@@ -1,6 +1,6 @@
 import Chance from 'chance'
 import { getUser } from './user'
-import { AppSchema, OAuthScope } from '/common/types'
+import { AppSchema, OAuthScope } from '../../common/types'
 import { v4 } from 'uuid'
 import { StatusError, errors } from '../api/wrap'
 import { now } from './util'

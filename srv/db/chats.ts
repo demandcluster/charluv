@@ -4,7 +4,7 @@ import { db } from './client'
 import { AppSchema } from '../../common/types/schema'
 import { now } from './util'
 import { StatusError, errors } from '../api/wrap'
-import { parseTemplate } from '/common/template-parser'
+import { parseTemplate } from '../../common/template-parser'
 import { config } from '../config'
 
 export async function getChatOnly(id: string) {

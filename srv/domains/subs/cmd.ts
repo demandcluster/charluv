@@ -1,14 +1,14 @@
 import { CommandError, createCommands } from 'evtstore'
 import { SubsAgg, SubsCmd, SubsEvt } from './types'
 import { domain } from '../domain'
-import { store } from '/srv/db'
+import { store } from '../../db'
 
 export const subsCmd = createCommands<SubsEvt, SubsAgg, SubsCmd>(domain.subscription, {
   async adminSubscribe(cmd, agg) {
     if (agg.state !== 'new' && agg.state !== 'cancelled') {
       const user = await store.users.getUser(cmd.aggregateId)
       if (!user) {
-        throw new CommandError(`Cannot locate user for subscription update`, 'INVALID_USER')
+        throw new CommandError(`Cannot locate user for subscription update.`, 'INVALID_USER')
       }
       // if (!user.billing?.validUntil) {
       //   throw new CommandError(`Subscription valid - No expiry found`, 'NO_VALID_UNTIL')

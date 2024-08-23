@@ -1,9 +1,9 @@
 import needle from 'needle'
-import { config } from '/srv/config'
+import { config } from '../../config'
 import { StatusError } from '../wrap'
-import { AppSchema, Patreon } from '/common/types'
-import { getCachedTiers } from '/srv/db/subscriptions'
-import { store } from '/srv/db'
+import { AppSchema, Patreon } from '../../common/types'
+import { getCachedTiers } from '../../db/subscriptions'
+import { store } from '../../db'
 
 export const patreon = {
   authorize,

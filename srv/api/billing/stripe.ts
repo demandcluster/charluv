@@ -1,11 +1,11 @@
 import Stripe from 'stripe'
-import { config } from '/srv/config'
-import { AppSchema } from '/common/types'
-import { logger } from '/srv/logger'
-import { store } from '/srv/db'
-import { getCachedTiers } from '/srv/db/subscriptions'
-import { domain } from '/srv/domains'
-import { subsCmd } from '/srv/domains/subs/cmd'
+import { config } from '../../../srv/config'
+import { AppSchema } from '../../../common/types'
+import { logger } from '../../../srv/logger'
+import { store } from '../../../srv/db'
+import { getCachedTiers } from '../../../srv/db/subscriptions'
+import { domain } from '../../../srv/domains'
+import { subsCmd } from '../../../srv/domains/subs/cmd'
 
 export const stripe = new Stripe(config.billing.private, { apiVersion: '2023-08-16' })
 
