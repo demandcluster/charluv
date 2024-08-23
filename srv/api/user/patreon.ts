@@ -1,7 +1,7 @@
 import needle from 'needle'
 import { config } from '../../config'
 import { StatusError } from '../wrap'
-import { AppSchema, Patreon } from '../../common/types'
+import { AppSchema, Patreon } from '../../../common/types'
 import { getCachedTiers } from '../../db/subscriptions'
 import { store } from '../../db'
 
