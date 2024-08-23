@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { Client, Collection, Events, GatewayIntentBits, TextChannel } from 'discord.js'
 import { config } from './config'
-//import { connect } from './db/client'
+import { connect } from './db/client'
 import * as redis from 'redis'
 
 function getUri() {
@@ -111,7 +111,7 @@ client.once(Events.ClientReady, async (c) => {
   await redisClient.disconnect()
   console.log(`Ready! Logged in as ${c.user?.tag}`)
   logger.info(false, 'Discord bot ready')
-
+  const db = await connect()
   logger.info(false, 'Database connected')
 })
 

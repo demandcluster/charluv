@@ -49,7 +49,7 @@
     "model:start": ".model/bin/poetry run python model/app.py",
     "model:watch": "npm run model:init && nodemon -e py --watch model --exec \".model/bin/poetry run python model/app.py\"",
     "model": "npm run model:init && npm run model:start",
-    "server": "node srv/start.js",
+    "server": "concurrently -c auto -n aivo,discord \"node srv/start.js\" \"npm run start:bot\"",
     "start:bot": "node srv/discord.js",
     "server:watch": "nodemon -e js --delay 2 --watch srv --watch common --watch \".env\" --exec \"node --inspect srv/start.js\"",
     "start:web": "parcel web/index.html",
