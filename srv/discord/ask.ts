@@ -17,6 +17,7 @@ module.exports = {
 
     const reply = await makeDemandRequest(question)
 
+    const result = `Question: ${question}\nAnswer: ${reply}`
     if (!reply) {
       await interaction.reply({
         content: 'Did not get an answer. Please ask a mod.',
@@ -30,7 +31,7 @@ module.exports = {
         replied_user: true,
         parse: ['users'],
       },
-      content: reply,
+      content: result,
       ephemeral: false,
     })
   },
