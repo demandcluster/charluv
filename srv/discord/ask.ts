@@ -17,7 +17,6 @@ module.exports = {
 
     const reply = await makeDemandRequest(question)
 
-    const result = `Question: ${question}\nAnswer: **${reply}**`
     if (!reply) {
       await interaction.reply({
         content: 'Did not get an answer. Please ask a mod.',
@@ -25,14 +24,29 @@ module.exports = {
       })
       return
     }
+    // Truncate the message to fit within Discord's character limit
+    const truncateMessage = (text, maxLength = 2000) => {
+      return text.length > maxLength ? text.slice(0, maxLength - 3) + '...' : text
+    }
 
-    await interaction.reply({
-      allowed_mentions: {
-        replied_user: true,
-        parse: ['users'],
-      },
-      content: result,
-      ephemeral: false,
-    })
+    const formatedReply = truncateMessage(reply, 1700)
+    const result = `Question: ${question}\nAnswer: ${formattedReply}`
+
+    try {
+      await interaction.reply({
+        allowed_mentions: {
+          replied_user: true,
+          parse: ['users'],
+        },
+        content: result,
+        ephemeral: false,
+      })
+    } catch {
+      console.error('Error sending message ' + result)
+      await interaction.reply({
+        content: 'There was an error while executing this command!',
+        ephemeral: true,
+      })
+    }
   },
 }
