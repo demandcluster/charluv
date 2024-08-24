@@ -40,7 +40,7 @@ module.exports = {
           replied_user: true,
           parse: ['users'],
         },
-        content: result,
+        content: `${result}`,
         ephemeral: false,
       })
     } catch {
