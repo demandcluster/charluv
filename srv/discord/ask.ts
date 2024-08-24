@@ -25,12 +25,12 @@ module.exports = {
       return
     }
     // Truncate the message to fit within Discord's character limit
-    const truncateMessage = (text:string, maxLength = 2000) => {
+    const truncateMessage = (text: string, maxLength = 2000) => {
       return text.length > maxLength ? text.slice(0, maxLength - 3) + '...' : text
     }
 
     const formattedReply = truncateMessage(reply, 1700)
-    const result = `Question: ${question}\nAnswer: ${formattedReply}`
+    const result = `Question: ${question}\nAnswer: ${formattedReply.replace(/['"\\]/g, '\\$&')}`
 
     try {
       await interaction.reply({
