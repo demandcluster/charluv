@@ -15,13 +15,18 @@ module.exports = {
     const question = interaction.options.getString('question')
     const interactionId = interaction.id
 
+    await interaction.deferReply({
+      allowed_mentions: {
+        replied_user: true,
+        parse: ['users'],
+      },
+      ephemeral: false,
+    })
+
     const reply = await makeDemandRequest(question)
 
     if (!reply) {
-      await interaction.reply({
-        content: 'Did not get an answer. Please ask a mod.',
-        ephemeral: true,
-      })
+      await interaction.editReply('Did not get an answer. Please ask a mod.')
       return
     }
     // Truncate the message to fit within Discord's character limit
@@ -35,14 +40,7 @@ module.exports = {
       .replace(/#/g, '')}`
 
     try {
-      await interaction.reply({
-        allowed_mentions: {
-          replied_user: true,
-          parse: ['users'],
-        },
-        content: `${result}`,
-        ephemeral: false,
-      })
+      await interaction.editReply(result)
     } catch {
       console.error('Error sending message ' + result)
       await interaction.reply({
