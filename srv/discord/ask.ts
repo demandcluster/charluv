@@ -30,7 +30,7 @@ module.exports = {
     }
 
     const formattedReply = truncateMessage(reply, 1700)
-    const result = `Question: ${question}\nAnswer: ${formattedReply.replace(/['"\\]/g, '\\$&')}`
+    const result = `Question: ${question}\nAnswer: ${formattedReply.replace(/['"\\]/g, '\\$&').replace(/#/g, '');}`
 
     try {
       await interaction.reply({
