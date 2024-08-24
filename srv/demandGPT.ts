@@ -2,7 +2,7 @@ import needle from 'needle'
 
 export default async function makeDemandRequest(prompt: string): Promise<string> {
   const url = 'https://gpt.demandcluster.com/api/v1/workspace/charluv-code/chat'
-  const apiKey: string = process.env.DEMAND_GPT_KEY
+  const apiKey = process.env.DEMAND_GPT_KEY
 
   const headers = {
     'Content-Type': 'application/json',
