@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, Role, PermissionFlagsBits, AttachmentBuilder } from 'discord.js'
 
-import { makeDemandRequest } from '../demandGPT'
+import makeDemandRequest from '../demandGPT'
 
 module.exports = {
   data: new SlashCommandBuilder()
