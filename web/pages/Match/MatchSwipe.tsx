@@ -592,7 +592,7 @@ const Character: Component<CardProps> = (props) => {
           onClick={() => {
             props.match(props.char._id)
           }}
-          class="ml-[5px] mt-[-195px] flex cursor-pointer justify-start text-[16]"
+          class="ml-[5px] mt-[-195px] flex cursor-pointer justify-start text-[16] text-gray-300"
         >
           <ThumbsUp size={16} class="mr-[3px]" /> {props.char.children}
         </div>
