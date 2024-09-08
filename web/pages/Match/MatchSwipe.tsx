@@ -592,11 +592,14 @@ const Character: Component<CardProps> = (props) => {
           onClick={() => {
             props.match(props.char._id)
           }}
-          class="ml-[5px] mt-[-195px] flex cursor-pointer justify-start text-[16] text-gray-300"
+          class="float-left ml-[5px] mt-[-195px] flex cursor-pointer justify-start text-[16] text-gray-300"
         >
           <ThumbsUp size={16} class="mr-[3px]" /> {props.char.children}
         </div>
-        <div class="float-right mr-[3px] mt-[-22px] flex justify-end" onClick={() => setOpts(true)}>
+        <div
+          class="float-right mr-[3px] mt-[-195px] flex justify-end"
+          onClick={() => setOpts(true)}
+        >
           <div class="rounded-md border-[1px] border-[var(--bg-400)] bg-[var(--bg-700)] p-[2px]">
             <Menu size={24} class="icon-button" color="var(--bg-100)" />
           </div>
