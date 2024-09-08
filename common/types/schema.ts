@@ -425,7 +425,7 @@ export namespace AppSchema {
     premium: boolean
     scenarioIds?: string[]
     sprite?: FullSprite
-
+    children?: number
     createdAt: string
     updatedAt: string
     deletedAt?: string

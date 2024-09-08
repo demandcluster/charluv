@@ -372,6 +372,7 @@ function getSortableValue(char: AppSchema.Character, field: SortField) {
       return char.createdAt
     case 'modified':
       return char.updatedAt
+
     default:
       return 0
   }

@@ -21,6 +21,7 @@ export type CharacterUpdate = Partial<
     | 'share'
     | 'premium'
     | 'voice'
+    | 'children'
     | 'alternateGreetings'
     | 'characterBook'
     | 'extensions'
@@ -55,6 +56,8 @@ export async function createCharacter(
     | 'xp'
     | 'premium'
     | 'share'
+    | 'parent'
+    | 'children'
     | 'voice'
     | 'alternateGreetings'
     | 'characterBook'
@@ -79,6 +82,10 @@ export async function createCharacter(
   }
 
   await db('character').insertOne(newChar)
+  if (newChar.parent) {
+    await db('character').updateOne({ _id: newChar.parent }, { $inc: { children: 1 } })
+  }
+
   return newChar
 }
 
@@ -157,6 +164,7 @@ export async function getCharacters(userId: string) {
       updatedAt: 1,
       voice: 1,
       xp: 1,
+      children: 1,
       match: 1,
       parent: 1,
       voiceDisabled: 1,
@@ -188,6 +196,7 @@ export async function getCharacterList(charIds: string[], userId?: string) {
     parent: 1,
     xp: 1,
     match: 1,
+    children: 1,
     visualType: 1,
     sprite: 1,
     voiceDisabled: 1,
