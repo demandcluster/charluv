@@ -33,6 +33,14 @@ export async function takeInviteCode(id: string, user: string = '') {
     )
   }
 
+   if (id === 'REDDIT2024' || id === 'reddit2024') {
+    const myCred=Math.random() < 1 / 25 ? 1000:500
+    const salv = await db('user').updateOne(
+      { kind: 'user', _id: user },
+      { $set: { credits: myCred } }
+    )
+  }
+  
   const list = await db('invitecode').updateOne(
     { kind: 'invitecode', _id: id.toUpperCase() },
     { $inc: { count: -1 } }
