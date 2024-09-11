@@ -16,6 +16,7 @@ const LoginPage: Component = () => {
   const cfg = settingStore()
 
   const [register, setRegister] = createSignal(false)
+  const [inviteCode, setInviteCode] = createSignal('')
   const location = useLocation()
 
   const pathname = createMemo(() => location.pathname)
@@ -27,6 +28,22 @@ const LoginPage: Component = () => {
     }
 
     return 'Something went wrong.'
+  })
+  const utmSource = createMemo(() => new URLSearchParams(window.location.search).get('utm_source'))
+
+  createEffect(() => {
+    console.log('Path:', pathname())
+    console.log('UTM Source:', utmSource())
+
+    if (pathname() === '/register') {
+      setRegister(true)
+      setComponentPageTitle('Register')
+    }
+
+    if (utmSource() && utmSource().toLowerCase() === 'reddit') {
+      console.log('Setting invite code to REDDIT2024')
+      setInviteCode('REDDIT2024')
+    }
   })
 
   createEffect(async () => {
@@ -56,7 +73,7 @@ const LoginPage: Component = () => {
       />
       <div class="w-full max-w-sm">
         <Show when={register()}>
-          <RegisterForm isLoading={store.loading} />
+          <RegisterForm isLoading={store.loading} setInviteCode inviteCode={inviteCode()} />
         </Show>
         <Show when={!register()}>
           <LoginForm isLoading={store.loading} />
@@ -127,10 +144,15 @@ const LoginPage: Component = () => {
 
 export default LoginPage
 
-type FormProps = { isLoading: boolean }
+type FormProps = {
+  isLoading: boolean
+  inviteCode: string
+  setInviteCode: (code: string) => void
+}
 
 const RegisterForm: Component<FormProps> = (props) => {
   const navigate = useNavigate()
+
   const ecu = userStore.getECU()
   const register = (evt: Event) => {
     const { username, password, confirm, handle, invitecode } = getStrictForm(evt, {
@@ -179,9 +201,20 @@ const RegisterForm: Component<FormProps> = (props) => {
         <TextInput
           label="Invite code"
           fieldName="invitecode"
+          value={props.inviteCode}
+          onInput={(e) => props.setInviteCode(e.currentTarget.value)}
           placeholder="Check below for a code!"
           required
         />
+        <Show when={props.inviteCode === 'REDDIT2024'}>
+          <blockquote class="text-gray-500 dark:text-gray-400">
+            Coming from Reddit you get a free bonus. <br />
+            Some even get a huge bonus!
+            <br />
+            <p>"Have fun, the free tier is very generous."</p>
+          </blockquote>
+        </Show>
+
         <div></div>
       </div>
 
