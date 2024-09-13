@@ -29,7 +29,7 @@ const LoginPage: Component = () => {
 
     return 'Something went wrong.'
   })
-  const utmSource = createMemo(() => new URLSearchParams(window.location.search).get('utm_source'))
+  const utmSource = createMemo(() => new URLSearchParams(window.location.search).get('source'))
 
   createEffect(() => {
     console.log('Path:', pathname())
@@ -40,9 +40,9 @@ const LoginPage: Component = () => {
       setComponentPageTitle('Register')
     }
 
-    if (utmSource() && utmSource().toLowerCase() === 'reddit') {
-      console.log('Setting invite code to REDDIT2024')
-      setInviteCode('REDDIT2024')
+    if (utmSource() && utmSource().toLowerCase() === 'viewgrabber') {
+      console.log('Setting invite code to viewgrabber24')
+      setInviteCode('VIEWGRABBER24')
     }
   })
 
@@ -206,9 +206,9 @@ const RegisterForm: Component<FormProps> = (props) => {
           placeholder="Check below for a code!"
           required
         />
-        <Show when={props.inviteCode === 'REDDIT2024'}>
+        <Show when={props.inviteCode === 'VIEWGRABBER24'}>
           <blockquote class="text-gray-500 dark:text-gray-400">
-            Coming from Reddit you get a free bonus. <br />
+            Coming from ViewGrabber you get a free bonus. <br />
             Some even get a huge bonus!
             <br />
             <p>"Have fun, the free tier is very generous."</p>
