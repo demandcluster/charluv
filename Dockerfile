@@ -20,7 +20,7 @@ ADD web/ ./web
 
 RUN pnpm run build:server && \
   sed -i "s/{{unknown}}/${SHA}/g" /app/web/index.html && \
-  pnpm run build:prod && mkdir -p /app/assets 
+  pnpm run build:prod && mkdir -p /app/assets && pnpm cache clean --force
 
 RUN node -pe "require('./package.json').version" > /app/version.txt
 RUN mkdir /app/dist/.well-known
