@@ -148,10 +148,6 @@ const HomePage: Component = () => {
                 <Pill inverse>Charluv Discord</Pill>
               </a>
 
-              <A class="link" href="/changelog">
-                <Pill inverse>Change Log</Pill>
-              </A>
-
               <A class="link" href="/terms">
                 <Pill>Terms of Service</Pill>
               </A>
