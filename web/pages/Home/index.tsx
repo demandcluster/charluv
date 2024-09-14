@@ -24,7 +24,7 @@ const enum Sub {
   NovelAI,
   Horde,
 }
-
+const rawHTML= `<a href="https://theresanaiforthat.com/ai/charluv/?ref=featured&v=2416874" target="_blank" rel="nofollow"><img width="300" src="https://media.theresanaiforthat.com/featured-on-taaft.png?width=600"></a>`
 const text = `
 
 ### This website is a simulation
@@ -196,16 +196,7 @@ const HomePage: Component = () => {
           </div>
         </Card>
         <Card class="mb-2 flex justify-center">
-          <a
-            href="https://theresanaiforthat.com/ai/charluv/?ref=featured&v=2416874"
-            target="_blank"
-            rel="nofollow"
-          >
-            <img
-              width="300"
-              src="https://media.theresanaiforthat.com/featured-on-taaft.png?width=600"
-            />
-          </a>
+         <div dangerouslySetInnerHTML={{ __html: rawHTML }} />
         </Card>
         <Card border>
           <div class="mb-2 flex justify-center text-xl font-bold">Credits</div>
