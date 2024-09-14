@@ -91,6 +91,7 @@ const HomePage: Component = () => {
 
   const rawHTML = `<a href="https://theresanaiforthat.com/ai/charluv/?ref=featured&v=2416874" target="_blank" rel="nofollow"><img width="300" src="https://media.theresanaiforthat.com/featured-on-taaft.png?width=600"></a>`
 
+  const itchHTML = `<iframe frameborder="0" src="https://itch.io/embed/2216072?bg_color=55b89c&amp;fg_color=fff" width="552" height="167"><a href="https://rongames.itch.io/charluv">Charluv by Charluv</a></iframe>`
   const announce = announceStore()
 
   onMount(() => {
@@ -199,6 +200,9 @@ const HomePage: Component = () => {
         <Card class="mb-2 flex justify-center">
           <div innerHTML={rawHTML} />
         </Card>
+        <TitleCard type="bg" center title="Get Android and Windows app from Itch">
+          <div class="flex justify-center" innerHTML={itchHTML} />
+        </TitleCard>
         <Card border>
           <div class="mb-2 flex justify-center text-xl font-bold">Credits</div>
           <div class=" gap-2 leading-6">
