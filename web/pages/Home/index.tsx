@@ -2,6 +2,7 @@ import './home.scss'
 import { Component, For, Match, Show, Switch, createSignal, onMount } from 'solid-js'
 import logoDark from '../../asset/logoDark.png'
 import logo from '../../asset/logo.png'
+import nsfwTools from '../../asset/featured-on-badge-b.avif'
 import discordLogo from '../../asset/discord-logo-blue.svg'
 import PageHeader from '../../shared/PageHeader'
 import { adaptersToOptions, getAssetUrl, setComponentPageTitle } from '../../shared/util'
@@ -101,26 +102,21 @@ const HomePage: Component = () => {
   return (
     <div>
       <PageHeader
+        class="flex justify-center text-6xl"
+        center
+        noDivider
         title={
-          <>
-            <div
-              class="w-full pb-3 pl-4 pt-3 text-2xl text-white sm:flex"
-              style="background:#55b89cff;"
-            >
-              Charluv Virtual Dating
-            </div>
-          </>
+          <div class="flex w-full justify-center" style="background: #55b89cff;">
+            <img src={logoDark} alt="Charluv Virtual Dating" class="w-4/12 p-8" />
+          </div>
         }
       />
 
-      <div class="flex flex-col gap-4 text-lg">
-        <div class="flex justify-center text-6xl" style="background: #55b89cff;">
-          <img src={logoDark} alt="Charluv Virtual Dating" class="w-4/12 p-8" />
-        </div>
+      <div class="flex flex-col  text-lg">
         <div class="w-full" ref={ref}>
           <Slot slot="leaderboard" parent={ref} />
         </div>
-        <Card border>
+        <Card border class="mb-2">
           <div class="leading-6">
             <b>Charluv</b> is a virtual dating chat service where you can even create your own
             characters. Membership is free, premium membership gives you priority and near unlimited
@@ -129,14 +125,21 @@ const HomePage: Component = () => {
           </div>
         </Card>
 
-        <RecentChats />
+        <RecentChats class="mb-2" />
 
         <Show when={announce.list.length > 0}>
           <Announcements list={announce.list} />
         </Show>
 
-        <div class="home-cards">
-          <TitleCard type="bg" title="Guides" class="" center ariaRole="region" ariaLabel="Guides">
+        <div class="home-cards mb-2 gap-2">
+          <TitleCard
+            type="bg"
+            title="Guides"
+            class="mb-2"
+            center
+            ariaRole="region"
+            ariaLabel="Guides"
+          >
             <div class="flex flex-wrap justify-center gap-2">
               <A href="/guides/memory">
                 <Pill>Memory Book</Pill>
@@ -144,8 +147,15 @@ const HomePage: Component = () => {
             </div>
           </TitleCard>
 
-          <TitleCard type="bg" title="Links" center ariaRole="region" ariaLabel="Links">
-            <div class="flex flex-wrap justify-center gap-2">
+          <TitleCard
+            class="mb-2"
+            type="bg"
+            title="Links"
+            center
+            ariaRole="region"
+            ariaLabel="Links"
+          >
+            <div class="mb-2 flex flex-wrap justify-center gap-2">
               <a href="/discord" target="_blank">
                 <Pill inverse>Charluv Discord</Pill>
               </a>
@@ -161,7 +171,7 @@ const HomePage: Component = () => {
           </TitleCard>
         </div>
 
-        <Card border>
+        <Card class="mb-2" border>
           <div class="flex justify-center text-xl font-bold">Notable Features</div>
           <div class="flex flex-col gap-2 leading-6">
             <p>
@@ -193,14 +203,19 @@ const HomePage: Component = () => {
               <a href="https://elevenlabs.io/text-to-speech" class="link" target="_blank">
                 ElevenLabs
               </a>
-              , the #1 text-to-speech service.
+              , the #1 text-to-speech service. *currently disabled due to issue with provider*
             </p>
           </div>
         </Card>
-        <Card class="mb-2 flex justify-center">
-          <div innerHTML={rawHTML} />
-        </Card>
-        <TitleCard type="bg" center title="Get Android and Windows app from Itch">
+        <TitleCard class="mb-2" type="bg" center title="Featured on">
+          <div class="mb-2 flex justify-center">
+            <div class="mr-2" innerHTML={rawHTML} />
+            <a href="https://nsfw.tools>" target="_blank" rel="nofollow">
+              <img width="250" src={nsfwTools} />
+            </a>
+          </div>
+        </TitleCard>
+        <TitleCard class="mb-2" type="bg" center title="Get Android and Windows app">
           <div class="flex justify-center" innerHTML={itchHTML} />
         </TitleCard>
         <Card border>
@@ -271,7 +286,7 @@ const RecentChats: Component = (props) => {
   }))
 
   return (
-    <section class="flex flex-col" aria-labelledby="homeRecConversations">
+    <section class="mb-2 flex flex-col" aria-labelledby="homeRecConversations">
       <div id="homeRecConversations" class="text-lg font-bold" aria-hidden="true">
         Recent Conversations
       </div>
