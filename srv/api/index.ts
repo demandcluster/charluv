@@ -18,6 +18,8 @@ import { inferenceApi, inferenceModels } from './chat/inference'
 
 import freeCredits from './freecredits'
 
+import charImport from './charimport'
+
 import match from './match'
 
 import cart from './cart'
@@ -26,6 +28,7 @@ import paypalcheck from './paypal'
 const router = Router()
 const keyedRouter = Router()
 
+router.use('/charimport', charImport)
 router.use('/user', user)
 router.use('/chat', chat)
 router.use('/character', character)
