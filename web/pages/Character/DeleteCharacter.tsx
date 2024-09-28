@@ -18,11 +18,9 @@ const DeleteCharacterModal: Component<{
   const onArchive = () => {
     if (!props.char) return
     if (props.char.tags?.includes('archived')) return
-    characterStore.editCharacter(
+    characterStore.editPartialCharacter(
       props.char._id,
-      {
-        tags: props.char.tags?.concat('archived') ?? ['archived'],
-      },
+      { tags: props.char.tags?.concat('archived') ?? ['archived'] },
       props.close
     )
   }
@@ -59,7 +57,7 @@ const DeleteCharacterModal: Component<{
         </div>
         <div>Are you sure you wish to delete this character?</div>
         <div class="flex justify-center gap-4">
-          <CharacterAvatar char={props.char!} />
+          <CharacterAvatar char={props.char!} format={{ size: 'md', corners: 'circle' }} />
           {props.char!.name}
         </div>
       </div>

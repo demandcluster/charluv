@@ -2,7 +2,7 @@ import { useNavigate, useParams } from '@solidjs/router'
 import PageHeader from '../../shared/PageHeader'
 import { setComponentPageTitle } from '../../shared/util'
 import { memoryStore } from '../../store'
-import { Show, createEffect, createSignal } from 'solid-js'
+import { Show, createSignal, onMount } from 'solid-js'
 import { AppSchema } from '../../../common/types/schema'
 import EditMemoryForm, { EntrySort } from './EditMemory'
 import { Option } from '../../shared/Select'
@@ -10,6 +10,7 @@ import Button from '../../shared/Button'
 import { FormLabel } from '../../shared/FormLabel'
 import { Save } from 'lucide-solid'
 import { emptyBookWithEmptyEntry } from '/common/memory'
+import { Page } from '/web/Layout'
 
 const EditMemoryPage = () => {
   const { updateTitle } = setComponentPageTitle('Memory book')
@@ -25,7 +26,12 @@ const EditMemoryPage = () => {
     }
   }
 
-  createEffect(() => {
+  const updateBook = (update: Partial<AppSchema.MemoryBook>) => {
+    const prev = editing()!
+    setEditing({ ...prev, ...update })
+  }
+
+  onMount(() => {
     if (params.id === 'new') {
       updateTitle('Create memory book')
       setEditing(emptyBookWithEmptyEntry())
@@ -65,7 +71,7 @@ const EditMemoryPage = () => {
   }
 
   return (
-    <>
+    <Page>
       <PageHeader title="Edit Memory Book" />
       <Show when={!!editing()}>
         <form ref={ref} onSubmit={saveBook}>
@@ -79,7 +85,7 @@ const EditMemoryPage = () => {
             book={editing()!}
             entrySort={entrySort()}
             updateEntrySort={updateEntrySort}
-            onChange={setEditing}
+            onChange={updateBook}
           />
           <div class="mt-4 flex justify-end">
             <Button type="submit">
@@ -129,7 +135,7 @@ const EditMemoryPage = () => {
           </div>
         </form>
       </Show>
-    </>
+    </Page>
   )
 }
 

@@ -1,9 +1,5 @@
 import needle from 'needle'
-import { publishOne } from '../api/ws/handle'
-import { getTokenCounter } from '../tokenize'
-import { requestStream } from './stream'
-import { AdapterProps } from './type'
-import { OPENAI_MODELS } from '/common/adapters'
+import { AdapterProps, CompletionGenerator, CompletionItem } from './type'
 import { defaultPresets } from '/common/default-preset'
 import { IMAGE_SUMMARY_PROMPT } from '/common/image'
 import {
@@ -14,12 +10,8 @@ import {
   injectPlaceholders,
   insertsDeeperThanConvoHistory,
 } from '/common/prompt'
-import { AppSchema } from '/common/types'
+import { AppSchema, TokenCounter } from '/common/types'
 import { escapeRegex } from '/common/util'
-import { AppLog } from '../logger'
-
-type Role = 'user' | 'assistant' | 'system'
-type CompletionItem = { role: Role; content: string; name?: string }
 
 type SplitSampleChatProps = {
   sampleChat: string
@@ -28,142 +20,13 @@ type SplitSampleChatProps = {
   budget?: number
 }
 
-type CompletionContent<T> = Array<{ finish_reason: string; index: number } & ({ text: string } | T)>
-type Inference = { message: { content: string; role: Role } }
-type AsyncDelta = { delta: Partial<Inference['message']> }
-
-type Completion<T = Inference> = {
-  id: string
-  created: number
-  model: string
-  object: string
-  choices: CompletionContent<T>
-  error?: { message: string }
-}
-
-type CompletionGenerator = (
-  userId: string,
-  url: string,
-  headers: Record<string, string | string[] | number>,
-  body: any,
-  service: string,
-  log: AppLog
-) => AsyncGenerator<
-  { error: string } | { error?: undefined; token: string } | Completion,
-  Completion | undefined
->
-
 // We only ever use the OpenAI gpt-3 encoder
 // Don't bother passing it around since we know this already
-const encoder = () => getTokenCounter('openai', OPENAI_MODELS.Turbo)
+// const encoder = () => getTokenCounter('openai', OPENAI_MODELS.Turbo)
 
 const sampleChatMarkerCompletionItem: CompletionItem = {
   role: 'system',
   content: SAMPLE_CHAT_MARKER.replace('System: ', ''),
-}
-
-/**
- * Yields individual tokens as OpenAI sends them, and ultimately returns a full completion object
- * once the stream is finished.
- */
-export const streamCompletion: CompletionGenerator = async function* (
-  userId,
-  url,
-  headers,
-  body,
-  service,
-  log
-) {
-  const resp = needle.post(url, JSON.stringify(body), {
-    parse: false,
-    headers: {
-      ...headers,
-      Accept: 'text/event-stream',
-    },
-  })
-
-  const tokens = []
-  let meta = { id: '', created: 0, model: '', object: '', finish_reason: '', index: 0 }
-  let current: any = {}
-
-  try {
-    const events = requestStream(resp)
-    let prev = ''
-    for await (const event of events) {
-      if (!event.data) {
-        continue
-      }
-
-      if (event.type === 'ping') {
-        continue
-      }
-
-      if (event.data === '[DONE]') {
-        break
-      }
-
-      current = event
-      prev += event.data
-
-      // If we fail to parse we might need to parse with this bad data and the next event's data...
-      // So we'll keep it and try again next iteration
-      // tryParse() will attempt to parse with the current .data payload _before_ prepending with the previous attempt (if present)
-      const parsed = tryParse<Completion<AsyncDelta>>(event.data, prev)
-      if (!parsed) continue
-
-      // If we successfully parsed, ensure 'prev' is cleared so subsequent tryParse attempts don't have dangling data
-      prev = ''
-
-      const { choices, ...evt } = parsed
-      if (!choices || !choices[0]) {
-        log.warn({ sse: event }, `[${service}] Received invalid SSE during stream`)
-
-        const message = evt.error?.message
-          ? `${service} interrupted the response: ${evt.error.message}`
-          : `${service} interrupted the response`
-
-        if (!tokens.length) {
-          yield { error: message }
-          return
-        }
-
-        publishOne(userId, { type: 'notification', level: 'warn', message })
-        break
-      }
-
-      const { finish_reason, index, ...choice } = choices[0]
-
-      meta = { ...evt, finish_reason, index }
-
-      if ('text' in choice) {
-        const token = choice.text
-        tokens.push(token)
-        yield { token }
-      } else if ('delta' in choice && choice.delta.content) {
-        const token = choice.delta.content
-        tokens.push(token)
-        yield { token }
-      }
-    }
-  } catch (err: any) {
-    log.error({ err, current }, `${service} streaming request failed`)
-    yield { error: `${service} streaming request failed: ${err.message}` }
-    return
-  }
-
-  return {
-    id: meta.id,
-    created: meta.created,
-    model: meta.model,
-    object: meta.object,
-    choices: [
-      {
-        finish_reason: meta.finish_reason,
-        index: meta.index,
-        text: tokens.join(''),
-      },
-    ],
-  }
 }
 
 /**
@@ -174,13 +37,23 @@ export const streamCompletion: CompletionGenerator = async function* (
  */
 export async function toChatCompletionPayload(
   opts: AdapterProps,
+  counter: TokenCounter,
   maxTokens: number
 ): Promise<CompletionItem[]> {
   if (opts.kind === 'plain') {
     return [{ role: 'system', content: opts.prompt }]
   }
 
-  const { lines, parts, gen, replyAs } = opts
+  const { lines, gen, replyAs } = opts
+
+  const injectOpts = {
+    opts,
+    parts: opts.parts,
+    lastMessage: opts.lastMessage,
+    characters: opts.characters || {},
+    encoder: counter,
+    jsonValues: opts.jsonValues,
+  }
 
   const messages: CompletionItem[] = []
   const history: CompletionItem[] = []
@@ -188,13 +61,7 @@ export async function toChatCompletionPayload(
   const handle = opts.impersonate?.name || opts.sender?.handle || 'You'
   const { parsed: gaslight, inserts } = await injectPlaceholders(
     ensureValidTemplate(gen.gaslight || defaultPresets.openai.gaslight, ['history', 'post']),
-    {
-      opts,
-      parts,
-      lastMessage: opts.lastMessage,
-      characters: opts.characters || {},
-      encoder: encoder(),
-    }
+    injectOpts
   )
 
   messages.push({ role: 'system', content: gaslight })
@@ -204,27 +71,19 @@ export async function toChatCompletionPayload(
   let maxBudget =
     (gen.maxContextLength || defaultPresets.openai.maxContextLength) -
     maxTokens -
-    (await encoder()([...inserts.values()].join(' ')))
-  let tokens = await encoder()(gaslight)
+    (await counter([...inserts.values()].join(' ')))
+  let tokens = await counter(gaslight)
 
   if (lines) {
     all.push(...lines)
   }
 
-  // Append 'postamble' and system prompt (ujb)
-  const post = await getPostInstruction(opts, messages)
-  if (post) {
-    const encode = encoder()
-    post.content = (
-      await injectPlaceholders(post.content, {
-        opts,
-        parts: opts.parts,
-        lastMessage: opts.lastMessage,
-        characters: opts.characters || {},
-        encoder: encode,
-      })
-    ).parsed
-    tokens += await encode(post.content)
+  // Append 'postamble' and jailbreak
+  const posts = await getPostInstruction(opts, messages, counter).then((inst) => inst || [])
+  posts.reverse()
+  for (const post of posts) {
+    post.content = await injectPlaceholders(post.content, injectOpts).then((p) => p.parsed)
+    tokens += await counter(post.content)
     history.push(post)
   }
 
@@ -232,12 +91,12 @@ export async function toChatCompletionPayload(
 
   let i = all.length - 1
   let addedAllInserts = false
-  const addRemainingInserts = () => {
+  const addRemainingInserts = async () => {
     const remainingInserts = insertsDeeperThanConvoHistory(inserts, all.length - i)
     if (remainingInserts) {
       history.push({
         role: 'system',
-        content: remainingInserts,
+        content: await injectPlaceholders(remainingInserts, injectOpts).then((i) => i.parsed),
       })
     }
   }
@@ -256,18 +115,25 @@ export async function toChatCompletionPayload(
     const isBot = !isUser && !isSystem
 
     const insert = inserts.get(distanceFromBottom)
-    if (insert) history.push({ role: 'system', content: insert })
+    if (insert)
+      history.push({
+        role: 'system',
+        content: await injectPlaceholders(insert, injectOpts).then((p) => p.parsed),
+      })
 
     if (i === examplePos) {
-      addRemainingInserts()
+      await addRemainingInserts()
       addedAllInserts = true
 
-      const { additions, consumed } = await splitSampleChat({
-        budget: maxBudget - tokens,
-        sampleChat: obj.content,
-        char: replyAs.name,
-        sender: handle,
-      })
+      const { additions, consumed } = await splitSampleChat(
+        {
+          budget: maxBudget - tokens,
+          sampleChat: obj.content,
+          char: replyAs.name,
+          sender: handle,
+        },
+        counter
+      )
 
       if (tokens + consumed > maxBudget) {
         --i
@@ -279,7 +145,7 @@ export async function toChatCompletionPayload(
       continue
     } else if (isBot) {
     } else if (line === '<START>') {
-      obj.role = sampleChatMarkerCompletionItem.role
+      obj.role = 'system'
       obj.content = sampleChatMarkerCompletionItem.content
     } else if (isSystem) {
       obj.role = 'system'
@@ -288,7 +154,7 @@ export async function toChatCompletionPayload(
       obj.role = 'user'
     }
 
-    const length = await encoder()(obj.content)
+    const length = await counter(obj.content)
     if (tokens + length > maxBudget) {
       --i
       break
@@ -298,12 +164,12 @@ export async function toChatCompletionPayload(
     --i
   }
   if (!addedAllInserts) {
-    addRemainingInserts()
+    await addRemainingInserts()
   }
   return messages.concat(history.reverse())
 }
 
-export async function splitSampleChat(opts: SplitSampleChatProps) {
+export async function splitSampleChat(opts: SplitSampleChatProps, counter: TokenCounter) {
   const { sampleChat, char, sender, budget } = opts
   const regex = new RegExp(
     `(?<=\\n)(?=${escapeRegex(char)}:|${escapeRegex(sender)}:|System:|<start>)`,
@@ -321,10 +187,10 @@ export async function splitSampleChat(opts: SplitSampleChatProps) {
     if (trimmed.toLowerCase().startsWith('<start>')) {
       const afterStart = trimmed.slice(7).trim()
       additions.push(sampleChatMarkerCompletionItem)
-      tokens += await encoder()(sampleChatMarkerCompletionItem.content)
+      tokens += await counter(sampleChatMarkerCompletionItem.content)
       if (afterStart) {
-        additions.push({ role: 'system' as const, content: afterStart })
-        tokens += await encoder()(afterStart)
+        additions.push({ role: 'system', content: afterStart })
+        tokens += await counter(afterStart)
       }
       continue
     }
@@ -341,7 +207,7 @@ export async function splitSampleChat(opts: SplitSampleChatProps) {
       content: sample.replace(BOT_REPLACE, char).replace(SELF_REPLACE, sender),
     }
 
-    const length = await encoder()(msg.content)
+    const length = await counter(msg.content)
     if (budget && tokens + length > budget) break
 
     additions.push(msg)
@@ -353,8 +219,9 @@ export async function splitSampleChat(opts: SplitSampleChatProps) {
 
 async function getPostInstruction(
   opts: AdapterProps,
-  messages: CompletionItem[]
-): Promise<CompletionItem | undefined> {
+  messages: CompletionItem[],
+  counter: TokenCounter
+): Promise<CompletionItem[] | undefined> {
   let prefix = opts.parts.ujb ?? ''
 
   prefix = (
@@ -363,7 +230,8 @@ async function getPostInstruction(
       parts: opts.parts,
       lastMessage: opts.lastMessage,
       characters: opts.characters || {},
-      encoder: encoder(),
+      encoder: counter,
+      jsonValues: opts.jsonValues,
     })
   ).parsed
 
@@ -375,7 +243,7 @@ async function getPostInstruction(
     }
 
     case 'continue':
-      return { role: 'system', content: `${prefix}\n\nContinue ${opts.replyAs.name}'s response` }
+      return [{ role: 'system', content: `${prefix}\n\nContinue ${opts.replyAs.name}'s response` }]
 
     case 'summary': {
       let content = opts.user.images?.summaryPrompt || IMAGE_SUMMARY_PROMPT.openai
@@ -391,23 +259,38 @@ async function getPostInstruction(
       if (looks) {
         messages[0].content += '\n' + looks
       }
-      return { role: 'user', content }
+      return [{ role: 'user', content }]
     }
 
     case 'self':
-      return {
-        role: 'system',
-        content: `${prefix}\n\n${opts.impersonate?.name || opts.sender?.handle || 'You'}:`,
-      }
+      return [
+        {
+          role: 'system',
+          content: `${prefix}\n\n${opts.impersonate?.name || opts.sender?.handle || 'You'}:`,
+        },
+      ]
 
     case 'retry':
     case 'send':
     case 'request': {
       const appendName = opts.gen.prefixNameAppend ?? true
-      return {
-        role: 'system',
-        content: appendName ? `${prefix}\n\n${opts.replyAs.name}:` : prefix,
-      }
+      const messages: CompletionItem[] = [
+        {
+          role: 'system',
+          content: prefix,
+        },
+        {
+          role: 'assistant',
+          content: `${opts.gen.prefill ?? ''}\n\n${appendName ? opts.replyAs.name : ''}:`.trim(),
+        },
+      ]
+
+      // Non-empty-ish messages
+      return messages.filter((m) => {
+        if (!m.content) return false
+        if (m.content === ':') return false
+        return true
+      })
     }
   }
 }
@@ -424,16 +307,31 @@ function getCharLooks(char: AppSchema.Character) {
   return `${char.name}'s appearance: ${visuals.join(', ')}`
 }
 
-function tryParse<T = any>(value: string, prev?: string): T | undefined {
-  try {
-    const parsed = tryParse(value)
-    if (parsed) return parsed
+export const requestFullCompletion: CompletionGenerator = async function* (
+  _userId,
+  url,
+  headers,
+  body,
+  _service,
+  _log
+) {
+  const resp = await needle('post', url, JSON.stringify(body), {
+    json: true,
+    headers,
+  }).catch((err) => ({ error: err }))
 
-    if (!prev) return JSON.parse(value)
-
-    const joined = JSON.parse(prev + value)
-    return joined
-  } catch (ex) {
+  if ('error' in resp) {
+    yield { error: `OpenAI request failed: ${resp.error?.message || resp.error}` }
     return
   }
+
+  if (resp.statusCode && resp.statusCode >= 400) {
+    const msg =
+      resp.body?.error?.message || resp.body.message || resp.statusMessage || 'Unknown error'
+
+    yield { error: `OpenAI request failed (${resp.statusCode}): ${msg}` }
+    return
+  }
+
+  return resp.body
 }

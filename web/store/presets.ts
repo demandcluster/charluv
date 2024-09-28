@@ -8,12 +8,13 @@ import { subscribe } from './socket'
 import { toastStore } from './toasts'
 import { AIAdapter } from '/common/adapters'
 import { defaultPresets, isDefaultPreset } from '/common/presets'
+import { replace } from '/common/util'
 
 type PresetState = {
   importing?: AppSchema.UserGenPreset
   presets: AppSchema.UserGenPreset[]
   templates: AppSchema.PromptTemplate[]
-  subs: AppSchema.SubscriptionPreset[]
+  subs: AppSchema.SubscriptionModel[]
   saving: boolean
 }
 
@@ -51,14 +52,25 @@ export const presetStore = createStore<PresetState>(
       { presets },
       presetId: string,
       preset: Partial<PresetUpdate>,
-      onSuccess?: () => void
+      opts?: { onSuccess?: () => void; quiet?: boolean }
     ) {
       yield { saving: true }
       const res = await presetApi.editPreset(presetId, preset)
       yield { saving: false }
       if (res.error) toastStore.error(`Failed to update preset: ${res.error}`)
       if (res.result) {
-        toastStore.success('Successfully updated preset')
+        if (!opts?.quiet) toastStore.success('Successfully updated preset')
+        yield { presets: presets.map((p) => (p._id === presetId ? res.result! : p)) }
+        opts?.onSuccess?.()
+      }
+    },
+    async *deleteUserPresetKey({ presets }, presetId: string, onSuccess?: () => void) {
+      yield { saving: true }
+      const res = await presetApi.deleteUserPresetKey(presetId)
+      yield { saving: false }
+      if (res.error) toastStore.error(`Failed to remove preset key: ${res.error}`)
+      if (res.result) {
+        toastStore.success('Successfully removed key')
         yield { presets: presets.map((p) => (p._id === presetId ? res.result! : p)) }
         onSuccess?.()
       }
@@ -131,7 +143,7 @@ export const presetStore = createStore<PresetState>(
     async *createSubscription(
       { subs },
       sub: SubscriptionUpdate,
-      onSuccess?: (sub: AppSchema.SubscriptionPreset) => void
+      onSuccess?: (sub: AppSchema.SubscriptionModel) => void
     ) {
       const res = await api.post('/admin/subscriptions', sub)
       if (res.error) toastStore.error(`Failed to create subscription: ${res.error}`)
@@ -196,9 +208,10 @@ export const presetStore = createStore<PresetState>(
       { templates },
       name: string,
       template: string,
+      presetId: string | undefined,
       done?: (templateId: string) => void
     ) {
-      const res = await presetApi.createTemplate({ name, template })
+      const res = await presetApi.createTemplate({ name, template, presetId })
       if (res.result) {
         yield { templates: templates.concat(res.result) }
         done?.(res.result._id)
@@ -213,12 +226,12 @@ export const presetStore = createStore<PresetState>(
     async *updateTemplate(
       { templates },
       id: string,
-      update: { name: string; template: string },
+      update: { name: string; template: string; presetId?: string },
       done?: () => void
     ) {
       const res = await presetApi.updateTemplate(id, update)
       if (res.result) {
-        const next = templates.map((t) => (t._id === id ? { ...t, ...update } : t))
+        const next = replace(id, templates, { name: update.name, template: update.template })
         yield { templates: next }
         done?.()
         return
@@ -319,6 +332,8 @@ type SafePreset = Pick<
   | 'useAdvancedPrompt'
   | 'dynatemp_range'
   | 'dynatemp_exponent'
+  | 'smoothingFactor'
+  | 'smoothingCurve'
 >
 
 export async function exportPreset(preset: AppSchema.UserGenPreset) {
@@ -329,7 +344,7 @@ export async function exportPreset(preset: AppSchema.UserGenPreset) {
     novelModel,
     userId,
     claudeModel,
-    images,
+    mistralModel,
     thirdPartyModel,
     thirdPartyKey,
     thirdPartyFormat,

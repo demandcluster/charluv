@@ -1,8 +1,9 @@
-import { Component, JSX, For, createMemo } from 'solid-js'
+import { Component, JSX, For, createMemo, Show } from 'solid-js'
 import { FormLabel } from './FormLabel'
 import { ChevronDown } from 'lucide-solid'
 import { AIAdapter, PresetAISettings, ThirdPartyFormat } from '../../common/adapters'
 import { getAISettingServices, isValidServiceSetting } from './util'
+import { forms } from '../emitter'
 
 export type Option<T extends string = string> = {
   label: string
@@ -11,14 +12,18 @@ export type Option<T extends string = string> = {
 
 const Select: Component<{
   fieldName: string
-  label?: string
+  label?: JSX.Element | string
   helperText?: string | JSX.Element
   helperMarkdown?: string
   items: Option[]
   value?: string
   class?: string
   disabled?: boolean
+  classList?: Record<string, boolean>
+  parentClass?: string
   onChange?: (item: Option) => void
+  recommend?: string
+  recommendLabel?: string
 
   service?: AIAdapter
   format?: ThirdPartyFormat
@@ -27,9 +32,11 @@ const Select: Component<{
   hide?: boolean
 }> = (props) => {
   const onChange = (ev: Event & { currentTarget: EventTarget & HTMLSelectElement }) => {
-    if (!props.onChange) return
-    const item = props.items.find((item) => item.value === ev.currentTarget.value)
-    props.onChange(item!)
+    if (props.onChange) {
+      const item = props.items.find((item) => item.value === ev.currentTarget.value)
+      props.onChange(item!)
+    }
+    forms.emit(props.fieldName, ev.currentTarget.value)
   }
 
   const hide = createMemo(() => {
@@ -38,13 +45,29 @@ const Select: Component<{
     return isValid ? '' : ' hidden'
   })
 
+  const recommend = createMemo(() => {
+    if (!props.recommend) return
+    const item = props.items.find((i) => i.value === props.recommend)
+    return item ? item.label : props.recommend
+  })
+
   return (
-    <div class={`${hide()} max-w-full`}>
+    <div class={`${hide()} max-w-full ${props.parentClass || ''}`} classList={props.classList}>
       <FormLabel
-        label={props.label}
+        label={
+          <span>
+            <label class="form-label">{props.label}</label>
+            <Show when={recommend() !== undefined}>
+              <span class="text-xs italic text-gray-500">
+                &nbsp;({props.recommendLabel || 'Recommended'}: {recommend()?.toString()})
+              </span>
+            </Show>
+          </span>
+        }
         helperText={props.helperText}
         helperMarkdown={props.helperMarkdown}
       />
+
       <div class="flex items-center">
         <div class="relative overflow-hidden rounded-xl bg-transparent">
           <select
@@ -138,5 +161,3 @@ export const MiniSelect: Component<{
 }
 
 export default Select
-
-4

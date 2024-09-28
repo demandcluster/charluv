@@ -1,15 +1,19 @@
 import type { GenerateRequestV2 } from '../srv/adapter/type'
 import type { AppSchema, TokenCounter } from './types'
-import { AIAdapter, NOVEL_MODELS, OPENAI_MODELS, THIRDPARTY_HANDLERS } from './adapters'
+import { AIAdapter, NOVEL_MODELS, OPENAI_CONTEXTS, THIRDPARTY_HANDLERS } from './adapters'
 import { formatCharacter } from './characters'
 import { defaultTemplate } from './mode-templates'
 import { buildMemoryPrompt } from './memory'
 import { defaultPresets, getFallbackPreset, isDefaultPreset } from './presets'
 import { parseTemplate } from './template-parser'
-import { getMessageAuthor, getBotName, trimSentence } from './util'
+import { getMessageAuthor, getBotName, trimSentence, neat } from './util'
 import { Memory } from './types'
 import { promptOrderToTemplate } from './prompt-order'
 import { ModelFormat, replaceTags } from './presets/templates'
+
+export type TickHandler<T = any> = (response: string, state: InferenceState, json?: T) => void
+
+export type InferenceState = 'partial' | 'done' | 'error' | 'warning'
 
 export const SAMPLE_CHAT_MARKER = `System: New conversation started. Previous conversations are examples only.`
 export const SAMPLE_CHAT_PREAMBLE = `How {{char}} speaks:`
@@ -71,6 +75,7 @@ export type PromptOpts = {
   userEmbeds: Memory.UserEmbed[]
   resolvedScenario: string
   modelFormat?: ModelFormat
+  jsonValues: Record<string, any> | undefined
 }
 
 export type BuildPromptOpts = {
@@ -89,8 +94,8 @@ export type BuildPromptOpts = {
 }
 
 /** {{user}}, <user>, {{char}}, <bot>, case insensitive */
-export const BOT_REPLACE = /(\{\{char\}\}|<BOT>|\{\{name\}\})/gi
-export const SELF_REPLACE = /(\{\{user\}\}|<USER>)/gi
+export const BOT_REPLACE = /(\{\{char\}\}|\{\{name\}\})/gi
+export const SELF_REPLACE = /(\{\{user\}\})/gi
 export const START_REPLACE = /(<START>)/gi
 
 const HOLDER_NAMES = {
@@ -129,6 +134,66 @@ export const HOLDERS = {
   userEmbed: /{{user_embed}}/gi,
 }
 
+const defaultFieldPrompt = neat`
+{{prop}}:
+{{value}}
+`
+export function buildModPrompt(opts: {
+  prompt: string
+  fields: string
+  char: Partial<AppSchema.Character>
+}) {
+  const aliases: { [key in keyof AppSchema.Character]?: string } = {
+    sampleChat: 'Example Dialogue',
+    postHistoryInstructions: 'Character Jailbreak',
+    systemPrompt: 'Character Instructions',
+  }
+
+  const props: Array<keyof AppSchema.Character> = [
+    'name',
+    'description',
+    'appearance',
+    'scenario',
+    'greeting',
+    'sampleChat',
+    'systemPrompt',
+    'postHistoryInstructions',
+  ]
+
+  const inject = (prop: string, value: string) =>
+    (opts.fields || defaultFieldPrompt)
+      .replace(/{{prop}}/gi, prop)
+      .replace(/{{value}}/gi, value)
+      .replace(/\n\n+/g, '\n')
+
+  const fields = props
+    .filter((f) => {
+      const value = opts.char[f]
+      if (typeof value !== 'string') return false
+      return !!value.trim()
+    })
+    .map((f) => {
+      const value = opts.char[f]
+      if (typeof value !== 'string') return ''
+
+      const prop = titlize(aliases[f] || f)
+      return inject(prop, value)
+    })
+
+  for (const [attr, values] of Object.entries(opts.char.persona?.attributes || {})) {
+    const value = values.join(', ')
+    if (!value.trim()) continue
+
+    fields.push(inject(`Attribute '${titlize(attr)}'`, value))
+  }
+
+  return opts.prompt.replace(/{{fields}}/gi, fields.join('\n\n'))
+}
+
+function titlize(str: string) {
+  return `${str[0].toUpperCase()}${str.slice(1).toLowerCase()}`
+}
+
 /**
  * This is only ever invoked client-side
  * @param opts
@@ -159,8 +224,13 @@ export async function createPromptParts(opts: PromptOpts, encoder: TokenCounter)
   /**
    * The lines from `getLinesForPrompt` are returned in time-descending order
    */
-  const template = getTemplate(opts)
+  let template = getTemplate(opts)
   const templateSize = await encoder(template)
+
+  if (opts.modelFormat) {
+    template = replaceTags(template, opts.modelFormat)
+  }
+
   /**
    * It's important for us to pass in a max context that is _realistic-ish_ as the embeddings
    * are retrieved based on the number of history messages we return here.
@@ -181,6 +251,7 @@ export async function createPromptParts(opts: PromptOpts, encoder: TokenCounter)
     lastMessage: opts.lastMessage,
     characters: opts.characters,
     encoder,
+    jsonValues: opts.jsonValues,
   })
 
   return { lines: lines.reverse(), parts, template: prompt }
@@ -211,11 +282,8 @@ export async function assemblePrompt(
     characters: opts.characters,
     lastMessage: opts.lastMessage,
     encoder,
+    jsonValues: opts.jsonValues,
   })
-
-  if (opts.settings?.modelFormat) {
-    parsed = replaceTags(parsed, opts.settings.modelFormat)
-  }
 
   return { lines: history.lines, prompt: parsed, inserts, parts, post, length }
 }
@@ -232,20 +300,15 @@ export function getTemplate(opts: Pick<GenerateRequestV2, 'settings' | 'chat'>) 
       opts.settings.promptOrder
     )
     return template
-    // return ensureValidTemplate(template)
   }
 
   const template = opts.settings?.gaslight || fallback?.gaslight || defaultTemplate
 
-  const validate =
-    opts.settings?.useAdvancedPrompt === undefined
-      ? true
-      : opts.settings?.useAdvancedPrompt === 'validate'
-
-  if (!validate) {
+  if (opts.settings?.useAdvancedPrompt === 'no-validation') {
     return template
   }
 
+  // Deprecated
   return ensureValidTemplate(template)
 }
 
@@ -254,6 +317,7 @@ type InjectOpts = {
   parts: PromptParts
   lastMessage?: string
   characters: Record<string, AppSchema.Character>
+  jsonValues: Record<string, any> | undefined
   history?: { lines: string[]; order: 'asc' | 'desc' }
   encoder: TokenCounter
 }
@@ -261,11 +325,18 @@ type InjectOpts = {
 export async function injectPlaceholders(template: string, inject: InjectOpts) {
   const { opts, parts, history: hist, encoder, ...rest } = inject
 
+  template = replaceTags(template, opts.settings?.modelFormat || 'Charluv')
+
+  // Basic templates can exclude example dialogue
+  const validate =
+    opts.settings?.useAdvancedPrompt !== 'no-validation' &&
+    opts.settings?.useAdvancedPrompt !== 'basic'
+
   // Automatically inject example conversation if not included in the prompt
   /** @todo assess whether or not this should be here -- it ignores 'unvalidated' prompt rules */
   const sender = opts.impersonate?.name || inject.opts.sender?.handle || 'You'
   const sampleChat = parts.sampleChat?.join('\n')
-  if (!template.match(HOLDERS.sampleChat) && sampleChat && hist) {
+  if (!template.match(HOLDERS.sampleChat) && sampleChat && hist && validate) {
     const next = hist.lines.filter((line) => !line.includes(SAMPLE_CHAT_MARKER))
 
     const svc = opts.settings?.service
@@ -387,6 +458,10 @@ export async function buildPromptParts(
     const temp = opts.chat.tempCharacters?.[bot._id]
     if (temp?.deletedAt || temp?.favorite === false) continue
 
+    if (!bot._id.startsWith('temp-') && !chat.characters?.[bot._id]) {
+      continue
+    }
+
     personalities.add(bot._id)
     parts.allPersonas.push(
       `${bot.name}'s personality: ${formatCharacter(bot.name, bot.persona, bot.persona.kind)}`
@@ -505,7 +580,13 @@ function createPostPrompt(
   >
 ) {
   const post = []
-  post.push(`${opts.replyAs.name}:`)
+
+  if (opts.kind === 'chat-query') {
+    post.push(`Query Response:`)
+  } else {
+    post.push(`${opts.replyAs.name}:`)
+  }
+
   return post
 }
 
@@ -536,7 +617,7 @@ export async function getLinesForPrompt(
     profiles.set(member.userId, member)
   }
 
-  const formatMsg = (msg: AppSchema.ChatMessage) => {
+  const formatMsg = (msg: AppSchema.ChatMessage, i: number, all: AppSchema.ChatMessage[]) => {
     const profile = msg.userId ? profiles.get(msg.userId) : opts.sender
     const sender = opts.impersonate
       ? opts.impersonate.name
@@ -657,7 +738,8 @@ function fillPlaceholders(opts: {
   user: string
 }): string {
   const prefix = opts.msg.system ? 'System' : opts.author
-  const msg = opts.msg.msg.replace(BOT_REPLACE, opts.char).replace(SELF_REPLACE, opts.user)
+  const text = opts.msg.json?.history || opts.msg.msg
+  const msg = text.replace(BOT_REPLACE, opts.char).replace(SELF_REPLACE, opts.user)
 
   return `${prefix}: ${msg}`
 }
@@ -674,7 +756,7 @@ export function getChatPreset(
   /**
    * Order of precedence:
    * 1. chat.genPreset
-   * 2. chat.genSettings
+   * 2. chat.genSettings (Deprecated)
    * 3. user.defaultPreset
    * 4. user.servicePreset -- Deprecated: Service presets are completely removed apart from users that already have them.
    * 5. built-in fallback preset (horde)
@@ -784,6 +866,8 @@ export function getContextLimit(
 
   const genAmount = gen?.maxTokens || getFallbackPreset(adapter)?.maxTokens || 200
 
+  if (gen?.service === 'kobold' || gen?.service === 'ooba') return configuredMax - genAmount
+
   switch (adapter) {
     case 'agnaistic':
       return configuredMax - genAmount
@@ -804,17 +888,8 @@ export function getContextLimit(
     }
 
     case 'openai': {
-      const models = new Set<string>([
-        OPENAI_MODELS.Turbo,
-        OPENAI_MODELS.Turbo0301,
-        OPENAI_MODELS.Turbo0613,
-        OPENAI_MODELS.DaVinci,
-      ])
-
-      if (!model || models.has(model)) return Math.min(configuredMax, 4090) - genAmount
-      if (model === OPENAI_MODELS.Turbo_16k) return Math.min(configuredMax, 16360) - genAmount
-
-      return configuredMax - genAmount
+      const limit = OPENAI_CONTEXTS[model] || 128000
+      return Math.min(configuredMax, limit) - genAmount
     }
 
     case 'replicate':
@@ -838,6 +913,9 @@ export function getContextLimit(
 
     case 'mancer':
       return Math.min(configuredMax, 8000) - genAmount
+
+    case 'venus':
+      return Math.min(configuredMax, 7800) - genAmount
   }
 }
 
@@ -903,4 +981,173 @@ export function resolveScenario(
   }
 
   return result.trim()
+}
+
+export type JsonType = { title?: string; description?: string; valid?: string } & (
+  | { type: 'string'; maxLength?: number }
+  | { type: 'integer' }
+  | { type: 'enum'; enum: string[] }
+  | { type: 'bool' }
+)
+
+export type JsonSchema = {
+  title: string
+  type: 'object'
+  properties: Record<string, JsonType>
+  required: string[]
+}
+
+export interface JsonField {
+  name: string
+  disabled: boolean
+  type: JsonType
+}
+
+export const schema = {
+  str: (o?: { desc?: string; title?: string; maxLength?: number }) => ({
+    type: 'string',
+    title: o?.title,
+    maxLength: o?.maxLength,
+  }),
+  int: (o?: { title?: string; desc?: string }) => ({
+    type: 'integer',
+    title: o?.title,
+    description: o?.desc,
+  }),
+  enum: (o: { values: string[]; title?: string; desc?: string }) => ({
+    type: 'enum',
+    enum: o.values,
+    title: o.title,
+    description: o.desc,
+  }),
+  bool: (o?: { title?: string; desc?: string }) => ({
+    type: 'bool',
+    enum: ['true', 'false', 'yes', 'no'],
+    title: o?.title,
+    description: o?.desc,
+  }),
+} satisfies Record<string, (...args: any[]) => JsonType>
+
+export function toJsonSchema(body: JsonField[]): JsonSchema | undefined {
+  if (!Array.isArray(body) || !body.length) return
+  if (body.every((field) => field.disabled)) return
+
+  const schema: JsonSchema = {
+    title: 'Response',
+    type: 'object',
+    properties: {},
+    required: [],
+  }
+
+  const props: JsonSchema['properties'] = {}
+
+  if (!!body && !Array.isArray(body)) {
+    body = Object.entries(body).map(([key, value]) => ({
+      name: key,
+      disabled: false,
+      type: value,
+    })) as any
+  }
+
+  let added = 0
+  for (const { name, disabled, type } of body) {
+    if (disabled) continue
+
+    added++
+    props[name] = { ...type }
+    delete props[name].valid
+
+    if (type.type === 'bool') {
+      props[name].type = 'enum'
+
+      // @ts-ignore
+      props[key].enum = ['true', 'false', 'yes', 'no']
+    }
+    schema.required.push(name)
+  }
+
+  schema.properties = props
+
+  if (added === 0) return
+  return schema
+}
+
+export function fromJsonResponse(schema: JsonField[], response: any, output: any = {}): any {
+  const json: Record<string, any> = tryJsonParseResponse(response)
+
+  for (let [key, value] of Object.entries(json)) {
+    const underscored = key.replace(/ /g, '_')
+
+    if (underscored in schema) {
+      key = underscored
+    }
+
+    const def = schema.find((s) => s.name === key)
+    if (!def) continue
+
+    output[key] = value
+    if (def.type.type === 'bool') {
+      output[key] = value.trim() === 'true' || value.trim() === 'yes'
+    }
+  }
+
+  return output
+}
+
+export function tryJsonParseResponse(res: string) {
+  if (typeof res === 'object') return res
+  try {
+    const json = JSON.parse(res)
+    return json
+  } catch (ex) {}
+
+  try {
+    const json = JSON.parse(res + '}')
+    return json
+  } catch (ex) {}
+
+  try {
+    if (res.trim().endsWith(',')) {
+      const json = JSON.parse(res.slice(0, -1))
+      return json
+    }
+  } catch (ex) {}
+
+  return {}
+}
+
+export function onJsonTickHandler(
+  schema: JsonField[],
+  handler: (res: any, state: InferenceState) => void
+) {
+  let curr: any = {}
+  const parser: TickHandler = (res, state) => {
+    if (state === 'done') {
+      const body = fromJsonResponse(schema, tryJsonParseResponse(res))
+      if (Object.keys(body).length === 0) {
+        handler(curr, state)
+        return
+      }
+
+      handler(body, state)
+      return
+    }
+
+    if (state === 'partial') {
+      const body = fromJsonResponse(schema, tryJsonParseResponse(res))
+      const keys = Object.keys(body).length
+      if (keys === 0) return
+
+      const changed = Object.keys(curr).length !== keys
+      if (!changed) return
+
+      Object.assign(curr, body)
+      handler(curr, state)
+      return
+    }
+
+    handler(curr, state)
+  }
+
+  return parser
 }

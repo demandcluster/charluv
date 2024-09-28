@@ -12,44 +12,101 @@ import TextInput from '../../../shared/TextInput'
 import { settingStore, userStore } from '../../../store'
 import { IMAGE_SUMMARY_PROMPT } from '/common/image'
 import { Toggle } from '/web/shared/Toggle'
+import { BaseImageSettings } from '/common/types/image-schema'
+import { SolidCard } from '/web/shared/Card'
 
-const imageTypes = [
-  { label: 'Horde', value: 'horde' },
-  { label: 'NovelAI', value: 'novel' },
-  { label: 'Stable Diffusion', value: 'sd' },
-]
-
-export const ImageSettings: Component = () => {
+export const ImageSettings: Component<{ cfg?: BaseImageSettings; inherit?: boolean }> = (props) => {
   const state = userStore()
+  const settings = settingStore()
+  const [type, setType] = createSignal(state.user?.images?.type || 'horde')
 
-  const [currentType, setType] = createSignal(state.user?.images?.type || 'horde')
+  const canUseImages = createMemo(() => {
+    const access = state.sub?.tier.imagesAccess || state.user?.admin
+    return (
+      settings.config.serverConfig?.imagesEnabled &&
+      access &&
+      settings.config.serverConfig?.imagesModels?.length > 0
+    )
+  })
+
+  const agnaiModel = createMemo(() => {
+    if (!canUseImages()) return
+    if (type() !== 'agnai') return
+
+    const id = state.user?.images?.agnai?.model
+    return settings.config.serverConfig?.imagesModels?.find((m) => m.name === id)
+  })
+
+  const imageTypes = createMemo(() => {
+    const list = [
+      { label: 'Horde', value: 'horde' },
+      { label: 'NovelAI', value: 'novel' },
+      { label: 'Stable Diffusion', value: 'sd' },
+    ]
+
+    if (canUseImages()) {
+      list.push({ label: 'Agnaistic', value: 'agnai' })
+    }
+
+    return list
+  })
+
   const subclass = 'flex flex-col gap-4'
 
   return (
     <div class="flex flex-col gap-4">
       <Select
         fieldName="imageType"
-        items={imageTypes}
-        value={state.user?.images?.type || 'horde'}
+        items={imageTypes()}
+        value={(props.inherit ? props.cfg?.type : state.user?.images?.type) ?? 'horde'}
         onChange={(value) => setType(value.value as any)}
       />
 
+      <Show when={type() === 'agnai'}>
+        <SolidCard bg="rose-600">
+          Refer to the recommended settings at the bottom of the page when using Agnaistic image
+          models
+        </SolidCard>
+      </Show>
+
       <RangeInput
         fieldName="imageSteps"
-        min={20}
+        min={5}
         max={128}
         step={1}
-        value={state.user?.images?.steps ?? 28}
+        value={
+          (props.inherit ? props.cfg?.steps : state.user?.images?.steps) ??
+          agnaiModel()?.init.steps ??
+          28
+        }
         label="Sampling Steps"
         helperText="(Novel Anlas Threshold: 28)"
       />
 
       <RangeInput
+        fieldName="imageClipSkip"
+        min={0}
+        max={4}
+        step={1}
+        value={
+          (props.inherit ? props.cfg?.clipSkip : state.user?.images?.clipSkip) ??
+          agnaiModel()?.init.clipSkip ??
+          0
+        }
+        label="Clip Skip"
+        helperText="The larger the image, the less that can be retained in your local cache. (Novel Anlas Threshold: 512)"
+      />
+
+      <RangeInput
         fieldName="imageWidth"
         min={256}
-        max={1024}
-        step={64}
-        value={state.user?.images?.width ?? 384}
+        max={1280}
+        step={128}
+        value={
+          (props.inherit ? props.cfg?.width : state.user?.images?.width) ??
+          agnaiModel()?.init.width ??
+          384
+        }
         label="Image Width"
         helperText="The larger the image, the less that can be retained in your local cache. (Novel Anlas Threshold: 512)"
       />
@@ -57,23 +114,29 @@ export const ImageSettings: Component = () => {
       <RangeInput
         fieldName="imageHeight"
         min={256}
-        max={1024}
-        step={64}
-        value={state.user?.images?.height ?? 384}
+        max={1280}
+        step={128}
+        value={
+          (props.inherit ? props.cfg?.height : state.user?.images?.height) ??
+          agnaiModel()?.init.height ??
+          384
+        }
         label="Image Height"
         helperText="The larger the image, the less that can be retain in your local cache. (Novel Anlas Threshold: 512)"
       />
 
       <TextInput
         fieldName="imageCfg"
-        value={state.user?.images?.cfg ?? 9}
+        value={
+          (props.inherit ? props.cfg?.cfg : state.user?.images?.cfg) ?? agnaiModel()?.init.cfg ?? 9
+        }
         label="CFG Scale"
         helperText="Prompt Guidance. Classifier Free Guidance Scale - how strongly the image should conform to prompt - lower values produce more creative results."
       />
 
       <TextInput
         fieldName="imagePrefix"
-        value={state.user?.images?.prefix}
+        value={props.inherit ? props.cfg?.prefix : state.user?.images?.prefix}
         label="Prompt Prefix"
         helperText="(Optional) Text to prepend to your image prompt"
         placeholder={`E.g.: best quality, masterpiece`}
@@ -81,7 +144,7 @@ export const ImageSettings: Component = () => {
 
       <TextInput
         fieldName="imageSuffix"
-        value={state.user?.images?.suffix}
+        value={props.inherit ? props.cfg?.suffix : state.user?.images?.suffix}
         label="Prompt Suffix"
         helperText="(Optional) Text to append to your image prompt"
         placeholder={`E.g.: full body, visible legs, dramatic lighting`}
@@ -89,7 +152,7 @@ export const ImageSettings: Component = () => {
 
       <TextInput
         fieldName="imageNegative"
-        value={state.user?.images?.negative}
+        value={props.inherit ? props.cfg?.negative : state.user?.images?.negative}
         label="Negative Prompt"
         helperText="(Optional) Negative Prompt"
         placeholder={`E.g.: painting, drawing, illustration, glitch, deformed, mutated, cross-eyed, disfigured`}
@@ -97,32 +160,38 @@ export const ImageSettings: Component = () => {
 
       <TextInput
         fieldName="summaryPrompt"
-        value={state.user?.images?.summaryPrompt}
+        value={props.inherit ? props.cfg?.summaryPrompt : state.user?.images?.summaryPrompt}
         label="Summary Prompt"
-        helperText='If you use OpenAI or NovelAI, this is the "prompt" sent to OpenAI to summarise your conversation into an image prompt.'
+        helperText='When summarising the chat to an image caption, this is the "prompt" sent to OpenAI to summarise your conversation into an image prompt.'
         placeholder={`Default: ${IMAGE_SUMMARY_PROMPT.other}`}
       />
 
       <Toggle
         fieldName="summariseChat"
         label="Summarise Chat"
-        helperText="When available use your AI service to summarise the chat into an image prompt. Only available with services with Instruct capabilities (NovelAI, OpenAI, Claude, etc)"
-        value={state.user?.images?.summariseChat}
+        helperText="When available use your AI service to summarise the chat into an image prompt. Only available with services with Instruct capabilities (Agnai, NovelAI, OpenAI, Claude, etc)"
+        value={props.inherit ? props.cfg?.summariseChat : state.user?.images?.summariseChat}
       />
 
-      <Divider />
+      <Show when={!props.inherit}>
+        <Divider />
 
-      <div class={currentType() === 'novel' ? subclass : 'hidden'}>
-        <NovelSettings />
-      </div>
+        <div class={type() === 'novel' ? subclass : 'hidden'}>
+          <NovelSettings />
+        </div>
 
-      <div class={currentType() === 'horde' ? subclass : 'hidden'}>
-        <HordeSettings />
-      </div>
+        <div class={type() === 'horde' ? subclass : 'hidden'}>
+          <HordeSettings />
+        </div>
 
-      <div class={currentType() === 'sd' ? subclass : 'hidden'}>
-        <SDSettings />
-      </div>
+        <div class={type() === 'sd' ? subclass : 'hidden'}>
+          <SDSettings />
+        </div>
+
+        <div class={type() === 'agnai' ? subclass : 'hidden'}>
+          <AgnaiSettings />
+        </div>
+      </Show>
     </div>
   )
 }
@@ -243,3 +312,100 @@ const SDSettings: Component = () => {
     </>
   )
 }
+
+const AgnaiSettings: Component = () => {
+  const state = userStore()
+  const settings = settingStore((s) => {
+    const models = s.config.serverConfig?.imagesModels || []
+    return {
+      models,
+      names: models.map((m) => ({ label: m.desc.trim(), value: m.name })),
+    }
+  })
+
+  const [curr, setCurr] = createSignal(state.user?.images?.agnai?.model)
+
+  const model = createMemo(() => {
+    const original = state.user?.images?.agnai?.model
+    const id = settings.models.length === 1 ? settings.models[0].name : curr() || original
+    const match = settings.models.find((m) => m.name === id)
+    return match
+  })
+
+  const samplers = Object.entries(SD_SAMPLER_REV).map(([key, value]) => ({
+    label: value,
+    value: key,
+  }))
+
+  return (
+    <>
+      <div class="text-xl">Agnaistic</div>
+      <Show when={settings.models.length === 0}>
+        <i>No additional options available</i>
+      </Show>
+      <Select
+        fieldName="agnaiModel"
+        label="Agnaistic Image Model"
+        items={settings.names}
+        value={curr()}
+        disabled={settings.models.length <= 1}
+        classList={{ hidden: settings.models.length === 0 }}
+        onChange={(ev) => setCurr(ev.value)}
+      />
+
+      <Select
+        fieldName="agnaiSampler"
+        items={samplers}
+        label="Sampler"
+        value={state.user?.images?.agnai?.sampler || SD_SAMPLER['DPM++ SDE']}
+      />
+
+      <Show when={!!model()}>
+        <div>
+          <table class="table-auto border-separate border-spacing-2 ">
+            <thead>
+              <tr>
+                <Th />
+                <Th>Steps</Th>
+                <Th>CFG</Th>
+                <Th>Width</Th>
+                <Th>Height</Th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <Td>Recommended</Td>
+                <Td>{model()?.init.steps}</Td>
+                <Td>{model()?.init.cfg}</Td>
+                <Td>{model()?.init.width}</Td>
+                <Td>{model()?.init.height}</Td>
+              </tr>
+
+              <tr>
+                <Td>Maximums</Td>
+                <Td>{model()?.limit.steps}</Td>
+                <Td>{model()?.limit.cfg}</Td>
+                <Td>{model()?.limit.width}</Td>
+                <Td>{model()?.limit.height}</Td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Show>
+    </>
+  )
+}
+
+const Th: Component<{ children?: any }> = (props) => (
+  <th
+    class="rounded-md border-[var(--bg-600)] p-2 font-bold"
+    classList={{ border: !!props.children, 'bg-[var(--bg-700)]': !!props.children }}
+  >
+    {props.children}
+  </th>
+)
+const Td: Component<{ children?: any }> = (props) => (
+  <td class="rounded-md border-[var(--bg-600)] p-2 " classList={{ border: !!props.children }}>
+    {props.children}
+  </td>
+)

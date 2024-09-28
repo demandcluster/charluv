@@ -18,9 +18,10 @@ import { ImageSettings } from './Image/ImageSettings'
 import { VoiceSettings } from './Voice/VoiceSettings'
 import { toArray } from '/common/util'
 import { useSearchParams } from '@solidjs/router'
-import Modal from '/web/shared/Modal'
+import { RootModal } from '/web/shared/Modal'
 import { THIRDPARTY_FORMATS } from '/common/adapters'
 import { SubscriptionPage } from '../Profile/SubscriptionPage'
+import { Page } from '/web/Layout'
 
 const settingTabs: Record<Tab, string> = {
   ai: 'AI Settings',
@@ -46,7 +47,7 @@ export const SettingsModal = () => {
   const state = settingStore()
   const [footer, setFooter] = createSignal<any>()
   return (
-    <Modal
+    <RootModal
       show={state.showSettings}
       close={() => settingStore.modal(false)}
       fixedHeight
@@ -54,14 +55,14 @@ export const SettingsModal = () => {
       footer={
         <>
           <Button schema="secondary" onClick={() => settingStore.modal(false)}>
-            Cancel
+            Close
           </Button>
           {footer()}
         </>
       }
     >
       <Settings footer={setFooter} />
-    </Modal>
+    </RootModal>
   )
 }
 
@@ -82,11 +83,11 @@ const Settings: Component<{ footer?: (children: any) => void }> = (props) => {
     }
   })
 
-  const tabs: Tab[] = ['ui', 'ai', 'voice', 'subscription']
+  const tabs: Tab[] = ['ui', 'ai', 'voice']
 
-  // if (state.loggedIn && (state.tiers.length > 0 || state.user?.billing)) {
-  //   tabs.push('subscription')
-  // }
+  if (state.tiers.length > 0 || state.user?.billing) {
+    tabs.push('subscription')
+  }
 
   if (!state.loggedIn) tabs.push('guest')
 
@@ -98,14 +99,18 @@ const Settings: Component<{ footer?: (children: any) => void }> = (props) => {
 
     const {
       imageCfg,
-      imageHeight,
       imageSteps,
       imageType,
+      imageClipSkip,
       imageWidth,
+      imageHeight,
       imageNegative,
       imagePrefix,
       imageSuffix,
+
       sdSampler,
+      agnaiModel = '',
+      agnaiSampler = '',
       sdUrl,
       hordeImageModel,
       hordeSampler,
@@ -145,6 +150,7 @@ const Settings: Component<{ footer?: (children: any) => void }> = (props) => {
       images: {
         type: imageType,
         cfg: imageCfg,
+        clipSkip: imageClipSkip,
         height: imageHeight,
         width: imageWidth,
         steps: imageSteps,
@@ -155,7 +161,7 @@ const Settings: Component<{ footer?: (children: any) => void }> = (props) => {
         summaryPrompt,
         horde: {
           sampler: hordeSampler,
-          model: hordeImageModel,
+          model: hordeImageModel || '',
         },
         novel: {
           model: novelImageModel,
@@ -165,6 +171,7 @@ const Settings: Component<{ footer?: (children: any) => void }> = (props) => {
           sampler: sdSampler,
           url: sdUrl,
         },
+        agnai: { model: agnaiModel || '', sampler: agnaiSampler || '' },
       },
     })
   }
@@ -187,7 +194,7 @@ const Settings: Component<{ footer?: (children: any) => void }> = (props) => {
   )
 
   return (
-    <>
+    <Page>
       <PageHeader
         title="Settings"
         subtitle={
@@ -244,7 +251,7 @@ const Settings: Component<{ footer?: (children: any) => void }> = (props) => {
           <div class="flex justify-end gap-2 pt-4">{footer}</div>
         </Show>
       </form>
-    </>
+    </Page>
   )
 }
 
@@ -262,6 +269,7 @@ const settingsForm = {
   hordeKey: 'string?',
   hordeModel: 'string?',
   oaiKey: 'string?',
+  mistralKey: 'string?',
   scaleApiKey: 'string?',
   scaleUrl: 'string?',
   claudeApiKey: 'string?',
@@ -270,8 +278,10 @@ const settingsForm = {
   useLocalPipeline: 'boolean?',
   summariseChat: 'boolean?',
   summaryPrompt: 'string?',
-  imageType: ['horde', 'sd', 'novel'],
+
+  imageType: ['horde', 'sd', 'novel', 'agnai'],
   imageSteps: 'number',
+  imageClipSkip: 'number',
   imageCfg: 'number',
   imageWidth: 'number',
   imageHeight: 'number',
@@ -283,10 +293,13 @@ const settingsForm = {
   novelSampler: 'string',
 
   hordeSampler: 'string',
-  hordeImageModel: 'string',
+  hordeImageModel: 'string?',
 
   sdUrl: 'string',
   sdSampler: 'string',
+
+  agnaiModel: 'string?',
+  agnaiSampler: 'string?',
 
   speechToTextEnabled: 'boolean',
   speechToTextAutoSubmit: 'boolean',

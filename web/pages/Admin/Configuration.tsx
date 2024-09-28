@@ -1,120 +1,129 @@
-import { Component, createSignal } from 'solid-js'
-import { adminStore, settingStore, userStore } from '/web/store'
+import { Component, Match, Switch, createEffect, createSignal, on, onMount } from 'solid-js'
+import { adminStore, userStore } from '/web/store'
 import { useNavigate } from '@solidjs/router'
 import PageHeader from '/web/shared/PageHeader'
-import { Toggle } from '/web/shared/Toggle'
-import Select from '/web/shared/Select'
-import TextInput from '/web/shared/TextInput'
 import { getStrictForm } from '/web/shared/util'
 import { SaveIcon } from 'lucide-solid'
 import Button from '/web/shared/Button'
+import { Page } from '/web/Layout'
+import Loading from '/web/shared/Loading'
+import Tabs, { useTabs } from '/web/shared/Tabs'
+import { CharLibrary } from './Config/Characters'
+import { General } from './Config/General'
+import { Voice } from './Config/Voice'
+import { Images } from './Config/Images'
+
+export { ServerConfiguration as default }
 
 const ServerConfiguration: Component = () => {
   let form: HTMLFormElement
   const user = userStore()
   const nav = useNavigate()
-  const state = settingStore((s) => s.config)
 
-  const [slots, setSlots] = createSignal(state.serverConfig?.slots || '{}')
+  const state = adminStore()
+  const tab = useTabs(['General', 'Images', 'Voice', 'Characters'])
+
+  const [slots, setSlots] = createSignal(state.config?.slots || '{}')
+  const [modschema, setModschema] = createSignal(state.config?.modSchema || [])
 
   if (!user.user?.admin) {
     nav('/')
     return null
   }
 
-  const formatSlots = (ev: FormEvent) => {
-    try {
-      const obj = JSON.parse(ev.currentTarget.value || '{}')
-      setSlots(JSON.stringify(obj, null, 2))
-    } catch (ex) {}
-  }
+  const models = createSignal(
+    Array.isArray(state.config?.imagesModels) ? state.config.imagesModels : []
+  )
+
+  createEffect(
+    on(
+      () => state.config,
+      () => {
+        if (!state.config?.imagesModels) return
+        models[1](state.config?.imagesModels)
+        setModschema(state.config.modSchema || {})
+      }
+    )
+  )
+
+  onMount(async () => {
+    await adminStore.getConfiguration()
+  })
 
   const submit = () => {
     const body = getStrictForm(form, {
       apiAccess: ['off', 'users', 'subscribers', 'admins'],
+      ttsAccess: ['off', 'users', 'subscribers', 'admins'],
       slots: 'string',
       maintenance: 'boolean',
       maintenanceMessage: 'string',
       termsOfService: 'string',
       privacyStatement: 'string',
       policiesEnabled: 'boolean',
+      imagesHost: 'string',
+      imagesEnabled: 'boolean',
+      supportEmail: 'string',
+      ttsEnabled: 'boolean',
+      ttsApiKey: 'string',
+      ttsHost: 'string',
+      maxGuidanceTokens: 'number',
+      maxGuidanceVariables: 'number',
+      googleClientId: 'string',
+      googleEnabled: 'boolean',
+      modPresetId: 'string',
+      modPrompt: 'string',
+      modFieldPrompt: 'string',
+      charlibGuidelines: 'string',
+      lockSeconds: 'number',
+      charlibPublish: ['off', 'users', 'subscribers', 'moderators', 'admins'],
     })
 
-    adminStore.updateServerConfig({ ...body, slots: slots(), enabledAdapters: [] })
+    adminStore.updateServerConfig({
+      ...body,
+      actionCalls: [],
+      slots: slots(),
+      imagesModels: models[0](),
+      enabledAdapters: [],
+      modSchema: modschema(),
+    })
   }
 
   return (
-    <>
+    <Page>
       <PageHeader title="Server Configuration" />
 
-      <form ref={form!} class="flex flex-col gap-2" onSubmit={(ev) => ev.preventDefault()}>
-        <Select
-          fieldName="apiAccess"
-          label="API Access Level"
-          items={[
-            { label: 'Off', value: 'off' },
-            { label: 'All Users', value: 'users' },
-            { label: 'Subscribers', value: 'subscribers' },
-            { label: 'Adminstrators', value: 'admins' },
-          ]}
-          value={state.serverConfig?.apiAccess || 'off'}
-        />
+      <Switch>
+        <Match when={!state.config}>
+          <div class="mt-24 flex justify-center">
+            <Loading />
+          </div>
+        </Match>
 
-        <Toggle
-          fieldName="maintenance"
-          label="Maintenace Mode Enabled"
-          helperText="Caution: If your database is no available, this flag will not work. Use the environment variable instead."
-          value={state.serverConfig?.maintenance}
-        />
+        <Match when>
+          <Tabs tabs={tab.tabs} select={tab.select} selected={tab.selected} />
 
-        <TextInput
-          fieldName="maintenanceMessage"
-          isMultiline
-          label="Maintenance Message"
-          helperText="Markdown is supported"
-          value={state.serverConfig?.maintenanceMessage}
-        />
+          <form ref={form!} class="flex flex-col gap-2" onSubmit={(ev) => ev.preventDefault()}>
+            <div class="flex flex-col gap-2" classList={{ hidden: tab.current() !== 'General' }}>
+              <General slots={slots} setSlots={setSlots} />
+            </div>
+            <div class="flex flex-col gap-2" classList={{ hidden: tab.current() !== 'Voice' }}>
+              <Voice />
+            </div>
+            <div class="flex flex-col gap-2" classList={{ hidden: tab.current() !== 'Images' }}>
+              <Images models={models} />
+            </div>
+            <div class="flex flex-col gap-2" classList={{ hidden: tab.current() !== 'Characters' }}>
+              <CharLibrary setSchema={setModschema} />
+            </div>
 
-        <TextInput
-          fieldName="slots"
-          label="Slots Configuration"
-          helperText="Must be JSON. Merged with remote slots config -- This config overrides slots.txt"
-          value={slots()}
-          onInput={formatSlots}
-          isMultiline
-        />
-
-        <Toggle
-          fieldName="policiesEnabled"
-          label="Enable Policies"
-          helperText="Display TOS and Privacy Statements"
-          disabled
-          class="hidden"
-        />
-
-        <TextInput
-          fieldName="termsOfService"
-          label="Terms of Service"
-          helperText="Not yet implemented"
-          isMultiline
-          disabled
-        />
-        <TextInput
-          fieldName="privacyStatement"
-          label="PrivacyStatement"
-          helperText="Not yet implemented"
-          isMultiline
-          disabled
-        />
-
-        <div class="flex justify-end">
-          <Button onClick={submit} class="w-fit">
-            <SaveIcon /> Save
-          </Button>
-        </div>
-      </form>
-    </>
+            <div class="flex justify-end">
+              <Button onClick={submit} class="w-fit">
+                <SaveIcon /> Save
+              </Button>
+            </div>
+          </form>
+        </Match>
+      </Switch>
+    </Page>
   )
 }
-
-export { ServerConfiguration as default }

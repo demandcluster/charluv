@@ -2,7 +2,7 @@ export const BG_THEME = ['truegray', 'coolgray', 'bluegray'] as const
 
 export const UI_FONT = ['default', 'lato'] as const
 
-export const AVATAR_SIZES = ['xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl'] as const
+export const AVATAR_SIZES = ['hide', 'xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', 'max3xl'] as const
 export const AVATAR_CORNERS = ['sm', 'md', 'lg', 'circle', 'none'] as const
 
 export const CHAT_WIDTHS = ['full', 'narrow', 'xl', '2xl', '3xl', 'fill'] as const
@@ -42,6 +42,8 @@ export type CustomUI = {
   chatQuoteColor: string
 }
 
+export type MessageOption = 'edit' | 'regen' | 'trash' | 'fork' | 'prompt'
+
 export type UISettings = {
   theme: string
   themeBg?: string
@@ -59,11 +61,13 @@ export type UISettings = {
   /** 0 -> 1. 0 = transparent. 1 = opaque */
   msgOpacity: number
   mobileSendOnEnter: boolean
+  msgOptsInline: { [key in MessageOption]: { outer: boolean; pos: number } }
 
-  viewMode?: 'split' | 'standard'
+  viewMode?: 'split' | 'standard' | 'background' | 'background-contain' | 'background-cover'
   viewHeight?: number
 
   chatWidth?: ChatWidth
+  chatAlternating?: number
   trimSentences?: boolean
   logPromptsToBrowserConsole: boolean
   contextWindowLine: boolean
@@ -108,7 +112,7 @@ export const defaultUIsettings: UISettings = {
 
   bgCustomGradient: '',
 
-  mode: 'dark',
+  mode: 'light',
   avatarSize: 'md',
   avatarCorners: 'circle',
   font: 'default',
@@ -135,5 +139,13 @@ export const defaultUIsettings: UISettings = {
     chatTextColor: '--text-800',
     chatEmphasisColor: '--text-600',
     chatQuoteColor: '--text-800',
+  },
+
+  msgOptsInline: {
+    edit: { outer: true, pos: 0 },
+    prompt: { outer: false, pos: 3 },
+    fork: { outer: false, pos: 2 },
+    regen: { outer: true, pos: 1 },
+    trash: { outer: false, pos: 4 },
   },
 }

@@ -325,9 +325,7 @@ const MatchList: Component = () => {
     <>
       <div class="min-h-[455px] overflow-hidden">
         <PageHeader title="Likes" subtitle="" />
-        <Show when={!charsList().loaded}>
-          <div>Loading ...{charsList()}</div>
-        </Show>
+
         <Show when={charsList().list}>
           <Button
             class=" float-right -mt-16"
@@ -485,7 +483,7 @@ const DSwipeCard: Component<{ character: AppSchema.Character; match: Any }> = (p
     <div class="absolute w-full max-w-5xl">
       <SwipeCard
         zindex="5"
-        class="fixed left-[5%] right-[5%] m-auto h-96 max-h-[90%] w-96 max-w-[90%] rounded-lg border-[10px] border-solid border-[var(--bg-800)] bg-[var(--bg-800)] shadow-lg  md:left-[10%] md:right-[10%] md:border-[20px] sm:h-3/4  sm:max-h-[550px] sm:w-9/12 sm:max-w-[550px] lg:right-[calc(14%-22.5rem)]"
+        class="fixed left-[5%] right-[5%] m-auto h-96 max-h-[90%] w-96 max-w-[90%] rounded-lg border-[10px] border-solid border-[var(--bg-800)] bg-[var(--bg-800)] shadow-lg  md:left-[10%] md:right-[10%] md:border-[20px] lg:right-[calc(14%-22.5rem)]  sm:h-3/4 sm:max-h-[550px] sm:w-9/12 sm:max-w-[550px]"
         threshold="300"
         rotationmultiplier="7.5"
         maxrotation="90"

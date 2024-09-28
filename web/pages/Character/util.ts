@@ -1,11 +1,12 @@
 import { AppSchema } from '/common/types'
 import { getAssetUrl, storage } from '/web/shared/util'
 import { toastStore } from '/web/store'
-import { ALLOWED_TYPES, charsApi, getImageData } from '/web/store/data/chars'
+import { charsApi } from '/web/store/data/chars'
 import { exportCharacter } from '/common/characters'
 import text from 'png-chunk-text'
 import extract from 'png-chunks-extract'
 import encode from 'png-chunks-encode'
+import { imageApi } from '/web/store/data/image'
 
 const CACHE_KEY = 'agnai-chatlist-cache'
 
@@ -27,6 +28,7 @@ export type SortType =
   | 'character-name'
   | 'character-created'
   | 'bot-activity'
+  | 'chat-count'
 
 export type SortDirection = 'asc' | 'desc'
 
@@ -45,6 +47,8 @@ export function getChatSortableValue(chat: ChatLine, field: SortType) {
       return chat.updatedAt
     case 'chat-created':
       return chat.createdAt
+    case 'chat-count':
+      return chat.messageCount ?? 0
     default:
       return 0
   }
@@ -90,7 +94,7 @@ export function groupAndSort(
   type: SortType,
   direction: SortDirection
 ): Array<ChatGroup> {
-  if (type === 'chat-updated' || type === 'chat-created') {
+  if (type === 'chat-updated' || type === 'chat-created' || type === 'chat-count') {
     const sorted = allChats.slice().sort(getChatSortFunction(type, direction))
     return [{ char: null, chats: sorted }]
   }
@@ -139,11 +143,7 @@ export function toCharacterMap(bots: AppSchema.Character[]) {
   return map
 }
 
-export async function downloadCharCard(
-  input: string | AppSchema.Character,
-  format: string,
-  schema: string
-) {
+export async function downloadCharCard(input: string | AppSchema.Character, format: string) {
   let char: AppSchema.Character
 
   if (typeof input === 'string') {
@@ -157,7 +157,7 @@ export async function downloadCharCard(
     char = input
   }
 
-  const json = charToJson(char, format, schema)
+  const json = charToJson(char, format)
   const image = getAssetUrl(char.avatar!)
   /**
    * Only PNG and APNG files can contain embedded character information
@@ -202,11 +202,10 @@ async function imageToDataURL(image: string) {
   return dataUrl
 }
 
-function charToJson(char: AppSchema.Character, format: string, schema: string) {
+function charToJson(char: AppSchema.Character, format: string) {
   const { _id, ...json } = char
 
   const copy = { ...char }
-  copy.persona.kind = schema as any
 
   if (format === 'native') {
     return JSON.stringify(json, null, 2)
@@ -220,11 +219,13 @@ function getExt(url: string): { type: 'base64' | 'url'; ext: string } {
   if (url.startsWith('data:')) {
     const [header] = url.split(',')
     const ext = header.slice(11, -7)
-    return ALLOWED_TYPES.has(ext) ? { type: 'base64', ext } : { type: 'base64', ext: 'unknown' }
+    return imageApi.ALLOWED_TYPES.has(ext)
+      ? { type: 'base64', ext }
+      : { type: 'base64', ext: 'unknown' }
   }
 
   const ext = url.split('.').slice(-1)[0]
-  if (ALLOWED_TYPES.has(ext)) return { type: 'url', ext }
+  if (imageApi.ALLOWED_TYPES.has(ext)) return { type: 'url', ext }
   return { type: 'url', ext: 'unknown' }
 }
 
@@ -235,7 +236,7 @@ async function getImageBase64(image: string) {
     image = getAssetUrl(image)
   }
 
-  const base64 = await getImageData(image)
+  const base64 = await imageApi.getImageData(image)
   return base64!
 }
 

@@ -1,6 +1,7 @@
 import { Component } from 'solid-js'
 import PageHeader from '../../shared/PageHeader'
 import { markdown } from '../../shared/markdown'
+import { Page } from '/web/Layout'
 
 const text = `
 **Dated September 27, 2023**
@@ -59,7 +60,7 @@ You must be at least 18 years old to use the Services. If you are found to be un
 
 YOU AGREE TO THE FOLLOWING MANDATORY ARBITRATION AND CLASS ACTION WAIVER PROVISIONS:
 
-(a) Informal Dispute Resolution. We would like to understand and try to address your concerns prior to formal legal action. Before filing a claim against Stakeholders, you agree to try to resolve the dispute informally by sending us notice on our discord server (https://agnai.chat/discord) of your name, a description of the dispute, and the relief you seek. If we are unable to resolve a dispute within 60 days, you may bring a formal proceeding. Any statute of limitations will be tolled during the 60-day resolution process. If you reside in the EU, the European Commission provides for an online dispute resolution platform, which you can access at https://ec.europa.eu/consumers/odr.
+(a) Informal Dispute Resolution. We would like to understand and try to address your concerns prior to formal legal action. Before filing a claim against Stakeholders, you agree to try to resolve the dispute informally by sending us notice on our discord server (https://discord.agnai.chat) of your name, a description of the dispute, and the relief you seek. If we are unable to resolve a dispute within 60 days, you may bring a formal proceeding. Any statute of limitations will be tolled during the 60-day resolution process. If you reside in the EU, the European Commission provides for an online dispute resolution platform, which you can access at https://ec.europa.eu/consumers/odr.
 
 ## 9. General Terms
 
@@ -94,10 +95,10 @@ You agree not to use the Model or Derivatives of the Model:
 
 const TermsOfServicePage: Component = () => {
   return (
-    <div>
+    <Page>
       <PageHeader title={<>Agnaistic Terms of Service</>} />
       <div class="markdown flex flex-col gap-4" innerHTML={markdown.makeHtml(text)}></div>
-    </div>
+    </Page>
   )
 }
 

@@ -1,12 +1,19 @@
 import { Component, Show, createEffect, createMemo, createSignal, onMount } from 'solid-js'
-import { ADAPTER_LABELS } from '../../../common/adapters'
+import { ADAPTER_LABELS, adaptersToOptions } from '../../../common/adapters'
 import { AppSchema } from '../../../common/types/schema'
 import Button from '../../shared/Button'
 import Select from '../../shared/Select'
 import PersonaAttributes, { getAttributeMap } from '../../shared/PersonaAttributes'
 import TextInput from '../../shared/TextInput'
-import { adaptersToOptions, getStrictForm } from '../../shared/util'
-import { chatStore, presetStore, scenarioStore, settingStore, userStore } from '../../store'
+import { getStrictForm } from '../../shared/util'
+import {
+  chatStore,
+  msgStore,
+  presetStore,
+  scenarioStore,
+  settingStore,
+  userStore,
+} from '../../store'
 import { getChatPreset } from '../../../common/prompt'
 import { FormLabel } from '../../shared/FormLabel'
 import { defaultPresets, isDefaultPreset } from '/common/presets'
@@ -14,6 +21,10 @@ import { Card, TitleCard } from '/web/shared/Card'
 import { Toggle } from '/web/shared/Toggle'
 import TagInput from '/web/shared/TagInput'
 import { usePane } from '/web/shared/hooks'
+import { ImageSettings } from '../Settings/Image/ImageSettings'
+import { baseImageValid } from '/common/types/image-schema'
+import Divider from '/web/shared/Divider'
+import { Wand } from 'lucide-solid'
 
 const formatOptions = [
   { value: 'attributes', label: 'Attributes' },
@@ -56,6 +67,7 @@ const ChatSettings: Component<{
   })
 
   let ref: any
+  let nameRef: any
 
   const [mode, setMode] = createSignal(state.chat?.mode || 'standard')
   const [scenarioId, setScenarioId] = createSignal(state.chat?.scenarioIds?.[0] || '')
@@ -97,7 +109,23 @@ const ChatSettings: Component<{
   })
 
   const onSave = () => {
-    const { scenarioId, ...body } = getStrictForm(ref, {
+    const {
+      scenarioId,
+      imageCfg,
+      imageHeight,
+      imageNegative,
+      imagePrefix,
+      imageSource,
+      imageSteps,
+      imageSuffix,
+      imageType,
+      imageWidth,
+      imageClipSkip,
+      summariseChat,
+      summaryPrompt,
+
+      ...body
+    } = getStrictForm(ref, {
       name: 'string',
       greeting: 'string?',
       sampleChat: 'string?',
@@ -107,6 +135,8 @@ const ChatSettings: Component<{
       schema: ['wpp', 'boostyle', 'sbf', 'text', 'attributes', null],
       scenarioId: 'string?',
       mode: ['standard', 'adventure', 'companion', null],
+      imageSource: ['last-character', 'main-character', 'chat', 'settings'],
+      ...baseImageValid,
     })
 
     const attributes = getAttributeMap(ref)
@@ -118,6 +148,20 @@ const ChatSettings: Component<{
     const payload = {
       ...body,
       overrides,
+      imageSource,
+      imageSettings: {
+        clipSkip: imageClipSkip,
+        type: imageType,
+        steps: imageSteps,
+        width: imageWidth,
+        height: imageHeight,
+        prefix: imagePrefix,
+        suffix: imageSuffix,
+        negative: imageNegative,
+        cfg: imageCfg,
+        summariseChat,
+        summaryPrompt,
+      },
       scenarioIds: scenarioId ? [scenarioId] : [],
       scenarioStates: states(),
     }
@@ -200,6 +244,22 @@ const ChatSettings: Component<{
         </Show>
       </div>
 
+      <Card>
+        <Select
+          fieldName="imageSource"
+          label="Image Source"
+          helperText={<>Which settings to use when generating images for this chat</>}
+          onChange={(ev) => setMode(ev.value as any)}
+          items={[
+            { label: 'Main Character', value: 'main-character' },
+            { label: 'Last Character to Speak', value: 'last-character' },
+            { label: 'Chat Settings', value: 'chat' },
+            { label: 'App Settings', value: 'settings' },
+          ]}
+          value={state.chat?.imageSource || 'settings'}
+        />
+      </Card>
+
       <Show when={activePreset()?.service !== 'horde'}>
         <Card>
           <Select
@@ -229,7 +289,26 @@ const ChatSettings: Component<{
         </Card>
       </Show>
       <Card>
-        <TextInput fieldName="name" class="text-sm" value={state.chat?.name} label="Chat name" />
+        <TextInput
+          fieldName="name"
+          class="text-sm"
+          value={state.chat?.name}
+          ref={(ref) => (nameRef = ref)}
+          label={
+            <>
+              Chat name{' '}
+              <div
+                onClick={() =>
+                  msgStore.chatQuery('Generate a name for this conversation', (msg) => {
+                    nameRef.value = msg
+                  })
+                }
+              >
+                <Wand />
+              </div>
+            </>
+          }
+        />
       </Card>
       <Show when={!state.char?.parent && !state.char?.name === 'Aiva'}>
         <Card>
@@ -318,11 +397,18 @@ const ChatSettings: Component<{
             <PersonaAttributes
               value={state.chat?.overrides?.attributes || state.char?.persona?.attributes}
               hideLabel
-              plainText={kind() === 'text'}
+              schema={kind()}
             />
           </div>
         </Card>
       </Show>
+
+      {/* <Divider />
+      <FormLabel
+        label="Image Generation Settings"
+        helperMarkdown="These settings will be used to for image generation if the `Image Source` is set `Chat`"
+      />
+      <ImageSettings inherit cfg={state.chat?.imageSettings} /> */}
     </form>
   )
 }

@@ -6,34 +6,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta property="og:title" content="Charluv" />
     <meta property="twitter:title" content="Charluv" />
-    <meta
-      property="twitter:description"
-      content="AI Dating platform. Date an AI."
-    />
-    <meta
-      property="og:description"
-      content="AI Dating platform. Date an AI."
-    />
-    <meta name="google-adsense-account" content="ca-pub-4911002739669349">
-    <link href='https://fonts.googleapis.com/css?family=Bai Jamjuree' rel='stylesheet'>
+    <meta property="twitter:description" content="AI Dating platform. Date an AI." />
+    <meta property="og:description" content="AI Dating platform. Date an AI." />
+    <meta name="google-adsense-account" content="ca-pub-4911002739669349" />
+    <link href="https://fonts.googleapis.com/css?family=Bai Jamjuree" rel="stylesheet" />
     <link href="./tailwind.css" rel="stylesheet" />
     <link
       href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400&display=block"
       rel="stylesheet"
     />
     <link rel="icon" href="./favicon.ico" />
-    <link rel="manifest" href="./site.webmanifest"/>
+    <link rel="manifest" href="./site.webmanifest" />
     <title>Charluv</title>
   </head>
   <body>
     <div id="root"><!-- TODO(11b): Fallback when no JS. --></div>
+    <script src="https://accounts.google.com/gsi/client"></script>
     <script type="module" src="./index.tsx"></script>
     <script type="module">
-        if (typeof navigator.serviceWorker !== 'undefined') {
-          navigator.serviceWorker.register( new URL('serviceWorker.ts', import.meta.url));
-     }
+      if (typeof navigator.serviceWorker !== 'undefined') {
+        navigator.serviceWorker.register(new URL('serviceWorker.ts', import.meta.url));
+      }
       window.charluv_version = '{{unknown}}';
-      console.clear()
+      console.clear();
       const charluv = `
 
 
@@ -46,7 +41,7 @@
      
      
       `;
-      console.log("%c %s", "color: rgb(85, 184, 156)", charluv);
+      console.log('%c %s', 'color: rgb(85, 184, 156)', charluv);
     </script>
   </body>
 </html>

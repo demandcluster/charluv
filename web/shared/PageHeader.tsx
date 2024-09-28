@@ -1,15 +1,7 @@
-import {
-  Component,
-  JSX,
-  Match,
-  Show,
-  Switch,
-  createEffect,
-  createMemo,
-  createSignal,
-} from 'solid-js'
+import { Component, JSX, Show, createEffect, createMemo, createSignal } from 'solid-js'
 import Divider from './Divider'
 import Slot from './Slot'
+import { useRef } from './hooks'
 
 type Props = {
   title: string | JSX.Element
@@ -23,7 +15,7 @@ type Props = {
 }
 
 const PageHeader: Component<Props> = (props) => {
-  let ref: HTMLDivElement
+  const [ref, onRef] = useRef()
   const [_sticky, setSticky] = createSignal(true)
 
   createEffect(() => {
@@ -34,6 +26,14 @@ const PageHeader: Component<Props> = (props) => {
 
   return (
     <>
+      <Show when={!props.noslot}>
+        <div ref={onRef} class="mb-2 flex w-full justify-center">
+          <Show when={!!ref}>
+            <Slot sticky slot={props.subPage ? 'pane_leaderboard' : 'leaderboard'} parent={ref()} />
+          </Show>
+        </div>
+      </Show>
+
       <Show when={props.title}>
         <div class={`${mod()}`}>
           <h1 class={'text-900 justify-center text-4xl sm:flex sm:w-full sm:justify-start'}>
@@ -49,20 +49,6 @@ const PageHeader: Component<Props> = (props) => {
       </Show>
       <Show when={!props.noDivider && (!!props.title || !!props.subtitle)}>
         <Divider />
-      </Show>
-
-      <Show when={!props.noslot}>
-        <div ref={ref!} class="mb-2 flex w-full justify-center">
-          <Switch>
-            <Match when={ref!}>
-              <Slot
-                sticky
-                slot={props.subPage ? 'pane_leaderboard' : 'leaderboard'}
-                parent={ref!}
-              />
-            </Match>
-          </Switch>
-        </div>
       </Show>
     </>
   )

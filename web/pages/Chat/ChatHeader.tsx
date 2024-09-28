@@ -1,34 +1,40 @@
 import './chat-detail.css'
 import { Component, createMemo, Show } from 'solid-js'
-import { A } from '@solidjs/router'
-import { ArrowDownLeft, ArrowUpRight, ChevronLeft, Settings } from 'lucide-solid'
 import { ADAPTER_LABELS } from '../../../common/adapters'
-import { ChatRightPane, chatStore, settingStore, userStore } from '../../store'
-import { msgStore } from '../../store'
-import { DropMenu } from '../../shared/DropMenu'
-import ChatOptions, { ChatModal } from './ChatOptions'
+import { ChatRightPane, chatStore, settingStore } from '../../store'
+import { ChatModal } from './ChatOptions'
 import { usePaneManager } from '/web/shared/hooks'
-import { getHeaderBg } from './helpers'
 import { ContextState } from '/web/store/context'
+import { useSubNav } from '/web/subnav'
+import { Nav, UserProfile } from '/web/Navigation'
+import {
+  Book,
+  Palette,
+  Settings,
+  Sliders,
+  Users,
+  Map,
+  Download,
+  VenetianMask,
+  Trash,
+  RotateCcw,
+  ChevronLeft,
+  Pencil,
+} from 'lucide-solid'
+import { AgnaisticModel } from '/web/shared/PresetSettings/Agnaistic'
+
+type NavProps = {
+  ctx: ContextState
+  togglePane: (paneType: ChatRightPane) => void
+  setModal: (model: ChatModal) => void
+  adapterLabel: string
+}
 
 export const ChatHeader: Component<{
   ctx: ContextState
   isOwner: boolean
 }> = (props) => {
   const pane = usePaneManager()
-  const cfg = settingStore()
-  const user = userStore()
-  const chats = chatStore((s) => ({
-    opts: s.opts,
-    char: s.active?.char,
-    chat: s.active?.chat,
-  }))
-  const msgs = msgStore((s) => ({ msgs: s.msgs, history: s.messageHistory.length }))
-
-  const headerBg = createMemo(() => getHeaderBg(user.ui.mode))
-  const headerUrl = createMemo(() =>
-    props.isOwner ? `/character/${chats.char?._id}/chats` : `/chats`
-  )
 
   const togglePane = (paneType: ChatRightPane) => {
     chatStore.option({ options: false })
@@ -40,76 +46,122 @@ export const ChatHeader: Component<{
   }
 
   const adapterLabel = createMemo(() => {
-    if (!props.ctx.info) return ''
-
-    const { name, adapter, isThirdParty, presetLabel } = props.ctx.info
-    const label = `${ADAPTER_LABELS[adapter]}${isThirdParty ? ' (3rd party)' : ''} - ${
-      name || presetLabel
-    }`
+    if (!props.ctx.preset) return ''
+    const label = `${ADAPTER_LABELS[props.ctx.preset.service!]} - ${props.ctx.preset.name}`
     return label
   })
 
+  useSubNav({
+    // title: 'Chat Options',
+    header: (
+      <ChatMenuTitle ctx={props.ctx} togglePane={togglePane} setModal={setModal} adapterLabel="" />
+    ),
+    body: (
+      <ChatNav
+        ctx={props.ctx}
+        togglePane={togglePane}
+        setModal={setModal}
+        adapterLabel={adapterLabel()}
+      />
+    ),
+  })
+
+  return null
+}
+
+const ChatNav: Component<NavProps> = (props) => {
+  const isOwner = createMemo(
+    () => props.ctx.chat?.userId === props.ctx.user?._id && props.ctx.chat?.mode !== 'companion'
+  )
+
+  const canModel = createMemo(() => props.ctx.preset?.service === 'agnaistic')
+
+  const size = 20
+
   return (
     <>
-      <header
-        class={`hidden h-9 w-full items-center justify-between rounded-md sm:flex`}
-        style={headerBg()}
-      >
-        <A
-          class="ellipsis flex max-w-full cursor-pointer flex-row items-center justify-between gap-4 text-lg font-bold"
-          href={headerUrl()}
-        >
-          <ChevronLeft />
-          <div class="ellipsis flex flex-col">
-            <span class="overflow-hidden text-ellipsis whitespace-nowrap leading-5">
-              {chats.char?.name}
-              <Show when={cfg.flags.debug}>
-                <span class="ml-2 text-sm font-normal">
-                  {msgs.msgs.length}/{msgs.msgs.length + msgs.history}
-                </span>
-              </Show>
-            </span>
+      <UserProfile />
 
-            <span class="flex-row items-center gap-4 overflow-hidden text-ellipsis whitespace-nowrap text-sm">
-              {chats.chat?.name || ''}
-            </span>
-          </div>
-        </A>
+      <Nav.DoubleItem>
+        <Nav.Item class="min-h-8" href={`/character/list`}>
+          <ChevronLeft size={16} /> Matches
+        </Nav.Item>
 
-        <div class="flex flex-row gap-3">
-          <div class="hidden items-center text-xs italic text-[var(--text-500)] sm:flex">
-            {props.isOwner ? adapterLabel() : ''}
-          </div>
+        <Nav.Item class="min-h-8" href={`/character/${props.ctx.char?._id}/chats`}>
+          <ChevronLeft size={16} /> Chats
+        </Nav.Item>
+      </Nav.DoubleItem>
 
-          <div onClick={() => chatStore.option({ options: 'main' })}>
-            <Settings class="icon-button" />
-            <DropMenu
-              show={chats.opts.options === 'main'}
-              close={() => chatStore.option({ options: false })}
-              horz="left"
-              vert="down"
-            >
-              <ChatOptions
-                adapterLabel={adapterLabel()}
-                setModal={setModal}
-                togglePane={togglePane}
-              />
-            </DropMenu>
-          </div>
+      <Nav.DoubleItem>
+        <Nav.Item onClick={() => props.togglePane('participants')}>
+          <Users size={size} /> Participants
+        </Nav.Item>
+      </Nav.DoubleItem>
 
-          <Show when={!cfg.fullscreen}>
-            <div class="icon-button" onClick={() => settingStore.fullscreen(true)}>
-              <ArrowUpRight />
-            </div>
-          </Show>
+      <Nav.Item onClick={() => props.togglePane('chat-settings')}>
+        <Settings size={size} /> Edit Chat
+      </Nav.Item>
 
-          <Show when={cfg.fullscreen}>
-            <div class="icon-button" onClick={() => settingStore.fullscreen(false)}>
-              <ArrowDownLeft />
-            </div>
-          </Show>
+      <Nav.Item onClick={() => props.togglePane('preset')}>
+        <Sliders class="min-w-[24px]" width={'24px'} size={size} />
+        <span class="min-w-fit">Preset </span>
+        <span class="text-500 ellipsis text-xs italic">{props.adapterLabel}</span>
+      </Nav.Item>
+
+      <Show when={isOwner()}>
+        <Nav.Item onClick={() => props.togglePane('memory')}>
+          <Book size={size} /> Memory
+        </Nav.Item>
+      </Show>
+
+      <Nav.Item onClick={() => props.togglePane('ui')}>
+        <Palette size={size} /> UI
+      </Nav.Item>
+
+      <Show when={isOwner()}>
+        <Nav.Item onClick={() => props.setModal('graph')}>
+          <Map size={size} /> Chat Graph
+        </Nav.Item>
+      </Show>
+
+      <Show when={canModel()}>
+        <div class="flex w-full justify-center">
+          <AgnaisticModel inherit={props.ctx.preset} />
         </div>
-      </header>
+      </Show>
+
+      <div class="flex flex-wrap justify-center gap-1 text-sm">
+        <Nav.Item
+          onClick={() => settingStore.modal(true)}
+          ariaLabel="Open settings page"
+          tooltip="Site Settings"
+        >
+          <Settings size={size} aria-hidden="true" />
+        </Nav.Item>
+        <Nav.Item onClick={() => settingStore.toggleAnonymize()} tooltip="Anonymize">
+          <VenetianMask size={size} />
+        </Nav.Item>
+        <Nav.Item onClick={() => props.setModal('export')} tooltip="Download Chat">
+          <Download size={size} />
+        </Nav.Item>
+        <Nav.Item onClick={() => props.setModal('restart')} tooltip="Restart Chat">
+          <RotateCcw size={size} />
+        </Nav.Item>
+        <Nav.Item onClick={() => props.setModal('delete')} tooltip="Delete Chat">
+          <Trash size={size} />
+        </Nav.Item>
+      </div>
     </>
+  )
+}
+const ChatMenuTitle: Component<NavProps> = (props) => {
+  return (
+    <div
+      onClick={() => props.togglePane('character')}
+      class="bg-700 hover:bg-600 flex h-8 max-w-[80%] cursor-pointer items-center gap-2 rounded-md px-2"
+    >
+      <Pencil size={16} color="var(--bg-500)" class="min-h-[12px] min-w-[12px]" />
+      <span class="ellipsis text-md">{props.ctx.char?.name}</span>
+    </div>
   )
 }

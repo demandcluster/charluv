@@ -1,5 +1,5 @@
-import { Save } from 'lucide-solid'
-import { Component, createMemo, createSignal, JSX, onMount, Show } from 'solid-js'
+import { Edit, Save } from 'lucide-solid'
+import { Component, createEffect, createMemo, createSignal, JSX, onMount, Show } from 'solid-js'
 import { AppSchema } from '../../../../common/types/schema'
 import Button from '../../../shared/Button'
 import Divider from '../../../shared/Divider'
@@ -8,6 +8,8 @@ import { chatStore } from '../../../store'
 import { memoryStore } from '../../../store'
 import EditMemoryForm, { EntrySort } from '../../Memory/EditMemory'
 import EmbedContent from '../../Memory/EmbedContent'
+import { EditEmbedModal } from '/web/shared/EditEmbedModal'
+import { Portal } from 'solid-js/web'
 
 const ChatMemoryModal: Component<{
   chat: AppSchema.Chat | undefined
@@ -20,8 +22,9 @@ const ChatMemoryModal: Component<{
     embeds: s.embeds,
   }))
 
-  const [id, setId] = createSignal(props.chat?.memoryId || 'new')
+  const [id, setId] = createSignal('')
   const [embedId, setEmbedId] = createSignal(props.chat?.userEmbedId)
+  const [editingEmbed, setEditingEmbed] = createSignal<boolean>(false)
   const [book, setBook] = createSignal<AppSchema.MemoryBook>()
   const [entrySort, setEntrySort] = createSignal<EntrySort>('creationDate')
   const updateEntrySort = (item: Option<string>) => {
@@ -31,28 +34,60 @@ const ChatMemoryModal: Component<{
   }
 
   const changeBook = async (id: string) => {
-    setId(id)
+    setId(id === 'new' ? '' : id)
     setBook(undefined)
     await Promise.resolve()
 
-    const match = state.books.list.find((book) => book._id === id)
+    const match: AppSchema.MemoryBook | undefined =
+      id === 'new' || id === ''
+        ? {
+            _id: '',
+            userId: '',
+            entries: [],
+            kind: 'memory',
+            name: '',
+            description: '',
+          }
+        : state.books.list.find((book) => book._id === id)
+
     setBook(match)
   }
 
-  onMount(() => {
-    changeBook(props.chat?.memoryId || '')
+  createEffect(() => {
+    if (!props.chat) return
+    if (!props.chat.memoryId) return
+
+    console.log(props.chat.memoryId)
+
+    if (props.chat.memoryId && !id()) {
+      changeBook(props.chat.memoryId)
+    }
   })
 
   const onSubmit = (ev: Event) => {
     ev.preventDefault()
     const update = book()
-    if (!id() || !update) return
-    memoryStore.update(id(), update)
+
+    if (!update) return
+
+    if (id() === '') {
+      memoryStore.create(update, (next) => {
+        setId(next._id)
+        setBook(next)
+        useMemoryBook()
+      })
+    } else {
+      memoryStore.update(id(), update)
+    }
   }
 
-  const useMemoryBook = () => {
+  const useMemoryBook = (nextId?: string) => {
     if (!props.chat?._id) return
-    chatStore.editChat(props.chat._id, { memoryId: id() }, undefined)
+    chatStore.editChat(
+      props.chat._id,
+      { memoryId: nextId === undefined ? id() : nextId },
+      undefined
+    )
   }
 
   const useUserEmbed = () => {
@@ -60,26 +95,12 @@ const ChatMemoryModal: Component<{
     chatStore.editChat(props.chat._id, { userEmbedId: embedId() }, undefined)
   }
 
-  const createMemoryBook = () => {
-    memoryStore.create(
-      {
-        name: 'New Book',
-        entries: [],
-        description: '',
-        extensions: {},
-      },
-      (book) => {
-        changeBook(book._id)
-      }
-    )
-  }
-
   const Footer = (
     <>
       <Button schema="secondary" onClick={props.close}>
         Close
       </Button>
-      <Button disabled={id() === ''} type="submit" onClick={onSubmit}>
+      <Button disabled={book() === undefined} type="submit" onClick={onSubmit}>
         <Save />
         Save Memory Book
       </Button>
@@ -104,14 +125,14 @@ const ChatMemoryModal: Component<{
           label="Chat Memory Book"
           helperText="The memory book your chat will use"
           items={[{ label: 'None', value: '' }].concat(state.items)}
-          value={id()}
+          value={props.chat?.memoryId}
           onChange={(item) => {
             changeBook(item.value)
-            useMemoryBook()
+            useMemoryBook(item.value)
           }}
         />
         <div>
-          <Button onClick={createMemoryBook}>Create New Memory Book</Button>
+          <Button onClick={() => changeBook('new')}>Create New Memory Book</Button>
         </div>
 
         <Divider />
@@ -124,14 +145,35 @@ const ChatMemoryModal: Component<{
             onChange={(item) => setEmbedId(item.value)}
             value={embedId()}
           />
-          <Button
-            class="w-fit"
-            disabled={embedId() === props.chat?.userEmbedId}
-            onClick={useUserEmbed}
-          >
-            <Save />
-            Use Embedding
-          </Button>
+          <div class="flex items-center gap-1">
+            <Button
+              class="w-fit"
+              disabled={embedId() === props.chat?.userEmbedId}
+              onClick={useUserEmbed}
+            >
+              <Save />
+              Use Embedding
+            </Button>
+
+            <Show when={embedId() === props.chat?.userEmbedId}>
+              <Button
+                class="w-fit"
+                schema="secondary"
+                disabled={editingEmbed() || !props.chat?.userEmbedId}
+                onClick={() => setEditingEmbed(true)}
+              >
+                <Edit />
+                Edit
+              </Button>
+            </Show>
+          </div>
+          <Portal>
+            <EditEmbedModal
+              show={editingEmbed()}
+              embedId={embedId()}
+              close={() => setEditingEmbed(false)}
+            />
+          </Portal>
           <Divider />
         </Show>
         <EmbedContent />
@@ -143,7 +185,10 @@ const ChatMemoryModal: Component<{
               book={book()!}
               entrySort={entrySort()}
               updateEntrySort={updateEntrySort}
-              onChange={setBook}
+              onChange={(next) => {
+                const prev = book()!
+                setBook({ ...prev, ...next })
+              }}
             />
           </div>
         </Show>

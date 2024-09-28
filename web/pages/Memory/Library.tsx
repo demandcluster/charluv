@@ -1,10 +1,11 @@
-import { Component, Match, Switch, createEffect, createMemo } from 'solid-js'
-import Tabs, { useTabs } from '/web/shared/Tabs'
+import { Component, For, Match, Switch, createEffect, createMemo } from 'solid-js'
+import { useTabs } from '/web/shared/Tabs'
 import { setComponentPageTitle } from '/web/shared/util'
 import ScenarioList from '../Scenario/ScenarioList'
 import PromptTemplates from '../PromptTemplates'
 import { BooksTab, EmbedsTab } from './Memory'
 import { useSearchParams } from '@solidjs/router'
+import Button from '/web/shared/Button'
 
 export { Library as default }
 
@@ -13,7 +14,7 @@ const Library: Component = () => {
   setComponentPageTitle('Library')
 
   const allowed = createMemo(() => {
-    const base = ['Memories', 'Scenarios', 'Embeddings']
+    const base = ['Memories', 'Scenarios', 'Templates', 'Embeddings']
 
     return base
   })
@@ -27,7 +28,18 @@ const Library: Component = () => {
 
   return (
     <>
-      <Tabs tabs={tabs.tabs} select={tabs.select} selected={tabs.selected} />
+      <div class="flex flex-wrap justify-center gap-2 py-2">
+        <For each={allowed()}>
+          {(name, i) => (
+            <Button
+              schema={tabs.selected() === i() ? 'primary' : 'secondary'}
+              onClick={() => tabs.select(i())}
+            >
+              {name}
+            </Button>
+          )}
+        </For>
+      </div>
 
       <Switch>
         <Match when={tabs.current() === 'Memories'}>
@@ -37,8 +49,8 @@ const Library: Component = () => {
         <Match when={tabs.current() === 'Scenarios'}>
           <ScenarioList />
         </Match>
-        {/* 
-        <Match when={tabs.current() === 'Prompt Templates'}>
+
+        <Match when={tabs.current() === 'Templates'}>
           <PromptTemplates />
         </Match> */}
 

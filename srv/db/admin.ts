@@ -2,7 +2,6 @@ import { Filter } from 'mongodb'
 import { db } from './client'
 import { encryptPassword } from './util'
 import { AppSchema } from '../../common/types/schema'
-import { getDb } from './client'
 import { domain } from '../domains'
 import { config } from '../config'
 
@@ -29,13 +28,32 @@ export async function getServerConfiguration() {
     slots: '',
     termsOfService: '',
     tosUpdated: new Date().toISOString(),
+    imagesEnabled: false,
+    imagesHost: '',
+    imagesModels: [],
+    supportEmail: '',
+    ttsAccess: 'off',
+    ttsApiKey: '',
+    ttsHost: '',
+    maxGuidanceTokens: 1000,
+    maxGuidanceVariables: 15,
+    googleClientId: '',
+    googleEnabled: false,
+    charlibPublish: 'off',
+    charlibGuidelines: '',
+    modFieldPrompt: '',
+    modPresetId: '',
+    modPrompt: '',
+    modSchema: [],
+    actionCalls: [],
+    lockSeconds: 0,
   }
 
   await db('configuration').insertOne(next)
   return next
 }
 
-export async function updateServerConfiguration(update: AppSchema.Configuration) {
+export async function updateServerConfiguration(update: Partial<AppSchema.Configuration>) {
   await db('configuration').updateOne({ kind: 'configuration' }, { $set: update }, { upsert: true })
   const cfg = await getServerConfiguration()
   return cfg
@@ -61,6 +79,9 @@ export async function getUsers(opts: UsersOpts = {}) {
 
     if (opts.customerId) {
       filters.push({ 'billing.customerId': opts.customerId })
+      filters.push({ patreonUserId: opts.customerId })
+      filters.push({ 'patreon.user.attributes.email': opts.customerId })
+      filters.push({ 'google.email': opts.customerId })
     }
 
     filter.$or = filters
@@ -79,7 +100,17 @@ export async function changePassword(opts: { userId: string; password: string })
 export async function getUserInfo(userId: string) {
   const billing = await db('user').findOne(
     { _id: userId },
-    { projection: { username: 1, sub: 1, manualSub: 1, billing: 1, patreon: 1, stripeSessions: 1 } }
+    {
+      projection: {
+        username: 1,
+        sub: 1,
+        manualSub: 1,
+        billing: 1,
+        patreon: 1,
+        stripeSessions: 1,
+        google: 1,
+      },
+    }
   )
   const profile = await db('profile').findOne({ userId })
   const chats = await db('chat').countDocuments({ userId })
@@ -95,14 +126,4 @@ export async function getUserInfo(userId: string) {
     state,
     ...billing,
   }
-}
-
-export async function getConfig(): Promise<any> {
-  const cfg = await getDb().collection('configuration').findOne()
-  if (!cfg) {
-    await getDb().collection('configuration').insertOne({ slots: {} })
-    return {}
-  }
-
-  return cfg
 }

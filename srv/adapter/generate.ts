@@ -4,24 +4,35 @@ import {
   defaultPresets,
   isDefaultPreset,
   getFallbackPreset,
-  getInferencePreset,
 } from '/common/presets'
 import { store } from '../db'
 import { AppSchema } from '../../common/types/schema'
-import { AppLog, logger } from '../logger'
+import { AppLog, logger } from '../middleware'
 import { errors, StatusError } from '../api/wrap'
 import { GenerateRequestV2 } from './type'
-import { assemblePrompt, getAdapter, buildPromptParts, resolveScenario } from '../../common/prompt'
+import {
+  assemblePrompt,
+  getAdapter,
+  buildPromptParts,
+  resolveScenario,
+  JsonField,
+} from '../../common/prompt'
 import { configure } from '../../common/horde-gen'
 import needle from 'needle'
 import { HORDE_GUEST_KEY } from '../api/horde'
 import { getTokenCounter } from '../tokenize'
 import { getAppConfig } from '../api/settings'
 import { getHandlers, getSubscriptionPreset, handlers } from './agnaistic'
-import { deepClone, parseStops } from '/common/util'
+import { deepClone, getSubscriptionModelLimits, parseStops, tryParse } from '/common/util'
 import { isDefaultTemplate, templates } from '/common/presets/templates'
-import { GuidanceParams, runGuidance } from '/common/guidance/guidance-parser'
-import { getCachedSubscriptionPresets } from '../db/subscriptions'
+import {
+  GuidanceParams,
+  calculateGuidanceCounts,
+  runGuidance,
+} from '/common/guidance/guidance-parser'
+import { getCachedSubscriptionModels } from '../db/subscriptions'
+import { sendOne } from '../api/ws'
+import { ResponseSchema } from '/common/types/library'
 
 let version = ''
 
@@ -46,6 +57,7 @@ configure(async (opts) => {
 export type ResponseEntities = Awaited<ReturnType<typeof getResponseEntities>>
 
 export type InferenceRequest = {
+  requestId?: string
   prompt: string
   guest?: string
   user: AppSchema.User
@@ -60,13 +72,18 @@ export type InferenceRequest = {
    * - [service]/[model] E.g. novel/krake-v2
    * - [service] E.g. novel
    */
-  service: string
+  // service: string
   log: AppLog
   retries?: number
   maxTokens?: number
   temp?: number
   stop?: string[]
   reguidance?: string[]
+
+  imageData?: string
+
+  jsonSchema?: any
+  jsonValues?: Record<string, any>
 }
 
 export async function inferenceAsync(opts: InferenceRequest) {
@@ -74,7 +91,7 @@ export async function inferenceAsync(opts: InferenceRequest) {
   let error: any
 
   for (let attempt = 0; attempt <= retries; attempt++) {
-    const { stream } = await createInferenceStream(opts)
+    const { stream, service } = await createInferenceStream(opts)
 
     let generated = ''
     let meta: any = {}
@@ -85,7 +102,15 @@ export async function inferenceAsync(opts: InferenceRequest) {
         continue
       }
 
-      if ('partial' in gen) {
+      if ('partial' in gen && gen.partial) {
+        const partial = tryParse(gen.partial)
+        if (!partial || typeof partial !== 'object') continue
+        sendOne(opts.user._id, {
+          type: 'guidance-partial',
+          partial,
+          adapter: service,
+          requestId: opts.requestId,
+        })
         continue
       }
 
@@ -107,7 +132,10 @@ export async function inferenceAsync(opts: InferenceRequest) {
       }
     }
 
-    if (opts.guidance && (opts.service === 'horde' || opts.service === 'agnaistic')) {
+    if (
+      opts.guidance &&
+      (opts.settings?.service === 'horde' || opts.settings?.service === 'agnaistic')
+    ) {
       try {
         const values = JSON.parse(generated)
         return { generated, prompt, meta, values: Object.assign({}, opts.previous, values) }
@@ -122,7 +150,7 @@ export async function inferenceAsync(opts: InferenceRequest) {
 }
 
 export async function guidanceAsync(opts: InferenceRequest) {
-  const settings = setRequestService(opts)
+  const settings = await getRequestPreset(opts)
   const sub = await getSubscriptionPreset(opts.user, !!opts.guest, opts.settings || settings)
 
   const previous = { ...opts.previous }
@@ -144,7 +172,17 @@ export async function guidanceAsync(opts: InferenceRequest) {
     return inference
   }
 
-  if (sub?.preset?.guidanceCapable && sub.tier?.guidanceAccess) {
+  if (sub?.preset?.guidanceCapable && (sub.tier?.guidanceAccess || opts.user.admin)) {
+    const srv = await store.admin.getServerConfiguration()
+    const counts = calculateGuidanceCounts(opts.prompt, opts.placeholders)
+    if (srv.maxGuidanceTokens && counts.tokens > srv.maxGuidanceTokens) {
+      throw new Error(`Cannot run guidance: Template is requesting too many tokens (>1000)`)
+    }
+
+    if (srv.maxGuidanceVariables && counts.vars > srv.maxGuidanceVariables) {
+      throw new Error(`Cannot run guidance: Template requests too many variables (>15)`)
+    }
+
     const result = await infer({ prompt: opts.prompt, tokens: 200, stop: opts.stop }, true)
     if (!result.values) {
       try {
@@ -169,7 +207,7 @@ export async function guidanceAsync(opts: InferenceRequest) {
 }
 
 export async function createInferenceStream(opts: InferenceRequest) {
-  const settings = setRequestService(opts)
+  const settings = await getRequestPreset(opts)
 
   if (opts.stop) {
     settings.stopSequences = opts.stop
@@ -197,65 +235,58 @@ export async function createInferenceStream(opts: InferenceRequest) {
     previous: opts.previous,
     placeholders: opts.placeholders,
     lists: opts.lists,
+    jsonSchema: opts.jsonSchema,
+    imageData: opts.imageData,
+    jsonValues: opts.jsonValues,
   })
 
-  return { stream }
+  return { stream, service: settings.service || '' }
 }
 
-function setRequestService(opts: InferenceRequest) {
-  const [service, model] = opts.service.split('/')
-  let settings = opts.settings || getInferencePreset(opts.user, service as AIAdapter, model)
+async function getRequestPreset(opts: InferenceRequest) {
+  let preset: Partial<AppSchema.GenSettings> | undefined
 
-  if (model) {
-    switch (service as AIAdapter) {
-      case 'openai':
-        settings.oaiModel = model
-        break
-      case 'claude':
-        settings.claudeModel = model
-        break
-      case 'novel':
-        settings.novelModel = model
-        break
-      case 'agnaistic':
-      case 'horde': {
-        if (model) {
-          const preset = getCachedSubscriptionPresets().find((pre) => pre._id === model)
-          if (preset) settings = deepClone(preset)
-        }
+  if (opts.settings) {
+    const model = getCachedSubscriptionModels().find((m) => m._id === opts.settings?._id)
+    if (model) {
+      preset = model
+    } else {
+      preset = opts.settings
+    }
+  } else if (opts.user.defaultPreset) {
+    if (isDefaultPreset(opts.user.defaultPreset)) {
+      preset = deepClone(defaultPresets[opts.user.defaultPreset])
+    }
 
-        if (!settings.registered) settings.registered = {}
-        if (!settings.registered.agnaistic) settings.registered.agnaistic = {}
-        settings.registered.agnaistic.subscriptionId = model
-        break
-      }
+    const user = await store.presets.getUserPreset(opts.user.defaultPreset)
+    if (user) {
+      preset = user
+    }
+  } else {
+    const models = getCachedSubscriptionModels()
+    const model = models.find((m) => m.isDefaultSub)
+    if (model) {
+      preset = model
     }
   }
 
-  opts.service = service
-
-  settings.maxTokens = opts.maxTokens ? opts.maxTokens : 1024
-  settings.temp = opts.temp ?? 0.5
-
-  if (settings.service === 'openai') {
-    settings.topP = 1
-    settings.frequencyPenalty = 0
-    settings.presencePenalty = 0
+  if (!preset) {
+    throw new StatusError('Could not locate preset for inference request', 400)
   }
 
-  if (settings.thirdPartyUrl) {
-    opts.user.koboldUrl = settings.thirdPartyUrl
+  if (preset.thirdPartyUrl) {
+    opts.user.koboldUrl = preset.thirdPartyUrl
   }
 
-  if (opts.settings?.thirdPartyFormat) {
-    opts.user.thirdPartyFormat = opts.settings.thirdPartyFormat
+  if (preset.thirdPartyFormat) {
+    opts.user.thirdPartyFormat = preset.thirdPartyFormat
   }
 
-  return settings
+  return preset
 }
 
-export async function createTextStreamV2(
-  opts: GenerateRequestV2 & { entities?: ResponseEntities },
+export async function createChatStream(
+  opts: GenerateRequestV2 & { entities?: ResponseEntities; chatSchema?: ResponseSchema },
   log: AppLog,
   guestSocketId?: string
 ) {
@@ -270,7 +301,24 @@ export async function createTextStreamV2(
 
   const subscription = await getSubscriptionPreset(opts.user, !!guestSocketId, opts.settings)
 
-  const subContextLimit = subscription?.preset?.maxContextLength
+  /**
+   * Only use a JSON schema if:
+   * - Service allows it
+   * - User preset has it enabled
+   * - User preset has specified a schema
+   * - There is both a history and response template
+   */
+  let jsonSchema: JsonField[] | undefined
+  if (subscription?.preset && opts.entities?.gen.jsonEnabled && opts.chatSchema) {
+    jsonSchema = opts.chatSchema.schema
+  }
+
+  const fallbackContext = subscription?.preset?.maxContextLength
+  const modelContext = subscription
+    ? getSubscriptionModelLimits(subscription?.preset, subscription.level)?.maxContextLength
+    : undefined
+
+  const subContextLimit = modelContext || fallbackContext
   opts.settings = opts.settings || {}
 
   if (subContextLimit) {
@@ -380,11 +428,22 @@ export async function createTextStreamV2(
     characters: opts.characters,
     impersonate: opts.impersonate,
     lastMessage: opts.lastMessage,
+    imageData: opts.imageData,
+    jsonSchema: jsonSchema || opts.jsonSchema,
     subscription,
     encoder,
+    jsonValues: opts.jsonValues,
   })
 
-  return { stream, adapter, settings: gen, user: opts.user, size, length: prompt.length }
+  return {
+    stream,
+    adapter,
+    settings: gen,
+    user: opts.user,
+    size,
+    length: prompt.length,
+    json: !!jsonSchema || !!opts.jsonSchema,
+  }
 }
 
 export async function getResponseEntities(
@@ -424,7 +483,7 @@ export async function getResponseEntities(
       genSettings.gaslight = templates[genSettings.promptTemplateId]
     } else {
       const template = await store.presets.getTemplate(genSettings.promptTemplateId)
-      if (template?.userId == chat.userId) {
+      if (template?.userId === chat.userId) {
         genSettings.gaslight = template.template
       }
     }
@@ -459,6 +518,18 @@ async function getGenerationSettings(
   if (chat.genSettings) {
     const src = guest ? 'guest-chat-gensettings' : 'user-chat-gensettings'
     return { ...chat.genSettings, src }
+  }
+
+  if (user.defaultPreset) {
+    if (isDefaultPreset(user.defaultPreset)) {
+      return { ...defaultPresets[user.defaultPreset], src: 'user-settings-genpreset-default' }
+    }
+
+    const preset = await store.presets.getUserPreset(user.defaultPreset)
+    if (preset) {
+      preset.src = 'user-settings-genpreset-custom'
+      return preset
+    }
   }
 
   const servicePreset = user.defaultPresets?.[adapter]

@@ -22,10 +22,22 @@ function loadParser() {
   }
 }
 
+const HISTORY_MARKER = '__history__marker__'
+
 type PNode = PlaceHolder | ConditionNode | IteratorNode | InsertNode | LowPriorityNode | string
 
-type PlaceHolder = { kind: 'placeholder'; value: Holder; values?: any; pipes?: string[] }
-type ConditionNode = { kind: 'if'; value: Holder; values?: any; children: PNode[] }
+type PlaceHolder = {
+  kind: 'placeholder'
+  values?: any
+  pipes?: string[]
+} & HolderDefinition
+type ConditionNode = {
+  kind: 'if'
+  value: Holder
+  values?: any
+  children: Array<PNode | ElseNode>
+}
+type ElseNode = { kind: 'else'; children: PNode[] }
 type IteratorNode = { kind: 'each'; value: IterableHolder; children: CNode[] }
 type InsertNode = { kind: 'history-insert'; values: number; children: PNode[] }
 type LowPriorityNode = { kind: 'lowpriority'; children: PNode[] }
@@ -37,6 +49,18 @@ type CNode =
   | { kind: 'chat-embed-prop'; prop: ChatEmbedProp }
   | { kind: 'history-if'; prop: HistoryProp; children: CNode[] }
   | { kind: 'bot-if'; prop: BotsProp; children: CNode[] }
+
+type DiceExpr = { values: string; amt?: number; adjust?: number; keep?: number }
+
+type HolderDefinition =
+  | {
+      value: 'roll'
+      amt?: number
+      keep?: number
+      adjust?: number
+      extra?: Array<DiceExpr>
+    }
+  | { value: Holder }
 
 type Holder =
   | 'char'
@@ -56,14 +80,15 @@ type Holder =
   | 'impersonating'
   | 'system_prompt'
   | 'random'
-  | 'roll'
+  | 'json'
+  | 'value'
 
 type RepeatableHolder = Extract<
   Holder,
   'char' | 'user' | 'chat_age' | 'roll' | 'random' | 'idle_duration'
 >
 
-const repeatableHolders = new Set<RepeatableHolder>([
+const repeatableHolders = new Set<RepeatableHolder | 'roll'>([
   'char',
   'user',
   'chat_age',
@@ -108,6 +133,8 @@ export type TemplateOpts = {
   repeatable?: boolean
   inserts?: Map<number, string>
   lowpriority?: Array<{ id: string; content: string }>
+
+  jsonValues: Record<string, any> | undefined
 }
 
 /**
@@ -144,6 +171,16 @@ export async function parseTemplate(
   let unusedTokens = 0
   let linesAddedCount = 0
 
+  // Many users have tried to fix 'continue' - we will leave this here as a cold reminder that it cannot be fixed
+
+  /** Remove everything after history to attempt to perform a 'continue' */
+  // if (opts.continue && output.includes(HISTORY_MARKER)) {
+  //   const index = output.indexOf(HISTORY_MARKER)
+  //   if (index > -1) {
+  //     output = output.slice(0, index + HISTORY_MARKER.length)
+  //   }
+  // }
+
   /** Replace iterators */
   if (opts.limit && opts.limit.output) {
     for (const [id, { lines, src }] of Object.entries(opts.limit.output)) {
@@ -177,7 +214,7 @@ export async function parseTemplate(
     }
   }
 
-  const result = render(output, opts).replace(/\r\n/g, '\n').replace(/\n\n+/g, '\n\n').trimStart()
+  const result = render(output, opts).replace(/\r\n/g, '\n').replace(/\n\n+/g, '\n\n').trim()
   return {
     parsed: result,
     inserts: opts.inserts ?? new Map(),
@@ -194,8 +231,8 @@ function readInserts(opts: TemplateOpts, ast: PNode[]): void {
   ) as InsertNode[]
 
   opts.inserts = new Map()
-  if (opts.char.insert) {
-    opts.inserts.set(opts.char.insert.depth, opts.char.insert.prompt)
+  if (opts.replyAs?.insert) {
+    opts.inserts.set(opts.replyAs.insert.depth, opts.replyAs.insert.prompt)
   }
 
   for (const insert of inserts) {
@@ -264,14 +301,14 @@ function renderNodes(nodes: PNode[], opts: TemplateOpts) {
   return output.join('')
 }
 
-function renderNode(node: PNode, opts: TemplateOpts) {
+function renderNode(node: PNode, opts: TemplateOpts, conditionText?: string) {
   if (typeof node === 'string') {
     return node
   }
 
   switch (node.kind) {
     case 'placeholder': {
-      return getPlaceholder(node, opts)
+      return getPlaceholder(node, opts, conditionText)
     }
 
     case 'each':
@@ -385,15 +422,35 @@ function renderProp(node: CNode, opts: TemplateOpts, entity: unknown, i: number)
   }
 }
 
-function renderCondition(node: ConditionNode, children: PNode[], opts: TemplateOpts) {
+function renderCondition(
+  node: ConditionNode,
+  children: ConditionNode['children'],
+  opts: TemplateOpts
+) {
   if (opts.repeatable) return ''
 
+  const elseblock = children
+    .filter((ch) => typeof ch !== 'string' && ch.kind === 'else')
+    .slice(-1)[0] as ElseNode | undefined
+
+  const elseOutput: string[] = []
+  for (const block of elseblock?.children || []) {
+    const result = renderNode(block, opts)
+    if (result) elseOutput.push(result)
+  }
+
   const value = getPlaceholder(node, opts)
-  if (!value) return
+  if (!value) {
+    if (elseOutput.length) {
+      return elseOutput.join('')
+    }
+    return
+  }
 
   const output: string[] = []
   for (const child of children) {
-    const result = renderNode(child, opts)
+    if (typeof child !== 'string' && child.kind === 'else') continue
+    const result = renderNode(child, opts, value)
     if (result) output.push(result)
   }
 
@@ -407,7 +464,12 @@ function getEntities(holder: IterableHolder, opts: TemplateOpts) {
         if (!b) return false
         if (b._id === (opts.replyAs || opts.char)._id) return false
         if (b.deletedAt) return false
+
+        // Exclude temp characters that have been disabled/removed
         if (b._id.startsWith('temp-') && b.favorite === false) return false
+
+        // Exclude non-temp characters that have been removed from the chat
+        if (!b._id.startsWith('temp-') && !opts.chat.characters?.[b._id]) return false
         return true
       })
     case 'chat_embed':
@@ -474,7 +536,7 @@ function renderIterator(holder: IterableHolder, children: CNode[], opts: Templat
   }
 
   if (isHistory && opts.limit?.output) {
-    const id = '__' + v4() + '__'
+    const id = HISTORY_MARKER
     opts.limit.output[id] = { src: holder, lines: output }
     return id
   }
@@ -493,15 +555,27 @@ function renderEntityCondition(nodes: CNode[], opts: TemplateOpts, entity: unkno
   return result
 }
 
-function getPlaceholder(node: PlaceHolder | ConditionNode, opts: TemplateOpts) {
+function getPlaceholder(
+  node: PlaceHolder | ConditionNode,
+  opts: TemplateOpts,
+  conditionText?: string
+) {
   if (opts.repeatable && !repeatableHolders.has(node.value as any)) return ''
 
+  if (node.value.startsWith('json.')) {
+    const name = node.value.slice(5)
+    return opts.jsonValues?.[name] || ''
+  }
+
   switch (node.value) {
+    case 'value':
+      return conditionText || ''
+
     case 'char':
-      return (opts.replyAs || opts.char).name || ''
+      return ((opts.replyAs || opts.char).name || '').trim()
 
     case 'user':
-      return opts.impersonate?.name || opts.sender?.handle || 'You'
+      return (opts.impersonate?.name || opts.sender?.handle || 'You').trim()
 
     case 'example_dialogue':
       return opts.parts?.sampleChat?.join('\n') || ''
@@ -520,6 +594,9 @@ function getPlaceholder(node: PlaceHolder | ConditionNode, opts: TemplateOpts) {
 
     case 'ujb':
       return opts.parts?.ujb || ''
+
+    case 'json':
+      return opts.jsonValues?.[node.values] || ''
 
     case 'post': {
       return opts.parts?.post?.join('\n') || ''
@@ -563,9 +640,10 @@ function getPlaceholder(node: PlaceHolder | ConditionNode, opts: TemplateOpts) {
     }
 
     case 'roll': {
-      const max = +node.values
-      const rand = Math.ceil(Math.random() * max)
-      return rand.toString()
+      const head = handleDice(node as DiceExpr)
+      const tails = node.extra?.reduce((p, c) => p + handleDice(c), 0) ?? 0
+
+      return (head + tails).toString()
     }
   }
 }
@@ -581,4 +659,30 @@ function lastMessage(value: string) {
 function isEnclosingNode(node: any): node is ConditionNode | IteratorNode {
   if (!node || typeof node === 'string') return false
   return node.kind === 'if'
+}
+
+function handleDice(node: DiceExpr) {
+  // N diced die
+  const max = +node.values
+
+  // Number of die to roll
+  const amt = node.amt ?? 1
+
+  // Adjustment to make to the final value of the dice roll
+  const adjust = node.adjust ?? 0
+
+  // Defined as H[0-9]+ or L[0-9]+
+  // H: Keep highest N rolls
+  // L: Keep the lowest N rolls
+  const keep = node.keep ?? amt
+
+  // Sorted descending
+  const rolls = Array.from({ length: amt }, () => Math.ceil(Math.random() * max)).sort(
+    (l, r) => r - l
+  )
+
+  const usable = keep === 0 ? rolls.slice() : keep > 0 ? rolls.slice(0, keep) : rolls.slice(keep)
+
+  const rand = usable.reduce((p, c) => p + c, 0) + adjust
+  return rand
 }

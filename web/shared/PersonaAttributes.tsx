@@ -1,5 +1,14 @@
-import { MinusCircle, Plus } from 'lucide-solid'
-import { Component, createEffect, createSignal, For, onMount, Show } from 'solid-js'
+import { Plus, Trash, WandSparkles } from 'lucide-solid'
+import {
+  Component,
+  createEffect,
+  createMemo,
+  createSignal,
+  Index,
+  on,
+  onMount,
+  Show,
+} from 'solid-js'
 import Button from './Button'
 import { FormLabel } from './FormLabel'
 import TextInput from './TextInput'
@@ -7,6 +16,7 @@ import { getFormEntries } from './util'
 import { getEncoder } from '/common/tokenize'
 import { formatCharacter } from '/common/characters'
 import { AppSchema } from '/common/types'
+import { CharEditor } from '../pages/Character/editor'
 
 type Attr = { key: string; values: string }
 
@@ -18,12 +28,12 @@ const defaultAttrs = [
 
 const PersonaAttributes: Component<{
   value?: Record<string, string[]>
-  plainText?: boolean
   hideLabel?: boolean
   schema?: AppSchema.Persona['kind']
   tokenCount?: boolean | ((count: number) => void)
   form?: any
   disabled?: boolean
+  editor?: CharEditor
 }> = (props) => {
   const [prev, setPrev] = createSignal(props.value)
   const [attrs, setAttrs] = createSignal<Attr[]>(toAttrs(props.value))
@@ -32,6 +42,8 @@ const PersonaAttributes: Component<{
   onMount(() => {
     updateCount()
   })
+
+  const plainText = createMemo(() => props.schema === 'text')
 
   createEffect(() => {
     if (props.value) {
@@ -88,12 +100,12 @@ const PersonaAttributes: Component<{
     <>
       <Show when={!props.hideLabel}>
         <FormLabel
-          label="Personality"
+          label=""
           helperText={
             <>
               <span>
-                <Show when={!props.plainText}>
-                  It is highly recommended to always include the <b>personality</b> attribute.
+                <Show when={!plainText()}>
+                  It is highly recommended to always include the <b>personality</b> attribute.&nbsp;
                   <b>Example attributes</b>: mind, personality, appearance, likes, dislikes, hates,
                   loves.
                 </Show>
@@ -106,21 +118,21 @@ const PersonaAttributes: Component<{
           }
         />
       </Show>
-      <Show when={props.plainText}>
+      <Show when={plainText()}>
         <div>
           <TextInput fieldName="attr-key.0" value="text" class="hidden" disabled={props.disabled} />
           <TextInput
             fieldName="attr-value.0"
             class="text-input-min-h-override"
-            value={props.value?.text?.[0]}
+            value={props.value?.text?.join('\n\n')}
             isMultiline
-            placeholder="{{char}} is a tall man who likes {{user}}."
+            placeholder="Example: {{char}} is a tall man who likes {{user}}."
             tokenCount={() => updateCount()}
             disabled={props.disabled}
           />
         </div>
       </Show>
-      <Show when={!props.plainText}>
+      <Show when={!plainText()}>
         <div>
           <Button onClick={add} disabled={props.disabled}>
             <Plus size={16} />
@@ -128,17 +140,18 @@ const PersonaAttributes: Component<{
           </Button>
         </div>
         <div class="mt-2 flex w-full flex-col gap-2">
-          <For each={attrs()}>
+          <Index each={attrs()}>
             {(attr, i) => (
               <Attribute
-                attr={attr}
-                index={i()}
+                attr={attr()}
+                index={i}
                 onKey={onKey}
                 remove={remove}
                 disabled={props.disabled}
+                editor={props.editor}
               />
             )}
-          </For>
+          </Index>
         </div>
       </Show>
     </>
@@ -151,33 +164,64 @@ const Attribute: Component<{
   onKey: (key: string, i: number) => void
   remove: (i: number) => void
   disabled?: boolean
+  editor?: CharEditor
 }> = (props) => {
+  let valueRef: any
+  const [key, setKey] = createSignal(props.attr.key)
+  const [value, setValue] = createSignal(props.attr.values)
+
+  onMount(() => {
+    valueRef.value = props.attr.values
+    setKey(props.attr.key)
+  })
+
+  createEffect(
+    on(
+      () => props.attr.values,
+      (inc) => {
+        const prev = value()
+        if (inc === prev) return
+        setValue(inc)
+        valueRef.value = inc
+      }
+    )
+  )
+
+  createEffect(on(() => props.attr.key, setKey))
+
   return (
-    <div class="flex w-full flex-col gap-2 sm:flex-row">
-      <div class="flex w-full items-start gap-1 sm:w-3/12">
+    <div class="bg-700 flex w-full flex-col gap-2 rounded-md p-1">
+      <div class="flex w-full items-center justify-between gap-2">
         <TextInput
+          parentClass="w-full"
           fieldName={`attr-key.${props.index}`}
           placeholder="Name. E.g. appearance"
           value={props.attr.key}
           disabled={props.disabled}
+          onKeyUp={(ev) => setKey(ev.currentTarget.value)}
         />
-        <div class="sm:hidden" onClick={() => props.remove(props.index)}>
-          <MinusCircle size={16} class="focusable-icon-button" />
-        </div>
+        <Show when={props.editor}>
+          <Button schema="secondary" onClick={() => props.editor?.generateField('persona', key())}>
+            <WandSparkles size={20} />
+          </Button>
+        </Show>
+        <Button schema="red" onClick={() => props.remove(props.index)}>
+          <Trash size={20} class="" />
+        </Button>
       </div>
-      <div class="sm:w-9/12">
-        <TextInput
-          fieldName={`attr-value.${props.index}`}
-          placeholder="Comma separate attributes. E.g: tall, brunette, athletic"
-          value={props.attr.values}
-          onKeyUp={(ev) => props.onKey(ev.key, props.index)}
-          isMultiline
-          disabled={props.disabled}
-        />
-      </div>
-      <div class="1/12 hidden items-start sm:flex" onClick={() => props.remove(props.index)}>
-        <MinusCircle size={16} class="focusable-icon-button" />
-      </div>
+
+      <TextInput
+        ref={(r) => (valueRef = r)}
+        fieldName={`attr-value.${props.index}`}
+        placeholder="Comma separate attributes. E.g: tall, brunette, athletic"
+        value={''}
+        onKeyUp={(ev) => {
+          props.onKey(ev.key, props.index)
+          setValue(ev.currentTarget.value)
+        }}
+        isMultiline
+        disabled={props.disabled}
+      />
     </div>
   )
 }

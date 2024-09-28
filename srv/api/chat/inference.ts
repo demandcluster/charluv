@@ -1,5 +1,5 @@
 import { StatusError, errors, wrap } from '../wrap'
-import { sendMany } from '../ws'
+import { sendGuest, sendMany, sendOne } from '../ws'
 import { defaultPresets, isDefaultPreset } from '/common/presets'
 import { assertValid } from '/common/valid'
 import {
@@ -14,13 +14,15 @@ import { cyoaTemplate } from '/common/mode-templates'
 import { AIAdapter } from '/common/adapters'
 import { parseTemplate } from '/common/template-parser'
 import { obtainLock, releaseLock } from './lock'
+import { v4 } from 'uuid'
 
 const validInference = {
   prompt: 'string',
   settings: 'any?',
   user: 'any',
-  service: 'string',
   presetId: 'string?',
+  jsonSchema: 'any?',
+  imageData: 'string?',
 } as const
 
 const validInferenceApi = {
@@ -53,6 +55,15 @@ const validInferenceApi = {
   placeholders: 'any?',
   lists: 'any?',
   previous: 'any?',
+  dynatemp: 'any?',
+  dynatemp_range: 'number?',
+  smoothing_factor: 'number?',
+  smoothing_curve: 'number?',
+  tfs: 'number?',
+  ban_eos_token: 'boolean?',
+  add_bos_token: 'boolean?',
+  temperature_last: 'boolean?',
+  json_schema: 'any?',
 } as const
 
 export const generateActions = wrap(async ({ userId, log, body, socketId, params }) => {
@@ -100,12 +111,12 @@ export const generateActions = wrap(async ({ userId, log, body, socketId, params
     lines: body.lines,
     impersonate: body.impersonating,
     sender: body.profile,
+    jsonValues: {},
   })
 
   const { values } = await guidanceAsync({
     prompt: parsed,
     log,
-    service: body.service,
     user: body.user,
     guidance: true,
     settings,
@@ -136,6 +147,7 @@ export const guidance = wrap(async ({ userId, log, body, socketId }) => {
   assertValid(
     {
       ...validInference,
+      requestId: 'string?',
       service: 'string?',
       placeholders: 'any?',
       lists: 'any?',
@@ -145,27 +157,30 @@ export const guidance = wrap(async ({ userId, log, body, socketId }) => {
     body
   )
 
-  if (!body.service && !userId) {
-    console.log('--- BAD REQUEST ---')
-    throw errors.BadRequest
+  if (!body.service && !body.settings && !userId) {
+    throw new StatusError('No preset provided', 400)
   }
 
   if (userId) {
     const user = await store.users.getUser(userId)
     if (!user) throw errors.Unauthorized
 
-    if (body.presetId) {
-      const preset = await store.presets.getUserPreset(body.presetId)
-      if (!preset) {
-        throw new StatusError(`Preset not found - ${body.presetId}`, 400)
-      }
+    body.user = user
 
-      body.settings = preset
-    } else if (!body.service) {
-      if (!user.defaultPreset) throw errors.BadRequest
-      const preset = await store.presets.getUserPreset(user.defaultPreset)
-      body.service = preset?.service!
-      body.settings = preset
+    if (!body.settings) {
+      if (body.presetId) {
+        const preset = await store.presets.getUserPreset(body.presetId)
+        if (!preset) {
+          throw new StatusError(`Preset not found - ${body.presetId}`, 400)
+        }
+
+        body.settings = preset
+      } else if (!body.service) {
+        if (!user.defaultPreset) throw errors.BadRequest
+        const preset = await store.presets.getUserPreset(user.defaultPreset)
+        body.service = preset?.service!
+        body.settings = preset
+      }
     }
   }
 
@@ -177,7 +192,6 @@ export const guidance = wrap(async ({ userId, log, body, socketId }) => {
     user: body.user,
     log,
     prompt: body.prompt,
-    service: body.service!,
     settings: body.settings,
     guest: userId ? undefined : socketId,
     guidance: true,
@@ -185,6 +199,8 @@ export const guidance = wrap(async ({ userId, log, body, socketId }) => {
     previous: body.previous,
     lists: body.lists,
     reguidance: body.reguidance,
+    requestId: body.requestId,
+    jsonSchema: body.jsonSchema,
   }
 
   const result = await guidanceAsync(props)
@@ -192,11 +208,11 @@ export const guidance = wrap(async ({ userId, log, body, socketId }) => {
 })
 
 export const inferenceModels = wrap(async (req) => {
-  if (!req.fullUser?.defaultPreset) {
+  if (!req.authed?.defaultPreset) {
     throw new StatusError(`No default preset configured - Check your Charluv user settings`, 400)
   }
 
-  const preset = await store.presets.getUserPreset(req.fullUser?.defaultPreset!)
+  const preset = await store.presets.getUserPreset(req.authed?.defaultPreset!)
   if (!preset) {
     throw new StatusError(`Default preset not found - Check your Charluv user settings`, 400)
   }
@@ -236,7 +252,7 @@ export const inferenceApi = wrap(async (req, res) => {
   const { body } = req
   assertValid(validInferenceApi, body, true)
 
-  let presetId = req.fullUser?.defaultPreset
+  let presetId = req.authed?.defaultPreset
   if (!presetId) {
     throw new StatusError('Missing "model" or "presetId" parameter', 400)
   }
@@ -255,6 +271,7 @@ export const inferenceApi = wrap(async (req, res) => {
     streamResponse: body.stream,
     name: '',
     maxTokens: body.max_tokens,
+    temp: body.temperature,
     minP: body.min_p,
     topP: body.top_p,
     topA: body.top_a,
@@ -273,13 +290,24 @@ export const inferenceApi = wrap(async (req, res) => {
     mirostatLR: body.mirostat_eta,
     registered: preset.registered,
     stopSequences: body.stop,
+    smoothingCurve: body.smoothing_curve,
+    smoothingFactor: body.smoothing_factor,
+    tailFreeSampling: body.tfs,
+    banEosToken: body.ban_eos_token,
+    addBosToken: body.add_bos_token,
+    tempLast: body.temperature_last,
+  }
+
+  if ('dynatemp' in body && !!body.dynatemp) {
+    settings.dynatemp_range = body.dynatemp_range
+  } else {
+    settings.dynatemp_range = body.dynatemp_range
   }
 
   const request: InferenceRequest = {
     prompt: body.prompt,
-    user: req.fullUser!,
+    user: req.authed!,
     log: req.log,
-    service: preset.service!,
     settings,
     placeholders: body.placeholders,
     previous: body.previous,
@@ -346,13 +374,12 @@ export const inferenceApi = wrap(async (req, res) => {
     }
   }
 
+  await releaseLock(req.userId)
   res.end()
 })
 
-export const inference = wrap(async ({ socketId, userId, body, log }, res) => {
+export const inference = wrap(async ({ socketId, userId, body, log, get }, res) => {
   assertValid({ ...validInference, requestId: 'string' }, body)
-
-  res.json({ success: true, generating: true, message: 'Generating response' })
 
   if (userId) {
     const user = await store.users.getUser(userId)
@@ -364,11 +391,88 @@ export const inference = wrap(async ({ socketId, userId, body, log }, res) => {
     user: body.user,
     log,
     prompt: body.prompt,
-    service: body.service,
+    settings: body.settings,
     guest: userId ? undefined : socketId,
+    jsonSchema: body.jsonSchema,
+    imageData: body.imageData,
   })
 
   return { response: inference.generated, meta: inference.meta }
+})
+
+export const inferenceStream = wrap(async ({ socketId, userId, body, log, ...req }, res) => {
+  assertValid({ ...validInference, requestId: 'string' }, body)
+
+  if (userId) {
+    if (!req.authed) throw errors.Unauthorized
+    body.user = req.authed
+  }
+
+  const { stream, service } = await createInferenceStream({
+    user: body.user!,
+    log,
+    prompt: body.prompt,
+    settings: body.settings,
+    guest: userId ? undefined : socketId,
+    jsonSchema: body.jsonSchema,
+    imageData: body.imageData,
+  })
+
+  const requestId = body.requestId || v4()
+  res.json({ requestId, success: true, generating: true })
+  let response = ''
+  let partial = ''
+
+  const send = userId ? sendOne : sendGuest
+  const sendId = userId ? userId : socketId
+
+  await obtainLock(sendId, 15)
+
+  send(sendId, { type: 'inference-prompt', prompt: body.prompt })
+
+  try {
+    for await (const gen of stream) {
+      if (typeof gen === 'string') {
+        response = gen
+        continue
+      }
+
+      if ('meta' in gen) {
+        send(sendId, { type: 'inference-meta', meta: gen.meta, requestId })
+      }
+
+      if ('partial' in gen) {
+        partial = gen.partial
+        send(sendId, { type: 'inference-partial', partial, service, requestId })
+        continue
+      }
+
+      if ('error' in gen) {
+        send(sendId, { type: 'inference-error', partial, error: gen.error, requestId })
+        continue
+      }
+
+      if ('warning' in gen) {
+        send(sendId, { type: 'inference-warning', requestId, warning: gen.warning })
+        continue
+      }
+    }
+  } catch (ex: any) {
+    if (ex instanceof StatusError) {
+      send(sendId, {
+        type: 'inference-error',
+        partial,
+        error: `[${ex.status}] ${ex.message}`,
+        requestId,
+      })
+    } else {
+      send(sendId, { type: 'inference-error', partial, error: `${ex.message || ex}`, requestId })
+    }
+  }
+
+  await releaseLock(sendId)
+
+  send(sendId, { type: 'inference', requestId, response })
 })
 
 async function assertSettings(body: any, userId: string) {

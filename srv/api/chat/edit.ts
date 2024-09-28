@@ -23,6 +23,8 @@ export const updateChat = handle(async ({ params, body, user, userId }) => {
       scenarioStates: ['string?'],
       systemPrompt: 'string?',
       postHistoryInstructions: 'string?',
+      imageSource: 'string?',
+      imageSettings: 'any?',
     },
     body,
     true
@@ -49,6 +51,8 @@ export const updateChat = handle(async ({ params, body, user, userId }) => {
     userEmbedId: body.userEmbedId ?? prev.userEmbedId,
     scenarioIds: body.scenarioIds ?? prev.scenarioIds,
     scenarioStates: body.scenarioStates ?? prev.scenarioStates,
+    imageSource: (body.imageSource as any) ?? prev.imageSource,
+    imageSettings: body.imageSettings,
   }
 
   if (body.useOverrides === false) {
@@ -130,7 +134,13 @@ export const swapMessage = handle(async ({ body, params, userId }) => {
 
 export const updateMessageProps = handle(async ({ body, params, userId }) => {
   assertValid(
-    { imagePrompt: 'string?', msg: 'string?', extras: ['string?'], retries: ['string?'] },
+    {
+      imagePrompt: 'string?',
+      msg: 'string?',
+      extras: ['string?'],
+      retries: ['string?'],
+      json: 'any?',
+    },
     body
   )
 
@@ -144,6 +154,7 @@ export const updateMessageProps = handle(async ({ body, params, userId }) => {
     msg: body.msg ?? prev.msg.msg,
     retries: body.retries,
     extras: body.extras || prev.msg.extras,
+    json: body.json || prev.msg.json,
   }
 
   const message = await store.msgs.editMessage(params.id, {

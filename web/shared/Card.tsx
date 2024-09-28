@@ -1,7 +1,8 @@
 import { Component, JSX, Show, createMemo } from 'solid-js'
-import { getSettingColor, getAsCssVar, userStore } from '../store'
+import { userStore } from '../store'
 import { useBgStyle } from './hooks'
 import { hooks } from './util'
+import { getAsCssVar, getRgbaFromVar, getSettingColor } from './colors'
 
 type Size = 'sm' | 'md' | 'lg'
 
@@ -51,14 +52,26 @@ export const SolidCard: Component<{
   bg?: string
   hover?: string | boolean
   border?: boolean
+  borderColor?: string
+  title?: string | JSX.Element
 }> = (props) => {
   const cfg = userStore((s) => s.ui)
 
+  const titleBg = createMemo(() => {
+    const color = getRgbaFromVar(`--${props.type || 'hl'}-500`, 1)
+    return color.background
+  })
+
   const bg = createMemo((): JSX.CSSProperties => {
+    const borderColor = props.borderColor ? getAsCssVar(props.borderColor) : undefined
     if (props.bg) {
       return {
         'background-color': getAsCssVar(props.bg),
-        border: props.border ? '1px solid var(--bg-600)' : 0,
+        border: borderColor
+          ? `1px solid ${borderColor}`
+          : props.border
+          ? '1px solid var(--bg-600)'
+          : 0,
       }
     }
 
@@ -68,7 +81,7 @@ export const SolidCard: Component<{
 
     return {
       'background-color': `var(--${type}-${base})`,
-      border: `1px solid var(--${type}-${base + mod})`,
+      border: borderColor ? `1px solid ${borderColor}` : `1px solid var(--${type}-${base + mod})`,
     }
   })
 
@@ -93,6 +106,14 @@ export const SolidCard: Component<{
         hover: hover(),
       })}
     >
+      <Show when={props.title}>
+        <div
+          class="mb-2 flex w-full justify-center rounded-md py-1 font-bold"
+          style={{ background: titleBg() }}
+        >
+          {props.title}
+        </div>
+      </Show>
       {props.children}
     </div>
   )
@@ -124,6 +145,8 @@ export const TitleCard: Component<{
   center?: boolean
   ariaRole?: JSX.AriaAttributes['role']
   ariaLabel?: string
+  contentClass?: string
+  bg?: string
 }> = (props) => {
   const cfg = userStore((s) => s.ui)
 
@@ -132,29 +155,37 @@ export const TitleCard: Component<{
     const base = type === 'bg' || cfg.mode === 'dark' || type === 'hl' ? 800 : 100
     const mod = type === 'bg' || cfg.mode === 'dark' || type === 'hl' ? -200 : 200
 
+    const bgColor = props.bg
+      ? (getRgbaFromVar(props.bg, 1)?.background as string)
+      : `var(--${type}-${base})`
+
     return {
-      'background-color': `var(--${type}-${base})`,
-      'border-color': `var(--${type}-${base + mod})`,
+      'background-color': bgColor,
+      border: `1px solid var(--${type}-${base + mod})`,
+      'border-radius': '0.375rem',
     }
   })
+
   return (
     <div
-      class={`flex flex-col gap-2 rounded-md border-[1px] ${props.class || ''}`}
+      class={`flex flex-col gap-2 ${props.class || ''}`}
       style={bg()}
       role={props.ariaRole}
       aria-label={props.ariaLabel}
     >
       <Show when={!!props.title}>
         <div
-          class={`flex rounded-t-md px-2 pt-2 text-xl font-bold ${
+          class={`flex rounded-t-md px-2 pt-2 text-lg font-bold ${
             props.center ? 'justify-center' : ''
           }`}
-          style={bg()}
         >
           {props.title}
         </div>
       </Show>
-      <div class="px-2 pb-2" classList={{ 'pt-2': !props.title }}>
+      <div
+        class={`rounded-b-md px-2 pb-2 text-sm ${props.contentClass || ''}`}
+        classList={{ 'pt-2': !props.title }}
+      >
         {props.children}
       </div>
     </div>
@@ -169,9 +200,60 @@ export const Pill: Component<{
   onClick?: () => void
   ariaRole?: JSX.AriaAttributes['role']
   ariaLabel?: string
+  corners?: { l?: boolean; r?: boolean }
+  class?: string
+  opacity?: number
 }> = (props) => {
   const cfg = userStore((s) => s.ui)
 
+  const bg = createMemo((): JSX.CSSProperties => {
+    const type = props.type || 'bg'
+    let base = type === 'bg' || cfg.mode === 'dark' || type === 'hl' ? 800 : 200
+    let mod = type === 'bg' || cfg.mode === 'dark' || type === 'hl' ? -400 : 400
+    let text = 200
+
+    if (props.inverse) {
+      base = base === 800 ? 200 : 800
+      mod *= -1
+      text = 800
+    }
+
+    const rgba = getRgbaFromVar(`--${type}-${base + mod}`, props.opacity ?? 1)
+
+    return {
+      'background-color': rgba.background || '',
+      'border-color': `var(--${type}-${base})`,
+      color: (props.class || '').includes('text-') ? undefined : `var(--text-${text})`,
+    }
+  })
+
+  return (
+    <span
+      class={`flex items-center border-[1px] px-2 py-1 ${props.class || ''}`}
+      style={bg()}
+      onClick={props.onClick}
+      classList={{
+        'w-fit': !props.class?.includes('w-'),
+        'px-2': !props.class?.includes('px-'),
+        'border-[1px]': !props.small,
+        'border-0': props.small,
+        'cursor-pointer': !!props.onClick,
+        'py-1': !props.class?.includes('py-') && !props.small,
+        'py-[2px]': !props.class?.includes('py-') && props.small,
+        'rounded-l-md': !props.class?.includes('rounded-') && props.corners?.l !== false,
+        'rounded-r-md': !props.class?.includes('rounded-') && props.corners?.r !== false,
+        'text-sm': !props.class?.includes('text'),
+      }}
+      role={props.ariaRole}
+      aria-label={props.ariaLabel}
+    >
+      {props.children}
+    </span>
+  )
+}
+
+export const Badge: Component<{ children: any; type?: CardType; inverse?: boolean }> = (props) => {
+  const cfg = userStore((s) => s.ui)
   const bg = createMemo((): JSX.CSSProperties => {
     const type = props.type || 'bg'
     let base = type === 'bg' || cfg.mode === 'dark' || type === 'hl' ? 800 : 200
@@ -192,22 +274,14 @@ export const Pill: Component<{
   })
 
   return (
-    <span
-      class={`rounded-md border-[1px] px-2 py-1 text-sm`}
-      style={bg()}
-      onClick={props.onClick}
-      classList={{
-        'border-[1px]': !props.small,
-        'border-0': props.small,
-        'cursor-pointer': !!props.onClick,
-        'py-1': !props.small,
-        'py-[2x]': props.small,
-      }}
-      role={props.ariaRole}
-      aria-label={props.ariaLabel}
-    >
-      {props.children}
-    </span>
+    <>
+      <span
+        style={bg()}
+        class={`flex h-5 w-5 items-center justify-center rounded-full text-[0.6rem] font-bold text-white`}
+      >
+        {props.children}
+      </span>
+    </>
   )
 }
 

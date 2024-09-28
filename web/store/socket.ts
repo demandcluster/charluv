@@ -1,5 +1,6 @@
 import { UnwrapBody, Validator, isValid } from '/common/valid'
 import { baseUrl, getAuth, setSocketId } from './api'
+import { setEmitter } from '/common/requests/util'
 
 type Handler = { validator: Validator; fn: (body: any) => void }
 
@@ -10,13 +11,16 @@ const BASE_RETRY = 100
 const MAX_RETRY = 1000
 let RETRY_TIME = 0
 
-let socket: WebSocket
+type ClientSocket = WebSocket & { pingTimeout: any }
+
+let socket: ClientSocket
 
 createSocket()
+setEmitter(localEmit)
 
 function createSocket() {
   const socketUrl = baseUrl.replace('https://', 'wss://').replace('http://', 'ws://')
-  const ws = new WebSocket(socketUrl)
+  const ws = new WebSocket(socketUrl) as ClientSocket
 
   socket = ws
   ws.onopen = onConnected
@@ -29,6 +33,27 @@ export function publish<T extends { type: string }>(payload: T) {
   if (!isAuthed) return
 
   socket.send(JSON.stringify(payload))
+}
+
+export function localEmit<T extends { type: string }>(payload: T) {
+  const handlers = listeners.get(payload.type) || []
+  const onceHandlers = onceListeners.get(payload.type) || []
+
+  for (const handler of handlers) {
+    if (!isValid(handler.validator, payload)) continue
+    handler.fn(payload)
+  }
+
+  for (const handler of onceHandlers) {
+    if (!isValid(handler.validator, payload)) continue
+    if (!handler.predicate(payload)) continue
+
+    handler.fn(payload)
+    const i = onceHandlers.findIndex((h) => h === handler)
+    onceHandlers.splice(i, 1)
+  }
+
+  onceListeners.set(payload.type, onceHandlers)
 }
 
 export function subscribe<T extends string, U extends Validator>(
@@ -48,7 +73,16 @@ export function subscribe<T extends string, U extends Validator>(
   listeners.set(type, handlers)
 }
 
-const squelched = new Set(['profile-handle-changed', 'message-partial'])
+const squelched = new Set([
+  'profile-handle-changed',
+  'message-partial',
+  'guidance-partial',
+  'ping',
+  'inference-partial',
+  'horde-check',
+  'message-created',
+  'message-try',
+])
 
 function onMessage(msg: MessageEvent<any>) {
   if (typeof msg.data !== 'string') return
@@ -63,13 +97,24 @@ function onMessage(msg: MessageEvent<any>) {
     const onceHandlers = onceListeners.get(payload.type) || []
 
     if (!squelched.has(payload.type)) {
-      if (payload.type === 'service-prompt') {
-        console.log(`Prompt\n${payload.prompt}`)
-      } else if (payload.type !== 'image-generated') {
-        console.log(JSON.stringify(payload))
-      } else {
+      if (payload.type === 'service-prompt' || payload.type === 'inference-prompt') {
         console.log(
-          JSON.stringify({ ...payload, image: (payload.image || '').slice(0, 60) + '...' })
+          `Prompt\n${
+            typeof payload.prompt === 'string'
+              ? payload.prompt
+              : JSON.stringify(payload.prompt, null, 2)
+          }`
+        )
+      } else if (payload.type !== 'image-generated') {
+        console.log(`[${new Date().toLocaleTimeString()}]`, JSON.stringify(payload))
+      } else {
+        const image = payload.image || ''
+        console.log(
+          `[${new Date().toLocaleTimeString()}]`,
+          JSON.stringify({
+            ...payload,
+            image: image.startsWith('http') ? image : `${image.slice(0, 60)}'...'`,
+          })
         )
       }
     } else {
@@ -96,6 +141,11 @@ function onMessage(msg: MessageEvent<any>) {
 
 function onConnected() {
   RETRY_TIME = 0
+  let sha = window.agnai_version
+  if (sha === '{{unknown}}') {
+    sha = 'local'
+  }
+  publish({ type: 'version', version: 1, sha })
   const token = getAuth()
   if (!token) return
   publish({ type: 'login', token })
@@ -119,4 +169,8 @@ function parse(blob: string) {
 
 subscribe('connected', { uid: 'string' }, (body) => {
   setSocketId(body.uid)
+})
+
+subscribe('ping', {}, () => {
+  publish({ type: 'pong' })
 })

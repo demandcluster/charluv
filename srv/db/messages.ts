@@ -2,14 +2,15 @@ import { v4 } from 'uuid'
 import { db } from './client'
 import { AppSchema } from '../../common/types/schema'
 import { now } from './util'
-import { getChatBranchIds } from '../../common/chat'
+
 import { store } from '.'
 import { config } from '../config'
+import { WithId } from 'mongodb'
 
-let PAGE_SIZE = config.limits.msgPageSize
-if (isNaN(PAGE_SIZE) || PAGE_SIZE < 20) {
-  PAGE_SIZE = 100
-}
+// let PAGE_SIZE = config.limits.msgPageSize
+// if (isNaN(PAGE_SIZE) || PAGE_SIZE < 20) {
+//   PAGE_SIZE = 0
+// }
 
 export type NewMessage = {
   _id?: string
@@ -23,45 +24,37 @@ export type NewMessage = {
   imagePrompt?: string
   actions?: AppSchema.ChatMessage['actions']
   meta?: any
-  event: AppSchema.EventTypes | undefined
+  event: AppSchema.ScenarioEventType | undefined
   retries?: string[]
+  parent?: string
+  json?: AppSchema.ChatMessage['json']
+  name: string | undefined
 }
 
 export type ImportedMessage = NewMessage & { createdAt: string }
 
 export async function createChatMessage(creating: NewMessage, ephemeral?: boolean) {
-  const {
-    chatId,
-    message,
-    characterId,
-    senderId,
-    adapter,
-    ooc,
-    imagePrompt,
-    actions,
-    meta,
-    event,
-    retries,
-  } = creating
   const doc: AppSchema.ChatMessage = {
     _id: creating._id || v4(),
     kind: 'chat-message',
-    chatId,
-    characterId,
-    userId: senderId,
-    msg: message,
-    retries: retries || [],
-    adapter,
-    actions,
+    chatId: creating.chatId,
+    characterId: creating.characterId,
+    userId: creating.senderId,
+    msg: creating.message,
+    retries: creating.retries || [],
+    adapter: creating.adapter,
+    actions: creating.actions,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    ooc,
-    meta,
-    event,
+    ooc: creating.ooc,
+    meta: creating.meta,
+    event: creating.event,
+    parent: creating.parent,
+    json: creating.json,
   }
 
-  if (imagePrompt) {
-    doc.imagePrompt = imagePrompt
+  if (creating.imagePrompt) {
+    doc.imagePrompt = creating.imagePrompt
   }
 
   if (!ephemeral) await db('chat-message').insertOne(doc)
@@ -105,12 +98,30 @@ export async function deleteMessages(messageIds: string[]) {
   await db('chat-message').deleteMany({ _id: { $in: messageIds } })
 }
 
+export async function editChatMessage(
+  id: string,
+  chatId: string,
+  update: Partial<
+    Pick<
+      AppSchema.ChatMessage,
+      'msg' | 'actions' | 'adapter' | 'meta' | 'state' | 'extras' | 'retries' | 'parent' | 'json'
+    >
+  >
+) {
+  const edit: any = { ...update, updatedAt: now() }
+
+  await db('chat-message').updateOne({ _id: id, chatId }, { $set: edit })
+
+  const msg = await getMessage(id)
+  return msg
+}
+
 export async function editMessage(
   id: string,
   update: Partial<
     Pick<
       AppSchema.ChatMessage,
-      'msg' | 'actions' | 'adapter' | 'meta' | 'state' | 'extras' | 'retries'
+      'msg' | 'actions' | 'adapter' | 'meta' | 'state' | 'extras' | 'retries' | 'parent' | 'json'
     >
   >
 ) {
@@ -125,49 +136,51 @@ export async function editMessage(
 export async function getMessages(chatId: string, before?: string) {
   // The initial fetch will retrieve PAGE_SIZE messages.
   // This is to ensure that users have sufficient messages in their application state to build prompts with enough context.
-  let pageSize = PAGE_SIZE
+  let pageSize = 0
   if (!before) {
     before = now()
   }
 
-  const docs = await db('chat-message')
-    .find({
-      kind: 'chat-message',
-      chatId,
-      $and: [{ createdAt: { $lt: before } }, { createdAt: { $ne: before } }],
-    })
-    .sort({ createdAt: -1 })
-    .limit(pageSize + 1)
-    .toArray()
+  const result: Array<WithId<AppSchema.ChatMessage>> = []
 
-  if (!docs.length) return []
-
-  docs.reverse()
-
-  if (docs.length < pageSize + 1) {
-    docs[0].first = true
-    return docs
+  if (pageSize) {
+    const docs = await db('chat-message')
+      .find({
+        kind: 'chat-message',
+        chatId,
+        $and: [{ createdAt: { $lt: before } }, { createdAt: { $ne: before } }],
+      })
+      .sort({ createdAt: -1 })
+      .limit(pageSize + 1)
+      .toArray()
+    result.push(...docs)
+  } else {
+    const docs = await db('chat-message')
+      .find({
+        kind: 'chat-message',
+        chatId,
+        $and: [{ createdAt: { $lt: before } }, { createdAt: { $ne: before } }],
+      })
+      .sort({ createdAt: -1 })
+      .toArray()
+    result.push(...docs)
   }
 
-  return docs.slice(1)
+  if (!result.length) return []
+
+  result.reverse()
+
+  if (result.length < pageSize + 1) {
+    result[0].first = true
+    return result
+  }
+
+  return pageSize ? result.slice(1) : result
 }
 
 export async function getChatMessages(chat: AppSchema.Chat) {
-  if (!chat.treeLeafId) return getMessages(chat._id)
-  const tree = await store.chats.getChatTree(chat._id)
-  if (!tree) return getMessages(chat._id)
-
-  return getChatTreeMessages(tree, chat.treeLeafId)
-}
-
-export async function getChatTreeMessages(tree: AppSchema.ChatTree, leafId: string) {
-  const ids = getChatBranchIds(tree, leafId)
-  const docs = await db('chat-message')
-    .find({ kind: 'chat-message', chatId: tree.chatId, _id: { $in: ids } })
-    .sort({ createdAt: 1 })
-    .toArray()
-
-  return docs
+  const messages = await getMessages(chat._id)
+  return messages
 }
 
 /**

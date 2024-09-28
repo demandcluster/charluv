@@ -4,11 +4,13 @@ import './toggle.css'
 import { AIAdapter, PresetAISettings, ThirdPartyFormat } from '../../common/adapters'
 import { isValidServiceSetting } from './util'
 import { Option } from './Select'
+import { forms } from '../emitter'
 
 export const Toggle: Component<{
   fieldName: string
   value?: boolean
   label?: string | JSX.Element
+  ref?: (ref: HTMLInputElement) => void
   helperText?: string | JSX.Element
   helperMarkdown?: string
   class?: string
@@ -18,6 +20,9 @@ export const Toggle: Component<{
   service?: AIAdapter
   format?: ThirdPartyFormat
   aiSetting?: keyof PresetAISettings
+  classList?: Record<string, boolean>
+  recommended?: boolean
+  vertLabel?: boolean
 }> = (props) => {
   let ref: HTMLInputElement
   const onChange = (ev: Event & { currentTarget: HTMLInputElement }) => {
@@ -25,6 +30,7 @@ export const Toggle: Component<{
     const checked = !!ev.currentTarget.checked
     ref.checked = checked
     props.onChange?.(checked)
+    forms.emit(props.fieldName, checked)
   }
 
   const hide = createMemo(() => {
@@ -32,20 +38,43 @@ export const Toggle: Component<{
     return isValid ? '' : ' hidden'
   })
 
-  const justify = createMemo(() => (props.reverse ? 'sm:justify-start' : 'sm:justify-between'))
+  const justify = createMemo(() =>
+    props.vertLabel ? 'justify-center' : props.reverse ? 'sm:justify-start' : 'sm:justify-between'
+  )
 
   return (
-    <div class={`sm: flex flex-col gap-2 sm:flex-row ${hide()} sm:items-center ${justify()}`}>
-      <Show when={props.label && !props.reverse}>
+    <div
+      class={`sm: flex flex-col gap-2 ${hide()} ${justify()}`}
+      classList={{
+        'sm:flex-row': !props.vertLabel,
+        'sm:items-center': !props.vertLabel,
+        'gap-1': props.vertLabel && !props.class?.includes('gap-'),
+        'gap-2': !props.vertLabel && !props.class?.includes('gap-'),
+        ...props.classList,
+      }}
+    >
+      <Show when={props.label || !props.reverse || props.helperMarkdown || props.helperText}>
         <FormLabel
-          label={props.label}
+          label={
+            <span>
+              <label class="form-label">{props.label}</label>
+              <Show when={props.recommended !== undefined}>
+                <span class="text-xs italic text-gray-500">
+                  &nbsp;(Recommended: {props.recommended?.toString()})
+                </span>
+              </Show>
+            </span>
+          }
           helperText={props.helperText}
           helperMarkdown={props.helperMarkdown}
         />
       </Show>
       <label class={`toggle ${props.disabled ? 'toggle-disabled' : ''}`}>
         <input
-          ref={ref!}
+          ref={(r) => {
+            ref = r
+            props.ref?.(r)
+          }}
           type="checkbox"
           class="toggle-checkbox form-field w-0"
           id={props.fieldName}

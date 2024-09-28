@@ -6,7 +6,7 @@ import { now, replace } from '/common/util'
 
 export type PresetUpdate = Omit<AppSchema.UserGenPreset, '_id' | 'kind' | 'userId'>
 export type PresetCreate = PresetUpdate & { chatId?: string }
-export type SubscriptionUpdate = Omit<AppSchema.SubscriptionPreset, 'kind' | '_id' | 'deletedAt'>
+export type SubscriptionUpdate = Omit<AppSchema.SubscriptionModel, 'kind' | '_id' | 'deletedAt'>
 
 export const presetApi = {
   getPresets,
@@ -17,6 +17,7 @@ export const presetApi = {
   getTemplates,
   updateTemplate,
   deleteTemplate,
+  deleteUserPresetKey,
 }
 
 export async function getPresets() {
@@ -75,6 +76,18 @@ export async function deletePreset(presetId: string) {
   return localApi.result({ success: true })
 }
 
+export async function deleteUserPresetKey(presetId: string) {
+  if (isLoggedIn()) {
+    const res = await api.method('delete', `/user/presets/${presetId}/key`)
+    return res
+  }
+
+  const presets = await loadItem('presets')
+  const next = presets.map((pre) => (pre._id === presetId ? { ...pre, thirdPartyKey: '' } : pre))
+  await localApi.savePresets(next)
+  return localApi.result({ success: true })
+}
+
 async function getTemplates() {
   if (isLoggedIn()) {
     const res = await api.get<{ templates: AppSchema.PromptTemplate[] }>('/user/templates')
@@ -85,7 +98,7 @@ async function getTemplates() {
   return localApi.result({ templates })
 }
 
-async function createTemplate(template: { name: string; template: string }) {
+async function createTemplate(template: { name: string; template: string; presetId?: string }) {
   if (isLoggedIn()) {
     const res = await api.post<AppSchema.PromptTemplate>(`/user/templates`, template)
     return res
@@ -107,7 +120,10 @@ async function createTemplate(template: { name: string; template: string }) {
   return localApi.result(next)
 }
 
-async function updateTemplate(id: string, update: { name: string; template: string }) {
+async function updateTemplate(
+  id: string,
+  update: { name: string; template: string; presetId?: string }
+) {
   if (isLoggedIn()) {
     const res = await api.post<AppSchema.PromptTemplate>(`/user/templates/${id}`, update)
     return res

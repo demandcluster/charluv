@@ -7,7 +7,7 @@ import {
   VoiceModelsListRequest,
   VoicesListRequest,
 } from './types'
-import { AppLog } from '../logger'
+import { AppLog } from '../middleware'
 import { store } from '../db'
 import { v4 } from 'uuid'
 import { saveFile } from '../api/upload'
@@ -19,6 +19,8 @@ import { webSpeechSynthesisHandler } from './webspeechsynthesis'
 import { TTSService, VoiceSettings } from '../../common/types/texttospeech-schema'
 import { AppSchema } from '../../common/types/schema'
 import { textModeration } from './moderation'
+import { agnaiTtsHandler } from './agnai'
+
 export async function getVoicesList(
   { user, ttsService }: VoicesListRequest,
   log: AppLog,
@@ -81,7 +83,11 @@ export async function generateTextToSpeech(
   }
 
   try {
-    output = await saveFile(`temp-${v4()}.${audio.ext}`, audio.content, 300)
+    if (audio.ext === 'url') {
+      output = audio.content.toString()
+    } else {
+      output = await saveFile(`temp-${v4()}.${audio.ext}`, audio.content, 300)
+    }
   } catch (ex: any) {
     log.error({ err: ex }, 'Failed to generate audio')
     throw new StatusError(`Could not generate audio: ${ex.message || ex}`, 500)
@@ -145,7 +151,11 @@ export async function generateVoice(
   }
 
   try {
-    output = await saveFile(`temp-${v4()}.${audio.ext}`, audio.content, 300)
+    if (audio.ext === 'url') {
+      output = audio.content.toString()
+    } else {
+      output = await saveFile(`temp-${v4()}.${audio.ext}`, audio.content, 300)
+    }
   } catch (ex: any) {
     send(broadcastIds, guestId, {
       type: 'voice-failed',
@@ -177,6 +187,9 @@ export function getVoiceService(ttsService?: TTSService): TextToSpeechHandler | 
 
     case 'novel':
       return novelTtsHandler
+
+    case 'agnaistic':
+      return agnaiTtsHandler
 
     default:
       return

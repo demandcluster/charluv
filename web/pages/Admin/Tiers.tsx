@@ -9,6 +9,7 @@ import { getStrictForm } from '/web/shared/util'
 import Button from '/web/shared/Button'
 import Select from '/web/shared/Select'
 import { TierCard } from '../Profile/TierCard'
+import { Page } from '/web/Layout'
 
 export { TiersPage as default }
 
@@ -71,6 +72,7 @@ const TiersPage: Component = (props) => {
       apiAccess: 'boolean',
       patreonTier: 'string',
       guidanceAccess: 'boolean',
+      imagesAccess: 'boolean',
     })
 
     const product = admin.products.find((p) => p.id === data.productId)
@@ -126,7 +128,7 @@ const TiersPage: Component = (props) => {
   })
 
   return (
-    <>
+    <Page>
       <PageHeader title="Subscription Tier" />
 
       <A href="/admin/subscriptions" class="link">
@@ -165,6 +167,15 @@ const TiersPage: Component = (props) => {
             label="Guidance (V2) Access Capable"
             helperText="If enabled, this tier can use GuidanceV2 if the server/preset allows it"
             value={editing()?.guidanceAccess ?? false}
+            classList={{ hidden: !settings.config.adapters.includes('agnaistic') }}
+          />
+
+          <Toggle
+            fieldName="imagesAccess"
+            label="Image Generation Access"
+            helperText="If enabled, this tier can use Agnaistic Image Generation"
+            value={editing()?.imagesAccess ?? false}
+            classList={{ hidden: !settings.config.adapters.includes('agnaistic') }}
           />
 
           <Select
@@ -185,6 +196,8 @@ const TiersPage: Component = (props) => {
               disableSlots: false,
               apiAccess: false,
               guidanceAccess: false,
+              imagesAccess: false,
+              level: Infinity,
             }}
           />
 
@@ -219,6 +232,6 @@ const TiersPage: Component = (props) => {
           </div>
         </form>
       </Card>
-    </>
+    </Page>
   )
 }

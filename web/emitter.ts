@@ -1,5 +1,7 @@
 import { EventEmitter } from 'events'
 import { send } from './store/create'
+import { v4 } from 'uuid'
+import { onCleanup } from 'solid-js'
 
 export const EVENTS = {
   loggedIn: 'logged-in',
@@ -17,6 +19,8 @@ export const EVENTS = {
   tierReceived: 'tier-received',
   configUpdated: 'server-config-updated',
   checkoutSuccess: 'checkout-success',
+  chatOpened: 'chat-opened',
+  chatClosed: 'chat-closed',
 } as const
 
 type EventType = (typeof EVENTS)[keyof typeof EVENTS]
@@ -32,4 +36,32 @@ export const events = {
 
 for (const event of Object.values(EVENTS)) {
   emitter.on(event, (...args) => send('[***] emitter', { type: event, args }, undefined))
+}
+
+type FormCallback = (field: string, value: any) => any
+
+const formCallbacks = new Map<string, FormCallback>()
+
+export const forms = {
+  emit: (field: string, value: any) => {
+    for (const callback of formCallbacks.values()) {
+      callback(field, value)
+    }
+  },
+  sub: (callback: FormCallback) => {
+    const id = v4()
+
+    formCallbacks.set(id, callback)
+
+    return () => formCallbacks.delete(id)
+  },
+  useSub(callback: FormCallback) {
+    const unsub = forms.sub(callback)
+
+    onCleanup(() => {
+      unsub()
+    })
+
+    return unsub
+  },
 }

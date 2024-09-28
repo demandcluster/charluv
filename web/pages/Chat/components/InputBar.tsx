@@ -1,7 +1,8 @@
 import {
   ImagePlus,
-  Megaphone,
   ClipboardList,
+  ImageUp,
+  Megaphone,
   MoreHorizontal,
   PlusCircle,
   Send,
@@ -22,7 +23,14 @@ import { AppSchema } from '../../../../common/types/schema'
 import Button, { LabelButton } from '../../../shared/Button'
 import { DropMenu } from '../../../shared/DropMenu'
 import TextInput from '../../../shared/TextInput'
-import { chatStore, toastStore, userStore, settingStore, characterStore } from '../../../store'
+import {
+  chatStore,
+  toastStore,
+  userStore,
+  settingStore,
+  characterStore,
+  ChatMessageExt,
+} from '../../../store'
 import { msgStore } from '../../../store'
 import { SpeechRecognitionRecorder } from './SpeechRecognitionRecorder'
 import { Toggle } from '/web/shared/Toggle'
@@ -36,8 +44,8 @@ import WizardIcon from '/web/icons/WizardIcon'
 import { EVENTS, events } from '/web/emitter'
 import { AutoComplete } from '/web/shared/AutoComplete'
 import FileInput, { FileInputResult, getFileAsDataURL } from '/web/shared/FileInput'
-import { embedApi } from '/web/store/embeddings'
 import AvatarIcon from '/web/shared/AvatarIcon'
+import { ALLOWED_TYPES } from '/web/store/data/image'
 
 const InputBar: Component<{
   chat: AppSchema.Chat
@@ -47,7 +55,7 @@ const InputBar: Component<{
   swiped: boolean
   showOocToggle: boolean
   ooc: boolean
-  setOoc: Setter<boolean>
+  setOoc: Setter<boolean | undefined>
   send: (msg: string, ooc: boolean, onSuccess?: () => void) => void
   more: (msg: string) => void
   request: (charId: string) => void
@@ -58,7 +66,12 @@ const InputBar: Component<{
 
   const user = userStore()
   const state = msgStore((s) => ({
-    lastMsg: s.msgs.slice(-1)[0],
+    lastMsg: s.msgs.reduceRight<ChatMessageExt>((prev, curr, i) => {
+      if (prev) return prev
+      if (curr.characterId && !curr.userId) return curr
+      if (i === 0) return curr
+      return undefined as any
+    }, undefined as any),
     msgs: s.msgs,
     canCaption: s.canImageCaption,
   }))
@@ -89,6 +102,7 @@ const InputBar: Component<{
   const [cleared, setCleared] = createSignal(0, { equals: false })
   const [complete, setComplete] = createSignal(false)
   const [listening, setListening] = createSignal(false)
+  const [dragging, setDragging] = createSignal(false)
 
   const completeOpts = createMemo(() => {
     const list = ctx.activeBots.map((char) => ({ label: char.name, value: char._id }))
@@ -193,7 +207,10 @@ const InputBar: Component<{
   }
 
   const triggerEvent = () => {
-    eventStore.triggerEvent(props.chat, props.botMap[chats.replyAs!])
+    const char =
+      chats.replyAs && chats.replyAs in props.botMap ? props.botMap[chats.replyAs] : undefined
+
+    eventStore.triggerEvent(props.chat, char)
     setMenu(false)
   }
 
@@ -214,16 +231,31 @@ const InputBar: Component<{
     const [file] = files
     if (!file) return
 
-    const buffer = await getFileAsDataURL(file.file)
-    const caption = await embedApi.captionImage(buffer.content)
-    setText(`*{{user}} shows {{char}} a picture that contains: ${caption}*`)
-    send()
+    return attach(file.file)
+  }
+
+  const attach = async (file: File) => {
+    const ext = file.name.split('.').slice(-1)[0]
+    const isAllowed = ALLOWED_TYPES.has(ext)
+    if (!isAllowed) {
+      toastStore.warn(`Invalid file type: Must be an image`)
+      return
+    }
+
+    const buffer = await getFileAsDataURL(file)
+    if (file.size > 1024 * 1024 * 1024) {
+      toastStore.warn(`Attachment exceeds size limit (1MB)`)
+      return
+    }
+
+    msgStore.setAttachment(props.chat._id, buffer.content)
+    setMenu(false)
   }
 
   return (
-    <div class="relative flex items-end justify-center">
+    <div class="relative flex items-start justify-center rounded-md bg-[var(--bg-800)]">
       <Show when={props.showOocToggle}>
-        <div class="cursor-pointer p-2" onClick={toggleOoc}>
+        <div class="flex h-[40px] cursor-pointer items-center p-2" onClick={toggleOoc}>
           <Show when={!props.ooc}>
             <WizardIcon />
           </Show>
@@ -233,7 +265,7 @@ const InputBar: Component<{
         </div>
       </Show>
 
-      <div class="flex items-center sm:hidden">
+      <div class="flex h-[40px] items-center sm:hidden">
         <a
           href="#"
           role="button"
@@ -244,7 +276,7 @@ const InputBar: Component<{
           <AvatarIcon
             avatarUrl={chars.impersonating?.avatar || user.profile?.avatar}
             format={{ corners: 'circle', size: 'sm' }}
-            class="mr-2"
+            class="ml-1 mr-2"
           />
         </a>
       </div>
@@ -266,7 +298,8 @@ const InputBar: Component<{
         value={text()}
         placeholder={placeholder()}
         parentClass="flex w-full"
-        class="input-bar rounded-r-none hover:bg-[var(--bg-800)] active:bg-[var(--bg-800)]"
+        classList={{ 'blur-md': dragging() }}
+        class="input-bar max-h-[120px] min-h-[40px] rounded-r-none hover:bg-[var(--bg-800)] active:bg-[var(--bg-800)]"
         onKeyDown={(ev) => {
           if (ev.key === '@') {
             setComplete(true)
@@ -281,8 +314,21 @@ const InputBar: Component<{
           }
         }}
         onInput={updateText}
+        textarea={{
+          onDragOver: () => setDragging(true),
+          onDragExit: () => setDragging(false),
+          onDragEnd: () => setDragging(false),
+          onDrop: (ev) => {
+            ev.preventDefault()
+            setDragging(false)
+            const file = ev.dataTransfer?.files[0]
+            if (!file) return
+
+            attach(file)
+          },
+        }}
       />
-      <Button schema="clear" onClick={onButtonClick} class="h-full px-2 py-2">
+      <Button schema="clear" onClick={onButtonClick} class="h-full bg-[var(--bg-800)] px-2 py-2">
         <MoreHorizontal class="icon-button" />
       </Button>
 
@@ -345,13 +391,7 @@ const InputBar: Component<{
                 <Megaphone size={18} /> Play Voice
               </Button>
             </Show>
-            <Show
-              when={
-                !!ctx.chat?.scenarioIds?.length &&
-                isOwner() &&
-                (chats.replyAs || ctx.activeBots.length === 1)
-              }
-            >
+            <Show when={!!ctx.chat?.scenarioIds?.length && isOwner()}>
               <Button schema="secondary" class="w-full" onClick={triggerEvent} alignLeft>
                 <Zap /> Trigger Event
               </Button>
@@ -365,25 +405,29 @@ const InputBar: Component<{
               accept="image/jpg,image/png,image/jpeg"
             />
             <LabelButton for="imageCaption" schema="secondary" class="w-full" alignLeft>
-              Send Image
+              <ImageUp size={18} />
+              Attach Image
             </LabelButton>
           </Show>
         </div>
       </DropMenu>
       <Switch>
         <Match when={user.user?.speechtotext && (text() === '' || listening())}>
-          <SpeechRecognitionRecorder
-            culture={props.char?.culture}
-            onText={(value) => setText(value)}
-            onSubmit={() => send()}
-            cleared={cleared}
-            listening={setListening}
-          />
+          <div class="flex h-full items-center">
+            <SpeechRecognitionRecorder
+              culture={props.char?.culture}
+              onText={(value) => setText(value)}
+              onSubmit={() => send()}
+              cleared={cleared}
+              listening={setListening}
+              class="h-full bg-[var(--bg-800)]"
+            />
+          </div>
         </Match>
 
         <Match when>
-          <Button schema="clear">
-            <Send class="icon-button" size={18} onClick={send} />
+          <Button schema="clear" onClick={send} class="mt-1">
+            <Send class="icon-button" size={18} />
           </Button>
         </Match>
       </Switch>

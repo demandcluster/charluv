@@ -14,7 +14,7 @@ const characters = chars.reduce<Record<string, AppSchema.Character>>(
   (prev, curr) => Object.assign(prev, { [curr._id]: curr }),
   {}
 )
-const chat = toChat(char)
+const chat = toChat(char, {}, chars)
 const profile = toProfile('Sender')
 const members = [profile]
 const history = [
@@ -176,6 +176,7 @@ async function getParseOpts(
     parts,
     sender: profile,
     lastMessage: '',
+    jsonValues: {},
     ...overrides,
   }
 

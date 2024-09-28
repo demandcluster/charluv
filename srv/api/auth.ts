@@ -42,7 +42,8 @@ export const apiKeyUsage: any = async (req: AppRequest, _: any, next: NextFuncti
     premium: access.user.premium,
   }
 
-  req.fullUser = access.user
+  req.authed = access.user
+  req.log.setBindings({ user: access.user.username, guest: undefined })
 
   next()
 }

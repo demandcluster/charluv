@@ -2,7 +2,7 @@ import Values from 'values.js'
 import { AppSchema } from '../../common/types/schema'
 import { EVENTS, events } from '../emitter'
 import { FileInputResult } from '../shared/FileInput'
-import { createDebounce, getRootVariable, hexToRgb, storage, setRootVariable } from '../shared/util'
+import { createDebounce, storage } from '../shared/util'
 import { api, clearAuth, getAuth, getUserId, isLoggedIn, setAuth } from './api'
 import { createStore } from './create'
 import { localApi } from './data/storage'
@@ -10,10 +10,18 @@ import { usersApi } from './data/user'
 import { publish, subscribe } from './socket'
 import { toastStore } from './toasts'
 import { UI } from '/common/types'
-import { defaultUIsettings } from '/common/types/ui'
+import { UISettings, defaultUIsettings } from '/common/types/ui'
 import type { FindUserResponse } from '/common/horde-gen'
 import { AIAdapter } from '/common/adapters'
 import { getUserSubscriptionTier } from '/common/util'
+import {
+  getColorShades,
+  getRootVariable,
+  getSettingColor,
+  hexToRgb,
+  setRootVariable,
+} from '../shared/colors'
+import { UserType } from '/common/types/admin'
 
 const BACKGROUND_KEY = 'ui-bg'
 export const ACCOUNT_KEY = 'agnai-username'
@@ -33,6 +41,8 @@ export type UserState = {
   loading: boolean
   error?: string
   loggedIn: boolean
+  userType: UserType | undefined
+  userLevel: number
   jwt: string
   profile?: AppSchema.Profile
   user?: AppSchema.User
@@ -76,14 +86,10 @@ export const userStore = createStore<UserState>(
   })
 
   events.on(EVENTS.init, (init) => {
-    userStore.setState({ user: init.user, profile: init.profile })
+    userStore.setState({ user: init.user, profile: init.profile, userType: getUserType(init.user) })
 
-    if (init.user?.patreonUserId) {
-      userStore.syncPatreonAccount(true)
-    }
-
-    if (init.user.billing) {
-      userStore.validateSubscription(true)
+    if (init.user?.patreonUserId || init.user?.billing || init.user?.manualSub) {
+      userStore.retrieveSubscription(true)
     }
 
     if (init.user?._id !== 'anon') {
@@ -137,11 +143,82 @@ export const userStore = createStore<UserState>(
       }
     },
 
+    async removeProfileAvatar() {
+      const res = await usersApi.removeProfileAvatar()
+      if (res.error) return toastStore.error(`Could not update profile: ${res.error}`)
+      if (res.result) {
+        return { profile: res.result }
+      }
+    },
+
     async getTiers({ user }) {
       const res = await api.get('/admin/tiers')
       if (res.result) {
         const sub = user ? getUserSubscriptionTier(user, res.result.tiers) : undefined
         return { tiers: res.result.tiers, sub }
+      }
+    },
+
+    async *unlinkGoogleAccount(_, success?: () => void) {
+      const res = await api.post('/user/unlink-google')
+      if (res.result) {
+        yield { user: res.result.user }
+        toastStore.success('Google Account unlinked')
+        return
+      }
+
+      toastStore.error(`Could not unlinked Google: ${res.error}`)
+    },
+
+    async *handleGoogleCallback(
+      _,
+      action: 'login' | 'link',
+      data: { credential: string },
+      success?: () => void
+    ) {
+      if (action !== 'login' && !isLoggedIn()) {
+        toastStore.error(`Cannot link account: Not signed in`)
+        return
+      }
+      yield { loading: true }
+
+      const res = await api.post(action === 'link' ? '/user/link-google' : '/user/login/google', {
+        token: data.credential,
+      })
+
+      yield { loading: false }
+
+      switch (action) {
+        case 'link': {
+          if (res.result) {
+            toastStore.success('Successfully linked Google account')
+            yield { user: res.result.user }
+            success?.()
+            return
+          }
+
+          toastStore.error(`Could not link account: ${res.error}`)
+          return
+        }
+
+        case 'login': {
+          if (res.result) {
+            yield {
+              loggedIn: true,
+              user: res.result.user,
+              profile: res.result.profile,
+              jwt: res.result.token,
+              userType: getUserType(res.result.user),
+            }
+            setAuth(res.result.token)
+            success?.()
+            publish({ type: 'login', token: res.result.token })
+            events.emit(EVENTS.loggedIn)
+            return
+          }
+
+          toastStore.error(`Could not sign in: ${res.error}`)
+        }
       }
     },
 
@@ -172,7 +249,7 @@ export const userStore = createStore<UserState>(
       if (res.result && state === 'success') {
         onSuccess?.()
         return {
-          user: { ...user!, sub: res.result },
+          user: { ...user!, sub: res.result, userLevel: res.result?.level ?? 0 },
         }
       }
 
@@ -226,6 +303,32 @@ export const userStore = createStore<UserState>(
       }
     },
 
+    async *retrieveSubscription({ billingLoading, tiers, sub: previous }, quiet?: boolean) {
+      if (billingLoading) return
+      yield { billingLoading: true }
+      const res = await api.post('/admin/billing/subscribe/retrieve')
+      yield { billingLoading: false }
+
+      if (res.result) {
+        const next = getUserSubscriptionTier(res.result.user, tiers, previous)
+        const premium = res.result.user?.premium ? 10 : 0
+        yield {
+          user: res.result.user,
+          sub: next,
+          userLevel: Math.max(premium, res.result.user.sub.level),
+        }
+      }
+
+      if (quiet) return
+      if (res.result) {
+        toastStore.success('You are currently subscribed')
+      }
+
+      if (res.error) {
+        toastStore.error(res.error)
+      }
+    },
+
     async *validateSubscription({ billingLoading, tiers, sub: previous }, quiet?: boolean) {
       if (billingLoading) return
       yield { billingLoading: true }
@@ -234,7 +337,8 @@ export const userStore = createStore<UserState>(
 
       if (res.result) {
         const next = getUserSubscriptionTier(res.result, tiers, previous)
-        yield { user: res.result, sub: next }
+
+        yield { user: res.result, sub: next, userLevel: next?.level ?? 0 }
       }
 
       if (quiet) return
@@ -292,12 +396,15 @@ export const userStore = createStore<UserState>(
       }
     },
 
-    async updatePartialConfig(_, config: ConfigUpdate) {
+    async updatePartialConfig(_, config: ConfigUpdate, quiet?: boolean) {
       const res = await usersApi.updatePartialConfig(config)
       if (res.error) toastStore.error(`Failed to update config: ${res.error}`)
       if (res.result) {
         window.usePipeline = res.result.useLocalPipeline
-        toastStore.success(`Updated settings`)
+
+        if (!quiet) {
+          toastStore.success(`Updated settings`)
+        }
         return { user: res.result }
       }
     },
@@ -404,6 +511,7 @@ export const userStore = createStore<UserState>(
         user: res.result.user,
         profile: res.result.profile,
         jwt: res.result.token,
+        userType: getUserType(res.result.user),
       }
 
       if (res.result.user.ui) {
@@ -439,6 +547,7 @@ export const userStore = createStore<UserState>(
       toastStore.success('Welcome to Charluv')
       onSuccess?.()
       publish({ type: 'login', token: res.result.token })
+      events.emit(EVENTS.loggedIn)
     },
     async *logout() {
       clearAuth()
@@ -515,10 +624,30 @@ export const userStore = createStore<UserState>(
       return { ui: next }
     },
 
-    async receiveUI(_, update: UI.UISettings) {
+    async receiveUI({ ui }, update: UI.UISettings) {
       const current = update[update.mode]
       await updateTheme(update)
-      return { ui: update, current }
+
+      const keys = Object.keys(defaultUIsettings.msgOptsInline) as UI.MessageOption[]
+
+      for (const key in defaultUIsettings) {
+        if (key in update === false) {
+          const prop = key as keyof UISettings
+          update[prop] = defaultUIsettings[prop] as never // ...?
+        }
+      }
+
+      for (const key of keys) {
+        if (!update.msgOptsInline[key]) {
+          update.msgOptsInline[key] = { ...defaultUIsettings.msgOptsInline[key] }
+        }
+
+        if (!defaultUIsettings.msgOptsInline[key]) {
+          delete update.msgOptsInline[key]
+        }
+      }
+
+      return { ui: { ...ui, ...update }, current }
     },
 
     setBackground(_, file: FileInputResult | null) {
@@ -537,7 +666,15 @@ export const userStore = createStore<UserState>(
 
     async deleteKey(
       { user },
-      kind: 'novel' | 'horde' | 'openai' | 'scale' | 'claude' | 'third-party' | 'elevenlabs'
+      kind:
+        | 'novel'
+        | 'horde'
+        | 'openai'
+        | 'scale'
+        | 'claude'
+        | 'third-party'
+        | 'elevenlabs'
+        | 'mistral'
     ) {
       const res = await usersApi.deleteApiKey(kind)
       if (res.error) return toastStore.error(`Failed to update settings: ${res.error}`)
@@ -566,6 +703,10 @@ export const userStore = createStore<UserState>(
 
       if (kind === 'openai') {
         return { user: { ...user, oaiKey: '', oaiKeySet: false } }
+      }
+
+      if (kind === 'mistral') {
+        return { user: { ...user, mistralKey: '', mistralKeySet: false } }
       }
     },
 
@@ -653,6 +794,8 @@ function init(): UserState {
 
   if (!existing) {
     return {
+      userType: undefined,
+      userLevel: -1,
       loading: false,
       jwt: '',
       loggedIn: false,
@@ -669,6 +812,8 @@ function init(): UserState {
   }
   localStorage.setItem('ecu', true)
   return {
+    userType: undefined,
+    userLevel: 0,
     loggedIn: true,
     loading: false,
     jwt: existing,
@@ -760,11 +905,22 @@ function getUIsettings(guest = false) {
     ui.light.chatQuoteColor = UI.defaultUIsettings.light.chatQuoteColor
   }
 
+  if (!ui.msgOptsInline) {
+    ui.msgOptsInline = UI.defaultUIsettings.msgOptsInline
+  }
+
   return ui
 }
 
 subscribe('credits-updated', { credits: 'any' }, (body) => {
-  userStore.setState({ user: { ...userStore.getState().user, credits: body.credits } })
+  userStore.setState({
+    user: { ...userStore.getState().user, credits: body.credits },
+  })
+})
+subscribe('recharged', { amount: 'any' }, (body) => {
+  userStore.setState({
+    user: { ...userStore.getState().user, recharged: new Date().getTime() },
+  })
 })
 
 async function setBackground(content: any) {
@@ -774,54 +930,6 @@ async function setBackground(content: any) {
   }
 
   await storage.setItem(BACKGROUND_KEY, content)
-}
-
-function adjustColor(color: string, percent: number, target = 0) {
-  if (color.startsWith('--')) {
-    color = getSettingColor(color)
-  } else if (!color.startsWith('#')) {
-    color = '#' + color
-  }
-
-  const step = [0, 0, 0]
-
-  const hex = [1, 3, 5]
-    .map((v, i) => {
-      const val = parseInt(color.substring(v, v + 2), 16)
-      step[i] = target !== 0 ? (val + target) / 100 : 0
-      return val
-    })
-    .map((v, i) => {
-      if (target !== 0) return v + percent * step[i]
-      return (v * (100 + percent)) / 100
-    })
-    .map((v) => Math.min(v, 255))
-    .map((v) => Math.round(v))
-    .map((v) => v.toString(16).padStart(2, '0'))
-    .join('')
-
-  return '#' + hex
-}
-
-function getColorShades(color: string) {
-  const colors: string[] = [adjustColor(color, -100), color]
-  for (let i = 2; i <= 9; i++) {
-    const next = adjustColor(color, i * 100)
-    colors.push(next)
-  }
-
-  return colors
-}
-
-export function getSettingColor(color: string) {
-  if (!color) return ''
-  if (color.startsWith('#')) return color
-  return getRootVariable(color)
-}
-
-export function getAsCssVar(color: string) {
-  if (color.startsWith('--')) return `var(${color})`
-  return `var(--${color})`
 }
 
 function getUIKey(guest = false) {
@@ -878,4 +986,13 @@ async function checkout(sessionUrl: string) {
       clearInterval(interval)
     }
   }, 3000)
+}
+
+function getUserType(user: AppSchema.User): UserType {
+  if (user.admin) return 'admins'
+  if (user.role === 'admin') return 'admins'
+  if (user.role === 'moderator') return 'moderators'
+  if (user.sub?.level && user.sub.level > 0) return 'subscribers'
+  if (user._id === 'anon') return 'guests'
+  return 'users'
 }

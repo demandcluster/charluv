@@ -2,18 +2,19 @@ import { AppSchema } from './types/schema'
 import { defaultPresets } from './default-preset'
 import { SD_SAMPLER } from './image'
 import { toArray } from './util'
-import type { AppLog } from '/srv/logger'
+import type { AppLog } from '../srv/middleware'
 
 const HORDE_GUEST_KEY = '0000000000'
 //const imageUrl = 'https://horde.koboldai.net/api/v2'
 const imageUrl = 'https://horde.aivo.chat/api/v2'
 const hordeUrl = 'https://horde.aivo.chat/api/v2'
+const baseUrl = 'https://horde.aivo.chat/api/v2'
 
 export const defaults = {
   image: {
     sampler: SD_SAMPLER['DPM++ 2M'],
-    model: [],
-    negative: `underage,child`,
+    model: 'Deliberate',
+    negative: ``,
   },
 }
 
@@ -28,7 +29,7 @@ type Fetcher = <T = any>(
   opts: FetchOpts
 ) => Promise<{ statusCode?: number; statusMessage?: string; body: T }>
 
-type HordeCheck = {
+export type HordeCheck = {
   generations: any[]
   done: boolean
   faulted: boolean
@@ -40,6 +41,8 @@ type HordeCheck = {
   kudos: number
   wait_time: number
   message?: string
+  processing: number
+  shared: boolean
 }
 
 let TIMEOUT_SECS = Infinity
@@ -86,12 +89,14 @@ type GenerateOpts = {
   payload: any
   timeoutSecs?: number
   key: string
+  onTick?: (status: HordeCheck) => void
 }
 
 export async function generateImage(
   user: AppSchema.User,
   prompt: string,
   negative: string,
+  onTick: (status: HordeCheck) => void,
   log: AppLog = logger
 ) {
   const base = user.images
@@ -121,7 +126,17 @@ export async function generateImage(
   log?.debug({ ...payload, prompt: null }, 'Horde payload')
   log?.debug(`Prompt:\n${payload.prompt}`)
 
-  const image = await generate({ type: 'image', payload, key: user.hordeKey || HORDE_GUEST_KEY })
+  const image = await generate({
+    type: 'image',
+    payload,
+    key: user.hordeKey || HORDE_GUEST_KEY,
+    onTick,
+  })
+
+  if (!image.text.startsWith('data:') && typeof window !== 'undefined') {
+    image.text = `data:image/image;base64,${image.text}`
+  }
+
   return image
 }
 
@@ -156,6 +171,7 @@ export async function generateText(
     top_k: preset.topK ?? defaultPresets.horde.topK,
     top_p: preset.topP ?? defaultPresets.horde.topP,
     typical: preset.typicalP ?? defaultPresets.horde.typicalP,
+    min_p: preset.minP,
     max_context_length: Math.min(
       preset.maxContextLength ?? defaultPresets.horde.maxContextLength,
       4096
@@ -165,6 +181,9 @@ export async function generateText(
     rep_pen_slope: preset.repetitionPenaltySlope,
     tfs: preset.tailFreeSampling ?? defaultPresets.horde.tailFreeSampling,
     temperature: Math.min(preset.temp ?? defaultPresets.horde.temp, 5),
+    smoothing_factor: preset.smoothingFactor,
+    dynatemp_range: preset.dynatemp_range,
+    dynatemp_exponent: preset.dynatemp_exponent,
   }
 
   if (preset.order) {
@@ -197,7 +216,7 @@ async function generate(opts: GenerateOpts) {
       ? `${hordeUrl}/generate/text/status/${init.body.id}`
       : `${imageUrl}/generate/status/${init.body.id}`
 
-  const result = await poll(url, opts.key, opts.type === 'text' ? 2.5 : 6.5)
+  const result = await poll(url, opts.key, opts.type === 'text' ? 2.5 : 6.5, opts.onTick)
 
   if (!result.generations || !result.generations.length) {
     const error: any = new Error(`Horde request failed: No generation received`)
@@ -209,7 +228,12 @@ async function generate(opts: GenerateOpts) {
   return { text, result }
 }
 
-async function poll(url: string, key: string | undefined, interval = 6.5) {
+async function poll(
+  url: string,
+  key: string | undefined,
+  interval: number,
+  onTick?: (status: HordeCheck) => void
+) {
   const started = Date.now()
   const threshold = TIMEOUT_SECS * 1000
 
@@ -220,6 +244,18 @@ async function poll(url: string, key: string | undefined, interval = 6.5) {
     }
 
     const res = await useFetch<HordeCheck>({ method: 'get', url, key })
+    if (res.statusCode && res.statusCode >= 400) {
+      const error: any = new Error(
+        `Horde request failed (${res.statusCode}) ${res.body.message || res.statusMessage}`
+      )
+      error.body = res.body
+      throw error
+    }
+
+    if (!res.body.generations?.length) {
+      onTick?.(res.body)
+    }
+
     if (res.body.faulted) {
       throw new Error(`Horde request failed: The worker faulted while generating.`)
     }

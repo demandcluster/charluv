@@ -1,23 +1,25 @@
 import './home.scss'
-import { Component, For, Match, Show, Switch, createSignal, onMount } from 'solid-js'
 import logoDark from '../../asset/logoDark.png'
 import logo from '../../asset/logo.png'
 import nsfwTools from '../../asset/featured-on-badge-b.avif'
 import discordLogo from '../../asset/discord-logo-blue.svg'
-import PageHeader from '../../shared/PageHeader'
-import { adaptersToOptions, getAssetUrl, setComponentPageTitle } from '../../shared/util'
-import { announceStore, userStore, chatStore, settingStore } from '../../store'
+import { Component, For, Match, Show, Switch, createMemo, createSignal, onMount } from 'solid-js'
+import { getAssetUrl, setComponentPageTitle, uniqueBy } from '../../shared/util'
+import { announceStore, chatStore, settingStore, userStore } from '../../store'
 import { A, useNavigate } from '@solidjs/router'
 import { AlertTriangle, MoveRight, Plus, Settings, Heart, Users } from 'lucide-solid'
 import { Card, Pill, SolidCard, TitleCard } from '/web/shared/Card'
 import Modal from '/web/shared/Modal'
 import AvatarIcon from '/web/shared/AvatarIcon'
+
 import { elapsedSince } from '/common/util'
 import { AppSchema } from '/common/types'
 import { markdown } from '/web/shared/markdown'
 import WizardIcon from '/web/icons/WizardIcon'
 import Button from '/web/shared/Button'
 import Slot from '/web/shared/Slot'
+import { adaptersToOptions } from '/common/adapters'
+import { useRef } from '/web/shared/hooks'
 
 const enum Sub {
   None,
@@ -79,11 +81,15 @@ function toItem(model: HordeModel) {
   }
 }
 const HomePage: Component = () => {
-  let ref: any
-  setComponentPageTitle('Virtual Date an AI')
+  const [ref, onRef] = useRef()
+  setComponentPageTitle('Information')
   const [sub, setSub] = createSignal(Sub.None)
-  const user = userStore()
+
   const closeSub = () => setSub(Sub.None)
+
+  const user = userStore()
+
+  const announce = announceStore()
   const cfg = settingStore((cfg) => ({
     adapters: adaptersToOptions(cfg.config.adapters),
     guest: cfg.guestAccessAllowed,
@@ -93,7 +99,17 @@ const HomePage: Component = () => {
   const rawHTML = `<a href="https://theresanaiforthat.com/ai/charluv/?ref=featured&v=2416874" target="_blank" rel="nofollow"><img width="300" src="https://media.theresanaiforthat.com/featured-on-taaft.png?width=600"></a>`
 
   const itchHTML = `<iframe frameborder="0" src="https://itch.io/embed/2216072?bg_color=55b89c&amp;fg_color=fff" width="552" height="167"><a href="https://rongames.itch.io/charluv">Charluv by Charluv</a></iframe>`
-  const announce = announceStore()
+
+  const announcements = createMemo(() => {
+    return announce.list.filter((ann) => {
+      if (ann.location && ann.location !== 'home') return false
+
+      const level = ann.userLevel ?? -1
+      const userPremium = user.premium ? 10 : -1
+      const premiumLevel = Math.max(user.userLevel, userPremium)
+      return premiumLevel >= level
+    })
+  })
 
   onMount(() => {
     announceStore.getAll()
@@ -101,20 +117,9 @@ const HomePage: Component = () => {
 
   return (
     <div>
-      <PageHeader
-        class="flex justify-center text-6xl"
-        center
-        noDivider
-        title={
-          <div class="flex w-full justify-center" style="background: #55b89cff;">
-            <img src={logoDark} alt="Charluv Virtual Dating" class="w-4/12 p-8" />
-          </div>
-        }
-      />
-
       <div class="flex flex-col  text-lg">
-        <div class="w-full" ref={ref}>
-          <Slot slot="leaderboard" parent={ref} />
+        <div class="w-full" ref={useRef}>
+          <Slot slot="leaderboard" parent={ref()} />
         </div>
         <Card border class="mb-2">
           <div class="leading-6">
@@ -127,8 +132,8 @@ const HomePage: Component = () => {
 
         <RecentChats class="mb-2" />
 
-        <Show when={announce.list.length > 0}>
-          <Announcements list={announce.list} />
+        <Show when={announcements().length > 0}>
+          <Announcements list={announcements().slice(0, 1)} />
         </Show>
 
         <div class="home-cards mb-2 gap-2">
@@ -171,39 +176,33 @@ const HomePage: Component = () => {
           </TitleCard>
         </div>
 
-        <Card class="mb-2" border>
-          <div class="flex justify-center text-xl font-bold">Notable Features</div>
-          <div class="flex flex-col gap-2 leading-6">
+        <div ref={onRef} class="my-1 flex w-full justify-center">
+          <Slot slot="content" parent={ref()} />
+        </div>
+
+        <Show when={announcements().length > 1}>
+          <Announcements list={announcements().slice(1, 4)} />
+        </Show>
+
+        <Show when={announcements().length === 0}>
+          <Features />
+        </Show>
+
+        <Card border ariaRole="region" ariaLabel="Getting started">
+          <div class="mb-2 flex justify-center text-xl font-bold" aria-hidden="true">
+            Getting Started
+          </div>
+          <div class="flex flex-col items-center gap-2 leading-6">
             <p>
-              <b class="highlight">Charluv</b> is completely free to use. It is free to register.
-              Your data will be kept private and you can permanently delete your data at any time.
-              We take your privacy very seriously. You can get premium membership to skip the queue
-              and get more credits. It will also help us survive.
-            </p>
-            <p>
-              <b class="highlight">Unique model</b> trained for understanding virtual dating and
-              character progression.
-            </p>
-            <p>
-              <b class="highlight">Register</b> to have your data available on all of your devices.
-            </p>
-            <p>Chat with multiple users and multiple characters at the same time</p>
-            <p>
-              Create <b class="highlight">Memory Books</b> to give your characters information about
-              their world.
-            </p>
-            <p>
-              <b class="highlight">Image generation</b> - Generate images in your chats.
-            </p>
-            <p>
-              <b class="highlight">Voice</b> - Give your characters a voice and speak back to them.
-            </p>
-            <p>
-              Voices are generated by{' '}
-              <a href="https://elevenlabs.io/text-to-speech" class="link" target="_blank">
-                ElevenLabs
+              Looking for help with getting started? Check out the{' '}
+              <a class="link" href="https://guide.charluv.com" target="_blank">
+                Official Guide
+              </a>{' '}
+              or head to the{' '}
+              <a class="link" target="_blank" href="https://charluv.com/discord">
+                Charluv Discord
               </a>
-              , the #1 text-to-speech service. *currently disabled due to issue with provider*
+              .
             </p>
           </div>
         </Card>
@@ -276,9 +275,10 @@ const RecentChats: Component = (props) => {
   const user = userStore()
 
   const nav = useNavigate()
+
   const state = chatStore((s) => ({
     chars: s.allChars.list,
-    last: s.allChats
+    last: uniqueBy(s.allChats, 'characterId')
       .slice()
       .sort((l, r) => (r.updatedAt > l.updatedAt ? 1 : -1))
       .slice(0, 4)
@@ -291,7 +291,7 @@ const RecentChats: Component = (props) => {
         Recent Conversations
       </div>
       <div
-        class="grid w-full grid-cols-2 gap-2 sm:grid-cols-4"
+        class="grid w-full grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-4"
         classList={{ hidden: state.last.length === 0 }}
       >
         <For each={state.last}>
@@ -308,8 +308,8 @@ const RecentChats: Component = (props) => {
                 <Show when={char?.avatar}>
                   <AvatarIcon
                     noBorder
-                    class="flex items-center justify-center"
-                    format={{ corners: 'md', size: '3xl' }}
+                    class="flex items-center justify-start"
+                    format={{ corners: 'md', size: 'max3xl' }}
                     avatarUrl={getAssetUrl(char?.avatar || '')}
                   />
                 </Show>
@@ -427,20 +427,12 @@ const BorderCard: Component<{ children: any; href: string; ariaLabel?: string }>
 }
 
 const Announcements: Component<{ list: AppSchema.Announcement[] }> = (props) => {
-  let ref: any
   return (
     <>
-      <section class="flex flex-col gap-2" aria-labelledby="homeAnnouncements">
-        <div
-          id="homeAnnouncements"
-          class="flex items-end font-bold leading-[14px]"
-          aria-hidden="true"
-        >
-          Announcements
-        </div>
+      <section class="flex flex-col gap-4" aria-labelledby="homeAnnouncements">
         <For each={props.list}>
           {(item, i) => (
-            <div class="rounded-md border-[1px] border-[var(--hl-500)]">
+            <div class="rounded-md border-[1px] border-[var(--hl-700)]">
               <div class="flex flex-col rounded-t-md bg-[var(--hl-800)] p-2">
                 <div class="text-lg font-bold" role="heading">
                   {item.title}
@@ -454,9 +446,6 @@ const Announcements: Component<{ list: AppSchema.Announcement[] }> = (props) => 
             </div>
           )}
         </For>
-        <div ref={ref} class="my-1 w-full">
-          <Slot slot="content" parent={ref} />
-        </div>
       </section>
     </>
   )
@@ -493,6 +482,48 @@ const HordeGuide: Component<{ close: () => void }> = (props) => (
       </Card>
     </div>
   </Modal>
+)
+
+const Features: Component = () => (
+  <Card border>
+    <section aria-labelledby="homeNotableFeats">
+      <div id="homeNotableFeats" class="flex justify-center text-xl font-bold" aria-hidden="true">
+        Notable Features
+      </div>
+      <div class="flex flex-col gap-2 leading-6">
+        <p>
+          <b class="highlight">Charluv</b> is completely free to use. It is free to register. Your
+          data will be kept private and you can permanently delete your data at any time. We take
+          your privacy very seriously.
+        </p>
+        <p>
+          <b class="highlight">Unique model</b> trained for understanding virtual dating and
+          character progression.
+        </p>
+        <p>
+          <b class="highlight">Register</b> to have your data available on all of your devices.
+        </p>
+        <p>Chat with multiple users and multiple characters at the same time</p>
+        <p>
+          Create <b class="highlight">Memory Books</b> to give your characters information about
+          their world.
+        </p>
+        <p>
+          <b class="highlight">Image generation</b> - Generate images in your chats.
+        </p>
+        <p>
+          <b class="highlight">Voice</b> - Give your characters a voice and speak back to them.
+        </p>
+        <p>
+          Voices are generated by{' '}
+          <a href="https://elevenlabs.io/text-to-speech" class="link" target="_blank">
+            ElevenLabs
+          </a>
+          , the #1 text-to-speech service. *currently disabled due to issue with provider*
+        </p>
+      </div>
+    </section>
+  </Card>
 )
 
 const OpenAIGuide: Component<{ close: () => void }> = (props) => (

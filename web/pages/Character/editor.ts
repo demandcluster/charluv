@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal } from 'solid-js'
+import { batch, createEffect, createMemo, createSignal, on } from 'solid-js'
 import { createStore } from 'solid-js/store'
 import { AppSchema, VoiceSettings } from '/common/types'
 import { FullSprite } from '/common/types/sprite'
@@ -14,10 +14,15 @@ import {
   toastStore,
   userStore,
 } from '/web/store'
-import { getImageData } from '/web/store/data/chars'
 import { Option } from '/web/shared/Select'
 import { defaultPresets, isDefaultPreset } from '/common/presets'
-import { GenField, generateChar, regenerateCharProp } from './generate-char'
+import { generateField } from './generate-char'
+import { BaseImageSettings, baseImageValid } from '/common/types/image-schema'
+import { useImageCache } from '/web/shared/hooks'
+import { imageApi } from '/web/store/data/image'
+import { v4 } from 'uuid'
+import { forms } from '/web/emitter'
+import { ResponseSchema } from '/common/types/library'
 
 type CharKey = keyof NewCharacter
 type GuardKey = keyof typeof newCharGuard
@@ -45,7 +50,9 @@ type EditState = {
   share?: string
   premium?: string
   visualType: string
+
   avatar?: File
+  originalAvatar?: any
   sprite?: FullSprite
 
   tags: string[]
@@ -55,9 +62,12 @@ type EditState = {
   culture: string
   alternateGreetings: string[]
   persona: AppSchema.Persona
+
+  imageSettings?: BaseImageSettings
+  json?: ResponseSchema
 }
 
-export const newCharGuard = {
+const newCharGuard = {
   kind: PERSONA_FORMATS,
   name: 'string',
   description: 'string?',
@@ -77,6 +87,8 @@ export const newCharGuard = {
   creator: 'string',
   characterVersion: 'string',
   voiceDisabled: 'boolean?',
+  jsonSchemaEnabled: 'boolean',
+  ...baseImageValid,
 } as const
 
 const fieldMap: Map<CharKey, GuardKey | 'tags'> = new Map([
@@ -134,6 +146,20 @@ const initState: EditState = {
   sprite: undefined,
   book: undefined,
   persona: { kind: 'text', attributes: { text: [''] } },
+  imageSettings: {
+    type: 'sd',
+    width: 512,
+    height: 512,
+    steps: 10,
+    clipSkip: 0,
+    cfg: 9,
+    negative: '',
+    prefix: '',
+    suffix: '',
+    summariseChat: true,
+    summaryPrompt: '',
+    template: '',
+  },
 }
 
 export type CharEditor = ReturnType<typeof useCharEditor>
@@ -142,11 +168,35 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
   const user = userStore()
   const presets = presetStore()
   const settings = settingStore()
+
+  const cache = useImageCache('avatars', { clean: true })
+
   const [original, setOriginal] = createSignal(editing)
   const [state, setState] = createStore<EditState>({ ...initState })
   const [imageData, setImageData] = createSignal<string>()
   const [form, setForm] = createSignal<any>()
   const [generating, setGenerating] = createSignal(false)
+  const [imageId, setImageId] = createSignal('')
+
+  forms.useSub((field, value) => {
+    if (field === 'kind') {
+      updateKind(value as any)
+      return
+    }
+
+    if (field in state === false) return
+
+    setState(field as any, value)
+  })
+
+  const canGenerate = createMemo(
+    on(
+      () => `${state.name}${state.description}`,
+      () => {
+        return !!state.name.trim() && !!state.description.trim()
+      }
+    )
+  )
 
   const genOptions = createMemo(() => {
     if (!user.user) return []
@@ -162,9 +212,9 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
     }
 
     {
-      const level = user.sub?.level ?? -1
+      const premiumLevel = user.premium ? 10 : -1
       const subs = settings.config.subs.filter(
-        (s) => user.user?.admin || (s.level <= level && s.guidanceAccess === true)
+        (s) => user.user?.admin || s.level <= premiumLevel || s.level <= user.userLevel
       )
 
       for (const sub of subs) {
@@ -195,14 +245,14 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
   })
 
   createEffect(async () => {
-    const file = state.avatar || original()?.originalAvatar
-    if (!file) {
-      setImageData(undefined)
-      return
-    }
+    const nextImage = cache.state.image
 
-    const data = await getImageData(file)
-    setImageData(data)
+    if (nextImage) {
+      const file = await imageApi.dataURLtoFile(nextImage, cache.state.imageId)
+
+      setImageData(nextImage)
+      setState('avatar', file)
+    }
   })
 
   createEffect(() => {
@@ -214,78 +264,113 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
     }
   })
 
+  const receiveAvatar = async (image: File, original?: boolean) => {
+    if (!image) return
+    const base64 = await imageApi.getImageData(image)
+    setState('avatar', image)
+    setImageData(base64)
+
+    if (base64) {
+      const id = original ? 'original' : v4()
+      await cache.addImage(base64, id)
+      if (original) {
+        setImageId(`avatars-${id}`)
+      }
+    }
+
+    return base64
+  }
+
   const createAvatar = async () => {
-    const char = payload()
-    const avatar = await generateAvatar(char)
+    const current = payload()
+    const attributes = getAttributeMap(form())
+    const desc = current.appearance || (attributes?.appeareance || attributes?.looks)?.join(', ')
+    const avatar = await generateAvatar(desc || '')
+    if (!avatar) return
 
-    if (avatar) {
-      const base64 = await getImageData(avatar)
-      setState('avatar', avatar)
-      setImageData(base64)
-    }
+    return receiveAvatar(avatar)
   }
 
-  const generateCharacter = async (service: string, fields?: GenField[]) => {
-    try {
-      if (generating()) {
-        toastStore.warn(`Cannot generate: Already generating`)
-        return
-      }
+  const genField = async (field: string, trait?: string) => {
+    const char = payload(false)
 
-      setGenerating(true)
-      if (state.personaKind === 'text') {
-        setState('personaKind', 'attributes')
-      }
-      const char = payload()
-
-      const prevAvatar = state.avatar
-      const prevSprite = state.sprite
-
-      if (fields?.length) {
-        const result = await regenerateCharProp(char, service, state.personaKind, fields)
-        load(result)
-      } else {
-        const result = await generateChar(
-          char.name,
-          char.description || 'a random character',
-          service,
-          state.personaKind
-        )
-        load(result)
-      }
-      setState('avatar', prevAvatar)
-      setState('sprite', prevSprite)
-    } finally {
-      setGenerating(false)
+    if (generating()) {
+      toastStore.warn(`Cannot generate: Already generating`)
+      return
     }
+
+    setGenerating(true)
+
+    generateField({
+      char,
+      prop: field,
+      trait,
+      tick: (res, st) => {
+        if (st === 'done' || st === 'error') {
+          setGenerating(false)
+        }
+
+        if (st !== 'done' && st !== 'partial') return
+
+        if (field === 'persona') {
+          const attributes = { ...char.persona.attributes }
+          if (!trait) {
+            attributes.text = [res]
+          } else {
+            attributes[trait] = [res]
+          }
+
+          setState('persona', { ...char.persona, attributes })
+          return
+        }
+
+        if (field in state) {
+          setState(field as keyof EditState, res)
+        }
+      },
+    })
   }
 
-  const reset = () => {
-    const char = original()
-    setState({ ...initState })
+  const reset = async () => {
+    batch(async () => {
+      const char = original()
+      setState({ ...initState })
 
-    const personaKind = char?.persona.kind || state.personaKind
-    for (const [key, field] of fieldMap.entries()) {
-      if (!char) setFormField(form(), field, '')
-      else setFormField(form(), field, char[key] || '')
-    }
+      const personaKind = char?.persona.kind || state.personaKind
+      for (const [key, field] of fieldMap.entries()) {
+        if (!char) setFormField(form(), field, '')
+        else setFormField(form(), field, char[key] || '')
+      }
 
-    setState('personaKind', personaKind)
-    setFormField(form(), 'kind', personaKind)
+      setState('personaKind', personaKind)
+      setFormField(form(), 'kind', personaKind)
 
-    // We set fields that aren't properly managed by form elements
-    setState({
-      ...char,
-      personaKind,
-      alternateGreetings: char?.alternateGreetings || [],
-      book: char?.characterBook,
-      voice: char?.voice || { service: undefined },
-      sprite: char?.sprite || undefined,
-      visualType: char?.visualType || 'avatar',
-      culture: char?.culture || defaultCulture,
-      insert: char?.insert?.prompt
-        ? { prompt: char.insert.prompt, depth: char.insert.depth }
-        : undefined,
+      if (char?.originalAvatar) {
+        // Intentionally do this in a separate tick
+        // It's not worth holding up the editor for this
+        Promise.resolve().then(async () => {
+          try {
+            const base64 = await imageApi.getImageData(char.originalAvatar)
+            if (base64) {
+              const file = await imageApi.dataURLtoFile(base64)
+              receiveAvatar(file, true)
+            }
+          } catch (ex) {}
+        })
+      }
+
+      // We set fields that aren't properly managed by form elements
+      setState({
+        ...char,
+        personaKind,
+        alternateGreetings: char?.alternateGreetings || [],
+        book: char?.characterBook,
+        voice: char?.voice || { service: undefined },
+        sprite: char?.sprite || undefined,
+        visualType: char?.visualType || 'avatar',
+        culture: char?.culture || defaultCulture,
+        insert: char?.insert ? { prompt: char.insert.prompt, depth: char.insert.depth } : undefined,
+      })
     })
   }
 
@@ -295,19 +380,33 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
   }
 
   const load = (char: NewCharacter | AppSchema.Character) => {
-    if ('_id' in char) {
-      const { avatar, ...incoming } = char
-      setOriginal({ ...incoming, originalAvatar: avatar })
-      reset()
-      return
-    }
+    batch(() => {
+      if ('_id' in char) {
+        const { avatar, ...incoming } = char
+        setOriginal({ ...incoming, originalAvatar: avatar })
+        reset()
+        return
+      }
 
-    setOriginal(char)
-    reset()
+      setOriginal(char)
+      reset()
+    })
   }
 
-  const payload = () => {
-    return getPayload(form(), state, original())
+  const payload = (submitting?: boolean) => {
+    const imgId = imageId()
+    const data = getPayload(form(), state, original())
+
+    if (submitting) {
+      if (imgId !== cache.state.imageId) {
+        data.avatar = state.avatar
+        setImageId(cache.state.imageId)
+      } else {
+        delete data.avatar
+      }
+    }
+
+    return data
   }
 
   const convert = (): AppSchema.Character => {
@@ -324,9 +423,29 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
     }
   }
 
+  const updateKind = (kind: EditState['personaKind']) => {
+    const ref = document.getElementById('character-form') as HTMLFormElement | null
+
+    const attributes = ref ? getAttributeMap(ref) : {}
+    const next = Object.values(attributes)
+      .map((values) => values.filter((v) => !!v.trim()).join(', '))
+      .join('\n\n')
+
+    if (kind === 'text') {
+      setState({ personaKind: 'text', persona: { kind: 'text', attributes: { text: [next] } } })
+      return
+    }
+
+    setState({
+      personaKind: 'attributes',
+      persona: { kind: 'attributes', attributes: { personality: [next] } },
+    })
+  }
+
   return {
     state,
     update: setState,
+    updateKind,
     reset,
     load,
     convert,
@@ -335,23 +454,21 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
     clear,
     genOptions,
     createAvatar,
+    receiveAvatar,
     avatar: imageData,
     generating,
+    canGenerate,
     canGuidance: genOptions().length > 0,
-    generateCharacter,
+    generateField: genField,
     generateAvatar,
     prepare: setForm,
+    imageCache: cache,
   }
 }
 
 function getPayload(ev: any, state: EditState, original?: NewCharacter) {
   const body = getStrictForm(ev, newCharGuard)
   const attributes = getAttributeMap(ev)
-
-  const persona = {
-    kind: body.kind,
-    attributes,
-  }
 
   const payload = {
     name: body.name,
@@ -385,22 +502,41 @@ function getPayload(ev: any, state: EditState, original?: NewCharacter) {
     extensions: original?.extensions,
     characterVersion: body.characterVersion ?? '',
     persona: {
-      kind: state.personaKind,
-      attributes: persona.attributes,
+      kind: body.kind,
+      attributes,
     },
+    imageSettings: {
+      type: body.imageType,
+      steps: body.imageSteps,
+      width: body.imageWidth,
+      height: body.imageHeight,
+      prefix: body.imagePrefix,
+      suffix: body.imageSuffix,
+      negative: body.imageNegative,
+      cfg: body.imageCfg,
+      summariseChat: body.summariseChat,
+      summaryPrompt: body.summaryPrompt,
+    },
+    json: {
+      ...state.json,
+      enabled: body.jsonSchemaEnabled,
+    } as ResponseSchema,
   }
 
   return payload
 }
 
-async function generateAvatar(char: NewCharacter) {
+async function generateAvatar(description: string) {
   const { user } = userStore.getState()
   if (!user) {
     return toastStore.error(`Image generation settings missing`)
   }
 
+  // const image = await imageApi.generateImageAsync(description)
+  // return image
+
   return new Promise<File>((resolve, reject) => {
-    characterStore.generateAvatar(user, char.appearance || char.persona, (err, image) => {
+    characterStore.generateAvatar(user, description, (err, image) => {
       if (image) return resolve(image)
       reject(err)
     })

@@ -210,7 +210,7 @@ export function getMessageAuthor(opts: {
       msg.characterId === impersonate?._id
         ? impersonate
         : chars[msg.characterId] || chat.tempCharacters?.[msg.characterId]
-    return char!.name
+    return char?.name || msg.name || 'Unknown'
   }
 
   if (msg.userId) {
@@ -251,6 +251,7 @@ export type EventGenerator<T> = {
   stream: AsyncGenerator<T, T>
   push: (value: T) => void
   done: () => void
+  isDone: () => boolean
 }
 
 export function eventGenerator<T = any>(): EventGenerator<T> {
@@ -284,6 +285,7 @@ export function eventGenerator<T = any>(): EventGenerator<T> {
       if (done) return
       signal = true
     },
+    isDone: () => done,
   }
 }
 
@@ -402,6 +404,7 @@ export function getUserSubscriptionTier(
   )
 
   const result = { type: highest.source, tier: highest.tier, level: highest.tier.level }
+
   if (previous) {
     return result.level > previous.level ? result : previous
   }
@@ -430,13 +433,170 @@ function getHighestTier(
   ...tiers: Array<{ source: AppSchema.SubscriptionType; tier?: AppSchema.SubscriptionTier }>
 ): { source: AppSchema.SubscriptionType; tier: AppSchema.SubscriptionTier } {
   const sorted = tiers.filter((t) => !!t.tier).sort((l, r) => r.tier!.level - l.tier!.level)
+
   return sorted[0] as any
 }
 
-export function tryParse(value?: any) {
+export function tryParse<T = any>(value?: any): T | undefined {
   if (!value) return
   try {
     const obj = JSON.parse(value)
     return obj
   } catch (ex) {}
+}
+
+export function parsePartialJson(value: string) {
+  {
+    const obj = tryParse(value.trim())
+    if (obj) return obj
+  }
+  {
+    const obj = tryParse(value.trim() + '}')
+    if (obj) return obj
+  }
+  {
+    const obj = tryParse(value.trim() + '"}')
+    if (obj) return obj
+  }
+}
+
+const SAFE_NAME = /[_\/'"!@#$%^&*()\[\],\.:;=+-]+/g
+
+export function hydrateTemplate(def: Ensure<AppSchema.Character['json']>, json: any) {
+  const map = new Map<string, string>()
+
+  for (const key in def.schema) {
+    map.set(key.toLowerCase().replace(SAFE_NAME, ' '), key)
+  }
+
+  const output: any = {}
+
+  for (const [key, value] of Object.entries(json)) {
+    const safe = key.replace(SAFE_NAME, ' ')
+    const alias = map.get(safe)
+
+    if (alias) {
+      output[alias] = value
+    } else {
+      output[key] = value
+    }
+  }
+
+  let response = def.response || ''
+  let history = def.history || ''
+
+  const resVars = response.match(JSON_NAME_RE())
+  const histVars = history.match(JSON_NAME_RE())
+
+  if (resVars) {
+    for (const holder of resVars) {
+      const trimmed = holder.slice(2, -2)
+      const safe = trimmed.replace(SAFE_NAME, ' ')
+      const value = output[safe] ?? output[trimmed]
+
+      response = response.split(holder).join(value ?? '')
+    }
+  }
+
+  if (histVars) {
+    for (const holder of histVars) {
+      const trimmed = holder.slice(2, -2)
+      const safe = trimmed.replace(SAFE_NAME, ' ')
+      const value = output[safe] ?? output[trimmed]
+
+      history = history.split(holder).join(value ?? '')
+    }
+  }
+
+  return { values: output, response, history }
+}
+
+export type HydratedJson = {
+  values: any
+  response: string
+  history: string
+}
+
+export const JSON_NAME_RE = () => /{{[a-zA-Z0-9 _'!@#$&*%()^=+-:;",\.<>?\/\[\]]+}}/g
+
+export function jsonHydrator(def: Ensure<AppSchema.Character['json']>) {
+  const map = new Map<string, string>()
+  const resVars = (def.response || '').match(JSON_NAME_RE())
+  const histVars = (def.history || '').match(JSON_NAME_RE())
+
+  for (const key in def.schema) {
+    map.set(key.toLowerCase().replace(SAFE_NAME, ' '), key)
+  }
+
+  const hydrate = (json: any) => {
+    const output: any = {}
+
+    for (const [key, value] of Object.entries(json)) {
+      const safe = key.replace(SAFE_NAME, ' ')
+      const alias = map.get(safe)
+
+      if (alias) {
+        output[alias] = value
+      } else {
+        output[key] = value
+      }
+    }
+
+    let response = def.response || ''
+    let history = def.history || ''
+
+    if (resVars) {
+      for (const holder of resVars) {
+        const trimmed = holder.slice(2, -2)
+        const safe = trimmed.replace(SAFE_NAME, ' ')
+        const value = output[safe] ?? output[trimmed]
+
+        response = response.split(holder).join(value ?? '')
+      }
+    }
+
+    if (histVars) {
+      for (const holder of histVars) {
+        const trimmed = holder.slice(2, -2)
+        const safe = trimmed.replace(SAFE_NAME, ' ')
+        const value = output[safe] ?? output[trimmed]
+
+        history = history.split(holder).join(value ?? '')
+      }
+    }
+
+    return { values: output, response, history }
+  }
+
+  return hydrate
+}
+
+export function getSubscriptionModelLimits(
+  model:
+    | Pick<AppSchema.SubscriptionModel, 'subLevel' | 'levels' | 'maxContextLength' | 'maxTokens'>
+    | undefined,
+  level: number
+) {
+  if (!model) return
+
+  const levels = Array.isArray(model.levels) ? model.levels.slice() : []
+
+  levels.push({
+    level: model.subLevel,
+    maxContextLength: model.maxContextLength!,
+    maxTokens: model.maxTokens,
+  })
+
+  let match: AppSchema.SubscriptionModelLevel | undefined
+
+  for (const candidate of levels) {
+    if (candidate.level > level) continue
+
+    if (!match || match.level < candidate.level) {
+      match = candidate
+      continue
+    }
+  }
+
+  return match
 }

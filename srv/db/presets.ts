@@ -1,7 +1,7 @@
 import { v4 } from 'uuid'
 import { db } from './client'
 import { AppSchema } from '../../common/types/schema'
-import { now } from './util'
+import { decryptText, encryptText, now } from './util'
 import { StatusError } from '../api/wrap'
 
 export async function createTemplate(
@@ -48,10 +48,6 @@ export async function getUserTemplates(userId: string) {
   return templates
 }
 
-export async function updateGenSetting(chatId: string, props: AppSchema.Chat['genSettings']) {
-  await db('chat').updateOne({ _id: chatId }, { $set: { genSettings: props, genPreset: '' } })
-}
-
 export async function updateGenPreset(chatId: string, preset: string) {
   await db('chat').updateOne(
     { _id: chatId },
@@ -61,13 +57,25 @@ export async function updateGenPreset(chatId: string, preset: string) {
 
 export async function createUserPreset(userId: string, settings: AppSchema.GenSettings) {
   const preset: AppSchema.UserGenPreset = {
-    _id: v4(),
     kind: 'gen-setting',
     userId,
     ...settings,
+    _id: v4(),
+  }
+
+  const originalKey = preset.thirdPartyKey!
+  if (preset.thirdPartyKey) {
+    preset.thirdPartyKey = encryptText(preset.thirdPartyKey)
   }
 
   await db('gen-setting').insertOne(preset)
+
+  if (preset.localRequests && originalKey) {
+    preset.thirdPartyKey = originalKey
+  } else {
+    preset.thirdPartyKey = ''
+  }
+
   return preset
 }
 
@@ -78,7 +86,20 @@ export async function deleteUserPreset(presetId: string) {
 
 export async function getUserPresets(userId: string) {
   const presets = await db('gen-setting').find({ userId }).toArray()
-  return presets
+  return presets.map((pre) => {
+    if (pre.localRequests && pre.thirdPartyKey) {
+      pre.thirdPartyKey = decryptText(pre.thirdPartyKey, true)
+    } else {
+      pre.thirdPartyKey = ''
+    }
+    return pre
+  })
+}
+
+export async function deleteUserPresetKey(userId: string, presetId: string) {
+  await db('gen-setting').updateOne({ _id: presetId, userId }, { $set: { thirdPartyKey: '' } })
+  const preset = await getUserPreset(presetId, userId)
+  return preset
 }
 
 export async function updateUserPreset(
@@ -94,12 +115,38 @@ export async function updateUserPreset(
     }
   }
 
+  if (update.thirdPartyKey) {
+    update.thirdPartyKey = encryptText(update.thirdPartyKey)
+  } else {
+    delete update.thirdPartyKey
+  }
+
+  update.updatedAt = new Date().toISOString()
   await db('gen-setting').updateOne({ _id: presetId, userId }, { $set: update })
   const updated = await db('gen-setting').findOne({ _id: presetId })
+
+  if (updated) {
+    if (updated.localRequests && updated.thirdPartyKey) {
+      updated.thirdPartyKey = decryptText(updated.thirdPartyKey, true)
+    } else {
+      updated.thirdPartyKey = ''
+    }
+  }
+
   return updated
 }
 
-export async function getUserPreset(presetId: string) {
+/**
+ * This function is for internal API use only
+ * The preset from here should never be returned to the user
+ *
+ * @param presetId
+ * @returns
+ */
+export async function getUserPreset(presetId: string, userId?: string) {
   const preset = await db('gen-setting').findOne({ _id: presetId })
+  if (preset?.localRequests && preset.thirdPartyKey && userId === preset.userId) {
+    preset.thirdPartyKey = decryptText(preset.thirdPartyKey)
+  }
   return preset
 }

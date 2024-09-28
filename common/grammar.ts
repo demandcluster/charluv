@@ -27,7 +27,7 @@ Expression = content:Parent* {
 
 Parent "parent-node" = v:(BotIterator / ChatEmbedIterator / HistoryIterator / HistoryInsert / LowPriority / Condition / Placeholder / Text) { return v }
 
-ManyPlaceholder "repeatable-placeholder" = OP i:(Character / User / Random / Roll) CL {
+ManyPlaceholder "repeatable-placeholder" = OP i:(Character / User / Random / DiceRoll) CL {
 	return { kind: 'placeholder', value: i }
 }
 
@@ -42,6 +42,8 @@ ChatEmbedIterator "chat-embed-iterator" = OP "#each" WS loop:ChatEmbed CL childr
 ChatEmbedChild = i:(ChatEmbedRef / ManyPlaceholder) { return i }
 
 LowPriority "lowpriority" = OP "#lowpriority"i CL children:(Placeholder / LowPriorityText)* CloseLowPriority { return { kind: 'lowpriority', children } }
+
+ElseBlock "else" = OP "#"? "else"i CL children:(Placeholder / BotIterator / ElseText)* CloseElseBlock { return { kind: 'else', children } } 
   
 Placeholder "placeholder"
   = OP WS interp:Interp WS pipes:Pipe* CL {
@@ -60,13 +62,15 @@ HistoryCondition "history-condition" = OP "#if" WS prop:HistoryProperty CL sub:(
   return { kind: 'history-if', prop, children: sub.flat() }
 }
 
-ConditionChild = Placeholder / Condition / LowPriority
+ConditionChild = Placeholder / Condition / LowPriority / ElseBlock
 Condition "if" = OP "#if" WS value:Word CL sub:(ConditionChild / ConditionText)* CloseCondition {
   return { kind: 'if', value, children: sub.flat() }
 }
 
+
 InsertText "insert-text" = !(BotChild / HistoryChild / CloseCondition / CloseInsert) ch:(.) { return ch }
 LowPriorityText "lowpriority-text" = !(BotChild / HistoryChild / CloseCondition / CloseLowPriority) ch:(.) { return ch }
+ElseText "else-text" = !(CloseElseBlock / CloseCondition / CloseLowPriority) ch:(.) { return ch }
 LoopText "loop-text" = !(BotChild / ChatEmbedChild / HistoryChild / CloseCondition / CloseLoop) ch:(.)  { return ch }
 ConditionText = !(ConditionChild / CloseCondition) ch:. { return ch }
 Text "text" = !(Placeholder / Condition / BotIterator / HistoryIterator / ChatEmbedIterator) ch:. { return ch }
@@ -85,6 +89,7 @@ CloseCondition = OP "/if"i CL
 CloseLoop = OP "/each"i CL
 CloseInsert = OP "/insert"i CL
 CloseLowPriority = OP "/lowpriority"i CL
+CloseElseBlock = OP "/else"i CL
 BasicChar = [a-zA-Z0-9]
 Word "word" = text:([a-zA-Z_ 0-9] / Symbol)+ { return text.join('') }
 Pipe "pipe" = _ "|" _ fn:Handler {  return fn }
@@ -102,6 +107,8 @@ Handler "handler" = "upper" / "lower"
 ChatEmbedRef = OP prop:ChatEmbedProperty CL {return { kind: 'chat-embed-prop', prop } }
 BotRef = OP prop:BotProperty CL {return { kind: 'bot-prop', prop } }
 HistoryRef = OP prop:HistoryProperty CL { return { kind: 'history-prop', prop } }
+
+JsonSchemaValue "json-schema-value" = ("json."i / "var."i) prop:Word { return { kind: 'json', values: prop } }
 
 ChatEmbedProperty "chat-embed-prop" = "." prop:("name"i / "text"i / "i"i) { return prop.toLowerCase() }
 BotProperty "bot-prop" = "." prop:("name"i / Persona / "i"i) { return prop.toLowerCase() }
@@ -124,7 +131,18 @@ ChatAge "chat-age" = "chat_age"i { return "chat_age" }
 IdleDuration "idle-duration" = "idle_duration"i { return "idle_duration" }
 UserEmbed "user-embed" = "user_embed"i { return "user_embed" }
 Random "random" = ("random"i) ":"? WS words:DelimitedWords { return { kind: "random", values: words } }
-Roll "roll" = ("roll"i / "dice"i) ":"? WS "d"|0..1| max:[0-9]|0..10| { return { kind: 'roll', values: +max.join('') || 20 } }
+Value "value" = "."? ("value"i) { return { kind: "value" } }
+
+DiceRoll "rolls" = ("roll"i / "dice"i) WS ":"? WS head:RollExpr tails:TailRoll*  { return { kind: 'roll', ...head, extra: tails } }
+
+RollPrefix = res:((amt:RollAmount "d" max:RollSides { return { amt, values: max } }) / v2:("d"? max:RollSides { return { values: max } })) { return res }
+RollExpr "roll-expr" = pre:RollPrefix keep:RollKeep? adjust:RollAdjust? { return { ...pre, keep, adjust } }
+RollSides "roll-sides" = sides:[0-9]|1..10| { return +sides.join('') }
+RollAmount "roll-amount" = h:[1-9] t:[0-9]|0..1| { const val = h + t.join(''); return +val }
+RollAdjust "roll-adjust" = dir:('+' / '-') amt:[0-9]+ { return +(amt.join('')) * (dir === '-' ? -1 : 1) }
+RollKeep "roll-keep" = dir:('L'i / 'H'i) amt:[0-9]+ { return +(amt.join('')) * (dir.toLowerCase() === 'l' ? -1 : 1) }
+
+TailRoll = WS '+' WS roll:RollExpr WS { return roll }
 
 // Iterable entities
 ChatEmbed "chat-embed" = ("chat_embed"i / "ltm"i / "long_memory"i / "longterm_memory"i / "long_term_memory"i) { return "chat_embed" }
@@ -150,5 +168,7 @@ Interp "interp"
   / IdleDuration
   / ChatEmbed
   / Random
-  / Roll
+  / DiceRoll
+  / JsonSchemaValue
+  / Value
 `

@@ -24,7 +24,7 @@ export type FormatTags = {
   closeSystem: string
 }
 
-export type ModelFormat = 'Charluv' | 'Alpaca' | 'Vicuna' | 'ChatML' | 'Mistral'
+export type ModelFormat = 'Charluv' | 'Llama3' | 'Alpaca' | 'Vicuna' | 'ChatML' | 'Mistral'
 
 export const BUILTIN_FORMATS: { [key in ModelFormat]: FormatTags } = {
   Charluv: {
@@ -53,7 +53,7 @@ export const BUILTIN_FORMATS: { [key in ModelFormat]: FormatTags } = {
   },
   ChatML: {
     openUser: '<|im_start|>user\n',
-    closeUser: '<|im_end>',
+    closeUser: '<|im_end|>',
     openBot: '<|im_start|>assistant\n',
     closeBot: '<|im_end|>',
     openSystem: '<|im_start|>system\n',
@@ -62,20 +62,28 @@ export const BUILTIN_FORMATS: { [key in ModelFormat]: FormatTags } = {
   Mistral: {
     openUser: `[INST] `,
     closeUser: `[/INST]\n`,
-    openBot: '[INST] ',
-    closeBot: ' [/INST]\n',
+    openBot: '',
+    closeBot: ' </s>\n',
     openSystem: '[INST] ',
     closeSystem: ' [/INST]\n',
+  },
+  Llama3: {
+    openSystem: `<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n`,
+    closeSystem: `<|eot_id|>`,
+    openUser: `<|start_header_id|>user<|end_header_id|>\n`,
+    closeUser: `<|eot_id|>`,
+    openBot: `<|start_header_id|>assistant<|end_header_id|>`,
+    closeBot: `<|eot_id|>`,
   },
 }
 
 export function replaceTags(prompt: string, format: FormatTags | ModelFormat) {
   if (!format) {
-    format = 'Alpaca'
+    format = 'Charluv'
   }
 
   if (typeof format === 'string' && format in BUILTIN_FORMATS === false) {
-    format = 'Alpaca'
+    format = 'Charluv'
   }
 
   const tags = typeof format === 'string' ? BUILTIN_FORMATS[format] : format
@@ -133,16 +141,12 @@ export const templates = {
   {{post}}
   `,
   Universal: neat`
-{{#if system_prompt}}<system>{{system_prompt}}</system>
-{{/if}}
-Below is an instruction that describes a task. Write a response that appropriately completes the request.
+<system>{{#if system_prompt}}{{value}}{{else}}Write "{{char}}'s" next reply in a fictional roleplay chat between "{{user}}" and "{{char}}".{{/else}}{{/if}}</system>
 
-Write {{char}}'s next reply in a fictional roleplay chat between {{#each bot}}{{.name}}, {{/each}}{{char}}.
-
-{{char}}'s Persona:
+"{{char}}'s" Persona:
 {{personality}}
 
-{{#if memory}}{{char}}'s Memory:
+{{#if memory}}"{{char}}'s" Memory:
 {{memory}}
 {{/if}}
 {{#if user_embed}}Relevant information to the conversation
@@ -154,29 +158,24 @@ Write {{char}}'s next reply in a fictional roleplay chat between {{#each bot}}{{
 {{#if chat_embed}}Relevant past conversation history
 {{chat_embed}}
 {{/if}}
-{{#if example_dialogue}}This is how {{char}} should talk:
+{{#if example_dialogue}}This is how "{{char}}" should talk:
 {{example_dialogue}}
 {{/if}}
 
-Then the roleplay chat between {{char}} and {{user}} begins.
+Then the roleplay chat between "{{char}}" and "{{user}}" begins.
 
 {{#each msg}}{{#if .isbot}}<bot>{{.name}}: {{.msg}}</bot>{{/if}}{{#if .isuser}}<user>{{.name}}: {{.msg}}</user>{{/if}}
 {{/each}}
-{{#if ujb}}<bot>
-{{ujb}}</bot>
-{{/if}}
-<bot>{{post}}`,
+
+<bot>{{#if ujb}}({{ujb}}) {{/if}}{{post}}`,
   Alpaca: neat`
-{{#if system_prompt}}{{system_prompt}}
+{{#if system_prompt}}{{value}}{{else}}Write "{{char}}'s" next reply in a fictional roleplay chat between "{{user}}" and "{{char}}".{{/else}}
 {{/if}}
-Below is an instruction that describes a task. Write a response that appropriately completes the request.
 
-Write {{char}}'s next reply in a fictional roleplay chat between {{#each bot}}{{.name}}, {{/each}}{{char}}.
-
-{{char}}'s Persona:
+"{{char}}'s" Persona:
 {{personality}}
 
-{{#if memory}}{{char}}'s Memory:
+{{#if memory}}"{{char}}'s" Memory:
 {{memory}}
 {{/if}}
 {{#if user_embed}}Relevant information to the conversation
@@ -187,9 +186,11 @@ Write {{char}}'s next reply in a fictional roleplay chat between {{#each bot}}{{
 {{#if chat_embed}}Relevant past conversation history
 {{chat_embed}}
 {{/if}}
-{{#if example_dialogue}}This is how {{char}} should talk: {{example_dialogue}}
+{{#if example_dialogue}}This is how "{{char}}" should talk: {{example_dialogue}}
 {{/if}}
-***  
+
+Then the roleplay chat between "{{char}}" and "{{user}}" begins.
+
 {{#each msg}}{{#if .isbot}}### Response:\n{{.name}}: {{.msg}}{{/if}}{{#if .isuser}}### Instruction:\n{{.name}}: {{.msg}}{{/if}}
 {{/each}}
 {{#if ujb}}### Instruction:
@@ -198,22 +199,22 @@ Write {{char}}'s next reply in a fictional roleplay chat between {{#each bot}}{{
 ### Response:
   {{post}}`,
   Vicuna: neat`
-{{#if system_prompt}}{{system_prompt}}
+{{#if system_prompt}}{{system_prompt}}{{else}}Write "{{char}}'s" next reply in a fictional roleplay chat between "{{user}}" and "{{char}}".{{/else}}
 {{/if}}
 Below is an instruction that describes a task. Write a response that appropriately completes the request.
 
-Write {{char}}'s next reply in a fictional roleplay chat between {{#each bot}}{{.name}}, {{/each}}{{char}}.
 
-{{char}}'s Persona:
+
+"{{char}}'s" Persona:
 {{personality}}
 
-{{#if memory}}{{char}}'s Memories:
+{{#if memory}}"{{char}}'s" Memories:
 {{memory}}
 {{/if}}
-{{#if scenario}}This scenario of the conversation:
+{{#if scenario}}The scenario of the conversation:
 {{scenario}}
 {{/if}}
-{{#if example_dialogue}}This is how {{char}} should talk:
+{{#if example_dialogue}}This is how "{{char}}" should talk:
 {{example_dialogue}}
 {{/if}}
 
@@ -257,21 +258,17 @@ Summary: {{scenario}}
 {{/if}}
 {{post}}`,
   Metharme: neat`
-{{#if system_prompt}}{{system_prompt}}{{/if}}
-
-Below is an instruction that describes a task. Write a response that appropriately completes the request.
-
-Write {{char}}'s next reply in a fictional roleplay chat between {{#each bot}}{{.name}}, {{/each}}{{char}}.
+{{#if system_prompt}}{{system_prompt}}{{else}}Write "{{char}}'s" next reply in a fictional roleplay chat between "{{user}}" and "{{char}}".{{/else}}{{/if}}
 
 {{char}}'s Persona:
 {{personality}}
-{{#if memory}}{{char}}'s Memory:
+{{#if memory}}"{{char}}'s" Memory:
 {{memory}}
 {{/if}}
-{{#if scenario}}This scenario of the conversation:
+{{#if scenario}}The scenario of the conversation:
 {{scenario}}
 {{/if}}
-{{#if example_dialogue}}This is how {{char}} should talk:
+{{#if example_dialogue}}This is how "{{char}}" should talk:
 {{example_dialogue}}
 {{/if}}
 
@@ -281,32 +278,26 @@ Write {{char}}'s next reply in a fictional roleplay chat between {{#each bot}}{{
 {{/if}}
 <|model|>{{post}}`,
   ChatML: neat`
-{{#if system_prompt}}<|im_start|>system
-{{system_prompt}}<|im_end|>{{/if}}
-
 <|im_start|>system
-Below is an instruction that describes a task. Write a response that appropriately completes the request.<|im_end|>
+{{#if system_prompt}}{{system_prompt}}{{else}}{{else}}Write "{{char}}'s" next reply in a fictional roleplay chat between "{{user}}" and "{{char}}".{{/else}}{{/if}}<|im_end|>
 
-<|im_start|>system
-Write {{char}}'s next reply in a fictional roleplay chat between {{#each bot}}{{.name}}, {{/each}}{{char}}.
-
-{{char}}'s Persona:
+"{{char}}'s" Persona:
 {{personality}}
 
-{{#if memory}}{{char}}'s Memory: {{memory}}
+{{#if memory}}"{{char}}'s" Memory: {{memory}}
 {{/if}}
-{{#if scenario}}This scenario of the conversation: {{scenario}}
+{{#if scenario}}The scenario of the conversation: {{scenario}}
 {{/if}}
-{{#if example_dialogue}}This is how {{char}} should talk: {{example_dialogue}}
+{{#if example_dialogue}}This is how "{{char}}" should talk: {{example_dialogue}}
 {{/if}}
-Then the roleplay chat between {{#each bot}}{{.name}}, {{/each}}{{char}} begins.<|im_end|>
+Then the roleplay chat begins.<|im_end|>
 
-{{#each msg}}{{#if .isbot}}<|im_start|>assistant{{/if}}{{#if .isuser}}<|im_start|>user{{/if}}
-{{.name}}: {{.msg}}<|im_end|>
+{{#each msg}}<|im_start|>[{{.name}}]
+{{.msg}}<|im_end|>
 {{/each}}
 {{#if ujb}}<|im_start|>system
 {{ujb}}<|im_end|>
 {{/if}}
-<|im_start|>assistant
+<|im_start|>[{{char}}]
 {{post}}`,
 }

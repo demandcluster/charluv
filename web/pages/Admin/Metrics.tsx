@@ -1,5 +1,4 @@
-import { Component, createSignal, onMount } from 'solid-js'
-import { A } from '@solidjs/router'
+import { Component, createMemo, createSignal, For, onMount } from 'solid-js'
 import Button from '../../shared/Button'
 import { FormLabel } from '../../shared/FormLabel'
 import PageHeader from '../../shared/PageHeader'
@@ -8,6 +7,7 @@ import { adminStore } from '../../store'
 import { Card } from '/web/shared/Card'
 import TextInput from '/web/shared/TextInput'
 import { ConfirmModal } from '/web/shared/Modal'
+import { Page } from '/web/Layout'
 
 const MetricsPage: Component = () => {
   let refForm: any
@@ -18,39 +18,54 @@ const MetricsPage: Component = () => {
   const [confirm, setConfirm] = createSignal(false)
 
   onMount(() => {
-    adminStore.getMetrics()
     adminStore.getShared()
+    adminStore.getMetrics()
   })
-
   const sendAll = () => {
-    const { message } = getStrictForm(refForm, { message: 'string' })
-    adminStore.sendAll(message, () => {
+    const { message, userLevel } = getStrictForm(refForm, {
+      message: 'string',
+      userLevel: 'number',
+    })
+    adminStore.sendAll(message, userLevel, () => {
       refMsg().value = ''
     })
   }
 
-  return (
-    <>
-      <PageHeader title="Metrics" />
-      <div class="mb-4 flex gap-4">
-        <A href="/admin/subscriptions">
-          <Button>Subscriptions</Button>
-        </A>
-        <A href="/admin/users">
-          <Button>User Management</Button>
-        </A>
-        <A href="/admin/shared">
-          <Button>Shared Characters Management</Button>
-        </A>
-        <Button onClick={adminStore.getMetrics}>Refresh</Button>
-      </div>
+  const shas = createMemo(() => {
+    return Object.entries(state.metrics?.shas || {}).map(([sha, count]) => ({ sha, count }))
+  })
 
+  return (
+    <Page>
+      <PageHeader title="Metrics" />
+      <div class="flex">
+        <div class="mb-4 mr-4 flex gap-4">
+          <Button onClick={adminStore.getMetrics}>Refresh</Button>
+        </div>
+        <div class="mb-4 flex gap-4">
+          <a href="/admin/shared">
+            <Button>Shared Characters Management</Button>
+          </a>
+        </div>
+      </div>
       <div class="flex flex-col gap-2 text-xl">
         <FormLabel
           fieldName="active"
           label="Online Users"
           helperText={state.metrics?.connected || '...'}
         />
+
+        <div class="flex flex-col gap-1">
+          <div class="font-bold">Versions</div>
+
+          <For each={shas()}>
+            {(each) => (
+              <div class="flex gap-1 text-sm">
+                {each.sha}: {each.count}
+              </div>
+            )}
+          </For>
+        </div>
 
         <FormLabel
           fieldName="active"
@@ -64,17 +79,17 @@ const MetricsPage: Component = () => {
           helperText={state.metrics?.totalUsers || '...'}
         />
 
+        <FormLabel fieldName="services" label="Services" helperText={state.metrics?.each.length} />
         <FormLabel
           fieldName="shared"
           label="Shared Characters"
           helperText={state?.shared?.length || '...'}
         />
-        <FormLabel fieldName="services" label="Services" helperText={state.metrics?.each.length} />
-
         <Card>
-          <form ref={refForm}>
+          <form ref={refForm} class="flex flex-col gap-1">
             <FormLabel label="Message All Users" />
             <TextInput ref={setRefMsg} fieldName="message" isMultiline />
+            <TextInput type="number" fieldName="userLevel" value={-1} />
             <Button onClick={() => setConfirm(true)}>Send</Button>
           </form>
         </Card>
@@ -86,7 +101,7 @@ const MetricsPage: Component = () => {
         confirm={sendAll}
         message="Are you sure you wish to send a message to all users?"
       />
-    </>
+    </Page>
   )
 }
 

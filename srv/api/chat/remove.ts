@@ -5,7 +5,7 @@ import { sendMany } from '../ws'
 
 export const deleteMessages = handle(async ({ body, params, userId }) => {
   const chatId = params.id
-  assertValid({ ids: ['string'] }, body)
+  assertValid({ ids: ['string'], leafId: 'string?', parents: 'any?' }, body)
 
   const chat = await store.chats.getChatOnly(chatId)
   if (!chat) {
@@ -17,6 +17,25 @@ export const deleteMessages = handle(async ({ body, params, userId }) => {
   }
 
   await store.msgs.deleteMessages(body.ids)
+
+  if (body.leafId) {
+    await store.chats.update(chatId, { treeLeafId: body.leafId })
+  }
+
+  if (body.parents) {
+    for (const [msgId, parent] of Object.entries(body.parents)) {
+      if (!parent) continue
+      if (typeof parent !== 'string') continue
+      await store.msgs.editChatMessage(msgId, chatId, { parent })
+    }
+
+    sendMany(chat.memberIds.concat(chat.userId), {
+      type: 'message-parents',
+      chatId,
+      parents: body.parents,
+    })
+  }
+
   sendMany(chat.memberIds.concat(chat.userId), { type: 'messages-deleted', ids: body.ids })
   return { success: true }
 })

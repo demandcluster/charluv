@@ -65,7 +65,7 @@ const Character: Component<{
         role="link"
         aria-label={`Open chats with ${props.char.name}`}
       >
-        <CharacterAvatar char={props.char} zoom={1.75} />
+        <CharacterAvatar char={props.char} zoom={1.75} format={{ size: 'md', corners: 'circle' }} />
         <div class="flex max-w-full flex-col overflow-hidden">
           <span class="ellipsis font-bold">{props.char.name}</span>
           <span class="ellipsis">{props.char.description}</span>
@@ -98,7 +98,9 @@ const CharacterListOptions: Component<{
         <Show when={props.char.name !== 'Aiva' && props.char?.parent}>
           <Gauge showBar={false} currentXP={props.char.xp} />
         </Show>
-
+        <Show when={props.char?.parent}>
+          <User class="icon-button" onClick={() => nav(`/likes/${props.char._id}/profile`)} />
+        </Show>
         <Show when={props.char.favorite}>
           <a
             href="#"
@@ -126,7 +128,7 @@ const CharacterListOptions: Component<{
         >
           <MessageCircle class="icon-button" />
         </A>
-        <Show when={!props.char?.parent && props.char?.name !== 'Aiva'}>
+        <Show when={props.char?.name !== 'Aiva'}>
           <a
             href="#"
             onClick={props.download}
@@ -159,9 +161,6 @@ const CharacterListOptions: Component<{
         >
           <Trash class="icon-button" />
         </a>
-        <Show when={props.char?.parent}>
-          <User class="icon-button" onClick={() => nav(`/likes/${props.char._id}/profile`)} />
-        </Show>
       </div>
 
       <div class="flex items-center gap-2 sm:hidden" onClick={() => setListOpts(true)}>
@@ -191,7 +190,7 @@ const CharacterListOptions: Component<{
           <Button onClick={() => nav(`/chats/create/${props.char._id}`)} alignLeft size="sm">
             <MessageCircle /> Chat
           </Button>
-          <Show when={!props.char?.parent && props.char?.name !== 'Aiva'}>
+          <Show when={props.char?.name !== 'Aiva'}>
             <Button alignLeft onClick={props.download} size="sm">
               <Download /> Download
             </Button>

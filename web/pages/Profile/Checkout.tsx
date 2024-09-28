@@ -4,18 +4,19 @@ import { Pill, SolidCard } from '/web/shared/Card'
 import Button from '/web/shared/Button'
 import { useSearchParams } from '@solidjs/router'
 import { userStore } from '/web/store'
+import { Page } from '/web/Layout'
 
 export const CheckoutSuccess: Component = (props) => {
   const [query] = useSearchParams()
 
   onMount(() => {
-    userStore.finishCheckout(query.session_id, 'success', () => {
+    userStore.finishCheckout(query.session_id!, 'success', () => {
       window.close()
     })
   })
 
   return (
-    <>
+    <Page>
       <PageHeader title="Checkout Success" />
       <div class="flex flex-col items-center gap-4">
         <SolidCard class="flex flex-col items-center gap-4">
@@ -25,7 +26,7 @@ export const CheckoutSuccess: Component = (props) => {
         </SolidCard>
         <Button onClick={() => window.close()}>Close Window</Button>
       </div>
-    </>
+    </Page>
   )
 }
 
@@ -33,11 +34,11 @@ export const CheckoutCancel: Component = (props) => {
   const [query] = useSearchParams()
 
   onMount(() => {
-    userStore.finishCheckout(query.session_id, 'cancel')
+    userStore.finishCheckout(query.session_id!, 'cancel')
   })
 
   return (
-    <>
+    <Page>
       <PageHeader title="Checkout Cancelled" />
 
       <div class="flex flex-col items-center gap-4">
@@ -46,6 +47,6 @@ export const CheckoutCancel: Component = (props) => {
         </SolidCard>
         <Button onClick={() => window.close()}>Close Window</Button>
       </div>
-    </>
+    </Page>
   )
 }

@@ -4,12 +4,11 @@ import { settingStore, userStore } from '../../../store'
 import Button from '../../../shared/Button'
 import { Option } from '../../../shared/Select'
 import { Save, X } from 'lucide-solid'
-import Modal from '../../../shared/Modal'
+import { RootModal } from '../../../shared/Modal'
 import MultiDropdown from '../../../shared/MultiDropdown'
 import { HordeModel, HordeWorker } from '../../../../common/adapters'
 import { Toggle } from '../../../shared/Toggle'
 import { toArray } from '/common/util'
-import { rootModalStore } from '/web/store/root-modal'
 import { Pill } from '/web/shared/Card'
 
 const HordeAISettings: Component<{
@@ -88,7 +87,7 @@ const HordeAISettings: Component<{
       <span>
         Leave blank to use guest account. Visit{' '}
         <a class="link" href="https://aihorde.net" target="_blank">
-          stablehorde.net
+          aihorde.net
         </a>{' '}
         to register.
       </span>
@@ -225,45 +224,40 @@ const ModelModal: Component<{
     props.close()
   }
 
-  rootModalStore.addModal({
-    id: 'horde-models',
-    element: (
-      <Modal
-        show={props.show}
-        close={props.close}
-        title="Specify AI Horde Models"
-        footer={
-          <>
-            <Button schema="secondary" onClick={props.close}>
-              <X /> Cancel
-            </Button>
-            <Button onClick={save}>
-              <Save /> Select Model(s)
-            </Button>
-          </>
-        }
-      >
-        <div class="flex flex-col gap-4 text-sm">
-          <MultiDropdown
-            class="min-h-[6rem]"
-            fieldName="workers"
-            items={cfg.models}
-            label="Select Model(s)"
-            onChange={setSelected}
-            values={selected()?.map((s) => s.value) || state.models}
-          />
-          <div class="flex items-center justify-between gap-4">
-            <div>Models selected: {selected()?.length || state.models.length || '0'}</div>
-            <Button schema="gray" class="w-max" onClick={() => setSelected([])}>
-              De-select All
-            </Button>
-          </div>
+  return (
+    <RootModal
+      show={props.show}
+      close={props.close}
+      title="Specify AI Horde Models"
+      footer={
+        <>
+          <Button schema="secondary" onClick={props.close}>
+            <X /> Cancel
+          </Button>
+          <Button onClick={save}>
+            <Save /> Select Model(s)
+          </Button>
+        </>
+      }
+    >
+      <div class="flex flex-col gap-4 text-sm">
+        <MultiDropdown
+          class="min-h-[6rem]"
+          fieldName="workers"
+          items={cfg.models}
+          label="Select Model(s)"
+          onChange={setSelected}
+          values={selected()?.map((s) => s.value) || state.models}
+        />
+        <div class="flex items-center justify-between gap-4">
+          <div>Models selected: {selected()?.length || state.models.length || '0'}</div>
+          <Button schema="gray" class="w-max" onClick={() => setSelected([])}>
+            De-select All
+          </Button>
         </div>
-      </Modal>
-    ),
-  })
-
-  return null
+      </div>
+    </RootModal>
+  )
 }
 
 const WorkerModal: Component<{
@@ -289,51 +283,46 @@ const WorkerModal: Component<{
     props.close()
   }
 
-  rootModalStore.addModal({
-    id: 'horde-workers',
-    element: (
-      <Modal
-        show={props.show}
-        close={props.close}
-        title="Specify AI Horde Workers"
-        footer={
-          <>
-            <Button schema="secondary" onClick={props.close}>
-              <X /> Cancel
-            </Button>
-            <Button onClick={save}>
-              <Save /> Select Workers
-            </Button>
-          </>
-        }
-      >
-        <div class="flex flex-col gap-4 text-sm">
-          <MultiDropdown
-            fieldName="workers"
-            items={cfg.workers}
-            label="Select Workers"
-            helperText="To use any worker de-select all workers"
-            onChange={setSelected}
-            values={selected()?.map((s) => s.value) || state.user?.hordeWorkers || []}
-          />
-          <div>
-            The number showns in brackets are the worker's <b>Max Context Length / Max Tokens</b>{' '}
-            limits. If you wish to use that worker, your preset should not exceed these values.
-            <br />
-            E.g. <b>(1024/80)</b>
-          </div>
-          <div class="flex  items-center justify-between gap-4">
-            <p>Workers selected: {selected()?.length || state.user?.hordeWorkers?.length || '0'}</p>
-            <Button schema="gray" class="w-max" onClick={() => setSelected([])}>
-              De-select All
-            </Button>
-          </div>
+  return (
+    <RootModal
+      show={props.show}
+      close={props.close}
+      title="Specify AI Horde Workers"
+      footer={
+        <>
+          <Button schema="secondary" onClick={props.close}>
+            <X /> Cancel
+          </Button>
+          <Button onClick={save}>
+            <Save /> Select Workers
+          </Button>
+        </>
+      }
+    >
+      <div class="flex flex-col gap-4 text-sm">
+        <MultiDropdown
+          fieldName="workers"
+          items={cfg.workers}
+          label="Select Workers"
+          helperText="To use any worker de-select all workers"
+          onChange={setSelected}
+          values={selected()?.map((s) => s.value) || state.user?.hordeWorkers || []}
+        />
+        <div>
+          The number showns in brackets are the worker's <b>Max Context Length / Max Tokens</b>{' '}
+          limits. If you wish to use that worker, your preset should not exceed these values.
+          <br />
+          E.g. <b>(1024/80)</b>
         </div>
-      </Modal>
-    ),
-  })
-
-  return null
+        <div class="flex  items-center justify-between gap-4">
+          <p>Workers selected: {selected()?.length || state.user?.hordeWorkers?.length || '0'}</p>
+          <Button schema="gray" class="w-max" onClick={() => setSelected([])}>
+            De-select All
+          </Button>
+        </div>
+      </div>
+    </RootModal>
+  )
 }
 
 function toItem(model: HordeModel) {

@@ -9,11 +9,14 @@ import { imageApi } from './data/image'
 import { getAssetUrl, storage, toMap } from '../shared/util'
 import { toCharacterMap } from '../pages/Character/util'
 import { getUserId } from './api'
+import { getStoredValue, setStoredValue } from '../shared/hooks'
+import { HordeCheck } from '/common/horde-gen'
 
 const IMPERSONATE_KEY = 'agnai-impersonate'
 
 type CharacterState = {
   loading?: boolean
+  hordeStatus?: HordeCheck
   impersonating?: AppSchema.Character
   characters: {
     loaded: number
@@ -21,6 +24,7 @@ type CharacterState = {
     map: Record<string, AppSchema.Character>
   }
   editing?: AppSchema.Character
+  activeChatId: string
   chatChars: {
     chatId: string
     list: AppSchema.Character[]
@@ -68,6 +72,7 @@ export type UpdateCharacter = Partial<
 const initState: CharacterState = {
   loading: false,
   creating: false,
+  activeChatId: '',
   characters: { loaded: 0, list: [], map: {} },
   chatChars: { chatId: '', list: [], map: {} },
   generate: {
@@ -105,18 +110,9 @@ export const characterStore = createStore<CharacterState>(
   events.on(
     EVENTS.charsReceived,
     async (chatId: string, chars: AppSchema.Character[], temps: AppSchema.Character[]) => {
-      const state = get()
-      const id = await storage.getItem(IMPERSONATE_KEY)
-      let impersonating =
-        !state.impersonating && id
-          ? chars.concat(temps).find((ch) => ch._id === id)
-          : state.impersonating
-
-      if (id?.startsWith('temp') && temps.every((ch) => ch._id !== id)) {
-        impersonating = undefined
-      }
-
-      set({ chatChars: { chatId, list: chars, map: toMap(chars) }, impersonating })
+      const allChars = chars.concat(temps)
+      set({ chatChars: { chatId, list: allChars, map: toMap(allChars) } })
+      characterStore.loadImpersonate()
     }
   )
 
@@ -125,13 +121,18 @@ export const characterStore = createStore<CharacterState>(
     events.emit(EVENTS.allChars, data.characters)
   })
 
+  events.on(EVENTS.chatOpened, (chatId: string) => {
+    set({ activeChatId: chatId })
+  })
+
+  events.on(EVENTS.chatClosed, () => {
+    set({ activeChatId: '' })
+    characterStore.loadImpersonate()
+  })
+
   events.on(EVENTS.allChars, async (chars: AppSchema.Character[]) => {
     const state = get()
-    const id = await storage.getItem(IMPERSONATE_KEY)
     const userId = getUserId()
-
-    const impersonating =
-      !state.impersonating && id ? chars.find((ch) => ch._id === id) : state.impersonating
 
     set({
       characters: {
@@ -139,8 +140,11 @@ export const characterStore = createStore<CharacterState>(
         list: chars.filter((ch) => ch.userId === userId),
         loaded: Date.now(),
       },
-      impersonating,
     })
+
+    if (state.impersonating) return
+
+    characterStore.loadImpersonate()
   })
 
   return {
@@ -177,36 +181,40 @@ export const characterStore = createStore<CharacterState>(
         return toastStore.error('Failed to retrieve characters')
       }
 
-      if (res.result && state.impersonating) {
+      if (res.result) {
         return {
           characters: {
             list: res.result.characters,
             map: toMap(res.result.characters),
             loaded: Date.now(),
           },
-          loading: false,
-        }
-      }
-
-      if (res.result && !state.impersonating) {
-        const id = await storage.getItem(IMPERSONATE_KEY)
-        const impersonating = res.result.characters.find((ch: AppSchema.Character) => ch._id === id)
-
-        return {
-          characters: {
-            list: res.result.characters,
-            map: toMap(res.result.characters),
-            loaded: Date.now(),
-          },
-          impersonating,
           loading: false,
         }
       }
     },
 
-    impersonate(_, char?: AppSchema.Character) {
-      storage.setItem(IMPERSONATE_KEY, char?._id || '')
+    async impersonate({ activeChatId }, char?: AppSchema.Character) {
+      if (!activeChatId) {
+        storage.localSetItem(IMPERSONATE_KEY, char?._id || '')
+      } else {
+        setStoredValue(`${activeChatId}-impersonate`, char?._id || '')
+      }
       return { impersonating: char || undefined }
+    },
+
+    async loadImpersonate({
+      activeChatId,
+      chatChars: { list },
+      characters: { list: allList },
+      impersonating: current,
+    }) {
+      const fallback = storage.localGetItem(IMPERSONATE_KEY) || ''
+      let id = activeChatId ? getStoredValue(`${activeChatId}-impersonate`, fallback) : fallback
+
+      if (!id) return
+
+      const impersonating = id ? allList.concat(list).find((ch) => ch._id === id) : current
+      return { impersonating }
     },
 
     async *createCharacter(
@@ -233,15 +241,49 @@ export const characterStore = createStore<CharacterState>(
         onSuccess?.(res.result)
       }
     },
-    async *editCharacter(
+    async *editPartialCharacter(
+      { characters: { list, map, loaded }, chatChars },
+      characterId: string,
+      char: Partial<AppSchema.Character>,
+      onSuccess?: () => void
+    ) {
+      const res = await charsApi.editPartialCharacter(characterId, char)
+
+      if (res.error) toastStore.error(`Failed to update character: ${res.error}`)
+
+      if (res.result) {
+        const next: AppSchema.Character = res.result
+        events.emit(EVENTS.charUpdated, res.result, 'updated')
+        toastStore.success(`Successfully updated character`)
+
+        const isChatChar = !!chatChars.map[next._id]
+        const nextChars = { ...chatChars }
+        if (isChatChar) {
+          nextChars.map = Object.assign({}, nextChars.map, { [next._id]: next })
+          nextChars.list = nextChars.list.map((ch) => (ch._id === next._id ? next : ch))
+        }
+
+        yield {
+          characters: {
+            list: list.map((ch) => (ch._id === characterId ? { ...ch, ...res.result } : ch)),
+            map: replace(map, characterId, res.result),
+            loaded,
+          },
+          chatChars: nextChars,
+        }
+        onSuccess?.()
+      }
+    },
+    async *editFullCharacter(
       { characters: { list, map, loaded }, chatChars },
       characterId: string,
       char: UpdateCharacter,
       onSuccess?: () => void
     ) {
-      const res = await charsApi.editCharacter(characterId, char)
+      const previous = map[characterId]
+      const res = await charsApi.editCharacter(characterId, char, previous)
 
-      if (res.error) toastStore.error(`Failed to create character: ${res.error}`)
+      if (res.error) toastStore.error(`Failed to update character: ${res.error}`)
       if (res.result) {
         const next: AppSchema.Character = res.result
         events.emit(EVENTS.charUpdated, res.result, 'updated')
@@ -350,20 +392,23 @@ export const characterStore = createStore<CharacterState>(
       try {
         let prompt =
           typeof persona === 'string'
-            ? `full body, ${persona}`
+            ? `${persona}`
             : await createAppearancePrompt(user, { persona })
 
         prompt = prompt.replace(/\n+/g, ', ').replace(/\s+/g, ' ')
-        yield { generate: { image: null, loading: true, blob: null } }
+        yield { generate: { image: null, loading: true, blob: null }, hordeStatus: undefined }
         imageCallback = onDone
-        const res = await imageApi.generateImageWithPrompt(
+        const res = await imageApi.generateImageWithPrompt({
           prompt,
-          'avatar',
-          async ({ image, file, data }) => {
+          source: 'avatar',
+          onTick: (status) => {
+            set({ hordeStatus: status })
+          },
+          onDone: async ({ image, file, data }) => {
             onDone?.(null, file)
             set({ generate: { image: data, loading: false, blob: file } })
-          }
-        )
+          },
+        })
         if (res.error) {
           onDone?.(res.error)
           yield { generate: { image: prev.image, loading: false, blob: prev.blob } }
@@ -390,6 +435,9 @@ subscribe('image-generated', { image: 'string', source: 'string' }, async (body)
 })
 
 subscribe('image-failed', { error: 'string' }, (body) => {
+  const { generate } = characterStore.getState()
+  if (!generate.loading) return
+
   characterStore.setState({ generate: { image: null, loading: false, blob: null } })
   toastStore.error(`Failed to generate avatar: ${body.error}`)
 })
@@ -422,3 +470,7 @@ function replace(
   const next = map[id] || {}
   return { ...map, [id]: { ...next, ...char } }
 }
+
+subscribe('horde-status', { status: 'any' }, (body) => {
+  characterStore.setState({ hordeStatus: body.status })
+})

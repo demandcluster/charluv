@@ -1,9 +1,18 @@
 import './chat-detail.css'
-import { Component, createEffect, createMemo, createSignal, Index, onCleanup, Show } from 'solid-js'
+import {
+  Component,
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  Index,
+  onCleanup,
+  Show,
+} from 'solid-js'
 import { useNavigate, useParams } from '@solidjs/router'
 import ChatExport from './ChatExport'
 import Button from '../../shared/Button'
-import { setComponentPageTitle } from '../../shared/util'
+import { getAssetUrl, setComponentPageTitle, sticky } from '../../shared/util'
 import { characterStore, chatStore, settingStore, userStore } from '../../store'
 import { msgStore } from '../../store'
 import Message from './components/Message'
@@ -13,7 +22,7 @@ import { devCycleAvatarSettings, isDevCommand } from './dev-util'
 import ForcePresetModal from './ForcePreset'
 import DeleteChatModal from './components/DeleteChat'
 import { useEffect, usePaneManager } from '/web/shared/hooks'
-import { emptyMsg, InfiniteScroll, insertImageMessages, SwipeMessage } from './helpers'
+import { emptyMsg, LoadMore, insertImageMessages, SwipeMessage } from './helpers'
 import { useAutoExpression } from '/web/shared/Avatar/hooks'
 import AvatarContainer from '/web/shared/Avatar/Container'
 import { eventStore } from '/web/store/event'
@@ -25,6 +34,9 @@ import { ChatHeader } from './ChatHeader'
 import { ChatFooter } from './ChatFooter'
 import { ConfirmModal } from '/web/shared/Modal'
 import { TitleCard } from '/web/shared/Card'
+import { ChatGraphModal } from './components/GraphModal'
+import { EVENTS, events } from '/web/emitter'
+import { AppSchema } from '/common/types'
 
 export { ChatDetail as default }
 
@@ -100,7 +112,6 @@ const ChatDetail: Component = () => {
   const [removeId, setRemoveId] = createSignal('')
 
   const [showHiddenEvents, setShowHiddenEvents] = createSignal(false)
-  const [linesAddedCount, setLinesAddedCount] = createSignal<number | undefined>(undefined)
 
   const chatMsgs = createMemo(() => {
     const self = user.profile
@@ -134,14 +145,9 @@ const ChatDetail: Component = () => {
     })
   })
 
-  createEffect(() => {
-    chatStore.computePrompt(msgs.msgs[msgs.msgs.length - 1], false)
-    setLinesAddedCount(chats.linesAddedCount)
-  })
-
-  const firstInsertedMsgIndex = createMemo(() => {
-    const linesAdded = linesAddedCount()
-    if (linesAdded) return chatMsgs().length - 1 - linesAdded
+  onCleanup(() => {
+    sticky.clear()
+    events.emit('chat-closed')
   })
 
   createEffect(() => {
@@ -189,14 +195,33 @@ const ChatDetail: Component = () => {
     const char = charId ? ctx.allBots[charId] : undefined
 
     const handle = msgs.waiting.mode !== 'self' ? char?.name : profile?.handle
-    return emptyMsg({
-      id: 'partial',
-      charId: msgs.waiting?.mode !== 'self' ? msgs.waiting.characterId : undefined,
-      userId: msgs.waiting?.mode === 'self' ? msgs.waiting.userId || user.user?._id : undefined,
-      message: msgs.partial || '',
-      adapter: 'partial',
-      handle: handle || 'You',
-    })
+
+    const waitingMsgs: AppSchema.ChatMessage[] = []
+
+    if (msgs.waiting.input) {
+      waitingMsgs.push(
+        emptyMsg({
+          id: 'partial-input',
+          charId: ctx.impersonate?._id,
+          userId: user.user?._id,
+          message: msgs.waiting.input || '',
+          handle: ctx.impersonate?.name || profile?.handle || 'You',
+        })
+      )
+    }
+
+    waitingMsgs.push(
+      emptyMsg({
+        id: 'partial-response',
+        charId: msgs.waiting?.mode !== 'self' ? msgs.waiting.characterId : undefined,
+        userId: msgs.waiting?.mode === 'self' ? msgs.waiting.userId || user.user?._id : undefined,
+        message: msgs.partial || '',
+        adapter: 'partial-response',
+        handle: handle || 'You',
+      })
+    )
+
+    return waitingMsgs
   })
 
   const clearModal = () => {
@@ -218,7 +243,6 @@ const ChatDetail: Component = () => {
 
   createEffect(() => {
     if (!msgs.inference) return
-    if (!ctx.info) return
 
     // express.classify(opts.preset, msgs.inference.text)
     msgStore.clearLastInference()
@@ -233,8 +257,11 @@ const ChatDetail: Component = () => {
       return nav(`/chat/${chats.lastId}`)
     }
 
+    events.emit(EVENTS.chatOpened, params.id)
     if (params.id !== chats.chat?._id) {
-      chatStore.getChat(params.id)
+      chatStore.openChat(params.id)
+    } else {
+      characterStore.loadImpersonate()
     }
   })
 
@@ -268,11 +295,23 @@ const ChatDetail: Component = () => {
     })
   }
 
+  const discardSwipe = (msgId: string, index: number) => {
+    msgStore.discardSwipe(msgId, index, () => {
+      setSwipe(Math.max(index - 1, 0))
+    })
+  }
+
   const indexOfLastRPMessage = createMemo(() => {
-    return msgs.msgs.reduceRight(
-      (prev, curr, i) => (prev > -1 ? prev : !curr.ooc && curr.adapter !== 'image' ? i : -1),
-      -1
-    )
+    const msgs = chatMsgs()
+
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      const curr = msgs[i]
+      if (!curr.ooc && curr.adapter !== 'image') {
+        return i
+      }
+    }
+
+    return -1
   })
 
   const generateFirst = () => {
@@ -329,6 +368,16 @@ const ChatDetail: Component = () => {
 
         msgStore.request(msg.chatId, msg.characterId)
       }
+
+      if (ev.key === 'g') {
+        ev.preventDefault()
+        chatStore.option({ options: false, modal: 'graph' })
+      }
+
+      if (ev.key === 'p') {
+        ev.preventDefault()
+        msgStore.createImage()
+      }
     }
 
     document.addEventListener('keydown', keyboardShortcuts)
@@ -366,12 +415,10 @@ const ChatDetail: Component = () => {
     )
   })
 
-  onCleanup(clearScrollMonitor)
-
   return (
     <>
+      <ChatHeader ctx={ctx} isOwner={isOwner()} />
       <ModeDetail
-        header={<ChatHeader ctx={ctx} isOwner={isOwner()} />}
         footer={
           <ChatFooter
             ctx={ctx}
@@ -386,11 +433,12 @@ const ChatDetail: Component = () => {
         showPane={showPane()}
         pane={<ChatPanes />}
         split={split()}
+        splitHeight={user.ui.viewHeight}
       >
         <section
           data-messages
-          class={`mx-auto flex w-full flex-col-reverse gap-4 overflow-y-auto`}
-          ref={monitorScroll}
+          class={`flex w-full flex-col-reverse gap-4 overflow-y-auto`}
+          ref={sticky.monitor}
         >
           <div id="chat-messages" class="flex w-full flex-col gap-2">
             <Show when={chats.loaded && chatMsgs().length < 2 && chats.char?.description}>
@@ -400,12 +448,12 @@ const ChatDetail: Component = () => {
               </div>
             </Show>
             <Show when={chats.loaded && chatMsgs().length === 0 && !msgs.waiting}>
-              <div class="flex justify-center">
+              <div class="flex justify-center gap-2">
                 <Button onClick={generateFirst}>Generate Message</Button>
               </div>
             </Show>
             {/* Original Slot location */}
-            <InfiniteScroll canFetch={chars.ready} />
+            <LoadMore canFetch={chars.ready} />
 
             <Index each={chatMsgs()}>
               {(msg, i) => (
@@ -420,6 +468,7 @@ const ChatDetail: Component = () => {
                     }
                     confirmSwipe={() => confirmSwipe(msg()._id)}
                     cancelSwipe={cancelSwipe}
+                    discardSwipe={() => discardSwipe(msg()._id, swipe())}
                     tts={tts()}
                     retrying={msgs.retrying}
                     partial={msgs.partial}
@@ -429,7 +478,6 @@ const ChatDetail: Component = () => {
                     voice={
                       msg()._id === msgs.speaking?.messageId ? msgs.speaking.status : undefined
                     }
-                    firstInserted={i === firstInsertedMsgIndex()}
                   >
                     {isOwner() && retries()?.list?.length! > 1 && i === indexOfLastRPMessage() && (
                       <SwipeMessage
@@ -444,14 +492,19 @@ const ChatDetail: Component = () => {
                 </>
               )}
             </Index>
-            <Show when={waitingMsg()}>
-              <Message
-                msg={waitingMsg()!}
-                onRemove={() => {}}
-                editing={chats.opts.editing}
-                sendMessage={sendMessage}
-                isPaneOpen={pane.showing()}
-              />
+            <Show when={waitingMsg()?.length}>
+              <For each={waitingMsg()}>
+                {(msg) => (
+                  <Message
+                    msg={msg}
+                    onRemove={() => {}}
+                    editing={false}
+                    sendMessage={sendMessage}
+                    isPaneOpen={pane.showing()}
+                    partial={msg._id === 'partial-response' ? msg.msg : ''}
+                  />
+                )}
+              </For>
             </Show>
           </div>
         </section>
@@ -459,6 +512,15 @@ const ChatDetail: Component = () => {
 
       <Show when={chats.opts.modal === 'export'}>
         <ChatExport show={true} close={clearModal} />
+      </Show>
+
+      <Show when={chats.opts.modal === 'graph'}>
+        <ChatGraphModal
+          tree={ctx.chatTree}
+          show
+          close={clearModal}
+          leafId={chatMsgs().slice(-1)[0]?._id || ''}
+        />
       </Show>
 
       <Show when={chats.opts.modal === 'delete'}>
@@ -486,42 +548,16 @@ const ChatDetail: Component = () => {
         message={
           <TitleCard type="rose" class="flex flex-col gap-4">
             <div class="flex justify-center font-bold">Are you sure?</div>
-            <div>This will delete ALL messages in this conversation.</div>
+            <div>This will fork your conversation from the greeting message.</div>
           </TitleCard>
         }
-        show={chats.opts.confirm}
+        show={chats.opts.modal === 'restart'}
         confirm={() => {
-          chatStore.restartChat(chats.chat!._id)
-          chatStore.option({ confirm: false })
+          msgStore.fork('root')
+          chatStore.option({ modal: 'none' })
         }}
-        close={() => chatStore.option({ confirm: false })}
+        close={() => chatStore.option({ modal: 'none' })}
       />
     </>
   )
-}
-
-let scrollMonitor: any
-
-function monitorScroll(ref: HTMLElement) {
-  let bottom = true
-
-  ref.onscroll = (ev) => {
-    const pos = ref.scrollTop
-
-    if (pos >= 0) {
-      bottom = true
-    } else {
-      bottom = false
-    }
-  }
-
-  scrollMonitor = setInterval(() => {
-    if (bottom && ref.scrollTop !== 0) {
-      ref.scrollTop = 0
-    }
-  }, 1000 / 30)
-}
-
-function clearScrollMonitor() {
-  clearInterval(scrollMonitor)
 }

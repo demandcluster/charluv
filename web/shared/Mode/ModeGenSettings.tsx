@@ -1,23 +1,24 @@
 import { Save, X } from 'lucide-solid'
-import { Component, createMemo, createSignal, For, JSX, Show } from 'solid-js'
+import { Component, createEffect, createMemo, createSignal, For, JSX, Show } from 'solid-js'
 import { defaultPresets, isDefaultPreset } from '../../../common/presets'
 import { AppSchema } from '../../../common/types/schema'
 import Button from '../Button'
-import GenerationSettings, { getPresetFormData } from '../GenerationSettings'
 import { toastStore, userStore } from '../../store'
 import { presetStore } from '../../store'
-import { adapterSettings } from '../../../common/adapters'
 import { AutoPreset, getPresetOptions } from '../adapter'
 import ServiceWarning from '/web/shared/ServiceWarning'
 import { PresetSelect } from '/web/shared/PresetSelect'
 import { Card, TitleCard } from '/web/shared/Card'
 import { usePane } from '/web/shared/hooks'
 import TextInput from '/web/shared/TextInput'
+import { adapterSettings } from '../util'
+import PresetSettings, { getPresetFormData } from '/web/shared/PresetSettings'
+import { PresetTab } from '../PresetSettings/types'
 
 export const ModeGenSettings: Component<{
-  // chat: AppSchema.Chat
   onPresetChanged: (presetId: string) => void
   presetId: string | undefined
+  hideTabs?: PresetTab[]
   close?: () => void
   footer?: (children: JSX.Element) => void
 }> = (props) => {
@@ -49,6 +50,13 @@ export const ModeGenSettings: Component<{
   const [selected, setSelected] = createSignal(
     props.presetId || user.user?.defaultPreset || AutoPreset.service
   )
+
+  createEffect(() => {
+    if (!props.presetId) return
+    if (selected() !== props.presetId) {
+      setSelected(props.presetId)
+    }
+  })
 
   const onSave = () => {
     const presetId = selected()
@@ -94,10 +102,12 @@ export const ModeGenSettings: Component<{
         return
       }
 
-      presetStore.updatePreset(presetId, update as any, () => {
-        if (pane() === 'popup') {
-          props.close?.()
-        }
+      presetStore.updatePreset(presetId, update as any, {
+        onSuccess: () => {
+          if (pane() === 'popup') {
+            props.close?.()
+          }
+        },
       })
     }
   }
@@ -149,7 +159,7 @@ export const ModeGenSettings: Component<{
         <For each={presets()}>
           {(preset) => (
             <Show when={selected() === preset._id!}>
-              <GenerationSettings inherit={preset} onSave={onSave} />
+              <PresetSettings hideTabs={props.hideTabs} inherit={preset} onSave={onSave} />
             </Show>
           )}
         </For>

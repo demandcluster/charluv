@@ -1,6 +1,6 @@
 import { store } from '../db'
 import { loggedIn } from './auth'
-import { logger } from '../logger'
+
 import { isConnected } from '../db/client'
 
 updateFreeCredits()

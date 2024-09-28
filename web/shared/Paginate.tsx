@@ -9,6 +9,7 @@ import TextInput from './TextInput'
 export const ManualPaginate: Component<{
   pager: Pager
   sticky?: boolean
+  size?: 'sm' | 'md' | 'lg'
 }> = (props) => {
   const onPageSize = (ev: FormEvent) => {
     const value = +ev.currentTarget.value
@@ -17,6 +18,8 @@ export const ManualPaginate: Component<{
 
     props.pager.setPageSize(value)
   }
+
+  const btnSize = createMemo(() => 'sm' as const)
 
   const disabled = createMemo(() => props.pager.pages() === 1)
 
@@ -34,20 +37,28 @@ export const ManualPaginate: Component<{
     >
       <Show when={props.pager.pages() > props.pager.pagerSize()}>
         <Button
+          size={btnSize()}
           schema="secondary"
           class="px-2"
           onClick={() => props.pager.setPage(1)}
           disabled={disabled()}
         >
-          <ChevronFirst size={24} />
+          <ChevronFirst size={20} />
         </Button>
       </Show>
-      <Button schema="secondary" class="px-2" onClick={props.pager.prev} disabled={disabled()}>
-        <ChevronLeft size={24} />
+      <Button
+        size={btnSize()}
+        schema="secondary"
+        class="px-2"
+        onClick={props.pager.prev}
+        disabled={disabled()}
+      >
+        <ChevronLeft size={20} />
       </Button>
       <Index each={props.pager.ids()}>
         {(id) => (
           <Button
+            size={btnSize()}
             disabled={disabled()}
             schema="none"
             classList={{
@@ -61,17 +72,24 @@ export const ManualPaginate: Component<{
           </Button>
         )}
       </Index>
-      <Button schema="secondary" class="px-2" onClick={props.pager.next} disabled={disabled()}>
-        <ChevronRight size={24} />
+      <Button
+        size={btnSize()}
+        schema="secondary"
+        class="px-2"
+        onClick={props.pager.next}
+        disabled={disabled()}
+      >
+        <ChevronRight size={20} />
       </Button>
       <Show when={props.pager.pages() > 5}>
         <Button
+          size={btnSize()}
           disabled={disabled()}
           schema="secondary"
           class="px-2"
           onClick={() => props.pager.setPage(props.pager.pages())}
         >
-          <ChevronLast size={24} />
+          <ChevronLast size={20} />
         </Button>
       </Show>
       <TextInput
@@ -79,7 +97,7 @@ export const ManualPaginate: Component<{
         fieldName="paginationSize"
         value={props.pager.pageSize()}
         onInput={onPageSize}
-        class="w-20"
+        class="w-20 py-[2px]"
       />
     </div>
   )
@@ -118,16 +136,19 @@ export function usePagination<T = any>(opts: {
   items: () => T[]
 }): Pager<T> {
   const localName = `agnai-paging-${opts.name}`
+  const isMobile = useDeviceType()
+
   const savedSize = +(storage.localGetItem(localName) ?? `${opts.pageSize}`)
   const [page, setPage] = createSignal(1)
   const [pageSize, setPageSize] = createSignal(savedSize)
-  const isMobile = useDeviceType()
-  const [items, setItems] = createSignal<T[]>(opts.items().slice(0, pageSize()))
+  const safeSize = createMemo(() => (pageSize() <= 0 ? 20 : pageSize()))
+
+  const [items, setItems] = createSignal<T[]>(opts.items().slice(0, safeSize()))
   const [count, setCount] = createSignal(opts.items().length)
 
   const pagerSize = createMemo(() => (isMobile() ? 3 : 5))
 
-  const pages = createMemo(() => Math.ceil(opts.items().length / pageSize()))
+  const pages = createMemo(() => Math.ceil(opts.items().length / safeSize()))
 
   const ids = createMemo(() => {
     return getButtonIds(page(), pages(), isMobile() ? 1 : 2)
@@ -150,14 +171,18 @@ export function usePagination<T = any>(opts: {
     const original = count()
     const itemsChanged = original !== items.length
     const curr = itemsChanged ? 1 : page()
-    const start = (curr - 1) * pageSize()
-    const nextItems = items.slice(start, start + pageSize())
+    const start = (curr - 1) * safeSize()
+    const nextItems = items.slice(start, start + safeSize())
     setItems(nextItems)
     setCount(items.length)
+
+    if (itemsChanged) {
+      setPage(1)
+    }
   })
 
   createEffect(() => {
-    const size = pageSize()
+    const size = safeSize()
     if (!opts.name) return
     storage.localSetItem(localName, `${size}`)
   })

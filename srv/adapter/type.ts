@@ -1,7 +1,40 @@
-import type { PromptParts } from '../../common/prompt'
+import type { JsonField, PromptParts } from '../../common/prompt'
 import { AppSchema } from '../../common/types/schema'
-import { AppLog } from '../logger'
+import { AppLog } from '../middleware'
+import { ThirdPartyFormat } from '/common/adapters'
 import { Memory, TokenCounter } from '/common/types'
+
+export type ChatRole = 'user' | 'assistant' | 'system'
+
+export type Completion<T = Inference> = {
+  id: string
+  created: number
+  model: string
+  object: string
+  choices: CompletionContent<T>
+  error?: { message: string }
+}
+
+export type CompletionGenerator = (
+  userId: string,
+  url: string,
+  headers: Record<string, string | string[] | number>,
+  body: any,
+  service: string,
+  log: AppLog,
+  format?: ThirdPartyFormat | 'openrouter'
+) => AsyncGenerator<
+  { error: string } | { error?: undefined; token: string } | Completion,
+  Completion | undefined
+>
+
+export type CompletionItem = { role: ChatRole; content: string; name?: string }
+
+export type CompletionContent<T> = Array<
+  { finish_reason: string; index: number } & ({ text: string } | T)
+>
+export type Inference = { message: { content: string; role: ChatRole } }
+export type AsyncDelta = { delta: Partial<Inference['message']> }
 
 export type GenerateRequestV2 = {
   requestId: string
@@ -10,6 +43,7 @@ export type GenerateRequestV2 = {
     | 'send-event:world'
     | 'send-event:character'
     | 'send-event:hidden'
+    | 'send-event:ooc'
     | 'ooc'
     | 'retry'
     | 'continue'
@@ -17,6 +51,7 @@ export type GenerateRequestV2 = {
     | 'summary'
     | 'request'
     | 'plain'
+    | 'chat-query'
   chat: AppSchema.Chat
   user: AppSchema.User
   char: AppSchema.Character
@@ -33,10 +68,27 @@ export type GenerateRequestV2 = {
   characters: Record<string, AppSchema.Character>
   impersonate?: AppSchema.Character
 
+  jsonSchema?: JsonField[]
+  jsonValues?: Record<string, any>
+
+  /** Base64 */
+  imageData?: string
+
+  /** Chat Tree  */
+  parent?: string
+
   /** Date ISO string */
   lastMessage?: string
+
   chatEmbeds?: Array<Memory.UserEmbed<{ name: string }>>
   userEmbeds?: Memory.UserEmbed[]
+
+  /**
+   * For 'local requests'
+   * If the response is generated on the client, we pass the generated response here
+   * then pass the whole payload to the same endpoint, but skip the generation to re-use the same message creation logic
+   */
+  response?: string
 }
 
 export type GenerateOptions = {
@@ -66,6 +118,10 @@ export type AdapterProps = {
   requestId: string
   encoder?: TokenCounter
 
+  jsonSchema?: any
+  jsonValues: Record<string, any> | undefined
+
+  imageData?: string
   guidance?: boolean
   placeholders?: Record<string, string>
   lists?: Record<string, string[]>
@@ -73,7 +129,7 @@ export type AdapterProps = {
 
   subscription?: {
     level: number
-    preset?: AppSchema.SubscriptionPreset
+    preset?: AppSchema.SubscriptionModel
     error?: string
     warning?: string
   }

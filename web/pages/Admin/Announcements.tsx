@@ -1,8 +1,18 @@
-import { Component, For, Match, Show, Switch, createSignal, onMount } from 'solid-js'
+import {
+  Component,
+  For,
+  Match,
+  Show,
+  Switch,
+  createEffect,
+  createSignal,
+  on,
+  onMount,
+} from 'solid-js'
 import PageHeader from '/web/shared/PageHeader'
 import { Eye, EyeOff, Plus, Save } from 'lucide-solid'
 import Button from '/web/shared/Button'
-import TextInput from '/web/shared/TextInput'
+import TextInput, { ButtonInput } from '/web/shared/TextInput'
 import { useNavigate, useParams } from '@solidjs/router'
 import { announceStore, toastStore } from '/web/store'
 import { elapsedSince, now } from '/common/util'
@@ -11,6 +21,8 @@ import { getStrictForm, toLocalTime } from '/web/shared/util'
 import { Pill } from '/web/shared/Card'
 import { AppSchema } from '/common/types'
 import { markdown } from '/web/shared/markdown'
+import { Page } from '/web/Layout'
+import Select from '/web/shared/Select'
 
 export { AnnoucementPage as default }
 
@@ -47,7 +59,7 @@ const AnnoucementList: Component = (props) => {
   }
 
   return (
-    <>
+    <Page>
       <PageHeader title="Manage Announcements" />
       <div class="flex w-full justify-end">
         <Button onClick={() => nav('/admin/announcements/new')}>
@@ -69,10 +81,15 @@ const AnnoucementList: Component = (props) => {
                 }}
                 onClick={() => nav(`/admin/announcements/${item._id}`)}
               >
-                <div class="font-bold">{item.title}</div>
+                <div class="font-bold">
+                  {item.title}{' '}
+                  <span class="text-500 text-xs font-light italic">
+                    {item.location === 'notification' ? 'notify' : 'home'}
+                  </span>
+                </div>
                 <div class="flex gap-1">
-                  <Pill>Created: {new Date(item.showAt).toLocaleString()}</Pill>
-                  <Pill>{elapsedSince(new Date(item.showAt))} ago</Pill>
+                  <Pill inverse>Created: {new Date(item.showAt).toLocaleString()}</Pill>
+                  <Pill inverse>{elapsedSince(new Date(item.showAt))} ago</Pill>
                   {Label(item)}
                 </div>
               </div>
@@ -93,7 +110,7 @@ const AnnoucementList: Component = (props) => {
           )}
         </For>
       </div>
-    </>
+    </Page>
   )
 }
 
@@ -103,11 +120,16 @@ function Label(item: AppSchema.Announcement) {
   if (item.deletedAt) return <Pill type="rose">Deleted</Pill>
   if (item.hide) return <Pill type="coolgray">Hidden</Pill>
   if (date.valueOf() >= Date.now()) return <Pill type="premium">Pending</Pill>
-  return <Pill type="green">Active</Pill>
+  return (
+    <Pill inverse type="green">
+      Active
+    </Pill>
+  )
 }
 
 const Announcement: Component<{}> = (props) => {
   let ref: HTMLFormElement
+  let showAtRef: HTMLInputElement
 
   const nav = useNavigate()
   const params = useParams()
@@ -122,12 +144,28 @@ const Announcement: Component<{}> = (props) => {
     announceStore.getAllAdmin()
   })
 
+  createEffect(
+    on(
+      () => (state.item?.title || '') + (state.item?.content || ''),
+      () => {
+        if (state.item?.title) {
+          setTitle(state.item?.title)
+        }
+        if (state.item?.content) {
+          setContent(state.item.content)
+        }
+      }
+    )
+  )
+
   const onSave = () => {
     const body = getStrictForm(ref, {
       title: 'string',
       content: 'string',
       hide: 'boolean',
       showAt: 'string',
+      location: ['home', 'notification'],
+      userLevel: 'number',
     })
 
     const showAt = new Date(body.showAt)
@@ -148,7 +186,7 @@ const Announcement: Component<{}> = (props) => {
   }
 
   return (
-    <>
+    <Page>
       <PageHeader title="Announcement" />
 
       <form ref={ref!} class="flex flex-col gap-2">
@@ -160,6 +198,27 @@ const Announcement: Component<{}> = (props) => {
           value={state.item?.title}
           onInput={(ev) => setTitle(ev.currentTarget.value)}
         />
+        <Select
+          fieldName="location"
+          items={[
+            { label: 'Home', value: 'home' },
+            { label: 'Notification', value: 'notification' },
+          ]}
+          label="Location"
+          helperText="Appear on the homepage or notifications list"
+          value={state.item?.location || 'home'}
+        />
+
+        <TextInput
+          type="number"
+          fieldName="userLevel"
+          label="User Level (Threshold)"
+          helperMarkdown={
+            'Announce to users with a tier level or greater `All Users = -1` `Subscribed = 0`'
+          }
+          value={state.item?.userLevel || -1}
+        />
+
         <TextInput
           fieldName="content"
           label="Content"
@@ -169,13 +228,27 @@ const Announcement: Component<{}> = (props) => {
           onInput={(ev) => setContent(ev.currentTarget.value)}
         />
         <Toggle fieldName="hide" label="Hide Announcement" value={state.item?.hide} />
-        <TextInput
+        <ButtonInput
+          ref={(r) => (showAtRef = r)}
+          fieldName="showAt"
           type="datetime-local"
           label="Display At"
-          fieldName="showAt"
           value={state.item?.showAt ? toLocalTime(state.item.showAt) : toLocalTime(now())}
           onChange={(ev) => setShowAt(new Date(ev.currentTarget.value))}
-        />
+        >
+          <Button
+            size="sm"
+            class="mr-20 text-xs"
+            schema="clear"
+            onClick={() => {
+              const time = toLocalTime(new Date(Date.now() - 60000).toISOString())
+              setShowAt(new Date(time))
+              showAtRef.value = time
+            }}
+          >
+            Now
+          </Button>
+        </ButtonInput>
 
         <div class="flex justify-end gap-2">
           <Button onClick={onSave}>
@@ -194,6 +267,6 @@ const Announcement: Component<{}> = (props) => {
           ></div>
         </div>
       </form>
-    </>
+    </Page>
   )
 }

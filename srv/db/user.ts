@@ -5,15 +5,17 @@ import { db } from './client'
 import { AppSchema } from '../../common/types/schema'
 import { config } from '../config'
 import { NOVEL_MODELS } from '../../common/adapters'
-import { logger } from '../logger'
+import { logger } from '../middleware'
 import { errors, StatusError } from '../api/wrap'
 import { encryptPassword, now } from './util'
 import { defaultChars } from '../../common/characters'
 import { resyncSubscription } from '../api/billing/stripe'
-import { getCachedTiers, getTier } from './subscriptions'
+import { getCachedSubscriptionModels, getCachedTiers, getTier } from './subscriptions'
 import { store } from '.'
 import { patreon } from '../api/user/patreon'
-import { getUserSubscriptionTier } from '../../common/util'
+import { getUserSubscriptionTier } from '/common/util'
+import { command } from '../domains'
+import { getRegisteredAdapters } from '../adapter/register'
 
 export type NewUser = {
   username: string
@@ -97,7 +99,7 @@ export async function authenticate(username: string, password: string) {
 
   const token = await createAccessToken(username, user)
 
-  return { token, profile, user: { ...user, hash: undefined } }
+  return { token, profile, user: toSafeUser(user) }
 }
 
 export async function createUser(newUser: NewUser, admin?: boolean) {
@@ -160,7 +162,72 @@ export async function createUser(newUser: NewUser, admin?: boolean) {
   }
   await db('profile').insertOne(profile)
   const token = await createAccessToken(newUser.username, user)
-  return { profile, token, user }
+
+  const sub = getCachedSubscriptionModels().find((m) => m.isDefaultSub)
+  if (sub) {
+    const preset: AppSchema.UserGenPreset = {
+      _id: v4(),
+      kind: 'gen-setting',
+      maxTokens: sub.maxTokens,
+      name: 'My Preset',
+      repetitionPenalty: sub.repetitionPenalty,
+      repetitionPenaltyRange: sub.repetitionPenaltyRange,
+      repetitionPenaltySlope: sub.repetitionPenaltySlope,
+      tailFreeSampling: sub.tailFreeSampling,
+      temp: sub.temp,
+      topA: sub.topA,
+      topK: sub.topK,
+      topP: sub.topP,
+      typicalP: sub.typicalP,
+      userId: user._id,
+      addBosToken: sub.addBosToken,
+      antiBond: sub.antiBond,
+      banEosToken: sub.banEosToken,
+      cfgOppose: sub.cfgOppose,
+      cfgScale: sub.cfgScale,
+      doSample: sub.doSample,
+      dynatemp_exponent: sub.dynatemp_exponent,
+      dynatemp_range: sub.dynatemp_range,
+      earlyStopping: sub.earlyStopping,
+      encoderRepitionPenalty: sub.encoderRepitionPenalty,
+      epsilonCutoff: sub.epsilonCutoff,
+      frequencyPenalty: sub.frequencyPenalty,
+      etaCutoff: sub.etaCutoff,
+      gaslight: sub.gaslight,
+      maxContextLength: sub.maxContextLength,
+      registered: sub.registered,
+      memoryChatEmbedLimit: sub.memoryChatEmbedLimit,
+      memoryContextLimit: sub.memoryContextLimit,
+      memoryDepth: sub.memoryDepth,
+      memoryReverseWeight: sub.memoryReverseWeight,
+      memoryUserEmbedLimit: sub.memoryUserEmbedLimit,
+      minP: sub.minP,
+      mirostatLR: sub.mirostatLR,
+      mirostatTau: sub.mirostatTau,
+      modelFormat: sub.modelFormat,
+      mirostatToggle: sub.mirostatToggle,
+      penaltyAlpha: sub.penaltyAlpha,
+      phraseBias: sub.phraseBias,
+      phraseRepPenalty: sub.phraseRepPenalty,
+      presencePenalty: sub.presencePenalty,
+      prefill: sub.prefill,
+      streamResponse: sub.streamResponse,
+      thirdPartyFormat: sub.thirdPartyFormat,
+      thirdPartyModel: sub.thirdPartyModel,
+      service: sub.service,
+      smoothingCurve: sub.smoothingCurve,
+      smoothingFactor: sub.smoothingFactor,
+      tokenHealing: sub.tokenHealing,
+      tempLast: sub.tempLast,
+      trimStop: sub.trimStop,
+    }
+
+    await db('gen-setting').insertOne(preset)
+    await db('user').updateOne({ _id: user._id }, { $set: { defaultPreset: preset._id } })
+    user.defaultPreset = preset._id
+  }
+
+  return { profile, token, user: toSafeUser(user) }
 }
 
 export async function createAccessToken(username: string, user: AppSchema.User) {
@@ -222,6 +289,11 @@ function getKey() {
 export function verifyJwt(token: string): any {
   try {
     const payload = jwt.verify(token, config.jwtSecret)
+    return payload
+  } catch (ex) {}
+
+  try {
+    const payload = jwt.verify(token, `${config.jwtSecret}\n`)
     return payload
   } catch (ex) {}
 
@@ -289,9 +361,10 @@ export async function validateApiAccess(apiKey: string) {
   }
 
   if (config.apiAccess === 'subscribers') {
+    if (user.admin) return { user }
     const tier = store.users.getUserSubTier(user)
     if (!tier || tier.level <= 0) return
-    const sub = await db('subscription-tier').findOne({ _id: user.sub?.tierId })
+    const sub = await db('subscription-tier').findOne({ _id: tier.tier._id })
     if (!sub?.apiAccess) return
 
     return { user }
@@ -302,6 +375,11 @@ export async function validateApiAccess(apiKey: string) {
 
 export async function findByPatreonUserId(id: string) {
   const user = await db('user').findOne({ patreonUserId: id })
+  return user
+}
+
+export async function findByGoogleSub(id: string) {
+  const user = await db('user').findOne({ 'google.sub': id })
   return user
 }
 
@@ -365,4 +443,91 @@ export async function validateSubscription(user: AppSchema.User) {
 export function getUserSubTier(user: AppSchema.User) {
   const tiers = getCachedTiers()
   return getUserSubscriptionTier(user, tiers)
+}
+
+export async function unlinkPatreonAccount(userId: string, reason: string) {
+  const user = await getUser(userId)
+
+  if (!user?.patreon || !user?.patreonUserId) {
+    return
+  }
+
+  await store.users.updateUser(userId, { patreon: null as any, patreonUserId: null as any })
+  await command.patron.unlink(user.patreonUserId, { userId, reason })
+}
+
+export function toSafeUser(user: AppSchema.User) {
+  if (user.patreon) {
+    user.patreon.access_token = ''
+    user.patreon.refresh_token = ''
+    user.patreon.scope = ''
+    user.patreon.token_type = ''
+  }
+
+  if (user.google) {
+    user.google = {
+      sub: user.google.sub,
+    } as any
+  }
+
+  if (user.novelApiKey) {
+    user.novelApiKey = ''
+  }
+
+  user.hordeKey = ''
+  user.apiKey = user.apiKey ? '*********' : 'Not set'
+
+  if (user.oaiKey) {
+    user.oaiKeySet = true
+    user.oaiKey = ''
+  }
+
+  if (user.mistralKey) {
+    user.mistralKeySet = true
+    user.mistralKey = ''
+  }
+
+  if (user.scaleApiKey) {
+    user.scaleApiKeySet = true
+    user.scaleApiKey = ''
+  }
+
+  if (user.claudeApiKey) {
+    user.claudeApiKey = ''
+    user.claudeApiKeySet = true
+  }
+
+  if (user.thirdPartyPassword) {
+    user.thirdPartyPassword = ''
+    user.thirdPartyPasswordSet = true
+  }
+
+  if (user.elevenLabsApiKey) {
+    user.elevenLabsApiKey = ''
+    user.elevenLabsApiKeySet = true
+  }
+
+  for (const svc of getRegisteredAdapters()) {
+    if (!user.adapterConfig) break
+    if (!user.adapterConfig[svc.name]) continue
+
+    const secrets = svc.settings.filter((opt) => opt.secret)
+
+    for (const secret of secrets) {
+      if (user.adapterConfig[svc.name]![secret.field]) {
+        user.adapterConfig[svc.name]![secret.field] = ''
+        user.adapterConfig[svc.name]![secret.field + 'Set'] = true
+      }
+    }
+  }
+
+  const sub = getUserSubscriptionTier(user, getCachedTiers())
+  if (sub) {
+    user.sub = {
+      ...sub,
+      tierId: sub.tier?._id,
+    }
+  }
+
+  return user
 }

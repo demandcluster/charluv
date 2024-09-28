@@ -4,8 +4,8 @@ import { defaultChars } from '../../../common/characters'
 import { AppSchema } from '../../../common/types/schema'
 import { api } from '../api'
 import { toastStore } from '../toasts'
-import { storage, toMap } from '/web/shared/util'
-import { resolveTreePath } from '/common/chat'
+import { storage } from '/web/shared/util'
+import { replace } from '/common/util'
 
 type StorageKey = keyof typeof KEYS
 
@@ -52,7 +52,7 @@ export const KEYS = {
   cartItems: 'cartItems',
   scenario: 'scenario',
   swipe: 'swipe',
-  trees: 'chat-trees',
+
   templates: 'templates',
 }
 
@@ -68,7 +68,7 @@ type LocalStorage = {
   cartItems: AppSchema.ShopItem[]
   scenario: AppSchema.ScenarioBook[]
   swipe: string
-  trees: AppSchema.ChatTree[]
+
   templates: AppSchema.PromptTemplate[]
 }
 
@@ -110,8 +110,6 @@ const fallbacks: { [key in StorageKey]: LocalStorage[key] } = {
   memory: [],
   cartItems: [],
   scenario: [],
-  swipe: '',
-  trees: [],
   templates: [],
 }
 
@@ -153,13 +151,12 @@ export async function handleGuestInit() {
       localStore.set('scenario', res.result.scenario)
       localStore.set('characters', res.result.characters)
       localStore.set('chats', res.result.chats)
-      localStore.set('trees', res.result.trees)
       localStore.set('templates', res.result.templates)
       return res
     }
   }
 
-  const entities = await getGuestInitEntities()
+  const entities = await getGuestInitEntities(cfg.result!)
   return localApi.result({
     ...entities,
     config: cfg.result!,
@@ -179,7 +176,7 @@ async function migrateToJson() {
   return entities
 }
 
-async function getGuestInitEntities() {
+async function getGuestInitEntities(config?: AppSchema.AppConfig) {
   await migrateLegacyItems()
   /**
    * @TODO Should we do this in parallel ?
@@ -191,6 +188,30 @@ async function getGuestInitEntities() {
   const scenario = await localApi.loadItem('scenario', true)
   const characters = await localApi.loadItem('characters', true)
   const chats = await localApi.loadItem('chats', true)
+
+  if (!presets.length && config?.subs.length) {
+    const model = config.subs.find((s) => s.preset.isDefaultSub)
+    if (model) {
+      const preset: AppSchema.UserGenPreset = {
+        ...model?.preset,
+        service: model?.service,
+        _id: v4(),
+        name: 'My Preset',
+        kind: 'gen-setting',
+        userId: 'anon',
+        registered: {
+          agnaistic: {
+            subscriptionId: model._id,
+          },
+        },
+      }
+      presets.push(preset)
+
+      user.defaultPreset = preset._id
+      await savePresets(presets)
+      await saveConfig(user)
+    }
+  }
 
   let fixed = false
   for (const chat of chats) {
@@ -210,12 +231,11 @@ async function getGuestInitEntities() {
     await saveChats(chats)
   }
 
-  const trees = await localApi.loadItem('trees', true)
   const templates = await localApi.loadItem('templates', true)
 
   user._id = 'anon'
 
-  return { user, presets, profile, books, scenario, characters, chats, trees, templates }
+  return { user, presets, profile, books, scenario, characters, chats, templates }
 }
 
 async function migrateLegacyItems() {
@@ -235,7 +255,6 @@ async function migrateLegacyItems() {
 
     await saveItem(key, old)
     localStorage.removeItem(key)
-    console.log('Migrated', key)
   }
 
   for (const key in localStorage) {
@@ -246,7 +265,6 @@ async function migrateLegacyItems() {
 
     await storage.setItem(key, data)
     localStorage.removeItem(key)
-    console.log('Migrated', key)
   }
 }
 
@@ -255,7 +273,7 @@ export async function saveMessages(chatId: string, messages: AppSchema.ChatMessa
   if (SELF_HOSTING) {
     return api.post(`/json/messages/${chatId}`, messages)
   } else {
-    storage.setItem(key, JSON.stringify(messages))
+    await storage.setItem(key, JSON.stringify(messages))
   }
 }
 
@@ -278,18 +296,17 @@ export async function getMessages(
   return JSON.parse(messages) as AppSchema.ChatMessage[]
 }
 
-export async function getChatMessages(tree: AppSchema.ChatTree, leafId: string) {
-  const all = await getMessages(tree.chatId)
-  const messages = resolveTreePath(tree, toMap(all), leafId)
-  return messages
-}
-
-export async function saveTrees(state: AppSchema.ChatTree[]) {
-  await saveItem('trees', state)
-}
-
 export async function saveChars(state: AppSchema.Character[]) {
   await saveItem('characters', state)
+}
+
+export async function saveChat(chatId: string, update: Partial<AppSchema.Chat>) {
+  const chats = await loadItem('chats')
+  const chat = chats.find((c) => c._id === chatId)
+  if (!chat) return
+
+  const next = replace(chatId, chats, update)
+  await saveItem('chats', next)
 }
 
 export async function saveChats(state: AppSchema.Chat[]) {
@@ -361,7 +378,7 @@ export async function loadItem<TKey extends keyof typeof KEYS>(
     }
 
     const fallback = fallbacks[key]
-    storage.setItem(key, JSON.stringify(fallback))
+    await storage.setItem(key, JSON.stringify(fallback))
 
     return fallback
   }
@@ -393,6 +410,7 @@ export function result<T>(result: T) {
 
 export const localApi = {
   saveChars,
+  saveChat,
   saveChats,
   saveConfig,
   saveMessages,
@@ -401,14 +419,12 @@ export const localApi = {
   saveBooks,
   saveTemplates,
   saveScenarios,
-  saveTrees,
   deleteChatMessages,
   loadItem,
   getMessages,
   saveCartItem,
   loadCartItems,
   saveSwipe,
-  getChatMessages,
   KEYS,
   ID,
   error,

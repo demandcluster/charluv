@@ -20,6 +20,7 @@ export const createChat = handle(async ({ body, user, userId }) => {
       scenarioId: 'string?',
       scenarioStates: 'string?',
       impersonating: 'string?',
+      imageSource: 'string?',
     },
     body
   )
@@ -52,6 +53,7 @@ export const createChat = handle(async ({ body, user, userId }) => {
     body.characterId,
     {
       ...body,
+      imageSource: body.imageSource as any,
       greeting: body.greeting ?? character?.greeting,
       userId: user?.userId!,
       scenarioIds: scenarios,
@@ -124,6 +126,7 @@ export const importChat = handle(async ({ body, userId }) => {
     ooc: msg.ooc ?? false,
     retries: character.alternateGreetings,
     event: undefined,
+    name: character.name,
   }))
 
   await store.msgs.importMessages(userId, messages)

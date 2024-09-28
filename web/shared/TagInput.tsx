@@ -1,8 +1,11 @@
-import { Component, For, JSX, createEffect, createSignal } from 'solid-js'
+import { Component, For, JSX, createEffect, createSignal, Show } from 'solid-js'
 import { FormLabel } from './FormLabel'
+import { AutoComplete, AutoCompleteOption } from '/web/shared/AutoComplete'
+
+type AvailableTag = string | { label: string; value: string }
 
 interface TagInputProps {
-  availableTags: string[]
+  availableTags: AvailableTag[]
   value?: string[]
   fieldName: string
   label?: string
@@ -15,10 +18,23 @@ interface TagInputProps {
   strict?: boolean
 }
 
+function isMatch(input: string, tag: AvailableTag) {
+  if (typeof tag === 'string') return tag.toLowerCase().startsWith(input.toLowerCase())
+  return tag.value.toLowerCase().startsWith(input.toLowerCase())
+}
+
+function toOption(tag: AvailableTag) {
+  return typeof tag === 'string' ? { label: tag, value: tag } : tag
+}
+
+function toValue(tag: AvailableTag) {
+  return typeof tag === 'string' ? tag : tag.value
+}
+
 const TagInput: Component<TagInputProps> = (props) => {
   const [tags, setTags] = createSignal<string[]>([])
   const [inputValue, setInputValue] = createSignal<string>('')
-  const [suggestions, setSuggestions] = createSignal<string[]>([])
+  const [suggestions, setSuggestions] = createSignal<AutoCompleteOption[]>([])
 
   createEffect(() => {
     setTags(props.value || [])
@@ -26,11 +42,18 @@ const TagInput: Component<TagInputProps> = (props) => {
 
   function updateSuggestions(value: string) {
     setSuggestions(
-      props.availableTags.filter((tag) => tag.startsWith(value) && !tags().includes(tag))
+      props.availableTags
+        .filter((tag) => isMatch(value, tag) && !tags().includes(toValue(tag)))
+        .map(toOption)
     )
   }
 
-  function addTag(tag: string) {
+  function resetSuggestions() {
+    setSuggestions([])
+  }
+
+  function addTag(tagOrOption: string | AutoCompleteOption) {
+    const tag = typeof tagOrOption === 'string' ? tagOrOption : tagOrOption.value
     const updatedTags = Array.from(new Set([...tags(), tag]))
 
     if (props.strict) {
@@ -40,13 +63,14 @@ const TagInput: Component<TagInputProps> = (props) => {
 
     setTags(updatedTags)
     setInputValue('')
-    setSuggestions([])
+    resetSuggestions()
     props.onSelect(updatedTags)
   }
 
   function removeTag(tagToRemove: string) {
     const updatedTags = tags().filter((tag) => tag !== tagToRemove)
     setTags(updatedTags)
+    setInputValue('')
     props.onSelect(updatedTags)
   }
 
@@ -57,15 +81,26 @@ const TagInput: Component<TagInputProps> = (props) => {
 
   function handleInputKeyDown(e: KeyboardEvent) {
     const lastTag = tags()[tags().length - 1]
-    const value = inputValue()
+    const value = inputValue().trim()
     if (e.key === 'Backspace' && value === '' && lastTag) {
       removeTag(lastTag)
-    } else if (e.key === 'Enter' && value !== '' && suggestions().length > 0) {
-      e.preventDefault()
-      addTag(suggestions()[0])
-    } else if ((e.key === ',' || e.key == 'Enter') && value !== '') {
+    } else if (e.key == 'Enter' && value !== '' && suggestions().length === 0) {
       e.preventDefault()
       addTag(value)
+    } else if (e.key === ',' && value !== '') {
+      e.preventDefault()
+      addTag(value)
+    }
+  }
+
+  function handleBlur(e: Event) {
+    resetSuggestions()
+    // do not leave trailing text in the input
+    const value = inputValue().trim()
+    if (value !== '' && value !== ',') {
+      addTag(value)
+    } else {
+      setInputValue('')
     }
   }
 
@@ -89,22 +124,24 @@ const TagInput: Component<TagInputProps> = (props) => {
           value={inputValue()}
           onInput={handleInputChange}
           onKeyDown={handleInputKeyDown}
+          onBlur={handleBlur}
           placeholder={tags().length || inputValue() ? '' : props.placeholder ?? 'Add tags...'}
           disabled={props.disabled}
+          autocomplete="off"
         />
       </div>
-      <ul class="absolute left-0 z-10 mt-1 bg-white text-gray-800 shadow-md">
-        <For each={suggestions()}>
-          {(suggestion) => (
-            <li
-              class="cursor-pointer px-2 py-1 hover:bg-gray-200"
-              onClick={() => addTag(suggestion)}
-            >
-              {suggestion}
-            </li>
-          )}
-        </For>
-      </ul>
+      <div class="relative">
+        <Show when={suggestions().length > 0}>
+          <AutoComplete
+            options={suggestions()}
+            onSelect={addTag}
+            close={resetSuggestions}
+            dir="down"
+            offset={0}
+            limit={5}
+          />
+        </Show>
+      </div>
     </div>
   )
 }

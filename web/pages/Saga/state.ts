@@ -1,20 +1,31 @@
 import { neat, now } from '/common/util'
 import { createStore } from '/web/store/create'
-import { SagaSession, SagaTemplate, sagaApi } from '/web/store/data/saga'
+import { sagaApi } from '/web/store/data/saga'
 import { parseTemplateV2 } from '/common/guidance/v2'
-import { msgsApi } from '/web/store/data/messages'
 import { toastStore } from '/web/store'
 import { v4 } from 'uuid'
 import { replaceTags } from '/common/presets/templates'
+import { subscribe } from '/web/store/socket'
+import { imageApi } from '/web/store/data/image'
+import { createDebounce } from '/web/shared/util'
+import { TemplateExampleID, exampleTemplates } from './examples'
+import { Saga } from '/common/types'
+import { genApi } from '/web/store/data/inference'
 
 type SagaState = {
-  template: SagaTemplate
-  state: SagaSession
-  templates: SagaTemplate[]
-  sessions: SagaSession[]
+  template: Saga.Template
+  state: Saga.Session
+  templates: Saga.Template[]
+  sessions: Saga.Session[]
   inited: boolean
   busy: boolean
   showModal: 'help' | 'import' | 'none'
+  image: {
+    loading: boolean
+    data?: string
+    state: 'ready' | 'generating' | 'done'
+    last: string
+  }
 }
 
 const init: SagaState = {
@@ -28,12 +39,19 @@ const init: SagaState = {
   },
   showModal: 'none',
   state: {
-    format: 'Alpaca',
+    format: 'Charluv',
     _id: '',
-    gameId: '',
+    userId: '',
+    templateId: '',
     overrides: {},
     responses: [],
     updated: now(),
+  },
+  image: {
+    loading: false,
+    state: 'ready',
+    data: undefined,
+    last: '',
   },
 }
 
@@ -42,6 +60,9 @@ export const sagaStore = createStore<SagaState>(
   init
 )((get, set) => {
   return {
+    generateImage({}, auto?: boolean) {
+      debounceImage(auto)
+    },
     async *init({ inited }, id?: string, onLoad?: () => void) {
       if (!inited) {
         const templates = await sagaApi.getTemplates()
@@ -65,7 +86,7 @@ export const sagaStore = createStore<SagaState>(
           inited: true,
         }
 
-        onLoad?.()
+        debounceImage(true)
       }
 
       if (id) {
@@ -85,15 +106,16 @@ export const sagaStore = createStore<SagaState>(
 
       yield { template }
 
-      if (state.gameId === template._id) return
+      if (state.templateId === template._id) return
 
       // If we change template and we have a session loaded, we need to clear the session
       yield {
         state: {
           _id: 'new',
-          format: state.format || 'Alpaca',
+          userId: '',
+          format: state.format || 'Charluv',
           overrides: {},
-          gameId: template._id,
+          templateId: template._id,
           responses: [],
           updated: now(),
           init: undefined,
@@ -106,10 +128,11 @@ export const sagaStore = createStore<SagaState>(
       if (res.result) {
         const template = res.result
         const next = templates.filter((t) => t._id !== template._id).concat(template)
+        toastStore.success('Saga template saved')
         return { template: res.result, templates: next }
       }
     },
-    importTemplate: async ({ templates }, importing: SagaTemplate) => {
+    importTemplate: async ({ templates }, importing: Saga.Template) => {
       importing.name = `${importing.name} (imported)`
       const res = await sagaApi.saveTemplate(importing)
       if (res.result) {
@@ -151,11 +174,11 @@ export const sagaStore = createStore<SagaState>(
       return { state: { ...state, init: intro } }
     },
     async *newSession({ state }, templateId: string, onSuccess?: (id: string) => void) {
-      const init = state.gameId === templateId ? state.init : undefined
+      const init = state.templateId === templateId ? state.init : undefined
       const id = v4()
       const session = blankSession(templateId, {
         init,
-        gameId: state.gameId,
+        templateId: state.templateId,
         format: state.format,
         responses: [],
         overrides: state.overrides,
@@ -164,12 +187,43 @@ export const sagaStore = createStore<SagaState>(
       yield { state: session }
       onSuccess?.(id)
     },
-    async *saveSession({ state }, onSave?: (session: SagaSession) => void) {
+    async *deleteTemplate({ templates }, id: string, onSuccess?: () => void) {
+      const res = await sagaApi.removeTemplate(id)
+      if (res.result) {
+        yield { templates: templates.filter((t) => t._id !== id) }
+        onSuccess?.()
+        toastStore.success('Saga template deleted')
+      }
+    },
+    async *deleteSession({ state, sessions }, id: string, onSuccess?: () => void) {
+      const res = await sagaApi.removeSession(id)
+
+      if (res.result) {
+        if (id === state._id) {
+          yield {
+            state: {
+              ...state,
+              _id: v4(),
+              responses: [],
+              templateId: state.templateId,
+              format: state.format,
+              init: undefined,
+              overrides: {},
+              updated: new Date().toISOString(),
+            },
+          }
+        }
+        yield { sessions: sessions.filter((s) => s._id !== id) }
+        toastStore.success('Saga session deleted')
+        onSuccess?.()
+      }
+    },
+    async *saveSession({ state }, onSave?: (session: Saga.Session) => void) {
       const next = { ...state, updated: now() }
       const res = await sagaApi.saveSession(next)
       if (res.result) {
-        yield { sessions: res.result.sessions, state: res.result.session }
         onSave?.(res.result.session)
+        yield { sessions: res.result.sessions, state: res.result.session }
       }
     },
     loadSession: async ({ sessions, templates, inited, template: current }, id: string) => {
@@ -187,10 +241,10 @@ export const sagaStore = createStore<SagaState>(
       }
 
       if (!session.format) {
-        session.format = 'Alpaca'
+        session.format = 'Charluv'
       }
 
-      const template = templates.find((t) => t._id === session.gameId)
+      const template = templates.find((t) => t._id === session.templateId)
       if (!template) {
         toastStore.error(`Session template not found`)
         return
@@ -198,11 +252,18 @@ export const sagaStore = createStore<SagaState>(
 
       return { state: session, template }
     },
-    createTemplate: () => {
-      const game = blankTemplate()
+    createTemplate: ({ state }, base: TemplateExampleID) => {
+      const example = exampleTemplates[base]
+      const game = blankTemplate({
+        loop: example.loop,
+        init: example.init,
+        history: example.history,
+        imagePrompt: example.image,
+        name: example.name,
+      })
       return { template: game }
     },
-    updateTemplate({ template: game }, update: Partial<SagaTemplate>) {
+    updateTemplate({ template: game }, update: Partial<Saga.Template>) {
       const next = { ...game, ...update }
 
       const fields = new Set(next.fields.filter((f) => !!f.list).map((f) => f.list))
@@ -219,11 +280,11 @@ export const sagaStore = createStore<SagaState>(
       return { template: next }
     },
 
-    update({ state }, update: Partial<SagaSession>) {
+    update({ state }, update: Partial<Saga.Session>) {
       const next = { ...state, ...update, updated: now() }
       return { state: next }
     },
-    async *start({ template, state }) {
+    async *start({ template, state }, onDone?: () => void) {
       yield { busy: true, state: { ...state, init: undefined, responses: [], updated: now() } }
       const previous: any = {}
 
@@ -233,7 +294,16 @@ export const sagaStore = createStore<SagaState>(
       }
 
       const init = insertPlaceholders(template.init, template, state.overrides)
-      const result = await msgsApi.guidance({
+      const requestId = v4()
+      yield {
+        state: {
+          ...state,
+          init: { requestId },
+          responses: [],
+        },
+      }
+      const result = await genApi.guidance({
+        requestId,
         prompt: replaceTags(init, state.format),
         previous,
         lists: template.lists,
@@ -250,6 +320,8 @@ export const sagaStore = createStore<SagaState>(
       }
 
       sagaStore.saveSession()
+      onDone?.()
+      debounceImage(true)
     },
     deleteResponse({ state }, index: number) {
       if (!state.responses.length) return
@@ -266,7 +338,10 @@ export const sagaStore = createStore<SagaState>(
 
       sagaStore.update({ responses })
       sagaStore.send(`${last.input}`, (error) => {
-        if (!error) return
+        if (!error) {
+          sagaStore.update({ responses: original })
+          return
+        }
         sagaStore.update({ responses: original })
       })
     },
@@ -347,8 +422,17 @@ export const sagaStore = createStore<SagaState>(
 
       prompt = replaceTags(prompt, state.format)
       console.log(prompt)
-      const result = await msgsApi
+      const requestId = v4()
+      const original = state.responses.slice()
+
+      yield {
+        state: Object.assign({}, state, {
+          responses: state.responses.concat({ requestId, input: text, response: '' }),
+        }),
+      }
+      const result = await genApi
         .guidance({
+          requestId,
           prompt,
           presetId: state.presetId,
           lists: template.lists,
@@ -360,28 +444,86 @@ export const sagaStore = createStore<SagaState>(
       if ('err' in result) {
         const message = result.err.error || 'An unexpected error occurred'
         toastStore.error(message)
-        yield { busy: false }
+        yield { busy: false, state: Object.assign({}, state, { responses: original }) }
         return
       }
       console.log(JSON.stringify(result, null, 2))
       onDone()
+      debounceImage(true)
 
+      result.requestId = requestId
       result.input = text
-      const next = state.responses.concat(result)
+      const next = state.responses.filter((res) => res.requestId !== requestId).concat(result)
+
       yield {
         busy: false,
         state: Object.assign({}, state, { responses: next }),
       }
       sagaStore.saveSession()
+      debounceImage(true)
     },
   }
 })
 
-function blankSession(gameId: string, overrides: Partial<SagaSession> = {}): SagaSession {
+const [debounceImage] = createDebounce(async (auto?: boolean) => {
+  const { state, template, image: prev } = sagaStore.getState()
+  if (!template.imagesEnabled || !template.imagePrompt) return
+  if (prev.state === 'generating') return
+
+  const last = state.responses.slice(-1)[0] || state.init
+  if (!last) return
+
+  const placeholders = getPlaceholderNames(template.imagePrompt)
+  for (const { key } of placeholders) {
+    if (!last[key] && !state.init?.[key]) {
+      return
+    }
+  }
+
+  const caption = formatResponse(template.imagePrompt, state, last)
+
+  if (auto && prev.last === caption) return
+  sagaStore.setState({ image: { ...prev, loading: true, state: 'generating', last: caption } })
+
+  try {
+    const res = await imageApi.generateImageAsync(caption, { noAffix: true })
+    sagaStore.setState({ image: { ...prev, loading: false, state: 'done', data: res.data } })
+  } catch (ex: any) {
+    sagaStore.setState({ image: { ...prev, loading: false, state: 'done' } })
+    toastStore.error(`Failed to generate image. ${ex.message || ''}`)
+  }
+}, 100)
+
+subscribe(
+  'guidance-partial',
+  { partial: 'any', adapter: 'string?', requestId: 'string' },
+  (body) => {
+    const { state } = sagaStore.getState()
+
+    if (state.init?.requestId === body.requestId) {
+      const next = { ...state, init: { requestId: body.requestId, ...body.partial } }
+      sagaStore.setState({ state: next })
+      return
+    }
+
+    const prev = state.responses.find((res) => res.requestId === body.requestId)
+    if (!prev) return
+
+    const next = state.responses.map((res) => {
+      if (body.requestId !== res.requestId) return res
+      return { ...body.partial, input: prev.input, requestId: body.requestId }
+    })
+
+    sagaStore.setState({ state: Object.assign({}, state, { responses: next }) })
+  }
+)
+
+function blankSession(templateId: string, overrides: Partial<Saga.Session> = {}): Saga.Session {
   return {
     _id: v4(),
-    format: 'Alpaca',
-    gameId,
+    format: 'Charluv',
+    userId: '',
+    templateId,
     overrides: {},
     responses: [],
     updated: now(),
@@ -389,11 +531,12 @@ function blankSession(gameId: string, overrides: Partial<SagaSession> = {}): Sag
   }
 }
 
-function blankTemplate(): SagaTemplate {
+function blankTemplate(partial: Partial<Saga.Template> = {}): Saga.Template {
   return {
     _id: v4(),
     name: 'New Template',
     byline: '',
+    userId: '',
     description: '',
     imagePrompt: '{{image_caption}}',
     imagesEnabled: false,
@@ -406,6 +549,7 @@ function blankTemplate(): SagaTemplate {
     lists: {},
     manual: [],
     ...newTemplate(),
+    ...partial,
   }
 }
 
@@ -438,19 +582,17 @@ function newTemplate() {
 
     <user>{{main_char}}: {{input}}</user>
 
-    <bot>
-    [response | temp=0.4 | tokens=300 | stop=USER | stop=ASSISTANT | stop=</ | stop=<| | stop=### ]</bot>
+    <bot>[response | temp=0.4 | tokens=300 | stop=USER | stop=ASSISTANT | stop=</ | stop=<| | stop=### ]</bot>
     
-    <user>
-
-  `,
+    <user>`,
   }
 }
 
-function exampleTemplate(): SagaTemplate {
+function exampleTemplate(): Saga.Template {
   return {
     _id: '',
     fields: [],
+    userId: '',
 
     name: 'Detective RPG (Example)',
     byline: 'Solve AI generated crimes',
@@ -487,11 +629,9 @@ function exampleTemplate(): SagaTemplate {
       `,
 
     history: neat`
-      <user>
-      [input]</user>
+      <user>{{input}}</user>
 
-      <bot>
-      [response]</bot>
+      <bot>{{response}}</bot>
     `,
     loop: neat`
     "detective who-dunnit" RPG
@@ -509,37 +649,32 @@ function exampleTemplate(): SagaTemplate {
 
     {{history}}
 
-    <user>
-    {{main_char}}: {{input}}</user>
+    <user>{{main_char}}: {{input}}</user>
 
     Write the next scene with the character's in the scene actions and dialogue.
 
-    <bot>
-    [response | temp=0.4 | tokens=300 | stop=USER | stop=ASSISTANT | stop=</ | stop=<| | stop=### ]</bot>
+    <bot>[response | temp=0.4 | tokens=300 | stop=USER | stop=ASSISTANT | stop=</ | stop=<| | stop=### ]</bot>
 
-    <user>
-    Write a brief image caption describing the scene and appearances of the characters: "[image_caption | tokens=200 | stop="]"
+    <user>Write a brief image caption describing the scene and appearances of the characters: "[image_caption | tokens=200 | stop="]"
 
-    <user>
-    Where is the main character currently standing?</user>
+    <user>Where is the main character currently standing?</user>
 
-    <bot>
-    Location: "[location | temp=0.4 | tokens=50 | stop="]"</bot>`,
+    <bot>Location: "[location | temp=0.4 | tokens=50 | stop="]"</bot>`,
   }
 }
 
 export function formatResponse(
   template: string,
-  session: SagaSession,
+  session: Saga.Session,
   values: Record<string, any>
 ) {
   let output = template || '{{response}}'
 
-  const matches = output.match(/{{[a-z0-9_-]+}}/gi)
+  const matches = getPlaceholderNames(output)
 
-  if (!matches) return output
-  for (const match of matches) {
-    const key = match.replace('{{', '').replace('}}', '').trim()
+  if (!matches.length) return output
+
+  for (const { key, match } of matches) {
     if (!key) continue
     const value = session.overrides[key] || values[key] || session.init?.[key] || ''
     output = output.replace(match, `${value}`)
@@ -548,7 +683,7 @@ export function formatResponse(
   return output
 }
 
-function insertPlaceholders(prompt: string, template: SagaTemplate, values: Record<string, any>) {
+function insertPlaceholders(prompt: string, template: Saga.Template, values: Record<string, any>) {
   let output = prompt
   for (const manual of template.manual || []) {
     const value = values[manual] || ''
@@ -559,7 +694,7 @@ function insertPlaceholders(prompt: string, template: SagaTemplate, values: Reco
   return output
 }
 
-function sortByAge(left: SagaSession, right: SagaSession) {
+function sortByAge(left: Saga.Session, right: Saga.Session) {
   const l = new Date(left.updated ?? 0).valueOf()
   const r = new Date(right.updated ?? 0).valueOf()
   return r - l
@@ -567,4 +702,12 @@ function sortByAge(left: SagaSession, right: SagaSession) {
 
 function toTrimmed(value: string) {
   return value.trim()
+}
+
+export function getPlaceholderNames(prompt: string) {
+  const matches = prompt
+    .match(/{{[a-z0-9_-]+}}/gi)
+    ?.map((name) => ({ match: name, key: name.replace('{{', '').replace('}}', '').trim() }))
+    .filter((name) => !!name)
+  return matches || []
 }

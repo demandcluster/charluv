@@ -1,8 +1,11 @@
 import { expect } from 'chai'
 import './init'
-import { splitSampleChat } from '/srv/adapter/chat-completion'
-import { reset } from './util'
+import { splitSampleChat, toChatCompletionPayload } from '/srv/adapter/chat-completion'
+import { build, reset, toBotMsg, toChar, toChat, toProfile, toUser } from './util'
 import { neat } from '/common/util'
+import { AdapterProps } from '/srv/adapter/type'
+import { getTokenCounter } from '/srv/tokenize'
+import { OPENAI_MODELS } from '/common/adapters'
 
 describe('Chat Completion Example Dialogue::', () => {
   before(reset)
@@ -87,18 +90,83 @@ describe('Chat Completion Example Dialogue::', () => {
     const output = await testInput(input)
     expect(output).toMatchSnapshot()
   })
+
+  it('will parse random within depth prompt', async () => {
+    const input = neat`
+    Vader: hi!
+    <START>
+    {{#insert 1}}Random character {{random "a"}}{{/insert}}
+    Sam: bye!
+    Vader: bye bye!
+    `
+    const output = await testChat(input)
+    expect(output).to.matchSnapshot()
+  })
 })
 
 async function testInput(input: string, budget?: number) {
-  const result = await splitSampleChat({
-    sampleChat: input,
-    char: TEST_CHARACTER_NAME,
-    sender: TEST_USER_NAME,
-    budget,
-  })
+  const result = await splitSampleChat(
+    {
+      sampleChat: input,
+      char: TEST_CHARACTER_NAME,
+      sender: TEST_USER_NAME,
+      budget,
+    },
+    getTokenCounter('openai', OPENAI_MODELS.Turbo)
+  )
 
   return JSON.stringify(result.additions, null, 2)
 }
 
 const TEST_CHARACTER_NAME = 'Vader'
 const TEST_USER_NAME = 'Sam'
+
+const bot1 = toChar('Sam')
+const bot2 = toChar('Vader')
+const chat1 = toChat(bot1)
+const profile1 = toProfile('Anon')
+const user = toUser('User')
+
+async function testChat(prompt: string) {
+  const characters = {
+    [bot1._id]: bot1,
+    [bot2._id]: bot2,
+  }
+
+  const parts = await build(
+    [
+      toBotMsg(bot1, 'hi'),
+      toBotMsg(bot2, 'hihi!'),
+      toBotMsg(bot1, 'bye'),
+      toBotMsg(bot2, 'byebye!'),
+    ],
+    { char: bot1, replyAs: bot1, chat: chat1, profile: profile1, characters }
+  )
+
+  const props: AdapterProps = {
+    prompt,
+    char: bot1,
+    chat: toChat(bot1),
+    gen: {},
+    impersonate: toChar('Vader'),
+    jsonValues: {},
+    kind: 'send',
+    lines: parts.lines,
+    log: {} as any,
+    mappedSettings: {},
+    members: [toProfile('Anon')],
+    parts: parts.parts,
+    replyAs: bot1,
+    requestId: '',
+    sender: profile1,
+    user: user.user,
+    characters,
+  }
+
+  const payload = await toChatCompletionPayload(
+    props,
+    getTokenCounter('openai', OPENAI_MODELS.Turbo),
+    200
+  )
+  return payload
+}

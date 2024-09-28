@@ -10,6 +10,7 @@ export const defaultFlags = {
   regen: false,
   caption: false,
   debug: false,
-  folders: false,
+  folders: true,
   sounds: false,
+  google: false,
 } satisfies { [key: string]: boolean }

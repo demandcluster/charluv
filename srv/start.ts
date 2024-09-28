@@ -4,11 +4,11 @@ import lt from 'localtunnel'
 import * as os from 'os'
 import throng from 'throng'
 import { initMessageBus } from './api/ws'
-import { server } from './app'
+import { createApp } from './app'
 import { config } from './config'
 import { store } from './db'
 import { connect, createIndexes } from './db/client'
-import { logger } from './logger'
+import { logger } from './middleware'
 import { setupDomain } from './domains'
 const pkg = require('../package.json')
 
@@ -16,17 +16,19 @@ export async function start() {
   // No longer accept requests when shutting down
   // Allow as many responses currently generating to complete as possible during the shutdown window
   // The shutdown window is ~10 seconds
+  const { server } = createApp()
+
   process.on('SIGTERM', () => {
     logger.warn(`Received SIGTERM. Server shutting down.`)
     server.close()
   })
 
   process.on('uncaughtException', (ex) => {
-    logger.error({ err: ex.message || ex }, 'Unhandled exception')
+    logger.error({ msg: ex?.message, err: ex, stack: ex.stack }, 'Unhandled exception')
   })
 
   process.on('unhandledRejection', (ex: any) => {
-    logger.error({ err: ex?.message || ex }, 'Unhandled rejection')
+    logger.error({ msg: ex?.message, err: ex, stack: ex.stack }, 'Unhandled rejection')
   })
 
   prepareTokenizers()

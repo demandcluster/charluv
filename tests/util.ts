@@ -87,10 +87,11 @@ export async function build(
     settings?: Partial<AppSchema.GenSettings>
     replyAs?: AppSchema.Character
     resolvedScenario?: string
+    characters?: Record<string, AppSchema.Character>
   } = {}
 ) {
   const overChar = { ...main, ...opts.char }
-  const characters = toMap([overChar, replyAs])
+  const characters = toMap([overChar, replyAs, ...Object.values(opts.characters || {})])
 
   const result = await createPromptParts(
     {
@@ -110,6 +111,7 @@ export async function build(
       chatEmbeds: [],
       userEmbeds: [],
       resolvedScenario: opts.resolvedScenario ?? overChar.scenario,
+      jsonValues: {},
     },
     getTokenCounter('main', undefined)
   )
@@ -181,6 +183,7 @@ async function getParseOpts(
     user: overrides.user || user,
     sender: profile,
     lastMessage: '',
+    jsonValues: {},
     ...overrides,
   }
 

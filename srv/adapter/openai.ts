@@ -1,23 +1,22 @@
-import needle from 'needle'
-import { sanitiseAndTrim } from '../api/chat/common'
-import { ModelAdapter } from './type'
+import { sanitiseAndTrim } from '/common/requests/util'
+import { ChatRole, CompletionItem, ModelAdapter } from './type'
 import { defaultPresets } from '../../common/presets'
-import { OPENAI_CHAT_MODELS } from '../../common/adapters'
+import { OPENAI_CHAT_MODELS, OPENAI_MODELS } from '../../common/adapters'
 import { AppSchema } from '../../common/types/schema'
 import { config } from '../config'
-import { AppLog } from '../logger'
-import { streamCompletion, toChatCompletionPayload } from './chat-completion'
+import { AppLog } from '../middleware'
+import { requestFullCompletion, toChatCompletionPayload } from './chat-completion'
 import { decryptText } from '../db/util'
+import { streamCompletion } from './stream'
+import { getTokenCounter } from '../tokenize'
 
 const baseUrl = `https://api.openai.com`
 
-type Role = 'user' | 'assistant' | 'system'
-
-type CompletionItem = { role: Role; content: string; name?: string }
 type CompletionContent<T> = Array<{ finish_reason: string; index: number } & ({ text: string } | T)>
-type Inference = { message: { content: string; role: Role } }
 
-type Completion<T = Inference> = {
+export type Inference = { message: { content: string; role: ChatRole } }
+
+export type Completion<T = Inference> = {
   id: string
   created: number
   model: string
@@ -25,17 +24,6 @@ type Completion<T = Inference> = {
   choices: CompletionContent<T>
   error?: { message: string }
 }
-
-type CompletionGenerator = (
-  userId: string,
-  url: string,
-  headers: Record<string, string | string[] | number>,
-  body: any,
-  log: AppLog
-) => AsyncGenerator<
-  { error: string } | { error?: undefined; token: string },
-  Completion | undefined
->
 
 export const handleOAI: ModelAdapter = async function* (opts) {
   const { char, members, user, prompt, log, gen, guest, kind, isThirdParty } = opts
@@ -47,7 +35,6 @@ export const handleOAI: ModelAdapter = async function* (opts) {
   }
 
   const oaiModel = gen.thirdPartyModel || gen.oaiModel || defaultPresets.openai.oaiModel
-
   const maxResponseLength = gen.maxTokens ?? defaultPresets.openai.maxTokens
 
   const body: any = {
@@ -55,19 +42,23 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     stream: (gen.streamResponse && kind !== 'summary') ?? defaultPresets.openai.streamResponse,
     temperature: gen.temp ?? defaultPresets.openai.temp,
     max_tokens: maxResponseLength,
-    presence_penalty: gen.presencePenalty ?? defaultPresets.openai.presencePenalty,
-    frequency_penalty: gen.frequencyPenalty ?? defaultPresets.openai.frequencyPenalty,
     top_p: gen.topP ?? 1,
     stop: [`\n${handle}:`].concat(gen.stopSequences!),
   }
 
+  body.presence_penalty = gen.presencePenalty ?? defaultPresets.openai.presencePenalty
+  body.frequency_penalty = gen.frequencyPenalty ?? defaultPresets.openai.frequencyPenalty
+
   const useChat =
     (isThirdParty && gen.thirdPartyFormat === 'openai-chat') || !!OPENAI_CHAT_MODELS[oaiModel]
-
   if (useChat) {
     const messages: CompletionItem[] = config.inference.flatChatCompletion
       ? [{ role: 'system', content: opts.prompt }]
-      : await toChatCompletionPayload(opts, body.max_tokens)
+      : await toChatCompletionPayload(
+          opts,
+          getTokenCounter('openai', OPENAI_MODELS.Turbo),
+          body.max_tokens
+        )
 
     body.messages = messages
     yield { prompt: messages }
@@ -78,9 +69,11 @@ export const handleOAI: ModelAdapter = async function* (opts) {
 
   if (gen.antiBond) body.logit_bias = { 3938: -50, 11049: -50, 64186: -50, 3717: -25 }
 
-  const useThirdPartyPassword = base.changed && isThirdParty && user.thirdPartyPassword
+  const useThirdPartyPassword =
+    base.changed && isThirdParty && (gen.thirdPartyKey || user.thirdPartyPassword)
+
   const apiKey = useThirdPartyPassword
-    ? user.thirdPartyPassword
+    ? gen.thirdPartyKey || user.thirdPartyPassword
     : !isThirdParty
     ? user.oaiKey
     : null
@@ -104,7 +97,7 @@ export const handleOAI: ModelAdapter = async function* (opts) {
 
   const iter = body.stream
     ? streamCompletion(opts.user._id, url, headers, body, 'OpenAI', opts.log)
-    : requestFullCompletion(opts.user._id, url, headers, body, opts.log)
+    : requestFullCompletion(opts.user._id, url, headers, body, 'OpenAI', opts.log)
   let accumulated = ''
   let response: Completion<Inference> | undefined
 
@@ -169,34 +162,6 @@ export type OAIUsage = {
   daily_costs: Array<{ timestamp: number; line_item: Array<{ name: string; cost: number }> }>
   object: string
   total_usage: number
-}
-
-const requestFullCompletion: CompletionGenerator = async function* (
-  _userId,
-  url,
-  headers,
-  body,
-  _log
-) {
-  const resp = await needle('post', url, JSON.stringify(body), {
-    json: true,
-    headers,
-  }).catch((err) => ({ error: err }))
-
-  if ('error' in resp) {
-    yield { error: `OpenAI request failed: ${resp.error?.message || resp.error}` }
-    return
-  }
-
-  if (resp.statusCode && resp.statusCode >= 400) {
-    const msg =
-      resp.body?.error?.message || resp.body.message || resp.statusMessage || 'Unknown error'
-
-    yield { error: `OpenAI request failed (${resp.statusCode}): ${msg}` }
-    return
-  }
-
-  return resp.body
 }
 
 function getCompletionContent(completion: Completion<Inference> | undefined, log: AppLog) {

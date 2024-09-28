@@ -9,15 +9,23 @@ import { setComponentPageTitle } from '../../shared/util'
 import { getServiceName, sortByLabel } from '/web/shared/adapter'
 import Divider from '/web/shared/Divider'
 import { SolidCard } from '/web/shared/Card'
+import { Page } from '/web/Layout'
 
 const SubscriptionList: Component = () => {
   setComponentPageTitle('Subscriptions')
   const nav = useNavigate()
-  const state = presetStore((s) => ({
-    subs: s.subs
-      .map((pre) => ({ ...pre, label: `[${getServiceName(pre.service)}] ${pre.name}` }))
-      .sort(sortByLabel),
-  }))
+  const state = presetStore((s) => {
+    return {
+      enabled: s.subs
+        .filter((s) => !s.subDisabled)
+        .map((pre) => ({ ...pre, label: `[${getServiceName(pre.service)}] ${pre.name}` }))
+        .sort(sortByLabel),
+      disabled: s.subs
+        .filter((s) => s.subDisabled)
+        .map((pre) => ({ ...pre, label: `[${getServiceName(pre.service)}] ${pre.name}` }))
+        .sort(sortByLabel),
+    }
+  })
 
   const cfg = userStore()
 
@@ -37,7 +45,7 @@ const SubscriptionList: Component = () => {
   })
 
   return (
-    <>
+    <Page>
       <PageHeader title="Subscriptions" />
       <A href="/admin/metrics" class="link">
         ← Back to Manage
@@ -46,13 +54,13 @@ const SubscriptionList: Component = () => {
         <A href="/admin/tiers/new">
           <Button>
             <Plus />
-            Subscription Tier
+            Tier
           </Button>
         </A>
         <A href="/admin/subscriptions/new">
           <Button>
             <Plus />
-            Subscription Preset
+            Model
           </Button>
         </A>
       </div>
@@ -112,8 +120,8 @@ const SubscriptionList: Component = () => {
           </div>
         </Show>
         <Divider />
-        <div class="flex justify-center font-bold">Subscription Presets</div>
-        <For each={state.subs}>
+        <div class="flex justify-center font-bold">Models</div>
+        <For each={state.enabled.concat(state.disabled)}>
           {(sub) => (
             <div class="flex w-full items-center gap-2">
               <A
@@ -132,6 +140,9 @@ const SubscriptionList: Component = () => {
                       [Level: {sub.subLevel}] {getServiceName(sub.service)}
                     </span>
                     {sub.name}
+                    <Show when={sub.description}>
+                      <span class="text-500 ml-1 text-xs">{sub.description}</span>
+                    </Show>
                     <span class="mr-1 text-xs italic text-[var(--text-600)]">
                       {sub.isDefaultSub ? ' default' : ''}
                       {sub.subDisabled ? ' (disabled)' : ''}
@@ -165,7 +176,7 @@ const SubscriptionList: Component = () => {
         confirm={deleteSub}
         message="Are you sure you wish to delete this subscription?"
       />
-    </>
+    </Page>
   )
 }
 

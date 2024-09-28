@@ -1,21 +1,68 @@
 import { createHooks, recommended } from '@css-hooks/solid'
 import * as lf from 'localforage'
 import { UnwrapBody, Validator, assertValid } from '/common/valid'
-import {
-  ADAPTER_LABELS,
-  AIAdapter,
-  PresetAISettings,
-  ThirdPartyFormat,
-  adapterSettings,
-} from '../../common/adapters'
+import { AIAdapter, AI_ADAPTERS, PresetAISettings, ThirdPartyFormat } from '../../common/adapters'
 import type { Option } from './Select'
-import { createEffect, onCleanup } from 'solid-js'
-import { UserState, settingStore, userStore } from '../store'
-import { AppSchema } from '/common/types'
+import { Component, createEffect, JSX, onCleanup } from 'solid-js'
+import type { UserState } from '../store'
+import { AppSchema, UI } from '/common/types'
+import { deepClone } from '/common/util'
+import { getRootRgb } from './colors'
+import { getStore } from '../store/create'
 
 const [css, hooks] = createHooks(recommended)
 
 export { hooks, css }
+
+export type ExtractProps<TComponent> = TComponent extends Component<infer TProps>
+  ? TProps
+  : TComponent
+
+type ChanceArg<T extends keyof Chance.Chance> = Chance.Chance[T] extends (arg: infer U) => any
+  ? U
+  : never
+
+export async function random<T extends keyof Chance.Chance>(kind: T, opts: ChanceArg<T>) {
+  const Chance = await import('chance').then((mod) => new mod.Chance())
+
+  const func: any = Chance[kind]
+  if (typeof func === 'function') {
+    return func.call(Chance, opts)
+  }
+
+  return ''
+}
+
+export type ComponentEmitter<T extends string> = {
+  emit: { [key in T]: () => void }
+  on: ComponentSubscriber<T>
+}
+
+export type ComponentSubscriber<T> = (event: T, callback: () => any) => void
+
+export function createEmitter<T extends string>(...events: T[]) {
+  const emit: any = {}
+  const listeners: Array<{ event: T; callback: () => void }> = []
+
+  const on = (event: T, callback: () => void) => {
+    listeners.push({ event, callback })
+  }
+
+  for (const event of events) {
+    emit[event] = () => {
+      for (const cb of listeners) {
+        if (cb.event === event) cb.callback()
+      }
+    }
+  }
+
+  const emitter: ComponentEmitter<T> = {
+    emit,
+    on,
+  }
+
+  return emitter
+}
 
 export function downloadJson(content: string | object, filename: string = 'charluv_export') {
   const output = encodeURIComponent(
@@ -27,6 +74,15 @@ export function downloadJson(content: string | object, filename: string = 'charl
   anchor.download = `${filename}.json`
   anchor.click()
   URL.revokeObjectURL(anchor.href)
+}
+
+export function getHeaderBg(mode: UI.UISettings['mode']) {
+  mode
+  const rgb = getRootRgb('bg-900')
+  const styles: JSX.CSSProperties = {
+    background: rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.7)` : 'bg-900',
+  }
+  return styles
 }
 
 export function getMaxChatWidth(chatWidth: UserState['ui']['chatWidth']) {
@@ -53,6 +109,7 @@ export function getMaxChatWidth(chatWidth: UserState['ui']['chatWidth']) {
 export const storage = {
   getItem,
   setItem,
+
   removeItem,
   clear,
 
@@ -132,18 +189,34 @@ function test(noThrow?: boolean) {
   return true
 }
 
+const DEFAULT_PREFIXES: Record<string, string> = {
+  'charluv.com': 'https://cdn.aivo.chat',
+  'rondev.local': 'https://cdn.aivo.chat',
+}
+
 const PREFIX_CACHE_KEY = 'charluv-asset-prefix'
 
-let assetPrefix = 'https://cdn.aivo.chat' //: string = localStorage.getItem(PREFIX_CACHE_KEY) || ''
+let assetPrefix: string =
+  localStorage.getItem(PREFIX_CACHE_KEY) || DEFAULT_PREFIXES[location.hostname.toLowerCase()] || ''
 
 export function getAssetPrefix() {
   return 'https://cdn.aivo.chat'
+}
+
+export function isBase64(file: string) {
+  if (file.startsWith('/') || file.startsWith('http')) return false
+  if (file.startsWith('data:')) return true
+
+  return file.length > 500
 }
 
 export function getAssetUrl(filename: string) {
   if (!filename) return ''
   if (filename.startsWith('http:') || filename.startsWith('https:') || filename.startsWith('data:'))
     return filename
+
+  // Likely base64
+  if (filename.length > 500) return filename
 
   const isFile =
     filename.startsWith('/assets') ||
@@ -163,7 +236,12 @@ export function getAssetUrl(filename: string) {
 }
 
 export function setAssetPrefix(prefix: string) {
-  storage.setItem(PREFIX_CACHE_KEY, prefix)
+  if (!prefix && assetPrefix) return
+  // if (!prefix.startsWith('http')) {
+  //   prefix = `https://${prefix}`
+  // }
+
+  storage.localSetItem(PREFIX_CACHE_KEY, prefix)
   assetPrefix = prefix
 }
 
@@ -328,10 +406,6 @@ function toRawDuration(valueSecs: number) {
   }
 }
 
-export function adaptersToOptions(adapters: AIAdapter[]): Option[] {
-  return adapters.map((adp) => ({ label: ADAPTER_LABELS[adp], value: adp }))
-}
-
 export function toEntityMap<T extends { _id: string }>(list: T[]): Record<string, T> {
   const map = list.reduce((prev, curr) => {
     prev[curr._id] = curr
@@ -339,6 +413,20 @@ export function toEntityMap<T extends { _id: string }>(list: T[]): Record<string
   }, {} as Record<string, T>)
 
   return map
+}
+
+export function uniqueBy<T>(list: T[], key: keyof T) {
+  const set = new Set<any>()
+  const next: T[] = []
+
+  for (const item of list) {
+    if (!set.has(item[key])) {
+      next.push(item)
+      set.add(item[key])
+    }
+  }
+
+  return next
 }
 
 /**
@@ -396,48 +484,6 @@ export function createDebounce<T extends (...args: any[]) => void>(
       }
     },
   ]
-}
-
-/**
- * @param name E.g. bg-100, hl-800, rose-300
- */
-export function getRootVariable(name: string) {
-  const root = document.documentElement
-  const value = getComputedStyle(root).getPropertyValue(name.startsWith('--') ? name : `--${name}`)
-  return value
-}
-
-export function setRootVariable(name: string, value: string) {
-  const root = document.documentElement
-  root.style.setProperty(name.startsWith('--') ? name : `--${name}`, value)
-}
-
-export function parseHex(hex: string) {
-  if (!hex.startsWith('#')) hex = '#' + hex
-  const rgb = hex.slice(1, 7)
-  const a = parseInt(hex.slice(7, 9), 16)
-  const { r, g, b } = hexToRgb(rgb)!
-  return { hex: rgb, r, g, b, alpha: isNaN(a) ? undefined : a / 255, rgba: hex }
-}
-
-export function hexToRgb(hex: string) {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex.trim())
-  return result
-    ? {
-        r: parseInt(result[1], 16),
-        g: parseInt(result[2], 16),
-        b: parseInt(result[3], 16),
-        rgb: `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}`,
-      }
-    : null
-}
-
-/**
- * @param name E.g. bg-100, hl-800, rose-300
- */
-export function getRootRgb(name: string) {
-  const value = getRootVariable(name)
-  return hexToRgb(value)!
 }
 
 export function toMap<T extends { _id: string }>(list: T[]): Record<string, T> {
@@ -525,7 +571,7 @@ export function serviceHasSetting(
 
 export function getAISettingServices(prop?: keyof PresetAISettings) {
   if (!prop) return
-  const cfg = settingStore((s) => s.config)
+  const cfg = getStore('settings')((s) => s.config)
   const base = adapterSettings[prop]
   const names: Array<AIAdapter | ThirdPartyFormat> = []
   for (const reg of cfg.registered) {
@@ -648,8 +694,8 @@ export function asyncFrame() {
 }
 
 export function getUsableServices() {
-  const { user } = userStore.getState()
-  const { config } = settingStore.getState()
+  const { user } = getStore('user').getState()
+  const { config } = getStore('settings').getState()
 
   const services: AIAdapter[] = []
 
@@ -667,7 +713,7 @@ export function isUsableService(
 ) {
   switch (service) {
     case 'agnaistic': {
-      const level = user?.sub?.level ?? -1
+      const level = user?.admin ? Infinity : user?.sub?.level ?? -1
       const match = config.subs.some((sub) => sub.level <= level)
       return match
     }
@@ -714,6 +760,10 @@ export function isUsableService(
     case 'petals': {
       return true
     }
+
+    case 'venus': {
+      return !!user?.adapterConfig?.venus?.apiKeySet
+    }
   }
 
   return false
@@ -729,4 +779,290 @@ export function toLocalTime(date: string) {
   const m = d.getMinutes().toString().padStart(2, '0')
 
   return `${Y}-${M}-${D}T${h}:${m}`
+}
+
+export type FieldUpdater = (index: number, path: string) => (ev: any) => void
+
+/**
+ * init: Initial list of items
+ * empty: Object template to use when adding a new item to the list
+ * @param opts
+ * @returns
+ */
+export function useRowHelper<T extends object>(opts: {
+  signal: [() => T[], (v: T[]) => void]
+  empty: T
+}) {
+  const items = opts.signal[0]
+  const setItems = opts.signal[1]
+
+  const add = () => {
+    const next = items().concat(deepClone(opts.empty))
+    setItems(next)
+  }
+
+  const remove = (index: number) => {
+    const prev = items()
+    const next = prev.slice(0, index).concat(prev.slice(index + 1))
+    setItems(next)
+  }
+
+  const updateItem = (index: number, field: string, value: any) => {
+    const prev = items()
+    const item = setProperty(prev[index], field, value)
+
+    const next = prev
+      .slice(0, index)
+      .concat(item)
+      .concat(prev.slice(index + 1))
+    setItems(next)
+  }
+
+  const updater = (index: number, field: string) => {
+    return (ev: any) => {
+      // Toggle, Radio, ColorPicker, ...
+      if (typeof ev === 'string' || typeof ev === 'number' || typeof ev === 'boolean') {
+        return updateItem(index, field, ev)
+      }
+
+      // Textarea and Input fields
+      if ('currentTarget' in ev) {
+        return updateItem(index, field, ev.currentTarget.value)
+      }
+
+      // Selects
+      if ('label' in ev && 'value' in ev) {
+        return updateItem(index, field, ev.value)
+      }
+
+      // MultiDropdown
+      if (Array.isArray(ev)) {
+        return updateItem(
+          index,
+          field,
+          ev.map((ev) => ev.value)
+        )
+      }
+    }
+  }
+
+  return { add, remove, updateItem, items, updater }
+}
+
+function setProperty(obj: any, path: string, value: any): any {
+  const [head, ...rest] = path.split('.')
+
+  return {
+    ...obj,
+    [head]: rest.length ? setProperty(obj[head], rest.join('.'), value) : value,
+  }
+}
+
+export const sticky = {
+  interval: null as any as NodeJS.Timer,
+  monitor: (ref: HTMLElement) => {
+    let bottom = true
+
+    ref.onscroll = (ev) => {
+      const pos = ref.scrollTop
+
+      if (pos >= 0) {
+        bottom = true
+      } else {
+        bottom = false
+      }
+    }
+
+    sticky.interval = setInterval(() => {
+      if (bottom && ref.scrollTop !== 0) {
+        ref.scrollTop = 0
+      }
+    }, 1000 / 30)
+  },
+  clear: () => clearInterval(sticky.interval),
+}
+
+export const adapterSettings: {
+  [key in keyof PresetAISettings]: Array<AIAdapter | ThirdPartyFormat>
+} = {
+  temp: [
+    'kobold',
+    'novel',
+    'ooba',
+    'horde',
+    'openai',
+    'scale',
+    'claude',
+    'goose',
+    'agnaistic',
+    'aphrodite',
+    'tabby',
+    'mistral',
+    'openrouter',
+  ],
+  tempLast: ['agnaistic', 'tabby', 'exllamav2'],
+  dynatemp_range: ['kobold', 'ooba', 'tabby', 'agnaistic', 'aphrodite', 'ollama'],
+  dynatemp_exponent: ['kobold', 'aphrodite', 'ooba', 'tabby', 'agnaistic', 'ollama'],
+  smoothingFactor: ['kobold', 'aphrodite', 'ooba', 'tabby', 'agnaistic'],
+  smoothingCurve: ['kobold', 'aphrodite'],
+  maxTokens: AI_ADAPTERS.slice(),
+  maxContextLength: AI_ADAPTERS.slice(),
+  antiBond: ['openai', 'scale'],
+  prefixNameAppend: ['openai', 'claude'],
+
+  swipesPerGeneration: ['aphrodite'],
+  epsilonCutoff: ['aphrodite'],
+  etaCutoff: ['aphrodite'],
+
+  prefill: ['claude', 'openrouter'],
+
+  topP: [
+    'horde',
+    'kobold',
+    'claude',
+    'ooba',
+    'openai',
+    'novel',
+    'agnaistic',
+    'exllamav2',
+    'openai-chat',
+    'aphrodite',
+    'tabby',
+    'mistral',
+    'openrouter',
+  ],
+  localRequests: ['openai', 'openai-chat'],
+  repetitionPenalty: [
+    'horde',
+    'novel',
+    'kobold',
+    'ooba',
+    'agnaistic',
+    'exllamav2',
+    'aphrodite',
+    'tabby',
+    'ollama',
+    'openrouter',
+  ],
+  repetitionPenaltyRange: ['horde', 'novel', 'kobold', 'ooba', 'agnaistic', 'tabby', 'ollama'],
+  repetitionPenaltySlope: ['horde', 'novel', 'kobold'],
+  tailFreeSampling: ['horde', 'novel', 'kobold', 'ooba', 'agnaistic', 'aphrodite', 'tabby'],
+  minP: [
+    'llamacpp',
+    'kobold',
+    'koboldcpp',
+    'exllamav2',
+    'ooba',
+    'agnaistic',
+    'aphrodite',
+    'tabby',
+    'openrouter',
+  ],
+  topA: ['horde', 'novel', 'kobold', 'ooba', 'agnaistic', 'aphrodite', 'tabby', 'openrouter'],
+  topK: [
+    'horde',
+    'novel',
+    'kobold',
+    'ooba',
+    'claude',
+    'agnaistic',
+    'exllamav2',
+    'aphrodite',
+    'tabby',
+    'openrouter',
+  ],
+  typicalP: [
+    'horde',
+    'novel',
+    'kobold',
+    'ooba',
+    'agnaistic',
+    'exllamav2',
+    'aphrodite',
+    'tabby',
+    'ollama',
+  ],
+
+  mirostatToggle: ['aphrodite', 'tabby', 'ollama'],
+  mirostatLR: ['novel', 'ooba', 'agnaistic', 'llamacpp', 'aphrodite', 'tabby', 'ollama'],
+  mirostatTau: ['novel', 'ooba', 'agnaistic', 'llamacpp', 'aphrodite', 'tabby', 'ollama'],
+  cfgScale: ['novel', 'ooba', 'tabby'],
+  cfgOppose: ['novel', 'ooba', 'tabby'],
+  phraseRepPenalty: ['novel'],
+  phraseBias: ['novel'],
+
+  thirdPartyUrl: ['kobold', 'ooba'],
+  thirdPartyFormat: ['kobold'],
+  thirdPartyModel: ['openai', 'openai-chat', 'aphrodite', 'tabby', 'ollama', 'vllm'],
+  thirdPartyKey: ['kobold', 'aphrodite', 'tabby', 'openai', 'openai-chat'],
+
+  claudeModel: ['claude'],
+  novelModel: ['novel'],
+  mistralModel: ['mistral'],
+  oaiModel: ['openai', 'openai-chat'],
+  frequencyPenalty: [
+    'openai',
+    'kobold',
+    'novel',
+    'agnaistic',
+    'openai-chat',
+    'aphrodite',
+    'tabby',
+    'openrouter',
+  ],
+  presencePenalty: [
+    'openai',
+    'kobold',
+    'novel',
+    'openai-chat',
+    'aphrodite',
+    'tabby',
+    'ollama',
+    'openrouter',
+  ],
+  streamResponse: [
+    'openai',
+    'kobold',
+    'novel',
+    'claude',
+    'ooba',
+    'agnaistic',
+    'openai-chat',
+    'aphrodite',
+    'tabby',
+    'mistral',
+    'ollama',
+    'openrouter',
+  ],
+  openRouterModel: ['openrouter'],
+  stopSequences: [
+    'ooba',
+    'agnaistic',
+    'novel',
+    'mancer',
+    'llamacpp',
+    'horde',
+    'exllamav2',
+    'kobold',
+    'aphrodite',
+    'tabby',
+    'ollama',
+    'openrouter',
+  ],
+  trimStop: ['koboldcpp'],
+
+  addBosToken: ['ooba', 'agnaistic', 'tabby'],
+  banEosToken: ['ooba', 'aphrodite', 'tabby'],
+  tokenHealing: ['agnaistic', 'exllamav2', 'ooba', 'tabby'],
+  doSample: ['ooba'],
+  encoderRepitionPenalty: ['ooba'],
+  penaltyAlpha: ['ooba'],
+  earlyStopping: ['ooba'],
+  numBeams: ['ooba'],
+
+  replicateModelName: ['replicate'],
+  replicateModelVersion: ['replicate'],
+  replicateModelType: ['replicate'],
+
+  skipSpecialTokens: ['ooba', 'kobold'],
 }

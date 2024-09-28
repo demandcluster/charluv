@@ -69,9 +69,11 @@ export function jsonToCharacter(json: any): NewCharacter {
   }
 
   if (format === 'tavern') {
+    const ext = json.extensions || {}
     return {
       name: json.name,
       greeting: json.first_mes,
+      appearance: ext?.appearance,
       persona: {
         kind: 'text',
         attributes: {
@@ -123,6 +125,7 @@ export function jsonToCharacter(json: any): NewCharacter {
     description: json.data.creator_notes,
     voice: json.data.extensions.agnai?.voice,
     insert: json.data.extensions.depth_prompt,
+    json: json.data.extensions.agnai?.json,
   }
 }
 

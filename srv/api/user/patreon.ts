@@ -1,9 +1,11 @@
 import needle from 'needle'
 import { config } from '../../config'
 import { StatusError } from '../wrap'
-import { AppSchema, Patreon } from '../../../common/types'
-import { getCachedTiers } from '../../db/subscriptions'
-import { store } from '../../db'
+import { AppSchema, Patreon } from '/common/types'
+import { getCachedTiers } from '/srv/db/subscriptions'
+import { store } from '/srv/db'
+import { command } from '/srv/domains'
+import { sendOne } from '../ws'
 
 export const patreon = {
   authorize,
@@ -93,21 +95,13 @@ async function identity(token: string) {
   })
 
   const contrib = tier.attributes.amount_cents
-  const sub = getCachedTiers().reduce((prev, curr) => {
-    if (!curr.enabled || curr.deletedAt) return prev
-    if (!curr.patreon?.tierId) return prev
-    if (curr.patreon.cost >= contrib) return prev
-
-    if (!prev) return curr
-    if (prev.patreon?.cost! >= curr.patreon.cost) return prev
-    return curr
-  })
+  const sub = getPatronSubscriptionTier(contrib)
 
   return { tier, sub, user, member }
 }
 
-async function revalidatePatron(userId: string) {
-  const user = await store.users.getUser(userId)
+async function revalidatePatron(userId: string | AppSchema.User) {
+  const user = typeof userId === 'string' ? await store.users.getUser(userId) : userId
   if (!user?.patreon) {
     throw new StatusError(`Patreon account is not linked`, 400)
   }
@@ -123,18 +117,26 @@ async function revalidatePatron(userId: string) {
       ...token,
       expires: new Date(Date.now() + token.expires_in * 1000).toISOString(),
     }
-    await store.users.updateUser(userId, { patreon: next })
+    await store.users.updateUser(user._id, { premium: false, patreon: next })
     user.patreon = next
   }
 
   const patron = await identity(user.patreon.access_token)
 
   const existing = await store.users.findByPatreonUserId(patron.user.id)
-  if (existing && existing._id !== userId) {
-    throw new StatusError(`This Patreon account is already attributed to another user`, 400)
+  if (existing && existing._id !== user._id) {
+    sendOne(user._id, {
+      type: 'notification',
+      level: 'warn',
+      message:
+        'Your patreon account was already assigned to an account. It has been unlinked from that account.',
+      ttl: 20,
+    })
+
+    await store.users.unlinkPatreonAccount(existing._id, `attributing to user ${user._id}`)
   }
 
-  const next = await store.users.updateUser(userId, {
+  const next = await store.users.updateUser(user._id, {
     patreon: {
       ...user.patreon,
       user: patron.user,
@@ -143,14 +145,29 @@ async function revalidatePatron(userId: string) {
       sub: patron.sub ? { tierId: patron.sub._id, level: patron.sub.level } : undefined,
     },
     patreonUserId: patron.user.id,
+
+    // Handle patron level changes
+    sub:
+      patron.sub && (!user.sub || user.sub.type === 'patreon')
+        ? { type: 'patreon', level: patron.sub.level, tierId: patron.sub._id }
+        : user.sub,
   })
-  if (next?.premium === false && patron.sub?.level && patron.sub?.level > 0) {
-    next.premium = true
-    await store.users.updateUser(userId, {
-      premium: true,
-    })
-  }
+  await command.patron.link(patron.user.id, { userId: user._id })
   return next
+}
+
+function getPatronSubscriptionTier(contrib: number) {
+  const sub = getCachedTiers().reduce((prev, curr) => {
+    if (!curr.enabled || curr.deletedAt) return prev
+    if (!curr.patreon?.tierId) return prev
+    if (curr.patreon.cost > contrib) return prev
+
+    if (!prev) return curr
+    if (prev.patreon?.cost! > curr.patreon.cost) return prev
+    return curr
+  })
+
+  return sub
 }
 
 async function initialVerifyPatron(userId: string, code: string) {

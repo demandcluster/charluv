@@ -12,16 +12,6 @@ export async function getChatOnly(id: string) {
   return chat
 }
 
-export async function getChatWithTree(chatId: string) {
-  const [chat, tree] = await Promise.all([getChatOnly(chatId), getChatTree(chatId)])
-  return { chat, tree }
-}
-
-export async function getChatTree(chatId: string) {
-  const tree = await db('chat-tree').findOne({ chatId })
-  return tree
-}
-
 export async function getChat(id: string) {
   const chat = await db('chat').findOne({ _id: id })
   if (!chat) return
@@ -49,7 +39,10 @@ export async function getMessageAndChat(msgId: string) {
 }
 
 export async function update(id: string, props: PartialUpdate<AppSchema.Chat>) {
-  await db('chat').updateOne({ _id: id }, { $set: { ...props, updatedAt: now() } as any })
+  await db('chat').updateOne(
+    { _id: id },
+    { $set: { ...props, updatedAt: props.updatedAt || now() } as any }
+  )
   return getChatOnly(id)
 }
 
@@ -67,6 +60,7 @@ export async function create(
     | 'overrides'
     | 'genPreset'
     | 'mode'
+    | 'imageSource'
   >,
   profile: AppSchema.Profile,
   impersonating?: AppSchema.Character
@@ -96,6 +90,7 @@ export async function create(
     genPreset: props.genPreset,
     messageCount: props.greeting ? 1 : 0,
     tempCharacters: {},
+    imageSource: props.imageSource,
   }
 
   await db('chat').insertOne(doc)
@@ -106,6 +101,7 @@ export async function create(
       char,
       impersonate: impersonating,
       sender: profile,
+      jsonValues: {},
     })
     const msg: AppSchema.ChatMessage = {
       kind: 'chat-message',
@@ -194,6 +190,7 @@ export async function getAllChats(userId: string) {
             createdAt: 1,
             updatedAt: 1,
             messageCount: 1,
+            genPreset: 1,
             'character.name': 1,
           },
         },
@@ -273,6 +270,7 @@ export async function restartChat(
     chat,
     sender: profile,
     impersonate,
+    jsonValues: {},
   })
 
   await db('chat-message').insertOne({
@@ -283,6 +281,6 @@ export async function restartChat(
     characterId: char._id,
     createdAt: now(),
     updatedAt: now(),
-    retries: [],
+    retries: char.alternateGreetings || [],
   })
 }

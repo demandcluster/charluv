@@ -1,13 +1,37 @@
 import * as os from 'os'
 import * as redis from 'redis'
 import { config } from '../../config'
-import { logger } from '../../logger'
-import { getAllCount, publishAll, publishGuest, publishMany, publishOne } from './handle'
+import { logger } from '../../middleware'
+import { AppSocket } from './types'
+import { PING_INTERVAL_MS } from '/common/util'
 
-let connected = false
+export const allSockets = new Map<string, AppSocket>()
+export const userSockets = new Map<string, AppSocket[]>()
+
+setInterval(() => {
+  for (const cli of allSockets.values()) {
+    const socket = cli as AppSocket
+    if (cli.appVersion >= 1 === false) continue
+
+    if (socket.isAlive === false) {
+      socket.misses++
+
+      if (socket.misses >= 5) {
+        return socket.terminate()
+      }
+    }
+
+    socket.isAlive = false
+    socket.dispatch({ type: 'ping' })
+  }
+}, PING_INTERVAL_MS)
+
+let CONNECTED = false
 
 type LiveCount = {
   count: number
+  shas: Record<string, number>
+  versioned: number
   hostname: string
   date: Date
   max: number
@@ -25,13 +49,28 @@ export const clients = {
 
 let nonBusMaxCount = 0
 
+export function getAllCount() {
+  let versioned = 0
+  const shas: Record<string, number> = {}
+  for (const cli of allSockets.values()) {
+    const sha = cli.sha || 'none'
+    if (!shas[sha]) shas[sha] = 0
+    shas[sha]++
+    if (cli.appVersion > 0) {
+      versioned++
+    }
+  }
+
+  return { count: allSockets.size, versioned, shas }
+}
+
 export function getLiveCounts() {
-  if (!connected)
+  if (!CONNECTED)
     return {
       entries: [
         {
           hostname: `${os.hostname()}-${process.pid}`,
-          count: getAllCount(),
+          ...getAllCount(),
           date: new Date(),
           max: nonBusMaxCount,
         },
@@ -53,7 +92,7 @@ export function getLiveCounts() {
 }
 
 export function isConnected() {
-  return connected
+  return CONNECTED
 }
 
 export async function initMessageBus() {
@@ -75,7 +114,7 @@ export async function initMessageBus() {
       const count = getAllCount()
       clients.pub.publish(
         COUNT_EVENT,
-        JSON.stringify({ count, hostname: `${os.hostname()}-${process.pid}` })
+        JSON.stringify({ ...count, hostname: `${os.hostname()}-${process.pid}` })
       )
     }, 2000)
 
@@ -96,10 +135,10 @@ export async function initMessageBus() {
       } catch (ex) {}
     })
 
-    connected = true
+    CONNECTED = true
   } catch (ex) {
     setInterval(() => {
-      nonBusMaxCount = Math.max(getAllCount(), nonBusMaxCount)
+      nonBusMaxCount = Math.max(getAllCount().count, nonBusMaxCount)
     }, 5000)
     logger.warn(
       `Message bus not connected - Running in non-distributed mode. If you are self-hosting you can ignore this warning.`
@@ -130,23 +169,47 @@ type BusMessage<T extends { type: string } = { type: string }> =
 function handleBus(msg: BusMessage) {
   try {
     switch (msg.target) {
-      case 'one':
-        return publishOne(msg.userId, msg.data)
+      case 'one': {
+        let count = 0
+        const sockets = userSockets.get(msg.userId)
 
-      case 'many':
-        return publishMany(msg.userIds, msg.data)
+        if (!sockets) return count
 
-      case 'all':
-        return publishAll(msg.data)
+        for (const socket of sockets) {
+          socket.send(JSON.stringify(msg.data))
+          count++
+        }
+        return count
+      }
 
-      case 'guest':
-        return publishGuest(msg.socketId, msg.data)
+      case 'many': {
+        const unique = Array.from(new Set(msg.userIds))
+        for (const userId of unique) {
+          handleBus({ target: 'one', userId, data: msg.data })
+        }
+        return
+      }
+
+      case 'all': {
+        for (const [, socket] of allSockets.entries()) {
+          if (!socket) continue
+          socket.send(JSON.stringify(msg.data))
+        }
+        return
+      }
+
+      case 'guest': {
+        const socket = allSockets.get(msg.socketId)
+        if (!socket) return
+        socket.send(JSON.stringify(msg.data))
+        return
+      }
     }
   } catch (ex) {}
 }
 
 export async function broadcast(payload: BusMessage) {
-  if (connected) {
+  if (CONNECTED) {
     await clients.pub.publish(MESSAGE_EVENT, JSON.stringify(payload))
     return
   }

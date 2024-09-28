@@ -79,31 +79,19 @@ export const matchStore = createStore<Matchesstate>('Match', {
 
       const res = await api.post(`/match/${char._id}`)
 
-      toastStore.success(`Successfully created Match`)
-
       if (res.error) toastStore.error(`Failed to create Match: ${res.error}`)
-      if (res.result) {
+      else {
+        toastStore.success(`Successfully created Match`)
+
         // const props = charsIds().list[charsIds().list.length - 1];
         // console.log(charsIds().list,this.id,charsIds().list[charsIds().list.length - 1],props);
-        const charId = res.result._id
-        matchStore.getMatches()
+        const charId = res.result?._id
 
-        chatStore.createChat(
-          charId,
-          {
-            name: 'First Chat',
-            schema: 'wpp',
-            useOverrides: false,
-            scenarioId: '',
-            genPreset: 'horde',
-          },
-          (res) => {
-            chatStore.getChat(res)
-            characterStore.getCharacters()
-            navi(`/chat/${res}`)
-          }
-        )
+        navi(`/chats/create/${charId}`)
+
+        return true
       }
+      debugger
     },
   }
 })

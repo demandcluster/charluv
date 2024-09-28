@@ -7,16 +7,23 @@ import { AIAdapter, NOVEL_MODELS, OPENAI_MODELS } from '../common/adapters'
 import gpt from 'gpt-3-encoder'
 import { resolve } from 'path'
 import * as nai from 'nai-js-tokenizer'
-import { logger } from './logger'
+import { logger } from './middleware'
 import { AppSchema, Encoder, TokenCounter, Tokenizer } from '/common/types'
 
 const claudeJson = readFileSync(resolve(__dirname, 'sp-models', 'claude.json'))
 const pileJson = readFileSync(resolve(__dirname, 'sp-models', 'pile_tokenizer.json'))
 const gpt2Json = readFileSync(resolve(__dirname, 'sp-models', 'gpt2_tokenizer.json'))
+const cohereJson = readFileSync(resolve(__dirname, 'sp-models', 'cohere.json'))
+const qwen2Json = readFileSync(resolve(__dirname, 'sp-models', 'qwen2.json'))
+const llama3Json = readFileSync(resolve(__dirname, 'sp-models', 'llama3.json'))
 
 let claudeEncoder: Tokenizer
+let cohereEncoder: Tokenizer
+let qwen2Encoder: Tokenizer
+let llama3Encoder: Tokenizer
 let krake: Encoder
 let euterpe: Encoder
+let gemma: Encoder
 
 const davinciEncoder = encoding_for_model('text-davinci-003')
 const turboEncoder = encoding_for_model('gpt-3.5-turbo')
@@ -36,15 +43,24 @@ let claude: Encoder
 let davinci: Encoder
 let turbo: Encoder
 let mistral: Encoder
+let yi: Encoder
+let cohere: Encoder
+let llama3: Encoder
+let qwen2: Encoder
 
 export type EncoderType =
   | 'novel'
   | 'novel-modern'
   | 'llama'
+  | 'llama3'
   | 'claude'
   | 'davinci'
   | 'turbo'
   | 'mistral'
+  | 'yi'
+  | 'cohere'
+  | 'qwen2'
+  | 'gemma'
 
 const TURBO_MODELS = new Set<string>([
   OPENAI_MODELS.Turbo,
@@ -58,7 +74,7 @@ const TURBO_MODELS = new Set<string>([
 export function getTokenCounter(
   adapter: AIAdapter | 'main',
   model: string | undefined,
-  sub?: AppSchema.SubscriptionPreset
+  sub?: AppSchema.SubscriptionModel
 ): TokenCounter {
   if (sub?.tokenizer) {
     const tokenizer = getEncoderByName(sub.tokenizer as EncoderType)
@@ -72,6 +88,9 @@ export function getEncoderByName(type: EncoderType) {
   switch (type) {
     case 'mistral':
       return mistral
+
+    case 'yi':
+      return yi
 
     case 'claude':
       return claude
@@ -90,6 +109,18 @@ export function getEncoderByName(type: EncoderType) {
 
     case 'turbo':
       return turbo
+
+    case 'cohere':
+      return cohere
+
+    case 'llama3':
+      return llama3
+
+    case 'qwen2':
+      return qwen2
+
+    case 'gemma':
+      return gemma
   }
 }
 
@@ -162,6 +193,9 @@ export async function prepareTokenizers() {
     novel = createEncoder('novelai.model')
     novelModern = createEncoder('novelai_v2.model')
     llama = createEncoder('llama.model')
+    yi = createEncoder('yi.model')
+    gemma = createEncoder('gemma.model')
+
     await init((imports) => WebAssembly.instantiate(wasm!, imports))
     {
       davinci = {
@@ -199,6 +233,48 @@ export async function prepareTokenizers() {
         },
         count: (value) => {
           const tokens = claudeEncoder.encode(value)
+          return tokens.length
+        },
+      }
+    }
+    {
+      cohereEncoder = await mlc.Tokenizer.fromJSON(cohereJson)
+      cohere = {
+        decode: (tokens) => cohereEncoder.decode(Int32Array.from(tokens)),
+        encode: (value) => {
+          const tokens = Array.from(cohereEncoder.encode(value))
+          return tokens
+        },
+        count: (value) => {
+          const tokens = cohereEncoder.encode(value)
+          return tokens.length
+        },
+      }
+    }
+    {
+      llama3Encoder = await mlc.Tokenizer.fromJSON(llama3Json)
+      llama3 = {
+        decode: (tokens) => llama3Encoder.decode(Int32Array.from(tokens)),
+        encode: (value) => {
+          const tokens = Array.from(llama3Encoder.encode(value))
+          return tokens
+        },
+        count: (value) => {
+          const tokens = llama3Encoder.encode(value)
+          return tokens.length
+        },
+      }
+    }
+    {
+      qwen2Encoder = await mlc.Tokenizer.fromJSON(qwen2Json)
+      qwen2 = {
+        decode: (tokens) => qwen2Encoder.decode(Int32Array.from(tokens)),
+        encode: (value) => {
+          const tokens = Array.from(qwen2Encoder.encode(value))
+          return tokens
+        },
+        count: (value) => {
+          const tokens = qwen2Encoder.encode(value)
           return tokens.length
         },
       }

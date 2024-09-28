@@ -7,16 +7,15 @@ import { clearDraft } from '../shared/hooks'
 import { storage, toMap } from '../shared/util'
 import { api } from './api'
 import { createStore, getStore } from './create'
-import { AllChat, chatsApi } from './data/chats'
-import { msgsApi } from './data/messages'
-import { treesApi } from './data/tree'
+import { AllChat as ChatData, chatsApi } from './data/chats'
+import { getPromptEntities } from './data/common'
 import { usersApi } from './data/user'
 import { msgStore } from './message'
 import { subscribe } from './socket'
 import { toastStore } from './toasts'
 import { replace } from '/common/util'
 
-export { AllChat }
+export type AllChat = ChatData
 
 export type ChatState = {
   lastChatId: string | null
@@ -221,7 +220,7 @@ export const chatStore = createStore<ChatState>('chat', {
         },
       }
     },
-    async *getChat(_, id: string, clear = true) {
+    async *openChat(_, id: string, clear = true) {
       if (clear) {
         yield { loaded: false, active: undefined }
       }
@@ -239,6 +238,7 @@ export const chatStore = createStore<ChatState>('chat', {
 
         events.emit(EVENTS.receiveMsgs, {
           chatId: id,
+          leafId: res.result.chat.treeLeafId,
           characterId: res.result.character._id,
           messages: res.result.messages,
         })
@@ -332,12 +332,12 @@ export const chatStore = createStore<ChatState>('chat', {
       }
     },
 
-    async *editChatGenPreset({ active }, chatId: string, preset: string, onSucces?: () => void) {
+    async *editChatGenPreset({ active }, chatId: string, preset: string, onSuccess?: () => void) {
       const res = await chatsApi.editChatGenPreset(chatId, preset)
       if (res.error) toastStore.error(`Failed to update generation settings: ${res.error}`)
       if (res.result) {
         chatStore.setChat(chatId, { genSettings: undefined, genPreset: preset })
-        onSucces?.()
+        onSuccess?.()
       }
     },
     async *getAllChats({ allChats, lastFetched }) {
@@ -362,7 +362,12 @@ export const chatStore = createStore<ChatState>('chat', {
           map: toMap(res.result.characters),
           list: res.result.characters,
         }
-        return { allChats: res.result.chats.sort(sortDesc), allChars }
+        return {
+          allChats: res.result.chats.sort(sortDesc),
+          allChars,
+          loaded: true,
+          allLoading: false,
+        }
       }
     },
     getBotChats: async (_, characterId: string) => {
@@ -490,7 +495,7 @@ export const chatStore = createStore<ChatState>('chat', {
     async restartChat(_, chatId: string) {
       const res = await chatsApi.restartChat(chatId)
       if (res.result) {
-        chatStore.getChat(chatId, false)
+        chatStore.openChat(chatId, false)
       }
 
       if (res.error) {
@@ -525,7 +530,7 @@ export const chatStore = createStore<ChatState>('chat', {
       if (!active) return
 
       const { msgs } = msgStore.getState()
-      const entities = await msgsApi.getPromptEntities()
+      const entities = await getPromptEntities()
 
       const encoder = await getEncoder()
       const replyAs = active.replyAs?.startsWith('temp-')
@@ -541,6 +546,8 @@ export const chatStore = createStore<ChatState>('chat', {
       const prompt = await createPromptParts(
         {
           ...entities,
+          impersonate: entities.impersonating,
+          modelFormat: entities.settings.modelFormat,
           lastMessage: entities.lastMessage?.date || '',
           replyAs,
           sender: entities.profile,
@@ -548,9 +555,15 @@ export const chatStore = createStore<ChatState>('chat', {
           chatEmbeds: [],
           userEmbeds: [],
           resolvedScenario,
+          jsonValues: msgs.reduce((prev, curr) => Object.assign(prev, curr.json?.values || {}), {}),
         },
         encoder
       )
+
+      // const parsed = entities.settings.modelFormat
+      //   ? replaceTags(prompt.template.parsed, entities.settings.modelFormat)
+      //   : prompt.template.parsed
+      // prompt.template.parsed = parsed
 
       return { prompt: { ...prompt, shown } }
     },
@@ -558,20 +571,12 @@ export const chatStore = createStore<ChatState>('chat', {
     closePrompt() {
       return { prompt: undefined }
     },
-
-    async forkChat({ active }, messageId: string) {
-      if (!active) return
-      const res = await treesApi.forkChat(active.chat._id, messageId)
-      if (res.result) {
-        events.emit(EVENTS.receiveMsgs, {
-          characterId: active.chat.characterId,
-          chatId: active.chat._id,
-          messages: res.result.messages,
-        })
-      }
-    },
   }
 })
+
+// function updateAutoReplyAs() {
+
+// }
 
 function toMemberKeys(prev: Record<string, AppSchema.Profile>, curr: AppSchema.Profile) {
   prev[curr.userId] = curr

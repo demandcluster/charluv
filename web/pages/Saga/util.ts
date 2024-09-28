@@ -2,10 +2,11 @@ import { v4 } from 'uuid'
 import { sagaStore } from './state'
 import { downloadJson } from '/web/shared/util'
 import { toastStore } from '/web/store'
-import { SagaTemplate } from '/web/store/data/saga'
+import { Saga } from '/common/types'
 
-const emptyTemplate: SagaTemplate = {
+const emptyTemplate: Saga.Template = {
   _id: '',
+  userId: '',
   name: '',
   byline: '',
   description: '',
@@ -25,6 +26,10 @@ const emptyTemplate: SagaTemplate = {
   manual: [],
 }
 
+export function toSessionUrl(id: string) {
+  return `/saga/${id}${location.search}`
+}
+
 export function exportTemplate(id: string) {
   const { templates } = sagaStore.getState()
   const template = templates.find((t) => t._id === id)
@@ -37,7 +42,7 @@ export function exportTemplate(id: string) {
   downloadJson(template, `template_${id.slice(0, 4)}`)
 }
 
-export function validateTemplate(template: any): asserts template is SagaTemplate {
+export function validateTemplate(template: any): asserts template is Saga.Template {
   const missing: string[] = []
 
   for (const key of Object.keys(emptyTemplate)) {
@@ -64,13 +69,41 @@ export function importTemplate(template: any) {
   return next
 }
 
-export function getTemplateFields(template: string) {
-  const names = template
+export function getTemplateFields(
+  type: 'intro' | 'input' | 'response',
+  template: Saga.Template,
+  msg: Record<string, any>
+) {
+  const intro = extractFields(template.introduction || '{{scene}}')
+  const input = extractFields('{{input}}')
+  const response = extractFields(template.history).filter((field) => field !== 'input')
+
+  const remainder = Object.entries(msg)
+    .filter(([key, value]) => {
+      if (value === undefined) return false
+      if (key === 'input' || key === 'requestId') return false
+      if (intro.includes(key) || response.includes(key)) return false
+      return true
+    })
+    .map(([key]) => key)
+
+  switch (type) {
+    case 'intro':
+      return intro.concat(remainder)
+
+    case 'input':
+      return input
+
+    case 'response':
+      return response.concat(remainder)
+  }
+}
+
+function extractFields(prompt: string) {
+  const names = prompt
     .match(/{{([a-z0-9_-]+)}}/gi)
     ?.map((text) => text.replace('{{', '').replace('}}', '').trim())
 
   if (!names) return []
-
-  const unique = Array.from(new Set(names))
-  return unique
+  return names
 }

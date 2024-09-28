@@ -1,24 +1,17 @@
-import type {
-  AIAdapter,
-  ChatAdapter,
-  HordeModel,
-  HordeWorker,
-  OpenRouterModel,
-  PersonaFormat,
-  RegisteredAdapter,
-  ThirdPartyFormat,
-} from '../adapters'
+import type { AIAdapter, ChatAdapter, ThirdPartyFormat } from '../adapters'
+import * as Memory from './memory'
 import type { GenerationPreset } from '../presets'
-import type { ImageSettings } from './image-schema'
-import type { TTSSettings, VoiceSettings } from './texttospeech-schema'
-import { UISettings } from './ui'
-import { FullSprite } from './sprite'
-import { ModelFormat } from '../presets/templates'
+import type { BaseImageSettings, ImageSettings } from './image-schema'
+import type { TTSSettings } from './texttospeech-schema'
+import type { UISettings } from './ui'
+import * as Saga from './saga'
+import * as Library from './library'
+import * as Preset from './presets'
+import * as Admin from './admin'
 
 export type AllDoc =
   | AppSchema.Announcement
   | AppSchema.Chat
-  | AppSchema.ChatTree
   | AppSchema.ChatMessage
   | AppSchema.Character
   | AppSchema.User
@@ -27,7 +20,7 @@ export type AllDoc =
   | AppSchema.ChatMember
   | AppSchema.ChatInvite
   | AppSchema.UserGenPreset
-  | AppSchema.SubscriptionPreset
+  | AppSchema.SubscriptionModel
   | AppSchema.SubscriptionTier
   | AppSchema.MemoryBook
   | AppSchema.ShopOrder
@@ -38,129 +31,36 @@ export type AllDoc =
   | AppSchema.ApiKey
   | AppSchema.PromptTemplate
   | AppSchema.Configuration
+  | AppSchema.SagaTemplate
+  | AppSchema.SagaSession
 
 export type OAuthScope = keyof typeof oauthScopes
 
 export const oauthScopes = ['characters', 'chats', 'presets', 'profile'] as const
 
-export type ChatBranch = {
-  parent: string
-  children: { [key: string]: number }
-}
-
 export namespace AppSchema {
-  export interface Configuration {
-    kind: 'configuration'
+  export type MemoryBook = Memory.MemoryBook
+  export type MemoryEntry = Memory.MemoryEntry
 
-    /** JSON - merges with slots.txt, but this takes precedence when field collisions occur */
-    slots: string
+  export type Persona = Library.Persona
+  export type BaseCharacter = Library.BaseCharacter
+  export type Character = Library.Character
 
-    /** Determines who can use API access for inferencing */
-    apiAccess: 'off' | 'users' | 'subscribers' | 'admins'
+  export type GenSettings = Preset.GenSettings
+  export type UserGenPreset = Preset.UserGenPreset
+  export type PromptTemplate = Preset.PromptTemplate
 
-    maintenance: boolean
+  export type SubscriptionTier = Preset.SubscriptionTier
+  export type SubscriptionModel = Preset.SubscriptionModel
+  export type SubscriptionModelOption = Preset.SubscriptionModelOption
+  export type SubscriptionModelLevel = Preset.SubscriptionModelLevel
+  export type SubscriptionType = 'native' | 'patreon' | 'manual' | 'paypal'
 
-    /** Markdown */
-    maintenanceMessage: string
-
-    /** Not yet implemented */
-    policiesEnabled: boolean
-
-    /** Not yet implemented */
-    tosUpdated: string
-    /** Not yet implemented */
-    termsOfService: string
-
-    /** Not yet implemented */
-    privacyUpdated: string
-    /** Not yet implemented */
-    privacyStatement: string
-
-    /** Concatenated to adapters listed in ADAPTERS envvar */
-    /** Not yet implemented */
-    enabledAdapters: string[]
-  }
-
-  export interface Announcement {
-    kind: 'announcement'
-    _id: string
-
-    title: string
-    content: string
-
-    /** Date ISO string */
-    showAt: string
-    hide: boolean
-
-    createdAt: string
-    updatedAt: string
-    deletedAt?: string
-  }
-
-  export interface SubscriptionTier {
-    kind: 'subscription-tier'
-    _id: string
-
-    productId: string
-    priceId: string
-    patreon?: {
-      tierId: string
-      cost: number
-    }
-    apiAccess: boolean
-    guidanceAccess: boolean
-
-    name: string
-    description: string
-    cost: number
-    level: number
-    enabled: boolean
-    disableSlots?: boolean
-    createdAt: string
-    deletedAt?: string
-    updatedAt: string
-  }
-
-  export interface SubscriptionOption {
-    _id: string
-    name: string
-    level: number
-    service: AIAdapter
-    guidance: boolean
-    preset: GenSettings
-  }
-
-  export interface AppConfig {
-    adapters: AIAdapter[]
-    version: string
-    canAuth: boolean
-    imagesSaved: boolean
-    assetPrefix: string
-    selfhosting: boolean
-    registered: Array<Omit<RegisteredAdapter, 'contextLimit'>>
-    maintenance?: string
-    patreon?: boolean
-    policies?: boolean
-    apiAccess?: boolean
-    guidanceAccess?: boolean
-    flags?: string
-    patreonAuth?: {
-      clientId: string
-    }
-
-    pipelineProxyEnabled: boolean
-    authUrls: string[]
-    horde: {
-      models: HordeModel[]
-      workers: HordeWorker[]
-    }
-    openRouter: { models: OpenRouterModel[] }
-    subs: Array<SubscriptionOption>
-
-    /** @todo remove after next deployment */
-    tier?: AppSchema.SubscriptionTier
-    serverConfig?: Configuration
-  }
+  export type Announcement = Admin.Announcement
+  export type ActionCall = Admin.ActionCall
+  export type AppConfig = Admin.AppConfig
+  export type Configuration = Admin.Configuration
+  export type ImageModel = Admin.ImageModel
 
   export type ChatMode = 'standard' | 'adventure'
 
@@ -173,6 +73,44 @@ export namespace AppSchema {
     exp: number
   }
 
+  export interface ShopOrder {
+    _id: string
+    kind: 'order'
+    order?: number
+    items: ShopItem[]
+    total: number
+    userId: string
+    name?: string
+    createdAt: string
+    updatedAt?: string
+    status: 'pending' | 'failed' | 'cancelled' | 'success' | 'hold' | 'completed'
+    paymentId?: string
+  }
+
+  export interface OrderCount {
+    _id: string
+    kind: 'order-count'
+    sequence_value: number
+  }
+
+  export interface InviteCode {
+    _id: string
+    kind: 'invitecode'
+    count: number
+    private: boolean
+  }
+
+  export interface ShopItem {
+    _id: string
+    kind: 'shop'
+    name: string
+    price: number
+    credits: number
+    premium: boolean
+    days: number
+    incart: false
+  }
+
   export interface Profile {
     _id: string
     kind: 'profile'
@@ -181,12 +119,13 @@ export namespace AppSchema {
     avatar?: string
   }
 
-  export type SubscriptionType = 'native' | 'patreon' | 'manual' | 'paypal'
-
   export interface User {
     _id: string
 
     updatedAt?: string
+
+    /** Date ISO string of last seen announcement */
+    announcement?: string
 
     kind: 'user'
     username: string
@@ -195,6 +134,7 @@ export namespace AppSchema {
 
     admin: boolean
     lastIp?: string
+    role?: 'moderator' | 'admin'
 
     novelApiKey: string
     novelModel: string
@@ -211,6 +151,9 @@ export namespace AppSchema {
     thirdPartyPassword: string
     thirdPartyPasswordSet?: boolean
     oobaUrl: string
+
+    mistralKey?: string
+    mistralKeySet?: boolean
 
     oaiKey: string
     oaiKeySet?: boolean
@@ -234,6 +177,7 @@ export namespace AppSchema {
     defaultAdapter: AIAdapter
     defaultPresets?: { [key in AIAdapter]?: string }
     defaultPreset?: string
+    chargenPreset?: string
 
     createdAt?: string
 
@@ -280,6 +224,11 @@ export namespace AppSchema {
       }
     }
 
+    google?: {
+      sub: any
+      email: any
+    }
+
     billing?: {
       status: 'active' | 'cancelled'
       cancelling?: boolean
@@ -307,13 +256,19 @@ export namespace AppSchema {
     enabled: boolean
   }
 
-  export interface ChatTree {
-    _id: string
-    kind: 'chat-tree'
-    chatId: string
-    userId: string
+  export interface SagaField {
+    name: string
+    label: string
+    visible: boolean
+    type: 'string' | 'number' | 'boolean'
+  }
 
-    tree: Record<string, ChatBranch>
+  export interface SagaTemplate extends Saga.Template {
+    kind: 'saga-template'
+  }
+
+  export interface SagaSession extends Saga.Session {
+    kind: 'saga-session'
   }
 
   export interface Chat {
@@ -350,6 +305,9 @@ export namespace AppSchema {
     scenarioStates?: string[]
 
     treeLeafId?: string
+
+    imageSource?: 'last-character' | 'main-character' | 'chat' | 'settings'
+    imageSettings?: BaseImageSettings
   }
 
   export interface ChatMember {
@@ -371,6 +329,7 @@ export namespace AppSchema {
     extras?: string[]
     characterId?: string
     userId?: string
+    name?: string
 
     adapter?: string
     imagePrompt?: string
@@ -382,70 +341,18 @@ export namespace AppSchema {
     ooc?: boolean
     system?: boolean
     meta?: any
-    event?: EventTypes | undefined
+    event?: ScenarioEventType | undefined
     state?: string
     values?: Record<string, string | number | boolean>
-  }
-
-  export type EventTypes = 'world' | 'character' | 'hidden' | 'ooc'
-
-  /** Description of the character or user */
-  export type Persona =
-    | {
-        kind: PersonaFormat
-        attributes: { [key: string]: string[] }
-      }
-    | { kind: 'text'; attributes: { text: [string] } }
-
-  export interface BaseCharacter {
-    _id: string
-    name: string
-    description?: string
-    appearance?: string
-    avatar?: string
-    persona: Persona
-    greeting: string
-    scenario: string
-    sampleChat: string
-  }
-
-  export interface Character extends BaseCharacter {
-    kind: 'character'
-    userId: string
-
-    culture?: string
-    tags?: string[]
-
-    visualType?: string
-
     parent?: string
-    match: boolean
-    xp: number
-    share?: string
-    premium: boolean
-    scenarioIds?: string[]
-    sprite?: FullSprite
-    children?: number
-    createdAt: string
-    updatedAt: string
-    deletedAt?: string
-
-    favorite?: boolean
-
-    voice?: VoiceSettings
-    voiceDisabled?: boolean
-
-    // v2 stuff
-    alternateGreetings?: string[]
-    characterBook?: MemoryBook
-    extensions?: Record<string, any>
-    systemPrompt?: string
-    postHistoryInstructions?: string
-    insert?: { depth: number; prompt: string }
-    creator?: string
-    characterVersion?: string
-    folder?: string
+    json?: {
+      response: string
+      history: string
+      values: any
+    }
   }
+
+  export type ScenarioEventType = 'world' | 'character' | 'hidden' | 'ooc'
 
   export interface ChatInvite {
     _id: string
@@ -474,219 +381,6 @@ export namespace AppSchema {
     lockId: string
   }
 
-  export interface UserGenPreset extends GenSettings {
-    _id: string
-    kind: 'gen-setting'
-    userId: string
-  }
-  export interface ShopOrder {
-    _id: string
-    kind: 'order'
-    order?: number
-    items: ShopItem[]
-    total: number
-    userId: string
-    name?: string
-    createdAt: string
-    updatedAt?: string
-    status: 'pending' | 'failed' | 'cancelled' | 'success' | 'hold' | 'completed'
-    paymentId?: string
-  }
-  // export interface Scenario {
-  //   _id: string
-  //   kind: 'scenario'
-  //   charId: string
-  //   name: string
-  //   prompt: string
-  //   xp: number
-  //   greeting: string
-  // }
-
-  export interface OrderCount {
-    _id: string
-    kind: 'order-count'
-    sequence_value: number
-  }
-
-  export interface InviteCode {
-    _id: string
-    kind: 'invitecode'
-    count: number
-    private: boolean
-  }
-
-  export interface ShopItem {
-    _id: string
-    kind: 'shop'
-    name: string
-    price: number
-    credits: number
-    premium: boolean
-    days: number
-    incart: false
-  }
-
-  export interface SubscriptionPreset extends GenSettings {
-    _id: string
-    kind: 'subscription-setting'
-    subLevel: number
-    subModel: string
-    subApiKey: string
-    subApiKeySet?: boolean
-    subServiceUrl?: string
-    subDisabled: boolean
-    allowGuestUsage?: boolean
-    isDefaultSub?: boolean
-    deletedAt?: string
-    tokenizer?: string
-    guidanceCapable?: boolean
-  }
-
-  export interface GenSettings {
-    name: string
-    service?: AIAdapter
-
-    temp: number
-    dynatemp_range?: number
-    dynatemp_exponent?: number
-    maxTokens: number
-    maxContextLength?: number
-    repetitionPenalty: number
-    repetitionPenaltyRange: number
-    repetitionPenaltySlope: number
-    typicalP: number
-    minP?: number
-    topP: number
-    topK: number
-    topA: number
-    mirostatTau?: number
-    mirostatLR?: number
-    tailFreeSampling: number
-    encoderRepitionPenalty?: number
-    doSample?: boolean
-    penaltyAlpha?: number
-    numBeams?: number
-    addBosToken?: boolean
-    banEosToken?: boolean
-    earlyStopping?: boolean
-    stopSequences?: string[]
-    trimStop?: boolean
-    etaCutoff?: number
-    epsilonCutoff?: number
-    swipesPerGeneration?: number
-    mirostatToggle?: boolean
-
-    order?: number[]
-    disabledSamplers?: number[]
-
-    skipSpecialTokens?: boolean
-
-    phraseBias?: Array<{ bias: number; seq: string }>
-    phraseRepPenalty?: string
-    cfgScale?: number
-    cfgOppose?: string
-
-    systemPrompt?: string
-    ignoreCharacterSystemPrompt?: boolean
-    gaslight?: string
-    promptTemplateId?: string
-    modelFormat?: ModelFormat
-    useAdvancedPrompt?: 'basic' | 'validate' | 'no-validation'
-    promptOrderFormat?: string
-    promptOrder?: Array<{ placeholder: string; enabled: boolean }>
-    ultimeJailbreak?: string
-    prefixNameAppend?: boolean
-    prefill?: string
-    ignoreCharacterUjb?: boolean
-    antiBond?: boolean
-
-    frequencyPenalty?: number
-    presencePenalty?: number
-    oaiModel?: string
-    novelModel?: string
-    claudeModel?: string
-    openRouterModel?: OpenRouterModel
-
-    thirdPartyUrl?: string
-    thirdPartyFormat?: ThirdPartyFormat
-    thirdPartyUrlNoSuffix?: boolean
-    thirdPartyModel?: string
-    thirdPartyKey?: string
-
-    replicateModelName?: string
-    replicateModelType?: string
-    replicateModelVersion?: string
-
-    streamResponse?: boolean
-
-    memoryDepth?: number
-    memoryContextLimit?: number
-    memoryReverseWeight?: boolean
-    memoryChatEmbedLimit?: number
-    memoryUserEmbedLimit?: number
-
-    src?: string
-
-    images?: {
-      adapter: string
-    }
-
-    temporary?: Record<string, any>
-    registered?: { [key in AIAdapter]?: Record<string, any> }
-  }
-
-  export interface PromptTemplate {
-    kind: 'prompt-template'
-    _id: string
-    name: string
-    template: string
-    userId: string
-    public?: boolean
-    createdAt: string
-    updatedAt: string
-  }
-
-  export interface MemoryBook {
-    kind: 'memory'
-    _id: string
-    name: string
-    description?: string
-    userId: string
-    entries: MemoryEntry[]
-
-    // currently unsupported V2 fields which are here so that we don't destroy them
-    scanDepth?: number
-    tokenBudget?: number
-    recursiveScanning?: boolean
-    extensions?: Record<string, any>
-  }
-
-  export interface MemoryEntry {
-    name: string
-
-    /** The text injected into the prompt */
-    entry: string
-
-    /** Keywords that trigger the entry to be injected */
-    keywords: string[]
-
-    /** When choosing which memories to discard, lowest priority will be discarded first */
-    priority: number
-
-    /** When determining what order to render the memories, the highest will be at the bottom  */
-    weight: number
-
-    enabled: boolean
-
-    // currently unsupported V2 fields which are here so that we don't destroy them
-    id?: number
-    comment?: string
-    selective?: boolean
-    secondaryKeys?: Array<string>
-    constant?: boolean
-    position?: 'before_char' | 'after_char'
-  }
-
   export interface ScenarioBook {
     kind: 'scenario'
     _id: string
@@ -705,7 +399,7 @@ export namespace AppSchema {
     name: string
     requires: string[]
     assigns: string[]
-    type: EventTypes
+    type: ScenarioEventType
     text: string
     trigger: T
   }

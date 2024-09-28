@@ -19,6 +19,7 @@ export async function updateCredits(userId: string, amount: number, nextCredits:
     })
 
   sendOne(userId, { type: 'credits-updated', credits })
+
   return { credits }
 }
 
@@ -66,6 +67,7 @@ export async function getFreeCredits() {
         )
         if (updatedCredits > user.credits) {
           const credits = await updateCredits(userId, updatedCredits - user.credits, nextTime)
+          sendOne(userId, { type: 'recharged', amount: groupCreditsToAdd })
           //sendOne(userId, { type: 'credits-updated', credits })
         }
       }
@@ -95,6 +97,7 @@ export async function getFreeCredits() {
     const updatedCredits = Math.min(usr.credits + creditsToAdd, 200)
     if (updatedCredits > usr.credits) {
       const credits = await updateCredits(usr._id, updatedCredits - usr.credits, nextTime)
+      sendOne(usr._id, { type: 'recharged', amount: creditsToAdd })
       // sendOne(usr._id, { type: 'credits-updated', credits })
     }
   }
@@ -107,7 +110,7 @@ export async function getFreeCredits() {
 
     if (updatedCredits > usr.credits) {
       const credits = await updateCredits(usr._id, updatedCredits - usr.credits, nextTime)
-
+      sendOne(usr._id, { type: 'recharged', amount: creditsToAdd })
       //  sendOne(usr._id, { type: 'credits-updated', credits })
     }
   }

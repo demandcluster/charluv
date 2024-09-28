@@ -1,4 +1,4 @@
-import { sanitise, sanitiseAndTrim, trimResponseV2 } from '../api/chat/common'
+import { sendOne } from '../api/ws'
 import { config } from '../config'
 import { store } from '../db'
 import { isConnected } from '../db/client'
@@ -7,12 +7,12 @@ import { decryptText } from '../db/util'
 import { handleClaude } from './claude'
 import { handleGooseAI } from './goose'
 import { handleHorde } from './horde'
-import { handleKobold } from './kobold'
+import { handleThirdParty } from './kobold'
 import { handleMancer } from './mancer'
 import { handleNovel } from './novel'
-import { getTextgenCompletion, getThirdPartyPayload, handleOoba } from './ooba'
 import { handleOAI } from './openai'
 import { handleOpenRouter } from './openrouter'
+import { getThirdPartyPayload } from './payloads'
 import { handlePetals } from './petals'
 import { registerAdapter } from './register'
 import { handleReplicate } from './replicate'
@@ -22,6 +22,11 @@ import { ModelAdapter } from './type'
 import { AIAdapter, AdapterSetting } from '/common/adapters'
 import { AppSchema } from '/common/types'
 import { parseStops } from '/common/util'
+import { getTextgenCompletion } from './dispatch'
+import { handleVenus } from './venus'
+import { sanitise, sanitiseAndTrim, trimResponseV2 } from '/common/requests/util'
+import { obtainLock, releaseLock } from '../api/chat/lock'
+import { getServerConfiguration } from '../db/admin'
 
 export async function getSubscriptionPreset(
   user: AppSchema.User,
@@ -33,7 +38,7 @@ export async function getSubscriptionPreset(
   if (gen.service !== 'agnaistic') return
 
   const tier = store.users.getUserSubTier(user)
-  const level = user.admin ? 100 : tier?.level ?? -1
+  const level = user.admin ? 999999 : tier?.level ?? -1
   let error: string | undefined = undefined
   let warning: string | undefined = undefined
 
@@ -84,8 +89,8 @@ export const handleAgnaistic: ModelAdapter = async function* (opts) {
     yield { warning: opts.subscription.warning }
   }
 
-  const level = opts.subscription.level ?? -1
-  const preset = opts.subscription.preset
+  const level = opts.user.admin ? 99999 : opts.subscription.level ?? -1
+  const subPreset = opts.subscription.preset
 
   let newLevel = await store.users.validateSubscription(opts.user)
   if (newLevel === undefined) {
@@ -97,11 +102,11 @@ export const handleAgnaistic: ModelAdapter = async function* (opts) {
     return
   }
 
-  if (preset.subLevel > -1 && preset.subLevel > newLevel) {
+  if (subPreset.subLevel > -1 && subPreset.subLevel > newLevel) {
     opts.log.error(
       {
-        preset: preset.name,
-        presetLevel: preset.subLevel,
+        preset: subPreset.name,
+        presetLevel: subPreset.subLevel,
         newLevel,
         nativeLevel: opts.user.sub?.level,
         patronLevel: opts.user.patreon?.sub?.level,
@@ -112,9 +117,19 @@ export const handleAgnaistic: ModelAdapter = async function* (opts) {
     return
   }
 
-  if (!preset.allowGuestUsage && opts.guest) {
+  if (!subPreset.allowGuestUsage && opts.guest) {
     yield { error: 'Please sign in to use this model' }
     return
+  }
+
+  const srv = await getServerConfiguration()
+
+  /**
+   * Lock per user per model
+   */
+  const lockId = `${opts.user._id}-${opts.subscription.preset.name}`
+  if (!opts.guidance && +srv.lockSeconds > 0) {
+    await obtainLock(lockId, srv.lockSeconds)
   }
 
   const useRecommended = !!opts.gen.registered?.agnaistic?.useRecommended
@@ -131,26 +146,27 @@ export const handleAgnaistic: ModelAdapter = async function* (opts) {
       maxTokens,
       gaslight,
       allowGuestUsage,
-      images,
+      imageSettings,
       temporary,
       useAdvancedPrompt,
       _id,
       kind,
       name,
       ...recommended
-    } = preset
+    } = subPreset
     Object.assign(opts.gen, recommended)
   }
 
   // Max tokens and max context limit are decided by the subscription preset
   // We've already set the max context length prior to calling this handler
-  opts.gen.maxTokens = Math.min(preset.maxTokens, opts.gen.maxTokens || 80)
-  opts.gen.thirdPartyUrl = preset.thirdPartyUrl
-  opts.gen.thirdPartyFormat = preset.thirdPartyFormat
+  opts.gen.maxTokens = Math.min(subPreset.maxTokens, opts.gen.maxTokens || 80)
+  opts.gen.thirdPartyUrl = subPreset.thirdPartyUrl
+  opts.gen.thirdPartyFormat = subPreset.thirdPartyFormat
 
-  const stops = Array.isArray(preset.stopSequences)
-    ? new Set(preset.stopSequences)
-    : new Set<string>()
+  const stops =
+    Array.isArray(subPreset.stopSequences) && opts.kind !== 'plain'
+      ? new Set(subPreset.stopSequences)
+      : new Set<string>()
 
   if (Array.isArray(opts.gen.stopSequences) && opts.gen.stopSequences.length) {
     for (const stop of opts.gen.stopSequences) {
@@ -160,52 +176,53 @@ export const handleAgnaistic: ModelAdapter = async function* (opts) {
 
   const allStops = Array.from(stops.values())
 
-  const key = (preset.subApiKey ? decryptText(preset.subApiKey) : config.auth.inferenceKey) || ''
-  if (preset.service && preset.service !== 'agnaistic') {
-    let handler = handlers[preset.service]
+  const key =
+    (subPreset.subApiKey ? decryptText(subPreset.subApiKey) : config.auth.inferenceKey) || ''
+  if (subPreset.service && subPreset.service !== 'agnaistic') {
+    let handler = handlers[subPreset.service]
 
-    const userKey = preset.subApiKey
+    const userKey = subPreset.subApiKey
 
     opts.user.oaiKey = userKey
-    opts.gen.thirdPartyModel = preset.thirdPartyModel
-    opts.gen.oaiModel = preset.thirdPartyModel || preset.oaiModel
+    opts.gen.thirdPartyModel = subPreset.thirdPartyModel
+    opts.gen.oaiModel = subPreset.thirdPartyModel || subPreset.oaiModel
 
     opts.user.claudeApiKey = userKey
-    opts.gen.claudeModel = preset.claudeModel
+    opts.gen.claudeModel = subPreset.claudeModel
 
     opts.user.novelApiKey = userKey
-    opts.gen.novelModel = preset.novelModel
+    opts.gen.novelModel = subPreset.novelModel
 
     opts.user.scaleApiKey = userKey
 
-    opts.gen.replicateModelType = preset.replicateModelType
-    opts.gen.replicateModelVersion = preset.replicateModelVersion
+    opts.gen.replicateModelType = subPreset.replicateModelType
+    opts.gen.replicateModelVersion = subPreset.replicateModelVersion
     // opts.user.hordeKey = userKey
 
     if (!opts.user.adapterConfig) {
       opts.user.adapterConfig = {}
     }
 
-    if (preset.service === 'kobold' && preset.thirdPartyFormat === 'llamacpp') {
+    if (subPreset.service === 'kobold' && subPreset.thirdPartyFormat === 'llamacpp') {
       opts.gen.service = 'kobold'
-      handler = handleOoba
+      handler = handleThirdParty
     }
 
-    if (preset.service === 'goose') {
+    if (subPreset.service === 'goose') {
       opts.user.adapterConfig.goose = {
-        engine: preset.registered?.goose?.engine,
+        engine: subPreset.registered?.goose?.engine,
         apiKey: userKey,
       }
     }
 
-    if (preset.service === 'mancer') {
+    if (subPreset.service === 'mancer') {
       opts.user.adapterConfig.mancer = {
-        ...preset.registered?.mancer,
+        ...subPreset.registered?.mancer,
         apiKey: userKey,
       }
     }
 
-    if (preset.service === 'replicate') {
+    if (subPreset.service === 'replicate') {
       opts.user.adapterConfig.replicate = {
         apiToken: userKey,
       }
@@ -218,33 +235,30 @@ export const handleAgnaistic: ModelAdapter = async function* (opts) {
     return
   }
 
-  // if (opts.kind === 'continue') {
-  //   opts.prompt = opts.prompt.trim() + ' '
-  // }
-
   const body = getThirdPartyPayload(opts, allStops)
 
   yield { prompt }
 
-  log.debug({ ...body, prompt: null }, 'Agnaistic payload')
+  log.debug({ ...body, prompt: null, imageData: null }, 'Agnaistic payload')
 
   log.debug(`Prompt:\n${prompt}`)
 
   const params = [
+    `type=text`,
     `key=${key}`,
     `id=${opts.user._id}`,
-    `model=${preset.subModel}`,
+    `model=${subPreset.subModel}`,
     `level=${level}`,
   ].join('&')
 
   const resp = gen.streamResponse
     ? await websocketStream({
-        url: `${preset.subServiceUrl || preset.thirdPartyUrl}/api/v1/stream?${params}`,
+        url: `${subPreset.subServiceUrl || subPreset.thirdPartyUrl}/api/v1/stream?${params}`,
         body,
       })
     : getTextgenCompletion(
         'Agnastic',
-        `${preset.subServiceUrl || preset.thirdPartyUrl}/api/v1/generate?${params}`,
+        `${subPreset.subServiceUrl || subPreset.thirdPartyUrl}/api/v1/generate?${params}`,
         body,
         {}
       )
@@ -261,7 +275,11 @@ export const handleAgnaistic: ModelAdapter = async function* (opts) {
     }
 
     if (generated.value.meta) {
-      yield { meta: generated.value.meta }
+      const meta = generated.value.meta
+      yield { meta }
+      if (meta.host && !opts.guest) {
+        sendOne(opts.user._id, { type: 'message-meta', host: meta.host })
+      }
     }
 
     if (generated.value.error) {
@@ -272,7 +290,8 @@ export const handleAgnaistic: ModelAdapter = async function* (opts) {
 
     // Only the streaming generator yields individual tokens.
     if (generated.value.token) {
-      accumulated += generated.value.token
+      if (opts.guidance) accumulated = generated.value.token
+      else accumulated += generated.value.token
       yield { partial: sanitiseAndTrim(accumulated, prompt, char, opts.characters, members) }
     }
 
@@ -280,6 +299,10 @@ export const handleAgnaistic: ModelAdapter = async function* (opts) {
       result = generated.value
       break
     }
+  }
+
+  if (+srv.lockSeconds > 0) {
+    await releaseLock(lockId)
   }
 
   const parsed = sanitise((result || accumulated).replace(prompt, ''))
@@ -348,8 +371,8 @@ export async function updateRegisteredSubs() {
 
 export const handlers: { [key in AIAdapter]: ModelAdapter } = {
   novel: handleNovel,
-  kobold: handleKobold,
-  ooba: handleOoba,
+  kobold: handleThirdParty,
+  ooba: handleThirdParty,
   horde: handleHorde,
   openai: handleOAI,
   scale: handleScale,
@@ -360,6 +383,7 @@ export const handlers: { [key in AIAdapter]: ModelAdapter } = {
   mancer: handleMancer,
   petals: handlePetals,
   agnaistic: handleAgnaistic,
+  venus: handleVenus,
 }
 
 export function getHandlers(settings: Partial<AppSchema.GenSettings>) {
@@ -376,6 +400,7 @@ export function getHandlers(settings: Partial<AppSchema.GenSettings>) {
     case 'petals':
     case 'mancer':
     case 'novel':
+    case 'venus':
       return handlers[settings.service]
   }
 

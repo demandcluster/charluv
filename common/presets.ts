@@ -13,8 +13,11 @@ export const presetValidator = {
   service: AI_ADAPTERS,
   name: 'string',
   temp: 'number',
+  tempLast: 'boolean?',
   dynatemp_range: 'number?',
   dynatemp_exponent: 'number?',
+  smoothingFactor: 'number?',
+  smoothingCurve: 'number?',
   maxTokens: 'number',
   maxContextLength: 'number?',
   repetitionPenalty: 'number',
@@ -39,6 +42,7 @@ export const presetValidator = {
   addBosToken: 'boolean?',
   banEosToken: 'boolean?',
   skipSpecialTokens: 'boolean?',
+  tokenHealing: 'boolean?',
   doSample: 'boolean?',
   penaltyAlpha: 'number?',
   earlyStopping: 'boolean?',
@@ -62,6 +66,7 @@ export const presetValidator = {
   stopSequences: ['string?'],
   trimStop: 'boolean?',
   thirdPartyUrl: 'string?',
+  thirdPartyKey: 'string?',
   thirdPartyFormat: [...THIRDPARTY_FORMATS, null],
   thirdPartyUrlNoSuffix: 'boolean?',
   thirdPartyModel: 'string?',
@@ -70,6 +75,7 @@ export const presetValidator = {
   novelModelOverride: 'string?',
 
   claudeModel: 'string',
+  mistralModel: 'string?',
   streamResponse: 'boolean?',
   ultimeJailbreak: 'string?',
   prefixNameAppend: 'boolean?',
@@ -104,7 +110,7 @@ export function mapPresetsToAdapter(presets: Partial<AppSchema.GenSettings>, ada
   const map = serviceGenMap[adapter]
   const body: any = {}
 
-  for (const [keyStr, value] of Object.entries(map)) {
+  for (const [keyStr, value] of Object.entries(map || {})) {
     const key = keyStr as keyof GenMap
     if (!value) continue
 
@@ -127,7 +133,7 @@ export function getGenSettings(chat: AppSchema.Chat, adapter: AIAdapter) {
   const presetValues = getPresetValues(chat)
 
   const body: any = {}
-  for (const [keyStr, value] of Object.entries(map)) {
+  for (const [keyStr, value] of Object.entries(map || {})) {
     const key = keyStr as keyof GenMap
     if (!value) continue
 
@@ -155,7 +161,7 @@ function getPresetValues(chat: AppSchema.Chat): Partial<AppSchema.GenSettings> {
   return defaultPresets.basic
 }
 
-export const serviceGenMap: Record<Exclude<ChatAdapter, 'default'>, GenMap> = {
+export const serviceGenMap: { [key in ChatAdapter]?: GenMap } = {
   kobold: {
     maxTokens: 'max_length',
     repetitionPenalty: 'rep_pen',
@@ -428,52 +434,8 @@ export function getFallbackPreset(adapter: AIAdapter): Partial<AppSchema.GenSett
 
     case 'mancer':
       return deepClone(defaultPresets.mancer)
-  }
-}
 
-export function getInferencePreset(
-  user: AppSchema.User,
-  adapter: AIAdapter,
-  model?: string
-): Partial<AppSchema.GenSettings> {
-  switch (adapter) {
-    case 'petals':
-    case 'horde':
-      return deepClone(defaultPresets.horde)
-
-    case 'agnaistic':
-      return deepClone(defaultPresets.agnai)
-
-    case 'kobold':
-    case 'ooba':
-      return deepClone(defaultPresets.basic)
-
-    case 'openai':
-      return deepClone(defaultPresets.openai)
-
-    case 'novel': {
-      if (model === 'kayra-v1' || user.novelModel === 'kayra-v1')
-        return deepClone(defaultPresets.novel_kayra)
-      return deepClone(defaultPresets.novel_clio)
-    }
-
-    case 'scale':
-      return deepClone(defaultPresets.scale)
-
-    case 'claude':
-      return deepClone(defaultPresets.claude)
-
-    case 'goose':
-      return deepClone({ ...defaultPresets.basic, service: 'goose' })
-
-    case 'replicate':
-      return deepClone(defaultPresets.replicate_vicuna_13b)
-
-    /** TODO: Create default preset for OpenRouter... */
-    case 'openrouter':
-      return deepClone(defaultPresets.openai)
-
-    case 'mancer':
-      return deepClone(defaultPresets.mancer)
+    case 'venus':
+      return deepClone(defaultPresets.venus)
   }
 }

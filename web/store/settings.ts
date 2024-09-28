@@ -1,16 +1,17 @@
 import { HordeModel, HordeWorker } from '../../common/adapters'
 import { AppSchema } from '../../common/types/schema'
 import { EVENTS, events } from '../emitter'
-import { setAssetPrefix } from '../shared/util'
+import { setAssetPrefix, storage } from '../shared/util'
 import { api } from './api'
-import { createStore } from './create'
+import { createStore, getStore } from './create'
 import { usersApi } from './data/user'
 import { toastStore } from './toasts'
 import { subscribe } from './socket'
 import { FeatureFlags, defaultFlags } from './flags'
 import { ReplicateModel } from '/common/types/replicate'
-import { wait } from '/common/util'
+import { tryParse, wait } from '/common/util'
 import { ButtonSchema } from '../shared/Button'
+import { canUsePane, isMobile } from '../shared/hooks'
 
 import { Performance } from '../../common/performance'
 
@@ -24,7 +25,6 @@ export type SettingState = {
 
   showMenu: boolean
   showImpersonate: boolean
-  fullscreen: boolean
   config: AppSchema.AppConfig
   models: HordeModel[]
   workers: HordeWorker[]
@@ -49,7 +49,7 @@ export type SettingState = {
   showSettings: boolean
 
   slotsLoaded: boolean
-  slots: { publisherId: string; provider?: 'google' | 'ez' } & Record<string, any>
+  slots: { publisherId: string; provider?: 'google' | 'ez' | 'fuse' } & Record<string, any>
   overlay: boolean
 }
 
@@ -59,16 +59,15 @@ const IMAGE_URL = `https://horde.aivo.chat/api/v2`
 const FLAG_KEY = 'agnai-flags'
 
 const initState: SettingState = {
-  anonymize: false,
-  guestAccessAllowed: false,
+  anonymize: JSON.parse(storage.localGetItem('agnai-anonymize') || 'false'),
+  guestAccessAllowed: false, //canUseStorage(),
   initLoading: true,
   cfg: { loading: false, ttl: 0 },
-  showMenu: false,
+  showMenu: !isMobile(),
   showImpersonate: false,
-  showPerformance: false,
-  fullscreen: false,
   models: [],
   workers: [],
+  showPerformance: false,
   performance: {
     queued_requests: 0,
     queued_text_requests: 0,
@@ -144,12 +143,13 @@ export const settingStore = createStore<SettingState>(
 
       if (res.result) {
         setAssetPrefix(res.result.config.assetPrefix)
+        loadSlotConfig(res.result.config?.serverConfig?.slots)
 
         const isMaint = res.result.config?.maintenance
         if (!isMaint) {
           events.emit(EVENTS.init, res.result)
         }
-       
+
         yield {
           init: res.result,
           config: res.result.config,
@@ -180,10 +180,11 @@ export const settingStore = createStore<SettingState>(
     toggleOverlay({ overlay }, next?: boolean) {
       return { overlay: next === undefined ? !overlay : next }
     },
-    menu({ showMenu }) {
-      return { showMenu: !showMenu, overlay: !showMenu }
+    menu({ showMenu }, next?: boolean) {
+      return { showMenu: next ?? !showMenu, overlay: next ?? !showMenu }
     },
     closeMenu: () => {
+      if (canUsePane()) return
       return { showMenu: false, overlay: false }
     },
     toggleImpersonate: ({ showImpersonate }, show?: boolean) => {
@@ -191,9 +192,6 @@ export const settingStore = createStore<SettingState>(
     },
     togglePerformance: ({ showPerformance }, show?: boolean) => {
       return { showPerformance: show ?? !showPerformance }
-    },
-    fullscreen(_, next: boolean) {
-      return { fullscreen: next }
     },
     async *getConfig({ cfg }) {
       if (cfg.loading) return
@@ -244,6 +242,7 @@ export const settingStore = createStore<SettingState>(
     },
 
     toggleAnonymize({ anonymize }) {
+      storage.localSetItem('agnai-anonymize', JSON.stringify(!anonymize))
       return { anonymize: !anonymize }
     },
     showImage(
@@ -365,56 +364,41 @@ function canUseStorage(noThrow?: boolean) {
   return true
 }
 
-loadSlotConfig()
-
-async function loadSlotConfig() {
+async function loadSlotConfig(serverSlots?: string) {
   const slots: any = { publisherId: '' }
+  const server = serverSlots ? tryParse(serverSlots) || {} : {}
+
+  const useDev = location.host !== 'agnai.chat'
 
   try {
     const content = await fetch('/slots.txt', { cache: 'no-cache' }).then((res) => res.text())
-    const config = JSON.parse(content)
+    const config = tryParse(content) || {}
 
     for (const [prop, value] of Object.entries(config)) {
       const key = prop as keyof typeof slots
       slots[key] = value
     }
 
-    if (config.inject) {
+    const devInject = useDev ? server?.dev_inject : undefined
+    const devProvider = useDev ? server?.dev_provider : undefined
+    const inject = devInject || server.inject || config.inject
+
+    server.provider = devProvider || server.provider || slots.provider
+
+    if (server.provider && inject) {
       await wait(0.2)
-      const node = document.createRange().createContextualFragment(config.inject)
-      document.head.append(node)
+      const node = document.createRange().createContextualFragment(inject)
+      try {
+        document.head.append(node)
+      } catch (ex) {}
     }
   } catch (ex: any) {
     console.log(ex.message)
   } finally {
     await wait(0.01)
-    settingStore.setState({ slots, slotsLoaded: true })
+    settingStore.setState({ slots: Object.assign(slots, server), slotsLoaded: true })
   }
 }
-
-setInterval(async () => {
-  const { config } = settingStore.getState()
-  if (!config.subs.length) return
-
-  const res = await usersApi.getSubscriptions()
-  if (!res.result) return
-
-  if (!isDirty(res.result.subscriptions, config.subs)) return
-
-  const opts = res.result.subscriptions.map((sub) => ({ label: sub.name, value: sub._id }))
-  const next = {
-    ...config,
-    subs: res.result.subscriptions,
-    registered: config.registered.map((reg) => {
-      if (reg.name !== 'agnaistic') return reg
-      const settings = reg.settings.map((s) =>
-        s.field === 'subscriptionId' ? { ...s, setting: { ...s.setting, options: opts } } : s
-      )
-      return { ...reg, settings }
-    }),
-  }
-  settingStore.setState({ config: next })
-}, 60000)
 
 subscribe('configuration-update', { configuration: 'any' }, (body) => {
   const { config } = settingStore.getState()
@@ -426,33 +410,44 @@ subscribe('configuration-update', { configuration: 'any' }, (body) => {
   })
 })
 
+subscribe('submodel-updated', { model: 'any' }, (body) => {
+  const { config } = settingStore.getState()
+  const incoming: AppSchema.SubscriptionModelOption = body.model
+
+  const exists = config.subs.find((sub) => sub._id === incoming._id)
+
+  const next = exists
+    ? config.subs.map((sub) => (sub._id === incoming._id ? incoming : sub))
+    : config.subs.concat(incoming)
+
+  const opts = next.map((sub) => ({ label: sub.name, value: sub._id }))
+
+  const registered = config.registered.map((reg) => {
+    if (reg.name !== 'agnaistic') return reg
+    const settings = reg.settings.map((s) =>
+      s.field === 'subscriptionId' ? { ...s, setting: { ...s.setting, options: opts } } : s
+    )
+    return { ...reg, settings }
+  })
+
+  if (!exists) {
+    const { user, userLevel } = getStore('user').getState()
+    const isEligible = incoming.level <= userLevel || !!user?.admin
+    if (isEligible) {
+      toastStore.success(`A new model has been added: "${incoming.name}"`, 30)
+    }
+  }
+
+  settingStore.setState({ config: { ...config, subs: next, registered } })
+})
+
 subscribe(
   'subscription-replaced',
   { subscriptionId: 'string', replacementId: 'string' },
   (body) => {
     const { config } = settingStore.getState()
     const next = config.subs.filter((sub) => sub._id !== body.subscriptionId)
-    return {
-      config: { ...config, subs: next },
-    }
+
+    settingStore.setState({ config: { ...config, subs: next } })
   }
 )
-
-function isDirty<T extends { _id: string; level: number }>(left: T[], right: T[]) {
-  if (left.length !== right.length) return true
-  const ids = new Set<string>()
-  const levels = new Map<string, number>()
-  for (const l of left) {
-    ids.add(l._id)
-    levels.set(l._id, l.level)
-  }
-
-  for (const r of right) {
-    ids.add(r._id)
-    const level = levels.get(r._id)
-    if (level !== r.level) return true
-  }
-
-  if (ids.size !== left.length) return true
-  return false
-}

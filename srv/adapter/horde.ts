@@ -1,12 +1,12 @@
 import * as horde from '../../common/horde-gen'
-import { sanitise, trimResponseV2 } from '../api/chat/common'
 import { HORDE_GUEST_KEY, getHordeModels } from '../api/horde'
-import { publishOne } from '../api/ws/handle'
+import { sendOne } from '../api/ws'
 import { decryptText } from '../db/util'
-import { ModelAdapter } from './type'
 import { config } from '../config'
-import { logger } from '../logger'
 const { hordeKeyPremium } = config
+import { logger } from '../middleware'
+import { ModelAdapter } from './type'
+import { sanitise, trimResponseV2 } from '/common/requests/util'
 import { toArray } from '/common/util'
 import { AppSchema } from '/common/types'
 import { store } from '../db'
@@ -110,12 +110,12 @@ export const handleHorde: ModelAdapter = async function* ({
     const stops = gen.stopSequences || []
     const trimmed = trimResponseV2(sanitised, opts.replyAs, members, characters, [
       'END_OF_DIALOG',
-      '### Instruction:',
+      '### Instruction',
       ...stops,
     ])
 
     // This is a temporary measure to help users provide more info when reporting instances of 'cut off' responses
-    publishOne(guest || user._id, {
+    sendOne(guest || user._id, {
       type: 'temp-horde-gen',
       original: sanitised,
       chatId: opts.chat._id,

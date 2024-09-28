@@ -1,7 +1,6 @@
 import needle from 'needle'
-import { sanitiseAndTrim } from '../api/chat/common'
 import { requestStream } from './stream'
-import { ModelAdapter, AdapterProps } from './type'
+import { ModelAdapter, AdapterProps, CompletionItem } from './type'
 import { decryptText } from '../db/util'
 import { defaultPresets } from '../../common/presets'
 import {
@@ -14,15 +13,22 @@ import {
   insertsDeeperThanConvoHistory,
 } from '../../common/prompt'
 import { AppSchema } from '../../common/types/schema'
-import { AppLog } from '../logger'
+import { AppLog } from '../middleware'
 import { getTokenCounter } from '../tokenize'
-import { publishOne } from '../api/ws/handle'
+import { CLAUDE_CHAT_MODELS, OPENAI_MODELS } from '/common/adapters'
+import { toChatCompletionPayload } from './chat-completion'
+import { sendOne } from '../api/ws'
+import { sanitiseAndTrim } from '/common/requests/util'
 
-const baseUrl = `https://api.anthropic.com/v1/complete`
+const CHAT_URL = `https://api.anthropic.com/v1/messages`
+const TEXT_URL = `https://api.anthropic.com/v1/complete`
 const apiVersion = '2023-06-01' // https://docs.anthropic.com/claude/reference/versioning
 
 type ClaudeCompletion = {
-  completion: string
+  completion?: string
+  content?: { type: string; text?: string }[]
+  delta?: { text: string }
+  text?: string
   stop_reason: string | null
   model: string
   /** If `stop_reason` is "stop_sequence", this is the particular stop sequence that was matched. */
@@ -43,24 +49,33 @@ const encoder = () => getTokenCounter('claude', '')
 
 export const handleClaude: ModelAdapter = async function* (opts) {
   const { members, user, log, guest, gen, isThirdParty } = opts
-  const base = getBaseUrl(user, isThirdParty)
+  const claudeModel = gen.claudeModel ?? defaultPresets.claude.claudeModel
+  const base = getBaseUrl(user, claudeModel, isThirdParty)
   if (!user.claudeApiKey && !base.changed) {
     yield { error: `Claude request failed: Claude API key not set. Check your settings.` }
     return
   }
-  const claudeModel = gen.claudeModel ?? defaultPresets.claude.claudeModel
 
+  const useChat = !!CLAUDE_CHAT_MODELS[claudeModel]
   const stops = new Set([`\n\nHuman:`, `\n\nAssistant:`])
 
-  const payload = {
+  const payload: any = {
     model: claudeModel,
     temperature: Math.min(1, Math.max(0, gen.temp ?? defaultPresets.claude.temp)),
-    max_tokens_to_sample: gen.maxTokens ?? defaultPresets.claude.maxTokens,
-    prompt: await createClaudePrompt(opts),
     stop_sequences: Array.from(stops),
     top_p: Math.min(1, Math.max(0, gen.topP ?? defaultPresets.claude.topP)),
     top_k: Math.min(1, Math.max(0, gen.topK ?? defaultPresets.claude.topK)),
     stream: gen.streamResponse ?? defaultPresets.claude.streamResponse,
+  }
+
+  if (useChat) {
+    payload.max_tokens = gen.maxTokens
+    const { messages, system } = await createClaudeChatCompletion(opts)
+    payload.system = system
+    payload.messages = messages
+  } else {
+    payload.max_tokens_to_sample = gen.maxTokens
+    payload.prompt = await createClaudePrompt(opts)
   }
 
   if (opts.kind === 'plain') {
@@ -72,9 +87,10 @@ export const handleClaude: ModelAdapter = async function* (opts) {
     'anthropic-version': apiVersion,
   }
 
-  const useThirdPartyPassword = base.changed && isThirdParty && user.thirdPartyPassword
+  const useThirdPartyPassword =
+    base.changed && isThirdParty && (gen.thirdPartyKey || user.thirdPartyPassword)
   const apiKey = useThirdPartyPassword
-    ? user.thirdPartyPassword
+    ? gen.thirdPartyKey || user.thirdPartyPassword
     : !isThirdParty
     ? user.claudeApiKey
     : null
@@ -117,7 +133,7 @@ export const handleClaude: ModelAdapter = async function* (opts) {
   }
 
   try {
-    const completion = resp?.completion || ''
+    const completion = resp?.completion || resp?.content?.[0]?.text || ''
     if (!completion) {
       log.error({ body: resp }, 'Claude request failed: Empty response')
       yield { error: `Claude request failed: Received empty response. Try again.` }
@@ -131,12 +147,16 @@ export const handleClaude: ModelAdapter = async function* (opts) {
   }
 }
 
-function getBaseUrl(user: AppSchema.User, isThirdParty?: boolean) {
+function getBaseUrl(user: AppSchema.User, model: string, isThirdParty?: boolean) {
   if (isThirdParty && user.thirdPartyFormat === 'claude' && user.koboldUrl) {
     return { url: user.koboldUrl, changed: true }
   }
 
-  return { url: baseUrl, changed: false }
+  if (CLAUDE_CHAT_MODELS[model]) {
+    return { url: CHAT_URL, changed: false }
+  }
+
+  return { url: TEXT_URL, changed: false }
 }
 
 const requestFullCompletion: CompletionGenerator = async function* (
@@ -197,14 +217,15 @@ const streamCompletion: CompletionGenerator = async function* (url, body, header
           yield { error: message }
           return
         }
-        publishOne(userId, { type: 'notification', level: 'warn', message })
+        sendOne(userId, { type: 'notification', level: 'warn', message })
         break
       }
 
       switch (event.type) {
         case 'completion':
+        case 'content_block_delta':
           const delta: Partial<ClaudeCompletion> = JSON.parse(event.data)
-          const token = delta.completion || ''
+          const token = delta.completion || delta.delta?.text || delta.text || ''
           meta = { ...meta, ...delta }
           tokens.push(token)
           yield { token }
@@ -222,8 +243,9 @@ const streamCompletion: CompletionGenerator = async function* (url, body, header
             return
           }
 
-          publishOne(userId, { type: 'notification', level: 'warn', message })
+          sendOne(userId, { type: 'notification', level: 'warn', message })
           break
+        case 'message_start':
         case 'ping':
           break
 
@@ -239,6 +261,53 @@ const streamCompletion: CompletionGenerator = async function* (url, body, header
   }
 
   return { ...meta, completion: tokens.join('') }
+}
+
+export async function createClaudeChatCompletion(opts: AdapterProps) {
+  const result = {
+    system: '',
+    messages: await toChatCompletionPayload(
+      opts,
+      getTokenCounter('openai', OPENAI_MODELS.Turbo),
+      opts.gen.maxTokens!
+    ),
+  }
+  // Claude doesn't have a system role, so we extract the first message to put it in the system
+  // field (https://docs.anthropic.com/claude/docs/system-prompts)
+  if (result.messages[0].role === 'system') {
+    result.system = result.messages[0].content
+
+    // Claude requires starting with a user message, and messages cannot be empty.
+    result.messages[0].content = '...'
+  }
+  // Any system messages will go through the user instead.
+  for (const message of result.messages) {
+    if (message.role === 'system') {
+      message.role = 'user'
+    }
+  }
+
+  let last: CompletionItem
+
+  // We need to ensure each role alternates so we will naively merge consecutive messages :/
+  result.messages = result.messages.reduce((msgs, msg) => {
+    if (!last) {
+      last = msg
+      msgs.push(msg)
+      return msgs
+    }
+
+    if (last.role !== msg.role) {
+      last = msg
+      msgs.push(msg)
+      return msgs
+    }
+
+    last.content += '\n\n' + msg.content
+    return msgs
+  }, [] as CompletionItem[])
+
+  return result
 }
 
 /**
@@ -271,6 +340,7 @@ async function createClaudePrompt(opts: AdapterProps) {
       lastMessage: opts.lastMessage,
       characters: opts.characters || {},
       encoder: enc,
+      jsonValues: opts.jsonValues,
     }
   )
   const gaslight = processLine('system', rawGaslight)
@@ -280,6 +350,7 @@ async function createClaudePrompt(opts: AdapterProps) {
     parts,
     encoder: enc,
     characters: opts.characters || {},
+    jsonValues: opts.jsonValues,
   })
 
   const ujb = parsed ? processLine('system', parsed) : ''

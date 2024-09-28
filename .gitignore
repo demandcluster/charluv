@@ -21,3 +21,4 @@ settings.json
 !sprites.js
 /auth
 *.tsbuildinfo
+!web/pkg/*.js

@@ -2,9 +2,9 @@ import needle from 'needle'
 import { decryptText } from '../db/util'
 import { registerAdapter } from './register'
 import { ModelAdapter } from './type'
-import { sanitise, trimResponseV2 } from '../api/chat/common'
 import { GOOSE_ENGINES } from '/common/adapters'
-import { logger } from '../logger'
+import { logger } from '../middleware'
+import { sanitise, trimResponseV2 } from '/common/requests/util'
 
 const baseUrl = 'https://api.goose.ai/v1'
 
@@ -33,7 +33,7 @@ export const handleGooseAI: ModelAdapter = async function* (opts) {
     typical_p: opts.gen.typicalP,
     presence_penalty: opts.gen.presencePenalty,
     frequency_penalty: opts.gen.frequencyPenalty,
-    repetition_penality: opts.gen.repetitionPenalty,
+    repetition_penalty: opts.gen.repetitionPenalty,
     repetition_penalty_slope: opts.gen.repetitionPenaltySlope,
     repetition_penalty_range: opts.gen.repetitionPenaltyRange,
   }

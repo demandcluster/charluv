@@ -1,18 +1,11 @@
-import { Menu, MoreHorizontal } from 'lucide-solid'
-import { Component, Show, createMemo } from 'solid-js'
-import { A, useLocation } from '@solidjs/router'
-import { ChatRightPane, chatStore, settingStore } from '../store'
-import ChatOptions, { ChatModal } from '../pages/Chat/ChatOptions'
-import { DropMenu } from './DropMenu'
 import logoDark from '../asset/logoDark.png'
-import { getClientPreset } from './adapter'
-import { ADAPTER_LABELS } from '/common/adapters'
-import { usePaneManager } from './hooks'
+import { Menu } from 'lucide-solid'
+import { Component, Show } from 'solid-js'
+import { A } from '@solidjs/router'
+import { chatStore, settingStore } from '../store'
+import { isChatPage } from './hooks'
 
 const NavBar: Component = () => {
-  const cfg = settingStore()
-  const location = useLocation()
-  const pane = usePaneManager()
   const chats = chatStore((s) => ({
     chat: s.active?.chat,
     char: s.active?.char,
@@ -20,18 +13,7 @@ const NavBar: Component = () => {
     opts: s.opts,
   }))
 
-  const isChat = createMemo(() => {
-    return location.pathname.startsWith('/chat/')
-  })
-
-  const setModal = (modal: ChatModal) => {
-    chatStore.option({ options: false, modal })
-  }
-
-  const togglePane = (paneType: ChatRightPane) => {
-    chatStore.option({ options: false })
-    pane.update(paneType)
-  }
+  const isChat = isChatPage()
 
   const Title = (
     <A href="/">
@@ -43,28 +25,14 @@ const NavBar: Component = () => {
     </A>
   )
 
-  const chatPreset = createMemo(() => getClientPreset(chats.chat))
-
-  const adapterLabel = createMemo(() => {
-    const data = chatPreset()
-    if (!data) return ''
-
-    const { name, adapter, isThirdParty, presetLabel } = data
-
-    const label = `${ADAPTER_LABELS[adapter]}${isThirdParty ? ' (3rd party)' : ''} - ${
-      name || presetLabel
-    }`
-    return label
-  })
-
   return (
-    <Show when={!cfg.fullscreen}>
-      <span
+    <Show when={!isChat()}>
+      <div
         data-header=""
-        class={`bg-900 flex h-[48px] justify-between gap-4 border-b-2 border-[var(--bg-800)] px-4 py-3 max-sm:p-1 sm:hidden`}
+        class={`bg-900 sm:none flex h-[48px] justify-between gap-4 border-b-2 border-[var(--bg-800)] px-4 py-3 max-sm:p-1 sm:hidden`}
       >
-        <span class="mx-auto flex w-full max-w-5xl items-center justify-between gap-2 font-semibold sm:justify-start">
-          <div class={`w-8 sm:hidden`} onClick={settingStore.menu}>
+        <div class="flex w-full max-w-5xl items-center justify-between gap-2 font-semibold sm:justify-start">
+          <div class={`w-8 sm:hidden`} onClick={() => settingStore.menu()}>
             <Menu class="focusable-icon-button cursor-pointer" size={32} />
           </div>
           <div class="ellipsis flex w-full flex-col">
@@ -75,25 +43,9 @@ const NavBar: Component = () => {
               </span>
             </Show>
           </div>
-          <Show when={isChat()} fallback={<div class="w-8 sm:hidden"></div>}>
-            <div onClick={() => chatStore.option({ options: 'mobile' })}>
-              <MoreHorizontal class="icon-button" />
-              <DropMenu
-                show={chats.opts.options === 'mobile'}
-                close={() => chatStore.option({ options: false })}
-                horz="left"
-                vert="down"
-              >
-                <ChatOptions
-                  setModal={setModal}
-                  togglePane={togglePane}
-                  adapterLabel={adapterLabel()}
-                />
-              </DropMenu>
-            </div>
-          </Show>
-        </span>
-      </span>
+          <div class="w-8 sm:hidden"></div>
+        </div>
+      </div>
     </Show>
   )
 }

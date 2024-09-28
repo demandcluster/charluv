@@ -35,6 +35,8 @@ import PageHeader from '/web/shared/PageHeader'
 import { isLoggedIn } from '/web/store/api'
 import { AppSchema } from '/common/types'
 import { isEligible } from './util'
+import { ADAPTER_LABELS } from '/common/adapters'
+import { Page } from '/web/Layout'
 
 const options = [
   { value: 'wpp', label: 'W++' },
@@ -53,7 +55,11 @@ const CreateChatForm: Component<{
   const nav = useNavigate()
   const scenarios = scenarioStore((s) => s.scenarios)
   const cfg = settingStore()
-  const user = userStore((s) => ({ ...s.user, sub: s.sub }))
+  const user = userStore((s) => ({
+    ...s.user,
+    sub: s.sub,
+    userLevel: s.premium ? 10 : s.userLevel,
+  }))
   const state = characterStore((s) => ({
     char: s.editing,
     chars: (s.characters?.list || []).filter((c) => !isLoggedIn() || c.userId === user._id),
@@ -95,21 +101,33 @@ const CreateChatForm: Component<{
   }
 
   const [presetId, setPresetId] = createSignal(
-    user.defaultPreset || (isEligible() ? 'agnai' : 'horde')
+    user.defaultPreset ? '' : isEligible() ? 'agnai' : 'horde'
   )
   const presets = presetStore((s) => s.presets)
   const presetOptions = createMemo(() => {
     const opts = getPresetOptions(presets, { builtin: true }).filter((pre) => pre.value !== 'chat')
-    return [
+    const combined = [
       { label: 'System Built-in Preset (Horde)', value: AutoPreset.service, custom: false },
     ].concat(opts)
+
+    const defaultPreset = presets.find((p) => p._id === user.defaultPreset)
+    if (defaultPreset) {
+      const label = ADAPTER_LABELS[defaultPreset.service!]
+      combined.unshift({
+        label: `[${label}] Your Default Preset`,
+        value: '',
+        custom: true,
+      })
+    }
+
+    return combined
   })
 
   const selectedPreset = createMemo(() => {
     const id = presetId()
 
     if (!id) {
-      const userLevel = user.sub?.level ?? -1
+      const userLevel = user.premium ? 10 : user.userLevel
       const eligible = cfg.config.subs.some((sub) => userLevel >= sub.level)
 
       if (eligible) {
@@ -187,7 +205,7 @@ const CreateChatForm: Component<{
   })
 
   return (
-    <>
+    <Page>
       <PageHeader title={`Create Chat with ${state.char?.name}`} />
       <form ref={ref}>
         <div class="mb-2 text-sm">
@@ -257,15 +275,11 @@ const CreateChatForm: Component<{
           </Card>
 
           <Card>
-            <Show class="font-semibol" when={!user?.premium}>
-              Premium members can override any character.
-            </Show>
-            <Divider />
             <Toggle
               fieldName="useOverrides"
               value={useOverrides()}
               onChange={(use) => setUseOverrides(use)}
-              disabled={!user?.premium && (state.char?.parent || state.char?.name === 'Aiva')}
+              disabled={state.char?.name === 'Aiva'}
               label="Override Character Definitions"
               helperText="Overrides will only apply to the newly created conversation."
             />
@@ -349,7 +363,6 @@ const CreateChatForm: Component<{
                 <PersonaAttributes
                   value={state.char?.persona.attributes}
                   hideLabel
-                  plainText={state.char?.persona?.kind === 'text'}
                   schema={state.char?.persona.kind}
                   disabled={!useOverrides()}
                 />
@@ -361,7 +374,6 @@ const CreateChatForm: Component<{
                       <PersonaAttributes
                         value={item.persona.attributes}
                         hideLabel
-                        plainText={item.persona.kind === 'text'}
                         schema={state.char?.persona.kind}
                         disabled={!useOverrides()}
                       />
@@ -379,7 +391,7 @@ const CreateChatForm: Component<{
           </Card>
         </Show>
       </form>
-    </>
+    </Page>
   )
 }
 

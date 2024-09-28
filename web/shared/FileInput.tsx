@@ -8,7 +8,7 @@ const FileInput: Component<{
   class?: string
   fieldName: string
   required?: boolean
-  label?: string
+  label?: string | JSX.Element
   helperText?: JSX.Element
   accept?: string
   multiple?: boolean
@@ -27,7 +27,7 @@ const FileInput: Component<{
 
   return (
     <div class={`w-full ${props.parentClass || ''}`}>
-      <FormLabel fieldName={props.fieldName} label={props.label} helperText={props.helperText} />
+      <FormLabel label={props.label} helperText={props.helperText} />
       <input
         ref={(ref) => {
           props.ref?.(ref)
@@ -36,11 +36,7 @@ const FileInput: Component<{
         name={props.fieldName}
         type="file"
         accept={props.accept}
-        class={`w-full rounded-xl bg-[var(--bg-800)] ${props.class || ''}`}
-        // onClick={(ev) => {
-        //   ev.preventDefault()
-
-        // }}
+        class={`w-full rounded-xl bg-[var(--bg-800)] ${props.class || ''} cursor-pointer`}
         onChange={(ev) => onFile(ev.currentTarget.files)}
         {...(props.multiple ? { multiple: true } : {})}
         {...(props.required ? { required: true } : {})}

@@ -1,14 +1,17 @@
 import { Component, For, Match, Show, Switch, createMemo, createSignal, onMount } from 'solid-js'
-import { userStore } from '/web/store'
+import { settingStore, userStore } from '/web/store'
 import { AppSchema } from '/common/types'
-import { Pill, SolidCard } from '/web/shared/Card'
+import { Pill, SolidCard, TitleCard } from '/web/shared/Card'
 import Button from '/web/shared/Button'
 import { TierCard } from './TierCard'
 import { ConfirmModal } from '/web/shared/Modal'
 import { PatreonControls } from '../Settings/PatreonOauth'
 import { getUserSubscriptionTier } from '/common/util'
+import { isLoggedIn } from '/web/store/api'
+import { useNavigate } from '@solidjs/router'
 
 export const SubscriptionPage: Component = (props) => {
+  const settings = settingStore((s) => s.config)
   const user = userStore()
   const cfg = userStore((s) => {
     const tier = s.user ? getUserSubscriptionTier(s.user, s.tiers) : null
@@ -22,15 +25,20 @@ export const SubscriptionPage: Component = (props) => {
     }
   })
 
+  const nav = useNavigate()
   const [showUnsub, setUnsub] = createSignal(false)
   const [showUpgrade, setUpgrade] = createSignal<AppSchema.SubscriptionTier>()
   const [showDowngrade, setDowngrade] = createSignal<AppSchema.SubscriptionTier>()
 
   const hasExpired = createMemo(() => {
-    if (cfg.type === 'patreon' || cfg.type === 'manual') return false
-    if (!user.user?.billing?.cancelling) return false
-    if (user.user?.premium) return false
+    // We should leave this out. It's possible a user can subscribe multiple ways
+    // if (cfg.type === 'patreon' || cfg.type === 'manual') return true
+
+    // if (!user.user?.billing?.cancelling) return false
     if (!user.user?.billing) return true
+    if (user.user?.premium) return false
+    if (user.user.billing.status === 'cancelled') return true
+
     const threshold = new Date(user.user.billing.validUntil)
     return threshold.valueOf() < Date.now()
   })
@@ -38,9 +46,11 @@ export const SubscriptionPage: Component = (props) => {
   const candidates = createMemo(() => {
     return cfg.tiers
       .filter((t) => {
-        const isPatronOf = cfg.type === 'patreon' && cfg.tier?._id === t._id
-        if (isPatronOf) return false
-        const usable = t.level === cfg.level ? hasExpired() : true
+        const isPatronOf = user.sub?.type === 'patreon' && cfg.tier?._id === t._id
+        isPatronOf
+        // if (isPatronOf) return false
+
+        const usable = t.level !== user.sub?.level
         return usable && t.enabled && !t.deletedAt && !!t.productId
       })
       .sort((l, r) => l.level - r.level)
@@ -75,6 +85,8 @@ export const SubscriptionPage: Component = (props) => {
 
   const canResume = createMemo(() => {
     if (!user.user?.billing?.cancelling) return false
+    if (user.user.billing.status === 'cancelled') return false
+
     const threshold = new Date(user.user.billing.validUntil)
     return threshold.valueOf() > Date.now()
   })
@@ -99,9 +111,18 @@ export const SubscriptionPage: Component = (props) => {
             <p>Subscribing let's us spend more time developing and enhancing Charluv.</p>
           </SolidCard>
 
+          <Show when={settings.serverConfig?.supportEmail}>
+            <SolidCard>
+              If you require billing or subscription support contact{' '}
+              <a class="link" href={`mailto:${settings.serverConfig?.supportEmail}`}>
+                {settings.serverConfig?.supportEmail}
+              </a>
+            </SolidCard>
+          </Show>
+
           <PatreonControls />
 
-          <Show when={(cfg.tier || user.premium) && !hasExpired()}>
+          <Show when={user.sub?.level! > 0 || user.premium}>
             <h3 class="font-bold">Current Subscription</h3>
             <TierCard tier={cfg.tier!}>
               <div class="flex flex-col items-center gap-2">
@@ -110,11 +131,11 @@ export const SubscriptionPage: Component = (props) => {
                 </div>
                 <Pill type="green">
                   Subscribed via{' '}
-                  {cfg.type === 'manual'
+                  {user.sub?.type === 'manual'
                     ? 'Gift'
-                    : cfg.type === 'patreon'
+                    : user.sub?.type === 'patreon'
                     ? 'Patreon'
-                    : cfg.type === 'native'
+                    : user.sub?.type === 'native'
                     ? 'Stripe'
                     : cfg.type === 'paypal'
                     ? 'Paypal'
@@ -169,6 +190,17 @@ export const SubscriptionPage: Component = (props) => {
           <Show when={candidates().length > 0}>
             <div class="font-bold">Subscription Options</div>
           </Show>
+
+          <Show when={settings.patreon}>
+            <TitleCard center title={<span class="text-[var(--hl-500)]">Patreon</span>}>
+              Become a{' '}
+              <a class="link font-bold" href="https://patreon.com/Agnaistic" target="_blank">
+                Patron
+              </a>{' '}
+              and link your account or use the options below
+            </TitleCard>
+          </Show>
+
           <div class="flex w-full flex-wrap justify-center gap-4">
             <For each={candidates()}>
               {(each) => (
@@ -179,6 +211,16 @@ export const SubscriptionPage: Component = (props) => {
                     </Show>
                     <div class="mt-4 flex justify-center">
                       <Switch>
+                        <Match when={!isLoggedIn()}>
+                          <Button schema="success" onClick={() => nav('/login')}>
+                            Login to Subcribe
+                          </Button>
+                        </Match>
+                        <Match when={user.sub?.tier._id === each._id}>
+                          <Button schema="success" disabled>
+                            Subscribed!
+                          </Button>
+                        </Match>
                         <Match when={cfg.tier && cfg.level < each.level}>
                           <Button
                             schema="success"
@@ -190,7 +232,11 @@ export const SubscriptionPage: Component = (props) => {
                         </Match>
 
                         <Match
-                          when={cfg.tier && cfg.level > each.level && each._id === cfg.downgrade}
+                          when={
+                            user.sub?.tier &&
+                            user.sub.level > each.level &&
+                            each._id === cfg.downgrade
+                          }
                         >
                           <Button
                             schema="gray"
@@ -201,7 +247,7 @@ export const SubscriptionPage: Component = (props) => {
                           </Button>
                         </Match>
 
-                        <Match when={!hasExpired() && cfg.tier && cfg.level > each.level}>
+                        <Match when={user.sub?.type === 'native' && user.sub.level > each.level}>
                           <Button
                             schema="gray"
                             disabled={canResume() || user.billingLoading}
@@ -211,9 +257,15 @@ export const SubscriptionPage: Component = (props) => {
                           </Button>
                         </Match>
 
-                        <Match when={hasExpired() && each._id === cfg.tier?._id}>
+                        <Match when={hasExpired() && each._id === user.sub?.tier._id}>
                           <Button schema="success" onClick={() => onSubscribe(each._id)}>
                             Re-subscribe
+                          </Button>
+                        </Match>
+
+                        <Match when={user.sub?.level! > each.level}>
+                          <Button schema="secondary" disabled onClick={() => onSubscribe(each._id)}>
+                            Subscribe
                           </Button>
                         </Match>
 

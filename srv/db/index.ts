@@ -12,7 +12,6 @@ import * as credits from './credits'
 import * as scenario from './scenario'
 import * as invitecode from './invitecode'
 import * as oauth from './oauth'
-import * as tree from './tree'
 import * as subs from './subscriptions'
 import * as announce from './announcements'
 
@@ -33,7 +32,6 @@ export const store = {
   credits,
   scenario,
   oauth,
-  tree,
   subs,
   announce,
 }

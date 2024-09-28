@@ -52,28 +52,10 @@ jobs:
           node .github/inject.js
 
       - name: Publish to DEV
-        uses: BetaHuhn/do-spaces-action@v2
+        uses: shallwefootball/s3-upload-action@master
         with:
-          access_key: ${{ secrets.S3_ACCESS_KEY}}
-          secret_key: ${{ secrets.S3_SECRET_KEY }}
-          space_name: ${{ secrets.S3_DEV_BUCKET }}
-          space_region: ${{ secrets.S3_REGION }}
-          permission: public-read
-          source: dist
-
-      # - name: Build image
-      #   run: |
-      #     docker build -f Dockerfile -t ghcr.io/${{ github.repository_owner }}/$IMAGE_NAME:dev --build-arg SHA=$GITHUB_SHA .
-      #     docker tag ghcr.io/${{ github.repository_owner }}/$IMAGE_NAME:dev ghcr.io/${{ github.repository_owner }}/$IMAGE_NAME:$GITHUB_SHA
-
-      # - name: Log in to Container Registry
-      #   run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
-
-      # - name: Publish
-      #   run: |
-      #     docker push ghcr.io/${{ github.repository_owner }}/$IMAGE_NAME:dev
-      #     docker push ghcr.io/${{ github.repository_owner }}/$IMAGE_NAME:$GITHUB_SHA
-
-      # - name: Update Service
-      #   run: |
-      #     sh .github/dev-deploy.sh ${{ secrets.SSH_SERVER }}
+          aws_key_id: ${{ secrets.S3_ASSET_ACCESS_KEY }}
+          aws_secret_access_key: ${{ secrets.S3_ASSET_SECRET_KEY }}
+          aws_bucket: ${{ secrets.S3_DEV_ASSET_BUCKET }}
+          source_dir: 'dist'
+          destination_dir: ''

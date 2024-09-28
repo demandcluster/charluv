@@ -28,13 +28,16 @@ type AdminState = {
   metrics?: {
     totalUsers: number
     connected: number
+    versioned: number
     maxLiveCount: number
     each: Array<{ count: number; date: string; hostname: string; max: number }>
+    shas: Record<string, number>
   }
   products: Stripe.Product[]
   prices: Stripe.Price[]
   patreonTiers: Patreon.Tier[]
   impersonating: boolean
+  config?: AppSchema.Configuration
 }
 
 export const adminStore = createStore<AdminState>('admin', {
@@ -123,8 +126,8 @@ export const adminStore = createStore<AdminState>('admin', {
         return { metrics: res.result }
       }
     },
-    async sendAll(_, message: string, onSuccess?: Function) {
-      const res = await api.post(`/admin/notify`, { message })
+    async sendAll(_, message: string, level: number, onSuccess?: Function) {
+      const res = await api.post(`/admin/notify`, { message, level })
 
       if (!res.error) {
         onSuccess?.()
@@ -199,6 +202,12 @@ export const adminStore = createStore<AdminState>('admin', {
 
       if (res.error) {
         toastStore.error(`Failed to retrieve products: ${res.error}`)
+      }
+    },
+    async getConfiguration() {
+      const res = await api.get('/settings')
+      if (res.result) {
+        return { config: res.result.serverConfig }
       }
     },
   }

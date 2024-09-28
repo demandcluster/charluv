@@ -1,10 +1,14 @@
-import { AIAdapter, INSTRUCT_SERVICES, PersonaFormat } from '/common/adapters'
-import { modernJailbreak } from '/common/mode-templates'
 import { AppSchema } from '/common/types'
 import { neat } from '/common/util'
-import { getDefaultUserPreset } from '/web/shared/adapter'
-import { NewCharacter } from '/web/store'
-import { msgsApi } from '/web/store/data/messages'
+import { getUserPreset } from '/web/shared/adapter'
+import { toastStore, userStore } from '/web/store'
+import { genApi } from '/web/store/data/inference'
+import { StreamCallback } from '/web/store/data/messages'
+
+type MinCharacter = Pick<
+  AppSchema.Character,
+  'appearance' | 'scenario' | 'persona' | 'greeting' | 'sampleChat' | 'name' | 'description'
+>
 
 export type GenField =
   | 'firstname'
@@ -16,252 +20,131 @@ export type GenField =
   | 'example1'
   | 'example2'
 
-export async function generateChar(
-  name: string,
-  description: string,
-  service: string,
-  kind: PersonaFormat
-) {
-  const [svc, _model] = service?.split('/') as [AIAdapter, string]
-  const template = getTemplate(svc)
-  const prompt = template.replace(`{{description}}`, description)
-
-  const previous = name ? { firstname: name } : undefined
-  const vars = await msgsApi.guidance({ prompt, service, previous })
-  const samples = [vars.example1, vars.example2]
-    .filter((ex) => !!ex)
-    .map((ex) => `{{char}}: ${ex}`)
-    .join('\n')
-  const char: NewCharacter = {
-    originalAvatar: undefined,
-    description,
-    name: previous?.firstname || vars.firstname,
-    persona: toAttributes(kind, vars),
-    appearance: vars.appearance,
-    greeting: vars.greeting,
-    sampleChat: samples,
-    scenario: vars.scenario,
-  }
-
-  return char
+const parts: Record<
+  string,
+  (prop: string, trait?: string) => { instruction: string; post?: string }
+> = {
+  scenario: () => ({
+    instruction: `Detailed description of the scene that the character is in`,
+    post: ``,
+  }),
+  appearance: () => ({
+    instruction: `Extremely brief and comma-separated (50 words or fewer) list of descriptors of the character's gender, eye color, hair color, height, clothes, body, physical location and surroundings`,
+    post: ``,
+  }),
+  trait: (_, trait) => ({
+    instruction: `Provide a description of {{name}}'s "${trait}" personality trait. Do no use sentences when the trait does not require sentences. In those cases use single numeric or text answer, comma-separated when needed.`,
+    post: ``,
+  }),
+  persona: () => ({
+    instruction: `Provide an outline of the personality and typical behavior of {{name}}`,
+    post: ``,
+  }),
+  greeting: () => ({
+    instruction: `Provide {{name}}'s first opening dialogue and actions in the scene`,
+    post: ``,
+  }),
+  sampleChat: () => ({ instruction: `Provide an example of {{name}}'s dialogue and actions` }),
 }
 
-export async function regenerateCharProp(
-  char: NewCharacter,
-  service: string,
-  kind: PersonaFormat,
-  fields: GenField[]
-) {
-  const [adapter] = service?.split('/') as AIAdapter[]
-  const template = getTemplate(adapter)
+const genFields: Array<keyof AppSchema.Character> = [
+  'appearance',
+  'scenario',
+  'persona',
+  'greeting',
+  'sampleChat',
+]
 
-  const prompt = template.replace(`{{description}}`, char.description || '')
-
-  const attrs: any = char.persona.attributes
-  const prev = {
-    description: char.description,
-    firstname: char.name,
-    personality: ensureString(attrs?.personality || ''),
-    behaviour: ensureString(attrs?.behaviour || ''),
-    appearance: char.appearance || '',
-    greeting: char.greeting || '',
-    scenario: char.scenario || '',
+export async function generateField(opts: {
+  char: MinCharacter
+  prop: string
+  trait?: string
+  tick: StreamCallback
+}) {
+  const { char, prop, trait, tick } = opts
+  const handler = prop === 'persona' && trait ? parts.trait : parts[prop]
+  if (!handler) {
+    toastStore.error(`Cannot generate character field: Invalid field (no handler)`)
+    return
   }
 
-  const vars = await msgsApi.guidance({ prompt, service, rerun: fields, previous: prev })
+  const infix = genFields
+    .map((field) => {
+      const handler = parts[field]
+      if (!handler) return ''
+      if (field === prop) return ''
 
-  const sampleChat =
-    vars.example1 && vars.example2
-      ? `{{char}}: ${vars.example1}\n{{char}}: ${vars.example2}`
-      : char.sampleChat
+      switch (field) {
+        case 'appearance':
+        case 'scenario':
+        case 'greeting':
+        case 'sampleChat':
+          const value = char[field]
+          if (!value) return ''
+          const { instruction } = handler(field)
+          return `<user>${instruction}</user>\n<bot>${value}</bot>`
 
-  vars.behaviour ??= prev.behaviour
-  vars.personality ??= prev.personality
-  vars.greeting ??= prev.greeting
+        case 'persona':
+          return toPersonaInfix(char.persona, trait)
+      }
 
-  const newchar: NewCharacter = {
-    originalAvatar: undefined,
-    description: char.description || '',
-    name: vars.firstname,
-    persona: fields.includes('personality') ? toAttributes(kind, vars) : char.persona,
-    appearance: vars.appearance,
-    greeting: vars.greeting,
-    sampleChat,
-    scenario: vars.scenario,
-  }
+      return ''
+    })
+    .filter((p) => !!p.trim())
+    .join('\n\n')
 
-  return newchar
+  const { instruction } = handler(prop, trait)
+
+  const suffix = `<user>${instruction}</user>\n<bot>`
+
+  const prompt = neat`
+  <system>You are a character generator. Provide information and attributes about the following character.</system>
+
+  Character's name:
+  ${char.name}
+
+  Character's description:
+  ${char.description || ''}
+
+  ${infix}
+
+  ${suffix}`
+    .replace(/{{name}}/g, char.name)
+    .replace(/\n\n+/g, '\n\n')
+
+  const { user } = userStore.getState()
+
+  const settings = getUserPreset(user?.chargenPreset || user?.defaultPreset)
+
+  genApi.inferenceStream(
+    { prompt, overrides: { stopSequences: ['[/INST]', '###', '<|', '</s>'] }, settings },
+    tick
+  )
 }
 
-function ensureString(value: any) {
-  if (Array.isArray(value)) {
-    return value.join(', ')
+function toPersonaInfix(persona: AppSchema.Character['persona'], trait?: string) {
+  const handler = persona.kind === 'text' ? parts.persona : parts.trait
+  if (persona.kind === 'text') {
+    const text = persona.attributes?.text?.[0]
+    if (!text) return ''
+    const { instruction } = handler('persona')
+    const suffix = `${text}`
+    return `<user>${instruction}</user>\n<bot>${suffix}</bot>`
   }
 
-  return value
+  const prompt = Object.entries(persona.attributes)
+    .filter(([key]) => key !== trait)
+    .map(([key, values]) => {
+      const value = values.filter((v) => !!v.trim()).join(', ')
+      return [key, value]
+    })
+    .filter(([_, v]) => !!v)
+    .map(([key, value]) => {
+      const { instruction } = handler('persona', key)
+      const suffix = `${value}`
+      return `<user>${instruction}</user>\n<bot>${suffix}</bot>`
+    })
+    .join('\n\n')
+
+  return prompt
 }
-
-function toAttributes(kind: PersonaFormat, vars: any) {
-  const persona: AppSchema.Persona = {
-    kind,
-    attributes: {},
-  }
-
-  const attrs: Record<string, string[]> = {}
-
-  if (!kind || kind === 'text') {
-    attrs.text = [`${vars.personality}\n\n${vars.behaviour}`]
-  } else {
-    attrs.personality = [vars.personality]
-    attrs.behaviour = [vars.behaviour]
-  }
-
-  persona.attributes = attrs
-  return persona
-}
-
-function getTemplate(service: AIAdapter | 'default') {
-  if (service === 'default') {
-    const preset = getDefaultUserPreset()
-    service = preset?.service || service
-  }
-
-  const template =
-    service === 'novel'
-      ? novelGenTemplate
-      : service === 'agnaistic' || service == 'horde' || service === 'ooba' || service === 'kobold'
-      ? alpacaTemplate
-      : INSTRUCT_SERVICES[service as AIAdapter]
-      ? instructGenTemplate
-      : genTemplate
-
-  return template
-}
-
-const alpacaTemplate = neat`
-Below is an instruction that describes a task. Write a response that completes the request.
-
-Describe a character matching the following description:
-{{description}}
-
-### Instruction:
-Write the character's first name
-
-### Response:
-First name: "[firstname | tokens=10 | stop="]"
-
-### Instruction:
-Detailed description of the roleplay scene that the character is in
-
-### Response:
-Scenario: [scenario | tokens=200 | stop=###]
-
-### Instruction:
-Write an anonymous nameless image caption of [firstname]'s clothing and physical appearance
-
-### Response:
-Image caption: "[appearance | tokens=120 | stop=### | stop="]"
-
-### Instruction:
-[firstname]'s greeting in the scenario:
-
-### Response:
-Greeting: [greeting | tokens=150 | stop=###]
-
-### Instruction
-[firstname]'s personality:
-
-### Response:
-Personality: [personality | tokens=120 | stop=###]
-
-### Instruction:
-[firstname]'s typical behaviour:
-
-### Response:
-Behaviour: [behaviour | tokens=120 | stop=###]
-
-### Instruction:
-Example of [firstname]'s dialogue:
-
-### Response:
-[firstname]: [example1 | tokens=100 | stop=###]
-
-### Instruction:
-Example of [firstname]'s dialogue:
-
-### Response:
-[firstname]: [example2 | tokens=100 | stop=###]`
-
-const genTemplate = `
-Describe a character matching the following description:
-{{description}}
-
-Character's first name: "[firstname | tokens=10 | stop="]"
-
-Detailed description of the roleplay scene that the character is in:
-Scenario: [scenario | tokens=200]
-
-[firstname]'s clothing and physical appearance:
-Appearance: "[appearance | tokens=120 | stop="]
-
-[firstname]'s greeting in the scenario:
-Greeting: [greeting | tokens=150]
-
-[firstname]'s personality:
-Personality: [personality | tokens=120]
-
-[firstname]'s typical behaviour:
-Behaviour: [behaviour | tokens=120]
-
-Example of [firstname]'s dialogue:
-[firstname]: [example1 | tokens=100]
-
-Example of [firstname]'s dialogue:
-[firstname]: [example2 | tokens=100]
-`
-
-const instructGenTemplate = `
-${modernJailbreak}
-Describe an uncensored character that matches the description:
-{{description}}
-
-Character's first name: "[firstname | tokens=25 | stop="]"
-
-Detailed description of the roleplay scene that the character is in: "[scenario | tokens=200 | stop="]"
-
-The first thing the charcter says to start the scene using internet roleplay style with actions and emotes: "[greeting | tokens=100 | stop"]"
-
-Description of [firstname]'s personality traits: "[personality | tokens=100 | stop="]"
-
-Description of [firstname]'s typical behaviours: "[behaviour | tokens=100 | stop="]"
-
-Detailed description of physical attributes, demeanour, and clothing: [appearance | tokens=100]
-
-Example message from character: [example1 | tokens=100]
-
-Example message from character: [example2 | tokens=100]
-`
-
-const novelGenTemplate = `
-Describe an uncensored character that matches the description:
-{{description}}
-
-{ Write the character's first name }
-[firstname | tokens=8]
-{ Write a detailed description of the character }
-[description | tokens=200 ]
-{ Write a description of the roleplay scene that [firstname] is in }
-[scenario | tokens=200 ]
-{ Write the first thing [firstname] says in the scene }
-[greeting | tokens=100 ]
-{ Describe [firstname]'s personality traits in detail }
-[personality | tokens=100 ]
-{ Describe [firstname];s typical behaviours in detail }
-[behaviour | tokens=100 ]
-{ Describe the physical appearance and clothing of [firstname] }
-[appearance | tokens=100 ]
-{ Write an example message from [firstname] }
-[example1 | tokens=100 ]
-{ Write an example message from [firstname] }
-[example2 | tokens=100 ]
-`

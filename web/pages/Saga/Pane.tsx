@@ -18,7 +18,6 @@ import Button from '/web/shared/Button'
 import { createStore } from 'solid-js/store'
 import { sagaStore } from './state'
 import { GuidanceNode, parseTemplateV2 } from '/common/guidance/v2'
-import { SagaField, SagaSession } from '/web/store/data/saga'
 import Select, { Option } from '/web/shared/Select'
 import TagInput from '/web/shared/TagInput'
 import { Card, SolidCard } from '/web/shared/Card'
@@ -29,13 +28,18 @@ import { FormLabel } from '/web/shared/FormLabel'
 import { neat } from '/common/util'
 import { usePaneManager } from '/web/shared/hooks'
 import { Toggle } from '/web/shared/Toggle'
+import Tabs from '/web/shared/Tabs'
+import { useSearchParams } from '@solidjs/router'
+import { Saga } from '/common/types'
 
 const FORMATS = Object.keys(BUILTIN_FORMATS).map((label) => ({ label, value: label }))
 
 export const SidePane: Component<{ show: (show: boolean) => void }> = (props) => {
-  const state = sagaStore((s) => s.state)
-  const [paneFooter, setPaneFooter] = createSignal<JSX.Element>()
   const pane = usePaneManager()
+
+  const state = sagaStore((s) => s.state)
+
+  const [paneFooter, setPaneFooter] = createSignal<JSX.Element>()
 
   const closePane = () => pane.update()
 
@@ -50,11 +54,11 @@ export const SidePane: Component<{ show: (show: boolean) => void }> = (props) =>
     props.show(false)
   }
   createEffect(() => {
-    updatePane(pane.pane())
+    updatePane(pane.pane()!)
   })
 
   onMount(() => {
-    updatePane(pane.pane())
+    updatePane(pane.pane()!)
   })
 
   return (
@@ -78,12 +82,22 @@ export const SidePane: Component<{ show: (show: boolean) => void }> = (props) =>
 }
 
 export const SagaPane: Component<{ close: () => void }> = (props) => {
-  let templateRef: HTMLSelectElement
+  const [search, setSearch] = useSearchParams()
+  const tabs = ['Template', 'Session']
+
   const state = sagaStore((g) => ({ list: g.templates, template: g.template, state: g.state }))
   const [over, setOver] = createStore<Record<string, string>>(state.state.overrides || {})
   const [store, setState] = createStore({
     errors: [] as string[],
     seen: {} as Record<string, boolean>,
+  })
+
+  const [tab, setTabs] = createSignal(search.tab || tabs[0])
+
+  const currentTab = createMemo(() => {
+    const name = tab()
+    const current = tabs.findIndex((val) => val === name)
+    return current
   })
 
   const [templateId, setTemplateId] = createSignal(state.list[0]?._id)
@@ -103,7 +117,6 @@ export const SagaPane: Component<{ close: () => void }> = (props) => {
   })
 
   const loadTemplate = () => {
-    console.log(templateRef.value, templateId())
     sagaStore.loadTemplate(templateId())
   }
 
@@ -141,7 +154,7 @@ export const SagaPane: Component<{ close: () => void }> = (props) => {
       const seen: Record<string, boolean> = {}
       const holders: string[] = []
       const errors: string[] = []
-      const newFields: SagaField[] = []
+      const newFields: Saga.Field[] = []
 
       const nodes: GuidanceNode[] = []
 
@@ -221,7 +234,7 @@ export const SagaPane: Component<{ close: () => void }> = (props) => {
   const updateHistory: FormHandler = (ev) =>
     sagaStore.updateTemplate({ history: ev.currentTarget.value })
 
-  const onFieldChange = (name: string) => (next: Partial<SagaField>) => {
+  const onFieldChange = (name: string) => (next: Partial<Saga.Field>) => {
     const fields = state.template.fields.map((prev) =>
       prev.name === name ? { ...prev, ...next } : prev
     )
@@ -233,7 +246,7 @@ export const SagaPane: Component<{ close: () => void }> = (props) => {
 
   const Footer = (
     <div class="flex flex-wrap gap-1">
-      <Button onClick={sagaStore.createTemplate}>New</Button>
+      <Button onClick={() => sagaStore.createTemplate('open_world')}>New</Button>
       <Button onClick={sagaStore.saveTemplate}>Save</Button>
       <Show when={state.template._id !== ''}>
         <Button onClick={sagaStore.saveTemplateCopy}>Copy</Button>
@@ -245,193 +258,205 @@ export const SagaPane: Component<{ close: () => void }> = (props) => {
 
   return (
     <Convertible close={props.close} footer={Footer}>
+      <Tabs
+        class="bg-800 sticky top-0 z-10 mb-4"
+        tabs={tabs}
+        select={(id) => {
+          setTabs(tabs[id])
+          setSearch({ tab: tabs[id] })
+        }}
+        selected={currentTab}
+      />
       <div class="flex flex-col gap-4">
-        <Show when={state.list.length > 0}>
-          <SolidCard>
-            <FormLabel label="Current Template" helperText={state.template.name} />
-          </SolidCard>
-
-          <Card bg={bg} bgOpacity={opacity}>
-            <div class="font-bold">
-              Load Template{' '}
-              <a class="link ml-2 text-sm" onClick={sagaStore.createTemplate}>
-                New Template
-              </a>
-            </div>
-            <div class="flex gap-1">
-              <Select
-                fieldName="templateId"
-                items={items()}
-                value={templateId()}
-                onChange={(ev) => setTemplateId(ev.value)}
-                ref={(ref) => (templateRef = ref)}
-              />
-              <Button onClick={loadTemplate}>Load</Button>
-            </div>
-          </Card>
-        </Show>
-
-        <Card bg={bg} bgOpacity={opacity}>
-          <TextInput
-            fieldName="name"
-            label="Name"
-            onInput={updateName}
-            value={state.template.name}
-          />
-        </Card>
-
-        <Card bg={bg} bgOpacity={opacity}>
-          <Select
-            fieldName="format"
-            label="Format"
-            items={FORMATS}
-            value={state.state.format}
-            onChange={(item) => sagaStore.update({ format: item.value as any })}
-          />
-        </Card>
-
-        <Card bg={bg} bgOpacity={opacity}>
-          <TextInput
-            fieldName="initTemplate"
-            label="Initial Template"
-            helperMarkdown="For generating the initial values for your introduction."
-            onInput={updateInit}
-            value={state.template.init}
-            isMultiline
-          />
-        </Card>
-
-        <Card bg={bg} bgOpacity={opacity}>
-          <TextInput
-            fieldName="introFormat"
-            label="Introduction Format"
-            helperMarkdown="How to format your introduction. .\n\nYou can use any field derived from your **Initial Template**."
-            placeholder="E.g. {{response}}"
-            value={state.template.introduction}
-            onInputText={(ev) => sagaStore.updateTemplate({ introduction: ev })}
-            isMultiline
-          />
-        </Card>
-
-        <Card bg={bg} bgOpacity={opacity}>
-          <TextInput
-            fieldName="displayFormat"
-            label="Response Display Format (Optional)"
-            helperMarkdown="How to display responses for **display** (Uses **Response Prompt Format** if empty)
-           You can use any field derived from your templates."
-            placeholder="E.g. {{response}}"
-            value={state.template.display}
-            onInputText={(ev) => sagaStore.updateTemplate({ display: ev })}
-            isMultiline
-          />
-        </Card>
-
-        <Card bg={bg} bgOpacity={opacity}>
-          <TextInput
-            fieldName="imagePrompt"
-            label={
-              <div class="flex w-full justify-between">
-                <div>Prompt Template for Image Generation</div>
-                <div>
-                  <Toggle
-                    fieldName="imagesEnabled"
-                    value={state.template.imagesEnabled}
-                    onChange={(ev) => sagaStore.updateTemplate({ imagesEnabled: ev })}
-                  />
-                </div>
-              </div>
-            }
-            helperMarkdown="Leave empty to disable image generation"
-            placeholder="E.g. full body shot, {{image_caption}}, fantasy, anime art, studio lighting"
-            value={state.template.imagePrompt}
-            onInputText={(ev) => sagaStore.updateTemplate({ imagePrompt: ev })}
-            isMultiline
-          />
-        </Card>
-
-        <Card bg={bg} bgOpacity={opacity}>
-          <TextInput
-            fieldName="historyTemplate"
-            label="History Template"
-            helperMarkdown="Use **{{history}}** in the game loop template"
-            onInput={updateHistory}
-            value={state.template.history}
-            isMultiline
-          />
-        </Card>
-
-        <Card bg={bg} bgOpacity={opacity}>
-          <TextInput
-            fieldName="loopTemplate"
-            label="Game Loop Template"
-            helperMarkdown="Use **{{input}}** to use the user input"
-            onInput={updateLoop}
-            value={state.template.loop}
-            isMultiline
-          />
-        </Card>
-
         <For each={store.errors}>
           {(error) => <div class="my-1 font-bold text-red-500">{error}</div>}
         </For>
 
-        <div class="flex flex-col gap-1">
-          <FormLabel
-            label="Manual Fields"
-            helperMarkdown={`These fields are required to be filled out by you`}
-          />
-          <Index each={state.template.manual}>
-            {(field, i) => (
-              <ManualField
-                field={field()}
-                override={over[field()]}
-                setOverride={(text) => updateOver(field(), text)}
-                session={state.state}
-              />
-            )}
-          </Index>
+        <div class="contents" classList={{ hidden: tab() !== 'Template' }}>
+          <Show when={state.list.length > 0}>
+            <SolidCard>
+              <FormLabel label="Current Template" helperText={state.template.name} />
+            </SolidCard>
+
+            <Card bg={bg} bgOpacity={opacity}>
+              <div class="font-bold">
+                Load Template{' '}
+                <a class="link ml-2 text-sm" onClick={() => sagaStore.createTemplate('open_world')}>
+                  New Template
+                </a>
+              </div>
+              <div class="flex gap-1">
+                <Select
+                  fieldName="templateId"
+                  items={items()}
+                  value={templateId()}
+                  onChange={(ev) => setTemplateId(ev.value)}
+                />
+                <Button onClick={loadTemplate}>Load</Button>
+              </div>
+            </Card>
+          </Show>
+
+          <Card bg={bg} bgOpacity={opacity}>
+            <TextInput
+              fieldName="name"
+              label="Name"
+              onInput={updateName}
+              value={state.template.name}
+            />
+          </Card>
+
+          <Card bg={bg} bgOpacity={opacity}>
+            <Select
+              fieldName="format"
+              label="Format"
+              items={FORMATS}
+              value={state.state.format}
+              onChange={(item) => sagaStore.update({ format: item.value as any })}
+            />
+          </Card>
+
+          <Card bg={bg} bgOpacity={opacity}>
+            <TextInput
+              fieldName="initTemplate"
+              label="Initial Template"
+              helperMarkdown="For generating the initial values for your introduction."
+              onInput={updateInit}
+              value={state.template.init}
+              isMultiline
+            />
+          </Card>
+
+          <Card bg={bg} bgOpacity={opacity}>
+            <TextInput
+              fieldName="introFormat"
+              label="Introduction Format"
+              helperMarkdown="How to format your introduction. .\n\nYou can use any field derived from your **Initial Template**."
+              placeholder="E.g. {{response}}"
+              value={state.template.introduction}
+              onInputText={(ev) => sagaStore.updateTemplate({ introduction: ev })}
+              isMultiline
+            />
+          </Card>
+
+          <Card bg={bg} bgOpacity={opacity}>
+            <TextInput
+              fieldName="displayFormat"
+              label="Response Display Format (Optional)"
+              helperMarkdown="How to display responses for **display** (Uses **Response Prompt Format** if empty)
+           You can use any field derived from your templates."
+              placeholder="E.g. {{response}}"
+              value={state.template.display}
+              onInputText={(ev) => sagaStore.updateTemplate({ display: ev })}
+              isMultiline
+            />
+          </Card>
+
+          <Card bg={bg} bgOpacity={opacity}>
+            <TextInput
+              fieldName="imagePrompt"
+              label={
+                <div class="flex w-full justify-between">
+                  <div>Prompt Template for Image Generation</div>
+                  <div>
+                    <Toggle
+                      fieldName="imagesEnabled"
+                      value={state.template.imagesEnabled}
+                      onChange={(ev) => sagaStore.updateTemplate({ imagesEnabled: ev })}
+                    />
+                  </div>
+                </div>
+              }
+              helperMarkdown="Leave empty to disable image generation"
+              placeholder="E.g. full body shot, {{image_caption}}, fantasy, anime art, studio lighting"
+              value={state.template.imagePrompt}
+              onInputText={(ev) => sagaStore.updateTemplate({ imagePrompt: ev })}
+              isMultiline
+            />
+          </Card>
+
+          <Card bg={bg} bgOpacity={opacity}>
+            <TextInput
+              fieldName="historyTemplate"
+              label="History Template"
+              helperMarkdown="Use **{{history}}** in the game loop template"
+              onInput={updateHistory}
+              value={state.template.history}
+              isMultiline
+            />
+          </Card>
+
+          <Card bg={bg} bgOpacity={opacity}>
+            <TextInput
+              fieldName="loopTemplate"
+              label="Game Loop Template"
+              helperMarkdown="Use **{{input}}** to use the user input"
+              onInput={updateLoop}
+              value={state.template.loop}
+              isMultiline
+            />
+          </Card>
         </div>
 
-        <div class="flex flex-col gap-1">
-          <FormLabel
-            label="Fields"
-            helperMarkdown={neat`
+        <div class="contents" classList={{ hidden: tab() !== 'Session' }}>
+          <div class="flex flex-col gap-1">
+            <FormLabel
+              label="Manual Fields"
+              helperMarkdown={`These fields are required to be filled out by you`}
+            />
+            <Index each={state.template.manual}>
+              {(field, i) => (
+                <ManualField
+                  field={field()}
+                  override={over[field()]}
+                  setOverride={(text) => updateOver(field(), text)}
+                  session={state.state}
+                />
+              )}
+            </Index>
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <FormLabel
+              label="Fields"
+              helperMarkdown={neat`
           **Toggle**: Controls whether the field appears in the chat window.
           **Label**: When enabled, how the field will be named in the chat window.
           **Value**: Override the value instead of generating it.
           `}
-          />
-          <Index each={state.template.fields.filter((f) => store.seen[f.name])}>
-            {(field, i) => (
-              <Field
-                field={field()}
-                onChange={onFieldChange(field().name)}
-                override={over[field().name]}
-                setOverride={(text) => updateOver(field().name, text)}
-                session={state.state}
-              />
-            )}
-          </Index>
-        </div>
-
-        <div class="flex flex-col gap-1" classList={{ hidden: lists().length === 0 }}>
-          <b>Lists</b>
-          <Index each={lists()}>
-            {(list) => (
-              <div class="grid" style={{ 'grid-template-columns': '1fr 3fr' }}>
-                <Button disabled class="h-full rounded-r-none">
-                  {list().name}
-                </Button>
-                <TagInput
-                  availableTags={list().options}
-                  value={list().options}
-                  fieldName="..."
-                  placeholder="Add items..."
-                  onSelect={(next) => updateList(list().name, next)}
+            />
+            <Index each={state.template.fields.filter((f) => store.seen[f.name])}>
+              {(field, i) => (
+                <Field
+                  field={field()}
+                  onChange={onFieldChange(field().name)}
+                  override={over[field().name]}
+                  setOverride={(text) => updateOver(field().name, text)}
+                  session={state.state}
                 />
-              </div>
-            )}
-          </Index>
+              )}
+            </Index>
+          </div>
+
+          <div class="flex flex-col gap-1" classList={{ hidden: lists().length === 0 }}>
+            <b>Lists</b>
+            <Index each={lists()}>
+              {(list) => (
+                <div class="grid" style={{ 'grid-template-columns': '1fr 3fr' }}>
+                  <Button disabled class="h-full rounded-r-none">
+                    {list().name}
+                  </Button>
+                  <TagInput
+                    availableTags={list().options}
+                    value={list().options}
+                    fieldName="..."
+                    placeholder="Add items..."
+                    onSelect={(next) => updateList(list().name, next)}
+                  />
+                </div>
+              )}
+            </Index>
+          </div>
         </div>
       </div>
     </Convertible>
@@ -442,7 +467,7 @@ const ManualField: Component<{
   field: string
   override?: string
   setOverride: (text: string) => void
-  session: SagaSession
+  session: Saga.Session
 }> = (props) => {
   return (
     <div
@@ -466,11 +491,11 @@ const ManualField: Component<{
 }
 
 const Field: Component<{
-  field: SagaField
-  onChange: (next: Partial<SagaField>) => void
+  field: Saga.Field
+  onChange: (next: Partial<Saga.Field>) => void
   override?: string
   setOverride: (text: string) => void
-  session: SagaSession
+  session: Saga.Session
 }> = (props) => {
   const value = createMemo(() => {
     const name = props.field.name

@@ -1,15 +1,18 @@
 import needle from 'needle'
 import { decryptText } from '../db/util'
-import { sanitise, sanitiseAndTrim, trimResponseV2 } from '../api/chat/common'
+import { sanitise, sanitiseAndTrim, trimResponseV2 } from '/common/requests/util'
 import { badWordIds, clioBadWordsId, penaltyWhitelist } from './novel-bad-words'
 import { ModelAdapter } from './type'
 import { AppSchema } from '../../common/types/schema'
 import { NOVEL_MODELS } from '/common/adapters'
 import { requestStream } from './stream'
-import { AppLog } from '../logger'
+import { AppLog } from '../middleware'
 import { getEncoder } from '../tokenize'
+import { toSamplerOrder } from '/common/sampler-order'
 
 export const NOVEL_BASEURL = `https://api.novelai.net`
+const NOVEL_TEXT_URL = `https://api.novelai.net` // use text.novelai.net when the new API allows >150 response tokens.
+
 const novelUrl = (model: string) => `${getBaseUrl(model)}/ai/generate`
 const streamUrl = (model: string) => `${getBaseUrl(model)}/ai/generate-stream`
 
@@ -22,7 +25,7 @@ const streamUrl = (model: string) => `${getBaseUrl(model)}/ai/generate-stream`
  * 4. Top A Sampling
  * 5. Typical Sampling
  * 6. CFG Scale
- * 7. Top G
+ * 7. Top G (omitted)
  * 8. Mirostat
  */
 
@@ -64,12 +67,10 @@ export const handleNovel: ModelAdapter = async function* ({
     return
   }
 
-  if (typeof opts.gen.order === 'string') {
-    opts.gen.order = (opts.gen.order as string).split(',').map((val) => +val)
-  }
-
-  if (typeof opts.gen.disabledSamplers === 'string') {
-    opts.gen.disabledSamplers = (opts.gen.disabledSamplers as string).split(',').map((val) => +val)
+  const samplers = toSamplerOrder('novel', opts.gen.order, opts.gen.disabledSamplers)
+  if (samplers) {
+    opts.gen.order = samplers.order
+    opts.gen.disabledSamplers = samplers.disabled
   }
 
   const model = opts.gen.novelModel || user.novelModel || NOVEL_MODELS.clio_v1
@@ -121,20 +122,6 @@ export const handleNovel: ModelAdapter = async function* ({
     for (const stop of all) {
       stops.push(stop)
     }
-  }
-
-  if (Array.isArray(opts.gen.order)) {
-    opts.gen.order = opts.gen.order.map((o) => +o)
-  }
-
-  if (opts.gen.order && !opts.gen.disabledSamplers) {
-    body.parameters.order = opts.gen.order
-  }
-
-  if (opts.gen.order && opts.gen.disabledSamplers) {
-    body.parameters.order = opts.gen.order
-      .map((o) => +o)
-      .filter((sampler) => sampler === 0 || !opts.gen.disabledSamplers?.includes(sampler))
   }
 
   yield { prompt: body.input }
@@ -199,7 +186,7 @@ function getModernParams(gen: Partial<AppSchema.GenSettings>) {
   const payload: any = {
     temperature: gen.temp,
     max_length: gen.maxTokens,
-    min_length: 1,
+    min_length: gen.maxTokens! - 10,
     top_k: gen.topK,
     top_p: gen.topP,
     top_a: gen.topA,
@@ -220,7 +207,7 @@ function getModernParams(gen: Partial<AppSchema.GenSettings>) {
     bad_words_ids: clioBadWordsId,
     repetition_penalty_whitelist: penaltyWhitelist,
     mirostat_tau: gen.mirostatTau,
-    mirotsat_lr: gen.mirostatLR,
+    mirostat_lr: gen.mirostatLR,
   }
 
   if (gen.cfgScale) {
@@ -320,6 +307,10 @@ function processNovelAIPrompt(prompt: string) {
 }
 
 function getBaseUrl(model: string) {
+  if (model === NOVEL_MODELS.kayra_v1) {
+    return NOVEL_TEXT_URL
+  }
+
   if (!model.includes('/')) return NOVEL_BASEURL
   const url = model.split('/').slice(0, -1).join('/')
   if (url.toLowerCase().startsWith('http')) return url

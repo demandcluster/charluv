@@ -1,4 +1,3 @@
-import { logger } from './logger'
 import { store } from './db'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -26,15 +25,12 @@ const checkRedis = async () => {
 checkRedis()
   .then((result) => {
     if (result === '1') {
-      logger.error('Discord bot already running')
       process.exit()
-    } else {
-      logger.info('checkredis ' + result)
     }
   })
   .catch((error) => {
     // Handle any errors that occur during the Redis operation or Promise resolution
-    logger.error('Error occurred while checking Redis: ' + error)
+
     process.exit()
   })
 
@@ -110,9 +106,8 @@ client.once(Events.ClientReady, async (c) => {
   await redisClient.expire('discordBot', 300)
   await redisClient.disconnect()
   console.log(`Ready! Logged in as ${c.user?.tag}`)
-  logger.info(false, 'Discord bot ready')
+
   await initDb()
-  logger.info(false, 'Database connected')
 })
 
 client.on(Events.InteractionCreate, async (interaction) => {
@@ -143,7 +138,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 })
 
-logger.info(false, 'Discord connecting')
 // Log in to Discord with your client's token
 client.login(discordToken)
 

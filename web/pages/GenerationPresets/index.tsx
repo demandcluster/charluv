@@ -5,7 +5,6 @@ import { defaultPresets, isDefaultPreset } from '../../../common/presets'
 import { AppSchema } from '../../../common/types/schema'
 import Button from '../../shared/Button'
 import Select, { Option } from '../../shared/Select'
-import GenerationSettings, { getPresetFormData } from '../../shared/GenerationSettings'
 import Modal, { ConfirmModal } from '../../shared/Modal'
 import PageHeader from '../../shared/PageHeader'
 import TextInput from '../../shared/TextInput'
@@ -13,6 +12,8 @@ import { getStrictForm, setComponentPageTitle } from '../../shared/util'
 import { presetStore, toastStore } from '../../store'
 import Loading from '/web/shared/Loading'
 import { TitleCard } from '/web/shared/Card'
+import { Page } from '/web/Layout'
+import PresetSettings, { getPresetFormData } from '/web/shared/PresetSettings'
 
 export const GenerationPresetsPage: Component = () => {
   const { updateTitle } = setComponentPageTitle('Preset')
@@ -25,7 +26,6 @@ export const GenerationPresetsPage: Component = () => {
   const [edit, setEdit] = createSignal(false)
   const [editing, setEditing] = createSignal<AppSchema.UserGenPreset>()
   const [deleting, setDeleting] = createSignal(false)
-  const [missingPlaceholder, setMissingPlaceholder] = createSignal<boolean>()
 
   const onEdit = (preset: AppSchema.UserGenPreset) => {
     nav(`/presets/${preset._id}`)
@@ -122,11 +122,6 @@ export const GenerationPresetsPage: Component = () => {
       return
     }
 
-    if (!force && body.gaslight && !body.gaslight.includes('{{personality}}')) {
-      setMissingPlaceholder(true)
-      return
-    }
-
     const prev = editing()
 
     if (prev?._id) {
@@ -134,22 +129,22 @@ export const GenerationPresetsPage: Component = () => {
     } else {
       presetStore.createPreset(body as any, (newPreset) => {
         nav(`/presets/${newPreset._id}`)
+        setEditing(newPreset)
       })
     }
-    setMissingPlaceholder(false)
   }
 
   if (params.id && params.id !== 'new' && !state.editing) {
     return (
-      <>
+      <Page>
         <PageHeader title="Generation Presets" />
         <Loading />
-      </>
+      </Page>
     )
   }
 
   return (
-    <>
+    <Page>
       <PageHeader title="Generation Presets" />
       <div class="flex flex-col gap-2 pb-10">
         <Show when={params.id === 'default'}>
@@ -190,7 +185,7 @@ export const GenerationPresetsPage: Component = () => {
                   required
                   parentClass="mb-2"
                 />
-                <GenerationSettings
+                <PresetSettings
                   inherit={editing()}
                   disabled={params.id === 'default'}
                   onSave={() => {}}
@@ -214,24 +209,7 @@ export const GenerationPresetsPage: Component = () => {
         confirm={deletePreset}
         message="Are you sure you wish to delete this preset?"
       />
-      <ConfirmModal
-        show={!!missingPlaceholder()}
-        close={() => setMissingPlaceholder(false)}
-        confirm={() => onSave(ref, true)}
-        message={
-          <div class="flex flex-col items-center gap-2 text-sm">
-            <div>
-              Your gaslight is missing a <code>{'{{personality}}'}</code> placeholder. This is
-              almost never what you want. It is recommended for your gaslight to contain the
-              placeholders:
-              <br /> <code>{'{{personality}}, {{scenario}} and {{memory}}'}</code>
-            </div>
-
-            <p>Are you sure you wish to proceed?</p>
-          </div>
-        }
-      />
-    </>
+    </Page>
   )
 }
 
@@ -241,7 +219,7 @@ const emptyPreset: AppSchema.GenSettings = {
   ...defaultPresets.basic,
   service: '' as any,
   name: '',
-  maxTokens: 150,
+  maxTokens: 300,
 }
 
 const EditPreset: Component<{

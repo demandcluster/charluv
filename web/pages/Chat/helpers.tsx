@@ -1,15 +1,8 @@
 import { ChevronLeft, ChevronRight } from 'lucide-solid'
-import { Component, JSX, Show, createSignal, onMount } from 'solid-js'
+import { Component, Show } from 'solid-js'
 import Button from '/web/shared/Button'
 import { chatStore, msgStore } from '/web/store'
-import IsVisible from '/web/shared/IsVisible'
 import { AppSchema, UI } from '/common/types'
-import { createDebounce, getRootRgb } from '/web/shared/util'
-
-const [onEnter] = createDebounce((loading: boolean) => {
-  if (loading) return
-  msgStore.getNextMessages()
-}, 250)
 
 export const SwipeMessage: Component<{
   chatId: string
@@ -43,31 +36,25 @@ export const SwipeMessage: Component<{
   )
 }
 
-export const InfiniteScroll: Component<{ canFetch?: boolean }> = (props) => {
-  const state = msgStore((s) => ({ loading: s.nextLoading, msgs: s.msgs }))
+export const LoadMore: Component<{ canFetch?: boolean }> = (props) => {
+  const state = msgStore((s) => ({
+    msgs: s.msgs,
+    history: s.messageHistory,
+  }))
   const chat = chatStore((s) => ({ loaded: s.loaded }))
-  const [ready, setReady] = createSignal(false)
-
-  onMount(() => {
-    setTimeout(() => {
-      setReady(true)
-    }, 1500)
-  })
 
   return (
-    <Show when={chat.loaded && state.msgs.length > 0 && ready()}>
-      <div class="flex h-[1px] w-full justify-center overflow-hidden">
-        <Show when={!state.loading}>
-          <IsVisible
-            onEnter={() => {
-              if (!props.canFetch) return
-              onEnter(state.loading)
-            }}
-          />
-        </Show>
-        <Show when={state.loading}>
-          <div class="dot-flashing bg-[var(--hl-700)]"></div>
-        </Show>
+    <Show when={chat.loaded && state.msgs.length > 0}>
+      <div class="flex w-full justify-center">
+        <a
+          class="link"
+          classList={{ hidden: state.history.length === 0 }}
+          onClick={() => {
+            msgStore.getNextMessages()
+          }}
+        >
+          Load more
+        </a>
       </div>
     </Show>
   )
@@ -86,15 +73,6 @@ export function getChatWidth(
     default:
       return 'w-full max-w-full'
   }
-}
-
-export function getHeaderBg(mode: UI.UISettings['mode']) {
-  mode
-  const rgb = getRootRgb('bg-900')
-  const styles: JSX.CSSProperties = {
-    background: rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.7)` : 'bg-900',
-  }
-  return styles
 }
 
 export function emptyMsg(opts: {
