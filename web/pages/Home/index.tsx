@@ -118,7 +118,7 @@ const HomePage: Component = () => {
   return (
     <div>
       <div class="flex flex-col  text-lg">
-        <div class="w-full" ref={useRef}>
+        <div class="w-full" ref={onRef}>
           <Slot slot="leaderboard" parent={ref()} />
         </div>
         <Card border class="mb-2">
