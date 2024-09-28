@@ -38,7 +38,7 @@ type ChubTag = {
   title: string
 }
 
-export const CHUB_URL = `https://api.chub.ai/api`
+export const CHUB_URL = `https://char-archive.evulid.cc/api/archive/v1/`
 
 const initState: ChubState = {
   nsfw: getStoredValue('chub-nsfw', false),

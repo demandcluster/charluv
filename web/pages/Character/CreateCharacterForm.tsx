@@ -191,9 +191,9 @@ export const CreateCharacterForm: Component<{
       editor.receiveAvatar(file)
 
       setImage(imageData)
-      toastStore.success(`Successfully downloaded from Character Hub`)
+      toastStore.success(`Successfully downloaded from Char Archive`)
     } catch (ex: any) {
-      toastStore.error(`Character Hub download failed: ${ex.message}`)
+      toastStore.error(`Char Archive download failed: ${ex.message}`)
     }
   })
 

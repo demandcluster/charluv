@@ -17,12 +17,10 @@ export const baseUrl = API_OVERRIDE
   ? `${PROTO}//${API_OVERRIDE}`
   : PORT === '1234' || PORT === '3001' || HOST === 'localhost' || HOST === '127.0.0.1'
   ? `${PROTO}//${HOST}:3001`
-  : HOST === 'agnai.chat' || HOST === 'prd-assets.agnai.chat'
-  ? `${PROTO}//edge-api.agnai.chat`
-  : HOST === 'dev.agnai.chat' || HOST === 'dev-assets.agnai.chat'
-  ? `${PROTO}//edge-api.agnai.chat`
-  : HOST === 'stg.agnai.chat'
-  ? `${PROTO}//stg-api.agnai.chat`
+  : HOST === 'charluv.com' || HOST === 'cdn.agnai.chat'
+  ? `${PROTO}//charluv.com`
+  : HOST === 'dev.charluv.com'
+  ? `${PROTO}//dev.charluv.com`
   : location.origin
 
 export const api = {
@@ -63,10 +61,11 @@ async function get<T = any>(path: string, query: Query = {}) {
   })
 }
 
-async function post<T = any>(path: string, body = {}) {
+async function post<T = any>(path: string, body = {}, opts?: { responseType?: 'blob' }) {
   return callApi<T>(path, {
     method: 'post',
     body: JSON.stringify(body),
+    ...(opts || {}),
   })
 }
 
@@ -98,30 +97,18 @@ async function streamPost<T = any>(path: string, body: any) {
 
 async function callApi<T = any>(
   path: string,
-  opts: RequestInit & { noAuth?: boolean }
-): Promise<{ result: T | undefined; status: number; error?: string }> {
+  opts: RequestInit & { noAuth?: boolean; responseType?: 'json' }
+): Promise<{
+  result: T | Blob | undefined
+  status: number
+  error?: string
+}> {
   const prefix = path.startsWith('/') ? '/api' : '/api'
   const fullUrl = path.startsWith('http') ? path : `${baseUrl}${prefix}${path}`
   const res = await fetch(fullUrl, {
     ...headers(opts?.noAuth),
     ...opts,
   }).catch((err) => ({ error: err }))
-
-  if ('error' in res) {
-    if (isSessionExpired() && fullUrl.includes(baseUrl)) {
-      events.emit(EVENTS.sessionExpired)
-      return {
-        result: undefined,
-        status: 401,
-        error: 'Your session has expired. Please login again.',
-      }
-    }
-
-    return { result: undefined, status: 503, error: res.error.message || res.error }
-  }
-
-  const json = await res.json()
-
   if (res.status === 401 && fullUrl.includes(baseUrl)) {
     events.emit(EVENTS.sessionExpired)
     return {
@@ -130,6 +117,17 @@ async function callApi<T = any>(
       error: 'Your session has expired. Please login again.',
     }
   }
+  if ('error' in res) {
+    return { result: undefined, status: 503, error: res.error.message || res.error }
+  }
+
+  if (opts.responseType === 'blob') {
+    console.log('BLOB')
+    const blob = await res.blob()
+    return { result: blob, status: res.status, error: undefined }
+  }
+
+  const json = await res.json()
 
   if (res.status >= 400) {
     return { result: undefined, status: res.status, error: json.message || res.statusText }
