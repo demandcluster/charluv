@@ -17,12 +17,13 @@ export const baseUrl = API_OVERRIDE
   ? `${PROTO}//${API_OVERRIDE}`
   : PORT === '1234' || PORT === '3001' || HOST === 'localhost' || HOST === '127.0.0.1'
   ? `${PROTO}//${HOST}:3001`
-  : HOST === 'charluv.com' || HOST === 'cdn.agnai.chat'
+  : HOST === 'charluv.com' || HOST === 'cdn.aivo.chat'
   ? `${PROTO}//charluv.com`
   : HOST === 'dev.charluv.com'
   ? `${PROTO}//dev.charluv.com`
   : location.origin
 
+console.log('baseUrl', baseUrl)
 export const api = {
   get,
   post,

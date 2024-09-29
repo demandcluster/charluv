@@ -141,7 +141,7 @@ function onMessage(msg: MessageEvent<any>) {
 
 function onConnected() {
   RETRY_TIME = 0
-  let sha = window.agnai_version
+  let sha = window.charluv_version
   if (sha === '{{unknown}}') {
     sha = 'local'
   }
