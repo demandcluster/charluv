@@ -11,7 +11,7 @@ export const hordePresets = {
     repetitionPenalty: 1.15,
     repetitionPenaltySlope: 0.9,
     repetitionPenaltyRange: 1024,
-    temp: 0.83,
+    temp: 0.87,
     topK: 0,
     topP: 0.9,
     typicalP: 1,
@@ -29,6 +29,6 @@ export const hordePresets = {
     memoryReverseWeight: false,
     antiBond: false,
     useAdvancedPrompt: 'validate',
-    promptOrderFormat: 'Charluv'
+    promptOrderFormat: 'Charluv',
   },
 } satisfies Record<string, Partial<AppSchema.GenSettings>>

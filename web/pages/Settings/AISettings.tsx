@@ -115,9 +115,6 @@ const AISettings: Component<{
       </Show>
 
       <Show when={ready()}>
-        <Show when={!state.user?.premium}>
-          Creation of Presets is only available to premium members.
-        </Show>
         <Show when={!canUseApi()}>
           <PresetSelect
             fieldName="defaultPreset"
@@ -132,7 +129,7 @@ const AISettings: Component<{
         <Show when={canUseApi()}>
           <SolidCard class="flex flex-col gap-2">
             <HelpModal
-              title="Agnaistic API Access"
+              title="Charluv API Access"
               cta={
                 <div>
                   <a class="link">How use to API Access</a>
