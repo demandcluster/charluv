@@ -23,11 +23,11 @@
     <div id="root"><!-- TODO(11b): Fallback when no JS. --></div>
     <script src="https://accounts.google.com/gsi/client"></script>
     <script type="module" src="./index.tsx"></script>
-    <script>
+    <script type="module">
       if (typeof navigator.serviceWorker !== 'undefined') {
         navigator.serviceWorker.register(new URL('serviceWorker.ts', import.meta.url));
       }
-      window.charluv_version = '{{unknown}}';
+
       console.clear();
       const charluv = `
 
@@ -42,6 +42,9 @@
 
       `;
       console.log('%c %s', 'color: rgb(85, 184, 156)', charluv);
+    </script>
+    <script>
+      window.charluv_version = '{{unknown}}';
     </script>
   </body>
 </html>
