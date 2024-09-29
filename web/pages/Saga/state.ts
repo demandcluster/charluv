@@ -594,7 +594,7 @@ function exampleTemplate(): Saga.Template {
     fields: [],
     userId: '',
 
-    name: 'Charluv Dating Simulator (Example)',
+    name: 'Dating Simulator (Example)',
     byline: 'Go on an AI generated date',
     description: '',
     introduction: `Introduction:\n{{intro}}\n\nOpening:\n{{scene}}`,

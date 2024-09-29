@@ -16,7 +16,7 @@ const history = neat`<user>{{input}}</user>
 
 export const exampleTemplates = {
   dating: {
-    name: 'Charluv Dating Simulator',
+    name: 'Dating Simulator',
     image:
       '(anime cartoon:1.5), full body shot, selfie, {{appearance}}, {{image_caption}}, fantasy art, high quality, studio lighting',
     history,
