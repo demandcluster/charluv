@@ -208,6 +208,11 @@ const Layout: Component<{ children?: any }> = (props) => {
               }}
             >
               <Switch>
+                <Match when={cfg.init}>
+                  {props.children}
+                  <Maintenance />
+                </Match>
+
                 <Match when={cfg.initLoading}>
                   <div class="flex h-[80vh] flex-col items-center justify-center gap-2">
                     <div>
