@@ -5,8 +5,8 @@ import { now } from '/common/util'
 import { Saga } from '/common/types'
 
 const KEYS = {
-  templates: 'agnai-guided-templates',
-  sessions: 'agnai-guided-sessions',
+  templates: 'charluv-guided-templates',
+  sessions: 'charluv-guided-sessions',
 }
 
 export const sagaApi = {
