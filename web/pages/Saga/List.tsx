@@ -64,14 +64,14 @@ export const SagaList: Component = (props) => {
         <SolidCard class="rendered-markdown">
           <div
             innerHTML={markdown.makeHtml(
-              neat`This is a preview of "Sagas". These are open ended text-based adventures made by users.`
+              neat`This is a preview of "Sagas". These are open ended text-based adventures made by users. They take about a minute to load at first start...`
             )}
           ></div>
         </SolidCard>
         <div>
           <Button
             onClick={() => {
-              sagaStore.createTemplate('open_world')
+              sagaStore.createTemplate('dating')
               nav(toSessionUrl('new'))
             }}
           >
