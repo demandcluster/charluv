@@ -156,7 +156,7 @@ export const guidance = wrap(async ({ userId, log, body, socketId }) => {
     },
     body
   )
-  body.service = 'horde'
+
   if (!body.service && !body.settings && !userId) {
     throw new StatusError('No preset provided', 400)
   }

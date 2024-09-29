@@ -38,7 +38,7 @@ export const exampleTemplates = {
 
       Write the introduction to the game: "You are [intro | temp=0.4 | stop="]"
       
-      Write the opening scene of the game to begin the game: "[scene | temp=0.4 | tokens=300 | stop="]"
+      Write the opening scene of the game to begin the game: "[scene | temp=0.4 | tokens=200 | stop="]"
       
       Write a brief image caption describing the scene and appearances of the characters: "[image_caption | tokens=200 | stop="]"
       `,
@@ -69,7 +69,7 @@ export const exampleTemplates = {
       <user>
       Write a brief image caption describing the scene and appearances of the characters: "[image_caption | tokens=200 | stop="]"
       </user>
-      
+
       <user>
       Where is the main character currently standing?</user>
   
