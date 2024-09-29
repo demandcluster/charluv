@@ -68,7 +68,8 @@ export const exampleTemplates = {
   
       <user>
       Write a brief image caption describing the scene and appearances of the characters: "[image_caption | tokens=200 | stop="]"
-  
+      </user>
+      
       <user>
       Where is the main character currently standing?</user>
   
