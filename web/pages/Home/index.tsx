@@ -118,6 +118,9 @@ const HomePage: Component = () => {
   return (
     <div>
       <div class="flex flex-col  text-lg">
+        <div class="flex w-full justify-center bg-[#55b89c] p-3">
+          <img src={logoDark} class="w-1/3" />
+        </div>
         <div class="w-full" ref={onRef}>
           <Slot slot="leaderboard" parent={ref()} />
         </div>

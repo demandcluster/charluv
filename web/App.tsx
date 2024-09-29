@@ -227,7 +227,7 @@ const Layout: Component<{ children?: any }> = (props) => {
                 </Match>
                 <Match when>
                   <div class="flex flex-col items-center gap-2">
-                    <div>Agnaistic failed to load</div>
+                    <div>Charluv failed to load</div>
                     <div>
                       <Button onClick={reload}>Try Again</Button>
                     </div>

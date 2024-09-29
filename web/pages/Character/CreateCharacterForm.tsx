@@ -283,6 +283,29 @@ export const CreateCharacterForm: Component<{
 
   const footer = (
     <>
+      <Show when={user?.user?.admin}>
+        <ToggleButtons
+          label="Match"
+          fieldName="match"
+          items={[
+            { value: true, label: 'Public' },
+            { value: false, label: 'Private' },
+          ]}
+          onChange={(opt) => editor.update('match', opt.value)}
+          selected={editor.state.match}
+        />
+
+        <ToggleButtons
+          label="Premium"
+          fieldName="premium"
+          items={[
+            { value: false, label: 'FREE' },
+            { value: true, label: 'SUBS' },
+          ]}
+          onChange={(opt) => editor.update('premium', opt.value)}
+          selected={editor.state.premium}
+        />
+      </Show>
       <Button onClick={cancel} schema="secondary">
         <X />
         {props.close ? 'Close' : 'Cancel'}
