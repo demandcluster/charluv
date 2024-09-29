@@ -23,7 +23,6 @@ export const baseUrl = API_OVERRIDE
   ? `${PROTO}//dev.charluv.com`
   : location.origin
 
-console.log('baseUrl', baseUrl)
 export const api = {
   get,
   post,

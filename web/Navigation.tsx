@@ -136,11 +136,11 @@ const Navigation: Component = () => {
     const apiSha = state.config.version.startsWith('development')
       ? 'dev'
       : state.config.version.slice(0, 4)
-    const webSha = window.charluv_version.startsWith('{{')
-      ? ''
-      : `/ ${window.charluv_version.slice(0, 4)}`
+    // const webSha = window.charluv_version.startsWith('{{')
+    //   ? ''
+    //   : `/ ${window.charluv_version.slice(0, 4)}`
 
-    return `${apiSha} ${webSha}`
+    return `${apiSha}`
   })
 
   return (
