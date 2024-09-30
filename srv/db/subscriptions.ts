@@ -4,8 +4,8 @@ import { AppSchema } from '../../common/types/schema'
 import { StatusError } from '../api/wrap'
 import { now } from './util'
 import { sendAll } from '../api/ws'
-import { setContextLimitStrategy } from '/common/prompt'
-import { getSubscriptionModelLimits, getUserSubscriptionTier } from '/common/util'
+import { setContextLimitStrategy } from '../../common/prompt'
+import { getSubscriptionModelLimits, getUserSubscriptionTier } from '../../common/util'
 
 const subCache = new Map<string, AppSchema.SubscriptionModel>()
 const tierCache = new Map<string, AppSchema.SubscriptionTier>()
