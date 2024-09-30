@@ -51,8 +51,8 @@ and the appearance:
 Write a brief image caption describing the scene and appearances of the characters: "[image_caption | tokens=200 | stop="]"
 </user>
 
-<user>The opening scene of the roleplay story:
-{{scene}}</user>
+<user>The opening chat of the roleplay story:
+{{chat}}</user>
 
 And then the dating roleplay begins:
 

@@ -596,7 +596,7 @@ function exampleTemplate(): Saga.Template {
     name: 'Dating Simulator (Example)',
     byline: 'Go on an AI generated date',
     description: '',
-    introduction: `Introduction:\n{{intro}}\n\nOpening:\n{{chat}}`,
+    introduction: `Introduction:\n{{intro}}\n\nOpening chat:\n{{chat}}`,
     imagePrompt:
       '(anime cartoon:1.5), full body shot, selfie, {{appearance}}, {{image_caption}}, fantasy art, high quality, studio lighting',
     imagesEnabled: false,
@@ -636,8 +636,8 @@ function exampleTemplate(): Saga.Template {
   Write a brief image caption describing the scene and appearances of the characters: "[image_caption | tokens=200 | stop="]"
   </user>
   
-  <user>The opening scene of the roleplay story:
-  {{scene}}</user>
+  <user>The opening chat of the roleplay story:
+  {{chat}}</user>
   
   And then the dating roleplay begins:
   
