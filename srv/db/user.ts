@@ -13,7 +13,7 @@ import { resyncSubscription } from '../api/billing/stripe'
 import { getCachedSubscriptionModels, getCachedTiers, getTier } from './subscriptions'
 import { store } from '.'
 import { patreon } from '../api/user/patreon'
-import { getUserSubscriptionTier } from '/common/util'
+import { getUserSubscriptionTier } from '../../common/util'
 import { command } from '../domains'
 import { getRegisteredAdapters } from '../adapter/register'
 

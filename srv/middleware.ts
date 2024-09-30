@@ -6,7 +6,7 @@ import { verifyApiKey } from './db/oauth'
 import { verifyJwt } from './db/user'
 import { config } from './config'
 import { db, isConnected } from './db/client'
-import { getUserSubscriptionTier } from '/common/util'
+import { getUserSubscriptionTier } from '../common/util'
 import { getCachedTiers } from './db/subscriptions'
 
 const logLevel = getLogLevel()
