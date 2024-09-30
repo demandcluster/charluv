@@ -1,5 +1,5 @@
 import Stripe from 'stripe'
-import { config } from '/srv/config'
+import { config } from '../../config'
 import { AppSchema } from '/common/types'
 import { logger } from '../../middleware'
 import { store } from '/srv/db'

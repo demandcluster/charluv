@@ -26,9 +26,9 @@ export const exampleTemplates = {
 
       First name of the match on Charluv: "[main_match | temp=0.4 | stop="]"
 
-      Brief description of {{main_match}}'s personality: "[match_persona | temp=0.4 | stop="]"
+      Brief description of the match personality: "[match_persona | temp=0.4 | stop="]"
 
-      Brief physical description of {{main_match}}'s appearance (hair style, hair color, body type, eye color): "[appearance | temp=0.5 | stop="]"
+      Brief physical description of match appearance (hair style, hair color, body type, eye color): "[appearance | temp=0.5 | stop="]"
     
       Write the introduction to the dating simulation: "You are [intro | temp=0.6 | stop="]"
       
