@@ -603,7 +603,7 @@ function exampleTemplate(): Saga.Template {
     display: '',
     lists: {},
     manual: [],
-    init: neat`Generate the details for a dating simulator.
+    init: neat`Generate the details for a dating simulator between two real people.
         
         First and last name of the main character: "[main_char | temp=0.4 | stop="]"
   
