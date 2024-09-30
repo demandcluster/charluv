@@ -41,7 +41,7 @@ homeTour.addSteps([
     id: 'tour-welcome',
     text: `${title(
       'Welcome to Charluv!'
-    )} Charluv allows you to chat with fictional characters using AI.<br />After free registration you can chat completely for free with full privacy. <br />You can subscribe for premium to access larger context, voices, unlimited chat and other features.`,
+    )} Charluv allows you to chat with fictional characters using AI.<br />Register for free and chat with any character. <br />You can subscribe for premium to access larger context, voices, unlimited chat and other features.`,
     buttons: [next],
   },
 ])
