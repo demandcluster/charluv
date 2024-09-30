@@ -596,7 +596,7 @@ function exampleTemplate(): Saga.Template {
     name: 'Dating Simulator (Example)',
     byline: 'Go on an AI generated date',
     description: '',
-    introduction: `Introduction:\n{{intro}}\n\nOpening chat:\n{{chat}}`,
+    introduction: `Introduction:\n{{intro}}\n\nOpening chat:\n{{scene}}`,
     imagePrompt:
       '(anime cartoon:1.5), full body shot, selfie, {{appearance}}, {{image_caption}}, fantasy art, high quality, studio lighting',
     imagesEnabled: false,
@@ -612,14 +612,18 @@ function exampleTemplate(): Saga.Template {
         Brief description of match personality: "[match_persona | temp=0.4 | stop="]"
   
         Brief physical description of match appearance (hair style, hair color, body type, eye color): "[appearance | temp=0.5 | stop="]"
-      
-  
+    
         Write the introduction to the dating simulation: "You are [intro | temp=0.6 | stop="]"
         
-        Write the opening chat on Charluv to begin the simulation: "[chat | temp=0.7 | tokens=200 | stop="]"
+        Write the opening chat on Charluv to begin the simulation: "[scene | temp=0.7 | tokens=200 | stop="]"
         
         Write a brief image caption describing the scene and appearances of the characters: "[image_caption | tokens=200 | stop="]"
   `,
+    history: neat`
+  <user>{{input}}</user>
+
+  <bot>{{response}}</bot>
+`,
     loop: neat`"{{title}}" dating simulation roleplay RPG
   Background information:
   {{background}}
@@ -636,8 +640,11 @@ function exampleTemplate(): Saga.Template {
   Write a brief image caption describing the scene and appearances of the characters: "[image_caption | tokens=200 | stop="]"
   </user>
   
+  <user>An introduction about the dating roleplay:
+  {{intro}}</user>
+
   <user>The opening chat of the roleplay story:
-  {{chat}}</user>
+  {{scene}}</user>
   
   And then the dating roleplay begins:
   

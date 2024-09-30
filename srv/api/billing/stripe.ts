@@ -2,10 +2,10 @@ import Stripe from 'stripe'
 import { config } from '../../config'
 import { AppSchema } from '/common/types'
 import { logger } from '../../middleware'
-import { store } from '/srv/db'
+import { store } from '../../db'
 import { getCachedTiers } from '/srv/db/subscriptions'
-import { domain } from '/srv/domains'
-import { subsCmd } from '/srv/domains/subs/cmd'
+import { domain } from '../../domains'
+import { subsCmd } from '../../domains/subs/cmd'
 import { StatusError } from '../wrap'
 
 export const stripe = new Stripe(config.billing.private, { apiVersion: '2023-08-16' })

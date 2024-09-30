@@ -32,7 +32,7 @@ export const exampleTemplates = {
     
       Write the introduction to the dating simulation: "You are [intro | temp=0.6 | stop="]"
       
-      Write the opening chat on Charluv to begin the simulation: "[chat | temp=0.7 | tokens=200 | stop="]"
+      Write the opening chat on Charluv to begin the simulation: "[scene | temp=0.7 | tokens=200 | stop="]"
       
       Write a brief image caption describing the scene and appearances of the characters: "[image_caption | tokens=200 | stop="]"`,
     loop: neat`"{{title}}" dating simulation roleplay RPG
@@ -44,15 +44,17 @@ The main character is: {{main_char}}.
 The match on Charluv is: {{main_match}}.
 The match on Charluv ({{main_match}}) personality:
 {{match_persona}}
-and the appearance:
 {{main_match}}'s physical appearance: {{appearance}}
 
 <user>
 Write a brief image caption describing the scene and appearances of the characters: "[image_caption | tokens=200 | stop="]"
 </user>
 
+<user>An introduction about the dating scenario:
+{{intro}}</user>
+
 <user>The opening chat of the roleplay story:
-{{chat}}</user>
+{{scene}}</user>
 
 And then the dating roleplay begins:
 
