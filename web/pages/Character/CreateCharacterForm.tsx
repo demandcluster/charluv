@@ -35,6 +35,7 @@ import {
   memoryStore,
   chatStore,
   userStore,
+  settingStore,
 } from '../../store'
 import { useNavigate, useSearchParams } from '@solidjs/router'
 import PersonaAttributes from '../../shared/PersonaAttributes'
@@ -47,9 +48,9 @@ import { AppSchema } from '../../../common/types/schema'
 import Loading from '/web/shared/Loading'
 import { JSX, For } from 'solid-js'
 import { BUNDLED_CHARACTER_BOOK_ID, emptyBookWithEmptyEntry } from '/common/memory'
-import { Card, Pill, SolidCard, TitleCard } from '../../shared/Card'
+import { Card, SolidCard, TitleCard } from '../../shared/Card'
 import { usePane, useRootModal } from '../../shared/hooks'
-import Modal, { HelpModal, RootModal } from '/web/shared/Modal'
+import Modal, { RootModal } from '/web/shared/Modal'
 import EditMemoryForm, { EntrySort, getBookUpdate } from '../Memory/EditMemory'
 import { Toggle, ToggleButtons } from '../../shared/Toggle'
 import AvatarBuilder from '../../shared/Avatar/Builder'
@@ -72,6 +73,7 @@ import { ModeGenSettings } from '/web/shared/Mode/ModeGenSettings'
 import { charsApi } from '/web/store/data/chars'
 import Tooltip from '/web/shared/Tooltip'
 import { CharacterSchema } from './CharacterSchema'
+import { canStartTour, startTour } from '/web/tours'
 
 const formatOptions = [
   { value: 'attributes', label: 'Attributes (Key: value)' },
@@ -170,6 +172,12 @@ export const CreateCharacterForm: Component<{
   onMount(async () => {
     characterStore.clearGeneratedAvatar()
     characterStore.clearCharacter()
+
+    if (canStartTour('char')) {
+      settingStore.closeMenu()
+    }
+
+    startTour('char')
 
     if (srcId()) {
       characterStore.getCharacter(srcId(), props.chat)
@@ -338,11 +346,16 @@ export const CreateCharacterForm: Component<{
             forceNew() ? 'Create' : props.editId ? 'Edit' : props.duplicateId ? 'Copy' : 'Create'
           } a Character`}
           subtitle={
-            <div class="whitespace-normal">
-              <em>
-                {totalTokens()} tokens, {totalPermanentTokens()} permanent
-              </em>
-            </div>
+            <>
+              <div class="whitespace-normal">
+                <em>
+                  {totalTokens()} tokens, {totalPermanentTokens()} permanent
+                </em>
+              </div>
+              <Button size="pill" class="w-fit" onClick={() => startTour('char', true)}>
+                AI Character Generation Guide
+              </Button>
+            </>
           }
         />
       </Show>
@@ -384,7 +397,7 @@ export const CreateCharacterForm: Component<{
             </Show>
 
             <div class="flex justify-end gap-2 text-[1em]">
-              <Button onClick={() => setOpenPreset(true)}>
+              <Button onClick={() => setOpenPreset(true)} class="tour-preset">
                 <SlidersVertical size={24} /> Preset
               </Button>
               <Button onClick={() => setImport(true)}>
@@ -418,42 +431,14 @@ export const CreateCharacterForm: Component<{
             />
 
             <div class="flex flex-col gap-2" classList={{ hidden: tabs.current() !== 'Persona' }}>
-              <HelpModal cta={<Button size="pill">AI Character Generation Guide</Button>}>
-                <div class="flex flex-col gap-1">
-                  <p class="inline-flex gap-1">
-                    1. Fill out <Pill small>Name</Pill> and <Pill small>Description</Pill> fields
-                  </p>
-                  <p class="inline-flex gap-1">
-                    2. <i>Optional:</i> Choose or update your preset{' '}
-                    <Pill inverse type="hl" small>
-                      <SlidersVertical size={14} />
-                    </Pill>
-                  </p>
-                  <p class="inline-flex gap-1">
-                    3. Click{' '}
-                    <Pill inverse type="hl" small>
-                      <WandSparkles size={14} />
-                    </Pill>
-                    &nbsp;on the field you'd like to generate.
-                  </p>
-
-                  <p class="inline-flex gap-1">
-                    4. Adjust the <Pill small>Description</Pill> and click{' '}
-                    <Pill inverse type="hl" small>
-                      <WandSparkles size={14} />
-                    </Pill>
-                    &nbsp;to regenerate.
-                  </p>
-                </div>
-              </HelpModal>
-
-              <Card>
+              <Card class="tour-prefields">
                 <ButtonInput
                   fieldName="name"
                   required
                   label="Character Name"
                   placeholder=""
                   value={editor.state.name}
+                  parentClass="pb-2"
                 >
                   <Button
                     size="sm"
@@ -463,20 +448,7 @@ export const CreateCharacterForm: Component<{
                     <Dices size={12} />
                   </Button>
                 </ButtonInput>
-              </Card>
 
-              <Card>
-                <TagInput
-                  availableTags={tagState.tags.map((t) => t.tag)}
-                  value={editor.state.tags}
-                  fieldName="_tags"
-                  label="Tags"
-                  helperText="Used to help you organize and filter your characters."
-                  onSelect={(tags) => editor.update({ tags })}
-                />
-              </Card>
-
-              <Card class="flex w-full flex-col">
                 <FormLabel
                   label="Description / Creator's notes"
                   helperText={
@@ -497,6 +469,17 @@ export const CreateCharacterForm: Component<{
                     value={editor.state.description}
                   />
                 </div>
+              </Card>
+
+              <Card>
+                <TagInput
+                  availableTags={tagState.tags.map((t) => t.tag)}
+                  value={editor.state.tags}
+                  fieldName="_tags"
+                  label="Tags"
+                  helperText="Used to help you organize and filter your characters."
+                  onSelect={(tags) => editor.update({ tags })}
+                />
               </Card>
 
               <Card class="flex w-full flex-col gap-4 sm:flex-row">
@@ -590,8 +573,13 @@ export const CreateCharacterForm: Component<{
                   fieldName="scenario"
                   label={
                     <>
+                      <Regenerate
+                        field={'scenario'}
+                        editor={editor}
+                        allowed={editor.canGuidance}
+                        class="tour-gen-field"
+                      />
                       Scenario{' '}
-                      <Regenerate field={'scenario'} editor={editor} allowed={editor.canGuidance} />
                     </>
                   }
                   helperText="The current circumstances and context of the conversation and the characters."
@@ -607,14 +595,14 @@ export const CreateCharacterForm: Component<{
                   <FormLabel
                     label={
                       <div class="flex items-center gap-1">
-                        Personality{' '}
                         <Show when={editor.state.personaKind === 'text'}>
                           <Regenerate
                             field={'persona'}
                             editor={editor}
                             allowed={editor.canGuidance}
-                          />{' '}
+                          />
                         </Show>
+                        Personality
                       </div>
                     }
                     helperText={
@@ -630,6 +618,7 @@ export const CreateCharacterForm: Component<{
                   />
                   <Select
                     fieldName="kind"
+                    class="tour-persona"
                     items={personaFormats()}
                     value={editor.state.personaKind}
                   />
@@ -649,8 +638,8 @@ export const CreateCharacterForm: Component<{
                   fieldName="greeting"
                   label={
                     <>
-                      Greeting{' '}
                       <Regenerate field={'greeting'} editor={editor} allowed={editor.canGuidance} />
+                      Greeting{' '}
                     </>
                   }
                   helperText="The first message from your character. It is recommended to provide a lengthy first message to encourage the character to give longer responses."
@@ -672,12 +661,12 @@ export const CreateCharacterForm: Component<{
                   fieldName="sampleChat"
                   label={
                     <>
-                      Sample Conversation{' '}
                       <Regenerate
                         field={'sampleChat'}
                         editor={editor}
                         allowed={editor.canGuidance}
                       />
+                      Sample Conversation{' '}
                     </>
                   }
                   helperText={
@@ -804,6 +793,7 @@ const Regenerate: Component<{
   trait?: string
   editor: CharEditor
   allowed: boolean
+  class?: string
 }> = (props) => {
   return (
     <Tooltip
@@ -817,7 +807,7 @@ const Regenerate: Component<{
         <Match when={props.allowed}>
           <Button
             size="sm"
-            class="inline-block"
+            class={`inline-block ${props.class || ''}`}
             onClick={() => {
               if (!props.editor.canGenerate()) {
                 toastStore.warn(`Fill in the Name and Description to generate`)
@@ -993,7 +983,7 @@ const MemoryBookPicker: Component<{
 
   const BookModal = (
     <Modal
-      title="Chat Memory"
+      title="Character Memory"
       show={isModalShown()}
       close={() => setIsModalShown(false)}
       footer={<ModalFooter />}
@@ -1168,7 +1158,7 @@ const ReelControl: Component<{ editor: CharEditor; loading: boolean }> = (props)
           <RotateCcw size={size} />
         </Button> */}
         <Button size="sm" onClick={createAvatar} disabled={props.loading}>
-          <WandSparkles size={size} />
+          Generate Image
         </Button>
       </div>
     </div>

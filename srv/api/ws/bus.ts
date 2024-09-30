@@ -3,7 +3,7 @@ import * as redis from 'redis'
 import { config } from '../../config'
 import { logger } from '../../middleware'
 import { AppSocket } from './types'
-import { PING_INTERVAL_MS } from '/common/util'
+import { PING_INTERVAL_MS } from '../../../common/util'
 
 export const allSockets = new Map<string, AppSocket>()
 export const userSockets = new Map<string, AppSocket[]>()

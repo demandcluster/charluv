@@ -15,6 +15,7 @@ import { getUserSubscriptionTier, wait } from '/common/util'
 import { createDebounce } from './util'
 
 const win: any = window
+win.enableSticky = JSON.parse(localStorage.getItem('agnai-sticky') || 'true')
 
 window.googletag = window.googletag || { cmd: [] }
 window.ezstandalone = window.ezstandalone || { cmd: [] }
@@ -96,12 +97,13 @@ const Slot: Component<{
   const [slotId, setSlotId] = createSignal<string>()
   const [actualId, setActualId] = createSignal('...')
 
-  const tier = createMemo(() => {
+  createEffect(() => {
     if (!user.user) return
     const subtier = getUserSubscriptionTier(user.user, user.tiers)
 
     if (subtier?.tier.disableSlots) {
       win.enableSticky = undefined
+      localStorage.setItem('agnai-sticky', 'false')
     }
 
     return subtier
@@ -283,7 +285,7 @@ const Slot: Component<{
       return log('No publisher id')
     }
 
-    if (user.sub?.tier?.disableSlots) {
+    if (user.sub?.tier.disableSlots) {
       props.parent.style.display = 'hidden'
       return log('Slots are tier disabled')
     }
@@ -380,15 +382,7 @@ const Slot: Component<{
   return (
     <>
       <Switch>
-        <Match
-          when={
-            !cfg.ready ||
-            !user.user ||
-            !specs() ||
-            tier()?.tier.disableSlots ||
-            user.sub?.tier?.disableSlots
-          }
-        >
+        <Match when={!cfg.ready || !user.user || !specs() || user.sub?.tier?.disableSlots}>
           {null}
         </Match>
         <Match when={specs()!.video && cfg.slots.gtmVideoTag}>
@@ -473,7 +467,7 @@ const slotDefs: Record<SlotKind, SlotDef> = {
     sm: {
       size: '300x250',
       id: 'agn-menu-sm',
-      fuseId: location.host === 'agnai.chat' ? '23195824742' : '23199579880',
+      fuseId: location.host === 'agnai.chat' ? '23195824742' : '23199579880', // 23199579880
     }, //
     lg: { size: '300x600', id: 'agn-menu-lg', fuseId: '23195824742' },
     ez: [106],
@@ -719,6 +713,7 @@ const [invokeFuse] = createDebounce(() => {
     console.log(`[fuse] init ${ids}`)
     const win: any = window
     win.enableSticky = true
+    localStorage.setItem('agnai-sticky', 'true')
     window.fusetag.que.push(() => {
       window.fusetag.pageInit({ blockingFuseIds: ids })
     })

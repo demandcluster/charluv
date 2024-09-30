@@ -922,7 +922,7 @@ subscribe(
     json: 'any?',
   },
   async (body) => {
-    const { retrying, msgs, activeChatId } = msgStore.getState()
+    const { retrying, msgs, activeChatId, graph } = msgStore.getState()
     const { characters } = getStore('character').getState()
     const { active } = getStore('chat').getState()
 
@@ -959,14 +959,30 @@ subscribe(
       json: body.json,
     }
 
+    let tree: ChatTree | undefined
+
     if (retrying?._id === body.messageId) {
-      const next = msgs.map((msg) => (msg._id === body.messageId ? { ...msg, ...nextMsg } : msg))
-      msgStore.setState({ msgs: next })
+      const next = msgs.map((msg) => {
+        if (msg._id === body.messageId) {
+          const replacement = { ...msg, ...nextMsg }
+          tree = updateChatTreeNode(graph.tree, replacement)
+          return replacement
+        }
+
+        return msg
+      })
+      msgStore.setState({ msgs: next, graph: { ...graph, tree: tree || graph.tree } })
     } else {
       if (activeChatId !== body.chatId || !prev) return
-      msgStore.setState({
-        msgs: msgs.map((msg) => (msg._id === body.messageId ? { ...msg, ...nextMsg } : msg)),
+      const next = msgs.map((msg) => {
+        if (msg._id === body.messageId) {
+          const replacement = { ...msg, ...nextMsg }
+          tree = updateChatTreeNode(graph.tree, replacement)
+          return replacement
+        }
+        return msg
       })
+      msgStore.setState({ msgs: next, graph: { ...graph, tree: tree || graph.tree } })
     }
 
     if (active.chat._id !== body.chatId || !prev || !char) return
@@ -1221,7 +1237,7 @@ function updateMsgParents(chatId: string, parents: Record<string, string>) {
 
   let nextHist = messageHistory.slice()
   let nextMsgs = msgs.slice()
-  let tree = graph.tree
+  let tree = { ...graph.tree }
 
   for (const [nodeId, parentId] of Object.entries(parents)) {
     if (typeof parentId !== 'string') continue
@@ -1232,6 +1248,12 @@ function updateMsgParents(chatId: string, parents: Record<string, string>) {
     nextHist = replace(nodeId, nextHist, { parent: parentId })
     nextMsgs = replace(nodeId, nextMsgs, { parent: parentId })
     tree = updateChatTreeNode(tree, next)
+    tree[next._id].children = new Set(prev.children)
+
+    const parent = tree[parentId]
+    if (parent) {
+      parent.children.add(next._id)
+    }
   }
 
   msgStore.setState({
@@ -1256,10 +1278,6 @@ subscribe(
   },
   updateMsgSub
 )
-
-subscribe('message-parents', { chatId: 'string', parents: 'any' }, (body) => {
-  updateMsgParents(body.chatId, body.parents)
-})
 
 subscribe(
   'message-swapped',

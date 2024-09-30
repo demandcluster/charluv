@@ -22,3 +22,5 @@ settings.json
 /auth
 *.tsbuildinfo
 !web/pkg/*.js
+!llama3.js
+

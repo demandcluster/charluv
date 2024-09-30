@@ -1,8 +1,8 @@
 import { allSockets, sendMany, userSockets } from './bus'
 import { AppSocket } from './types'
-import { assertValid } from '/common/valid'
-import { store } from '/srv/db'
-import { verifyJwt } from '/srv/db/user'
+import { assertValid } from '../../../common/valid'
+import { store } from '../../db'
+import { verifyJwt } from '../../db/user'
 
 export type WebMessage =
   | { type: 'login'; token: string }

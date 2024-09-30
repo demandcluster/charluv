@@ -77,7 +77,7 @@ const EditMemoryForm: Component<{
           helperText={props.book._id === '' ? 'New book' : props.book._id}
         />
         <TextInput
-          fieldName="name"
+          fieldName="bookName"
           label="Book Name"
           value={props.book?.name || ''}
           placeholder="Name for your memory book"
@@ -88,7 +88,7 @@ const EditMemoryForm: Component<{
         />
 
         <TextInput
-          fieldName="description"
+          fieldName="bookDesc"
           label="Description"
           value={props.book?.description || ''}
           placeholder="(Optional) A description for your memory book"
@@ -248,7 +248,10 @@ const EntryCard: Component<{
 
 export function getBookUpdate(ref: Event | HTMLFormElement) {
   const inputs = getFormEntries(ref)
-  const { name, description } = getStrictForm(ref, { name: 'string', description: 'string?' })
+  const { bookName = '', description } = getStrictForm(ref, {
+    bookName: 'string?',
+    description: 'string?',
+  })
 
   const map = new Map<string, AppSchema.MemoryEntry>()
 
@@ -286,7 +289,7 @@ export function getBookUpdate(ref: Event | HTMLFormElement) {
 
   const entries = Array.from(map.values())
 
-  const book = { name, description, entries }
+  const book = { name: bookName, description, entries }
   return book
 }
 
