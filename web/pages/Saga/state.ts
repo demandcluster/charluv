@@ -593,11 +593,10 @@ function exampleTemplate(): Saga.Template {
     _id: '',
     fields: [],
     userId: '',
-
     name: 'Dating Simulator (Example)',
     byline: 'Go on an AI generated date',
     description: '',
-    introduction: `Introduction:\n{{intro}}\n\nOpening:\n{{scene}}`,
+    introduction: `Introduction:\n{{intro}}\n\nOpening:\n{{chat}}`,
     imagePrompt:
       '(anime cartoon:1.5), full body shot, selfie, {{appearance}}, {{image_caption}}, fantasy art, high quality, studio lighting',
     imagesEnabled: false,

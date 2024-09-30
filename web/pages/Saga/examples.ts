@@ -30,20 +30,18 @@ export const exampleTemplates = {
 
       Brief physical description of {{main_match}}'s appearance (hair style, hair color, body type, eye color): "[appearance | temp=0.5 | stop="]"
     
-
       Write the introduction to the dating simulation: "You are [intro | temp=0.6 | stop="]"
       
       Write the opening chat on Charluv to begin the simulation: "[chat | temp=0.7 | tokens=200 | stop="]"
       
-      Write a brief image caption describing the scene and appearances of the characters: "[image_caption | tokens=200 | stop="]"
-`,
+      Write a brief image caption describing the scene and appearances of the characters: "[image_caption | tokens=200 | stop="]"`,
     loop: neat`"{{title}}" dating simulation roleplay RPG
 Background information:
 {{background}}
 
 The main character is: {{main_char}}.
 
-The match on Charluv is  is: {{main_match}}.
+The match on Charluv is: {{main_match}}.
 The match on Charluv ({{main_match}}) personality:
 {{match_persona}}
 and the appearance:
@@ -61,12 +59,8 @@ And then the dating roleplay begins:
 {{history}}
 
 <user>{{main_char}}: {{input}}</user>
-
-<bot>
-[response | temp=0.4 | tokens=300 | stop=USER | stop=ASSISTANT | stop=</ | stop=<| | stop=### ]</bot>
-
-<user>
-`,
+<bot>[response | temp=0.4 | tokens=300 | stop=USER | stop=ASSISTANT | stop=</ | stop=<| | stop=### ]</bot>
+<user>`,
   },
   detective: {
     name: 'Detective RPG example',
