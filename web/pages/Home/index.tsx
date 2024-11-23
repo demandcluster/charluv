@@ -228,7 +228,7 @@ const HomePage: Component = () => {
         <TitleCard class="mb-2" type="bg" center title="Featured on">
           <div class="mb-2 flex justify-center">
             <div class="mr-2" innerHTML={rawHTML} />
-            <a href="https://nsfw.tools>" target="_blank" rel="nofollow">
+            <a href="https://nsfw.tools" target="_blank" rel="nofollow">
               <img width="250" src={nsfwTools} />
             </a>
           </div>
