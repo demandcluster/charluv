@@ -42,8 +42,8 @@ const emptyPreset: AppSchema.GenSettings = {
   tailFreeSampling: 1,
   repetitionPenalty: 1,
   repetitionPenaltyRange: 64,
-  maxContextLength: 4090,
-  maxTokens: 250,
+  maxContextLength: 8192,
+  maxTokens: 400,
   streamResponse: true,
 }
 

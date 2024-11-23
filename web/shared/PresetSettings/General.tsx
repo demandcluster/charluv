@@ -166,7 +166,7 @@ export const GeneralSettings: Component<
 
       <Show when={props.service === 'horde'}>
         <Card>
-          <HordeDetails maxTokens={300} maxContextLength={4096} />
+          <HordeDetails maxTokens={400} maxContextLength={8192} />
         </Card>
       </Show>
 

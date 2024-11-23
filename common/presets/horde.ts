@@ -6,8 +6,8 @@ export const hordePresets = {
   horde: {
     name: 'Horde',
     service: 'horde',
-    maxTokens: 200,
-    maxContextLength: 4096,
+    maxTokens: 400,
+    maxContextLength: 8192,
     repetitionPenalty: 1.15,
     repetitionPenaltySlope: 0.9,
     repetitionPenaltyRange: 1024,
