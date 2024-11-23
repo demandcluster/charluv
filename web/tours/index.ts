@@ -24,6 +24,7 @@ export function canStartTour(type: TourType, force?: boolean) {
   const isComplete = getStoredValue(`tour-${type}`, false)
   const forceTours = force || getStoredValue(`force-tours`, false)
   if (isLoggedIn() && !forceTours) return false
+  if (!isLoggedIn()) return false
   if (isComplete && !force) return false
   if (tour.isActive()) return false
 
