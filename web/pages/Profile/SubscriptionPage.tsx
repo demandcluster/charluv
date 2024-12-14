@@ -194,7 +194,7 @@ export const SubscriptionPage: Component = (props) => {
           <Show when={settings.patreon}>
             <TitleCard center title={<span class="text-[var(--hl-500)]">Patreon</span>}>
               Become a{' '}
-              <a class="link font-bold" href="https://patreon.com/Agnaistic" target="_blank">
+              <a class="link font-bold" href="https://patreon.com/charluv" target="_blank">
                 Patron
               </a>{' '}
               and link your account or use the options below
