@@ -366,7 +366,7 @@ export function getUserSubscriptionTier(
 ): UserSub | undefined {
   const now = new Date().getTime()
   let nativeTier = tiers.find((t) => user.sub && t._id === user.sub.tierId)
-  let patronTier = tiers.find((t) => user.patreon?.sub && t._id === user.patreon.sub.tierId)
+  let patronTier = getPatreonEntitledTier(user, tiers)
   let paypalTier = tiers.find((t) => t.level > 1)
 
   const paypalExpired =
@@ -376,6 +376,7 @@ export function getUserSubscriptionTier(
   let manualTier = manualId ? tiers.find((t) => t._id === manualId) : undefined
 
   const nativeExpired = isExpired(user.billing?.validUntil) || user.billing?.status === 'cancelled'
+  const patronGifted = user.patreon?.member?.attributes?.is_gifted === true
   const patronExpired =
     isExpired(user.patreon?.member?.attributes.next_charge_date) ||
     user.patreon?.member?.attributes.patron_status !== 'active_patron'
@@ -388,7 +389,7 @@ export function getUserSubscriptionTier(
     paypalTier = undefined
   }
 
-  if (patronExpired) {
+  if (patronExpired && !patronGifted) {
     patronTier = undefined
   }
 
@@ -404,12 +405,41 @@ export function getUserSubscriptionTier(
   )
 
   const result = { type: highest.source, tier: highest.tier, level: highest.tier.level }
-  console.log('result', result, previous)
+
   if (previous) {
     return result.level > previous.level ? result : previous
   }
 
   return result
+}
+
+export function getPatreonEntitledTier(
+  user: Pick<AppSchema.User, 'patreon'>,
+  tiers: AppSchema.SubscriptionTier[]
+) {
+  if (!user.patreon?.tier) return
+  const entitlement = user.patreon.tier.attributes?.amount_cents
+  if (!entitlement) return
+
+  return getPatreonEntitledTierByCost(entitlement, tiers)
+}
+
+export function getPatreonEntitledTierByCost(
+  entitlement: number,
+  tiers: AppSchema.SubscriptionTier[]
+) {
+  if (!entitlement) return
+
+  const tier = tiers.reduce<AppSchema.SubscriptionTier | undefined>((prev, curr) => {
+    if (!curr.enabled || curr.deletedAt) return prev
+    if (!curr.patreon) return prev
+    if (!curr.patreon.tierId) return prev
+    if (curr.patreon.cost > entitlement) return prev
+    if (prev && prev.patreon?.cost! > curr.patreon.cost) return prev
+    return curr
+  }, undefined)
+
+  return tier
 }
 
 function isExpired(expiresAt?: string, graceHrs = 3) {
