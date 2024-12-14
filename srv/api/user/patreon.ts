@@ -46,6 +46,7 @@ const memberProps = [
   'last_charge_date',
   'last_charge_status',
   'next_charge_date',
+  'is_gifted',
   'currently_entitled_amount_cents',
   'pledge_relationship_start',
   'campaign_lifetime_support_cents',
@@ -85,8 +86,6 @@ async function identity(token: string) {
         return curr.attributes.amount_cents > prev.attributes.amount_cents ? curr : prev
       })
     : undefined
-
-  console.log('Tier', tier)
 
   if (!tier) return { user }
 
