@@ -404,7 +404,7 @@ export function getUserSubscriptionTier(
   )
 
   const result = { type: highest.source, tier: highest.tier, level: highest.tier.level }
-  console.log('result', result, previuous)
+  console.log('result', result, previous)
   if (previous) {
     return result.level > previous.level ? result : previous
   }
