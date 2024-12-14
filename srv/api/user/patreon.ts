@@ -86,6 +86,8 @@ async function identity(token: string) {
       })
     : undefined
 
+  console.log('Tier', tier)
+
   if (!tier) return { user }
 
   const member = identity.body.included?.find((obj: Patreon.Include) => {
