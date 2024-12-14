@@ -321,6 +321,7 @@ export async function updateLimit(userId: string) {
 
 export async function updateUserTier(userId: string, tierId: string) {
   const tier = await getTier(tierId)
+
   await db('user').updateOne(
     { _id: userId },
     { $set: { 'sub.level': tier.level, premium: !!tier.level, 'sub.tierId': tierId } },
