@@ -137,7 +137,10 @@ async function revalidatePatron(userId: string | AppSchema.User) {
     await store.users.unlinkPatreonAccount(existing._id, `attributing to user ${user._id}`)
   }
 
+  const premiumUntil=new Date(user.patreon.expires).getTime();
   const next = await store.users.updateUser(user._id, {
+    premium: true,
+    premiumUntil: premiumUntil,
     patreon: {
       ...user.patreon,
       user: patron.user,
