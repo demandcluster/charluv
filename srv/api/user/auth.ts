@@ -14,19 +14,19 @@ export const register = handle(async (req) => {
     { handle: 'string', username: 'string', password: 'string', invitecode: 'string' },
     req.body
   )
-  // const valid = await store.invitecode.checkInviteCode(req.body.invitecode)
-  // if (!valid) {
-  //   throw new StatusError('Invalid invite code', 403)
-  //   return
-  // }
-  // const alreadyRegisterd = await store.users.checkIp(req.ip)
+   const valid = await store.invitecode.checkInviteCode(req.body.invitecode)
+   if (!valid) {
+     throw new StatusError('Invalid invite code', 403)
+     return
+   }
+   const alreadyRegisterd = await store.users.checkIp(req.ip)
 
-  // if (alreadyRegisterd) {
-  //   throw new StatusError('Only 1 account per IP, goto our Discord if you lost your password.', 403)
-  // }
+   if (alreadyRegisterd) {
+     throw new StatusError('Only 1 account per IP, goto our Discord if you lost your password.', 403)
+   }
 
   const { profile, token, user } = await store.users.createUser(req.body)
-  //await store.invitecode.takeInviteCode(req.body.invitecode, user._id)
+  await store.invitecode.takeInviteCode(req.body.invitecode, user._id)
 
   req.log.info({ user: user.username, id: user._id }, 'User registered')
   return { profile, token, user }
