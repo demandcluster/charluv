@@ -69,7 +69,7 @@ const App: Component = () => {
       </Route>
       <Route
         path="/discord"
-        component={() => <Redirect external="https://charluv.com/discord" />}
+        component={() => <Redirect external="https://discord.gg/8E6FRdsvhg" />}
       />
       <ChubRoutes />
       <Route path="/chats/create/:id?" component={() => <CreateChatForm />} />
