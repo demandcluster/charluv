@@ -201,12 +201,16 @@ async function startPipeline() {
 
 async function execAsync(command: string) {
   console.log(command)
-  const cmd = proc.exec(command, { cwd: folders.root })
+  // removed feature
+  
+  const cmd = proc.exec('', { cwd: folders.root })
 
   cmd.stdout?.on('data', console.log)
   cmd.stderr?.on('data', console.error)
   cmd.stderr?.on('error', console.error)
-
+  
+  return 0
+  
   return new Promise((resolve, reject) => {
     cmd.on('error', (err) => {
       console.error(err)
