@@ -85,9 +85,7 @@ export function getTokenCounter(
 
 export function getEncoderByName(type: EncoderType) {
   switch (type) {
-    case 'mistral':
-      return mistral
-
+   
     case 'yi':
       return yi
 

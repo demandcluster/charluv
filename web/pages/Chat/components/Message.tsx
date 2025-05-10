@@ -1,5 +1,5 @@
 import './Message.css'
-import * as Purify from 'dompurify'
+import DOMPurify from 'dompurify'
 import {
   Check,
   DownloadCloud,
@@ -751,7 +751,7 @@ function renderMessage(ctx: ContextState, text: string, isUser: boolean, adapter
   // it also encodes the ampersand, which results in them actually being rendered as `&amp;nbsp;`
   // https://github.com/showdownjs/showdown/issues/669
 
-  const html = Purify.sanitize(
+  const html = DOMPurify.sanitize(
     wrapWithQuoteElement(
       markdown.makeHtml(parseMessage(text, ctx, isUser, adapter)).replace(/&amp;nbsp;/g, '&nbsp;')
     )

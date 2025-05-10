@@ -240,7 +240,7 @@ export async function createAccessToken(username: string, user: AppSchema.User) 
 
   const token = jwt.sign(payload, config.jwtSecret, {
     expiresIn: config.jwtExpiry,
-  })
+  } as jwt.SignOptions)
   return token
 }
 
@@ -260,7 +260,7 @@ export async function createRemoteAccessToken(username: string, user: AppSchema.
   const token = jwt.sign(payload, key.key, {
     algorithm: 'RS256',
     expiresIn: config.jwtExpiry,
-  })
+  } as jwt.SignOptions)
 
   return token
 }

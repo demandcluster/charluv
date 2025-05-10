@@ -1,4 +1,4 @@
-import * as Purify from 'dompurify'
+import DOMPurify from 'dompurify'
 import {
   Component,
   For,
@@ -492,7 +492,7 @@ const Label: Component<{ label: string; children: JSX.Element }> = (props) => {
 }
 
 function renderMessage(msg: string) {
-  return Purify.sanitize(
+  return DOMPurify.sanitize(
     wrapWithQuoteElement(markdown.makeHtml(msg).replace(/&amp;nbsp;/g, '&nbsp;'))
   )
 }
