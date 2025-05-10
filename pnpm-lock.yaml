@@ -388,7 +388,7 @@ importers:
         specifier: ^5.3.3
         version: 5.4.19(@types/node@18.19.100)(lightningcss@1.29.3)(sass@1.87.0)(terser@5.39.0)
       vite-plugin-solid:
-        specifier: ^2.10.2
+        specifier: ^2.11.6
         version: 2.11.6(solid-js@1.9.6)(vite@5.4.19(@types/node@18.19.100)(lightningcss@1.29.3)(sass@1.87.0)(terser@5.39.0))
       vite-tsconfig-paths:
         specifier: ^4.3.2
