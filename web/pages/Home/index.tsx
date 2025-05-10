@@ -1,8 +1,8 @@
 import './home.scss'
-import logoDark from '../../asset/logoDark.png'
-import logo from '../../asset/logo.png'
-import nsfwTools from '../../asset/featured-on-badge-b.avif'
-import discordLogo from '../../asset/discord-logo-blue.svg'
+import logoDark from '../../asset/logoDark.png?url'
+import logo from '../../asset/logo.png?url'
+import nsfwTools from '../../asset/featured-on-badge-b.avif?url'
+import discordLogo from '../../asset/discord-logo-blue.svg?url'
 import { Component, For, Match, Show, Switch, createMemo, createSignal, onMount } from 'solid-js'
 import {
   ComponentEmitter,

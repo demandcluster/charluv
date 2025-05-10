@@ -1,4 +1,4 @@
-import logoDark from '../asset/logoDark.png'
+import logoDark from '../asset/logoDark.png?url'
 import { Menu } from 'lucide-solid'
 import { Component, Show } from 'solid-js'
 import { A } from '@solidjs/router'
