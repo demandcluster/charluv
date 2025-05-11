@@ -316,7 +316,7 @@ const UserNavigation: Component = () => {
         <MultiItem>
           <Item class="tour-credits" href="/premium">
             <Coins />
-            <div class="min-w-72">{user.user?.credits || 0}</div>
+            <div class="min-w-32">{user.user?.credits || 0}</div>
             <Show when={user.user?.premium ? user.user?.credits < 1000 : user.user?.credits < 200}>
               <span
                 classList={{
