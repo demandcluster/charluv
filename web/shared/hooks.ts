@@ -334,7 +334,7 @@ export function useLocalStorage<T = any>(id: string, initialValue: T) {
 }
 
 export function getStoredValue<T = any>(id: string, initialValue: T) {
-  const key = `agnaistic-ls-${id}`
+  const key = `charluv-ls-${id}`
   const init = localStorage.getItem(key) || JSON.stringify(initialValue)
   const value = JSON.parse(init)
   return value
