@@ -80,7 +80,7 @@ export const PatreonControls: Component = () => {
         </Show>
         <Show when={state.user?.patreon}>
           <div class="flex gap-2">
-            <Button class="w-fit" onClick={() => userStore.syncPatreonAccount(state)}>
+            <Button class="w-fit" onClick={() => userStore.syncPatreonAccount()}>
               Resync Patreon
             </Button>
             <Button class="w-fit" onClick={userStore.unverifyPatreon}>
