@@ -113,7 +113,7 @@ export async function generateImage(
       n: 1,
       post_processing: [],
       sampler_name: defaults.image.sampler,
-      steps: 10,
+      steps: 20,
     },
     censor_nsfw: false,
     nsfw: true,
