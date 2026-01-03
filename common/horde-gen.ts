@@ -107,7 +107,7 @@ export async function generateImage(
     params: {
       height: base?.height ?? 512,
       width: base?.width ?? 512,
-      cfg_scale: base?.cfg ?? 9,
+      cfg_scale: base?.cfg ?? 7,
       seed: Math.trunc(Math.random() * 1_000_000_000).toString(),
       karras: false,
       n: 1,
