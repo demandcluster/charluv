@@ -12,7 +12,7 @@ const baseUrl = 'https://horde.aivo.chat/api/v2'
 
 export const defaults = {
   image: {
-    sampler: SD_SAMPLER['ddim'],
+    sampler: SD_SAMPLER['DDIM'],
     model: 'Deliberate',
     negative: ``,
   },
@@ -112,7 +112,7 @@ export async function generateImage(
       karras: false,
       n: 1,
       post_processing: [],
-      sampler_name: 'ddim',
+      sampler_name: defaults.image.sampler,
       steps: 20,
     },
     censor_nsfw: false,
