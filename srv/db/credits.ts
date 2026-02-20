@@ -94,7 +94,7 @@ export async function getFreeCredits() {
     const diff = now - lastCredits
 
     const creditsToAdd = Math.max(Math.floor(diff / 120000), 1) * 5
-    const updatedCredits = Math.min(usr.credits + creditsToAdd, 200)
+    const updatedCredits = Math.min(usr.credits + creditsToAdd, 300)
     if (updatedCredits > usr.credits) {
       const credits = await updateCredits(usr._id, updatedCredits - usr.credits, nextTime)
       sendOne(usr._id, { type: 'recharged', amount: creditsToAdd })
@@ -106,7 +106,7 @@ export async function getFreeCredits() {
     const diff = now - lastCredits
 
     const creditsToAdd = Math.max(Math.floor(diff / 120000), 1) * 20
-    const updatedCredits = Math.min(usr.credits + creditsToAdd, 1000)
+    const updatedCredits = Math.min(usr.credits + creditsToAdd, 5000)
 
     if (updatedCredits > usr.credits) {
       const credits = await updateCredits(usr._id, updatedCredits - usr.credits, nextTime)
