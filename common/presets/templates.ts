@@ -137,7 +137,7 @@ Then the roleplay chat between {{#each bot}}{{.name}}, {{/each}}{{char}} begins.
 [/SYSTEM_PROMPT]
 
 {{#each msg}}{{#if .isbot}}
-{{.name}}: {{.msg}}{{/if}}{{#if .isuser}}[INS]
+{{.name}}: {{.msg}}{{/if}}{{#if .isuser}}[INST]
 {{.name}}: {{.msg}}{{/if}}
 {{/each}}
 
