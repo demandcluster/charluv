@@ -28,12 +28,12 @@ export type ModelFormat = 'Charluv' | 'Llama3' | 'Alpaca' | 'Vicuna' | 'ChatML' 
 
 export const BUILTIN_FORMATS: { [key in ModelFormat]: FormatTags } = {
   Charluv: {
-    openUser: '### Instruction:\n',
-    closeUser: '\n',
-    openBot: '### Response:\n',
-    closeBot: '\n',
-    openSystem: '### System:\n',
-    closeSystem: '\n',
+    openUser: '[INST]\n',
+    closeUser: '[/INST]',
+    openBot: '',
+    closeBot: '</s>\n',
+    openSystem: '[SYSTEM_PROMPT]',
+    closeSystem: '[/SYSTEM_PROMPT]',
   },
   Alpaca: {
     openUser: '### Instruction:\n',
@@ -100,45 +100,48 @@ export function replaceTags(prompt: string, format: FormatTags | ModelFormat) {
 
 export const templates = {
   Charluv: neat`
-  ### Instruction: 
-  
-  Below is an instruction that describes a task. Write a response that appropriately completes the request.
-  
-  Write {{char}}'s next reply in a fictional roleplay chat between {{char}} and {{user}}.
-  Write 1 reply only in internet RP style, italicize actions, and avoid quotation marks. Use markdown. Be proactive, creative, and drive the plot forward.
-  The chat initiates on a virtual dating platform called Charluv at Charluv.com. Act as a dating simulator. 
+  [SYSTEM_PROMPT]
 
-  The relationship progresses and is based on the LEVEL in the Scenario.
-  
-  {{char}}'s Persona: {{personality}}
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
 
-  {{#if memory}}{{char}}'s Memory: {{memory}}
-  {{/if}}
-  {{#if user_embed}}Relevant information to the conversation
-  {{user_embed}}
-  {{/if}}
-  {{#if scenario}}The scenario of the conversation: {{scenario}}
-  {{/if}}
-  {{#if chat_embed}}Relevant past conversation history
-  {{chat_embed}}
-  {{/if}}
-  {{#if example_dialogue}}This is how {{char}} should talk: {{example_dialogue}}
-  {{/if}}
+Write {{char}}'s next reply in a fictional roleplay chat between {{char}} and {{user}}.
+Write 1 reply only in internet RP style, italicize actions, and avoid quotation marks. Use markdown. Be proactive, creative, and drive the plot forward.
+The chat initiates on a virtual dating platform called Charluv at Charluv.com. Act as a dating simulator. 
 
-  {{system_prompt}}
+The relationship progresses and is based on the LEVEL in the Scenario.
 
-  Do NOT decide what {{user}} says or does. 
-  Use Internet roleplay style, e.g. no quotation marks, and write user actions in italic in third person like: *example*. You are allowed to use markdown. Be proactive, creative, drive the plot and conversation forward.
+{{char}}'s Persona: {{personality}}
 
- 
-  Then the roleplay chat between {{#each bot}}{{.name}}, {{/each}}{{char}} begins.
-  
-   {{#each msg}}{{#if .isbot}}### Response:\n{{.name}}: {{.msg}}{{/if}}{{#if .isuser}}### Instruction:\n{{.name}}: {{.msg}}{{/if}}
-  {{/each}}
+{{#if memory}}{{char}}'s Memory: {{memory}}
+{{/if}}
+{{#if user_embed}}Relevant information to the conversation
+{{user_embed}}
+{{/if}}
+{{#if scenario}}The scenario of the conversation: {{scenario}}
+{{/if}}
+{{#if chat_embed}}Relevant past conversation history
+{{chat_embed}}
+{{/if}}
+{{#if example_dialogue}}This is how {{char}} should talk: {{example_dialogue}}
+{{/if}}
 
-  {{ujb}}
-  ### Response:
-  {{post}}
+{{system_prompt}}
+
+Do NOT decide what {{user}} says or does. 
+Use Internet roleplay style, e.g. no quotation marks, and write user actions in italic in third person like: *example*. You are allowed to use markdown. Be proactive, creative, drive the plot and conversation forward.
+
+Then the roleplay chat between {{#each bot}}{{.name}}, {{/each}}{{char}} begins.
+
+[/SYSTEM_PROMPT]
+
+{{#each msg}}{{#if .isbot}}
+{{.name}}: {{.msg}}{{/if}}{{#if .isuser}}[INS]
+{{.name}}: {{.msg}}{{/if}}
+{{/each}}
+
+{{ujb}}
+
+{{post}}
   `,
   Universal: neat`
 <system>{{#if system_prompt}}{{value}}{{else}}Write "{{char}}'s" next reply in a fictional roleplay chat between "{{user}}" and "{{char}}".{{/else}}{{/if}}</system>

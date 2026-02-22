@@ -37,7 +37,7 @@ export async function getFreeCredits() {
           kind: 'user',
           nextCredits: { $lte: now },
           premium: false,
-          credits: { $lt: 200 },
+          credits: { $lt: 300 },
         },
       },
       {
