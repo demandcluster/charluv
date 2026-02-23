@@ -76,10 +76,10 @@ export async function getFreeCredits() {
   // end of Ronnies evil
 
   const users = await db('user')
-    .find({ kind: 'user', nextCredits: { $lte: now }, premium: false, credits: { $lt: 200 } })
+    .find({ kind: 'user', nextCredits: { $lte: now }, premium: false, credits: { $lt: 300 } })
     .toArray()
   const premiumUsers = await db('user')
-    .find({ kind: 'user', nextCredits: { $lte: now }, credits: { $lt: 1000 }, premium: true })
+    .find({ kind: 'user', nextCredits: { $lte: now }, credits: { $lt: 1500 }, premium: true })
     .toArray()
   const expiredPremium = await db('user')
     .find({
