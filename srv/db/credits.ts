@@ -63,7 +63,7 @@ export async function getFreeCredits() {
       if (user) {
         const updatedCredits = Math.min(
           user.credits + groupCreditsToAdd,
-          Math.floor(400 / userIds.length)
+          Math.floor(300 / userIds.length)
         )
         if (updatedCredits > user.credits) {
           const credits = await updateCredits(userId, updatedCredits - user.credits, nextTime)
