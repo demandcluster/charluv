@@ -11,7 +11,7 @@ export const koboldPresets = {
     repetitionPenalty: 1.15,
     repetitionPenaltySlope: 0.9,
     repetitionPenaltyRange: 1024,
-    temp: 1,
+    temp: 0.74,
     topK: 40,
     topP: 1,
     typicalP: 1,
