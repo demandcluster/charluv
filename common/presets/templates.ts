@@ -29,11 +29,11 @@ export type ModelFormat = 'Charluv' | 'Llama3' | 'Alpaca' | 'Vicuna' | 'ChatML' 
 export const BUILTIN_FORMATS: { [key in ModelFormat]: FormatTags } = {
   Charluv: {
     openUser: '[INST]\n',
-    closeUser: '[/INST]',
+    closeUser: '[/INST]\n',
     openBot: '',
     closeBot: '</s>\n',
     openSystem: '[SYSTEM_PROMPT]',
-    closeSystem: '[/SYSTEM_PROMPT]',
+    closeSystem: '[/SYSTEM_PROMPT]\n',
   },
   Alpaca: {
     openUser: '### Instruction:\n',
@@ -137,7 +137,7 @@ Then the roleplay chat between {{#each bot}}{{.name}}, {{/each}}{{char}} begins.
 
 {{#each msg}}{{#if .isbot}}
 {{.name}}: {{.msg}}{{/if}}{{#if .isuser}}[INST]
-{{.name}}: {{.msg}}{{/if}}
+{{.name}}: {{.msg}}[/INST]{{/if}}
 {{/each}}
 
 {{ujb}}
