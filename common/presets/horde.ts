@@ -25,6 +25,7 @@ export const hordePresets = {
     oaiModel: OPENAI_MODELS.Turbo,
     streamResponse: true,
     memoryDepth: 50,
+    stopSequences: ['+++++'],
     memoryContextLimit: 500,
     memoryReverseWeight: false,
     antiBond: false,
