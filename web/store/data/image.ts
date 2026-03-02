@@ -311,21 +311,21 @@ function getSummaryTemplate(service: AIAdapter, summaryPrompt?: string) {
         summaryPrompt ||
         `Write an image caption of the current scene using physical descriptions without names.`
       return neat`
-      ### Instruction
+      [INST]
       Below is an instruction that describes a task. Write a response that completes the request.
 
       {{char}}'s Persona: {{personality}}
 
       The scenario of the conversation: {{scenario}}
 
-      Then the roleplay chat begins.
-  
       {{#each msg}}{{#if .isbot}}<bot>{{.name}}: {{.msg}}</bot>{{/if}}{{#if .isuser}}<user>{{.name}}: {{.msg}}</user>{{/if}}
       {{/each}}
 
       <user>${prompt}</user>
-
-      <bot>Image caption:`
+      
+      Image caption:
+      [/INST]
+      `
     }
   }
 }
