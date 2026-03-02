@@ -98,7 +98,7 @@ export async function swapMessage(msg: AppSchema.ChatMessage, text: string, retr
 }
 
 function getChatSummaryTemplate(service: AIAdapter) {
-  return neat`Below is an instruction that describes a task. Write a response that completes the request.
+  return neat`[INST]Below is an instruction that describes a task. Write a response that completes the request.
 
     {{char}}'s Persona: {{personality}}  (not to be included in summaries)
 
@@ -109,12 +109,11 @@ function getChatSummaryTemplate(service: AIAdapter) {
     {{#each msg}}{{#if .isbot}}### Response:\n{{.name}}: {{.msg}}{{/if}}{{#if .isuser}}### Instruction:\n{{.name}}: {{.msg}}{{/if}}
     {{/each}}
 
-    ### Instruction:
     Summarize the above. Find the facts in the roleplay chat above and summarize them into keywords.
     DO NOT include facts from {{char}}'s Persona above. DO NOT include LEVEL. DO NOT include the scenario.
     You be making a short list for continuity and coherence. Summarize as short as possible, important facts only.
-
-    ### Response:
+    [/INST]
+    Response:
     Summary of Facts: [summary | tokens=180]
     `
 }
