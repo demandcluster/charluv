@@ -12,7 +12,7 @@ const baseUrl = 'https://horde.aivo.chat/api/v2'
 
 export const defaults = {
   image: {
-    sampler: SD_SAMPLER['DPM2 A'],
+    sampler: SD_SAMPLER['Euler a'],
     model: 'Deliberate 3.0',
     negative: ``,
   },
@@ -105,15 +105,15 @@ export async function generateImage(
   const payload = {
     prompt: `${prompt.slice(0, 500)} ### ${negative}`,
     params: {
-      height: base?.height ?? 512,
-      width: base?.width ?? 512,
+      height: base?.height ?? 768,
+      width: base?.width ?? 768,
       cfg_scale: base?.cfg ?? 7,
       seed: Math.trunc(Math.random() * 1_000_000_000).toString(),
       karras: false,
       n: 1,
       post_processing: [],
       sampler_name: defaults.image.sampler,
-      steps: 20,
+      steps: 30,
     },
     censor_nsfw: false,
     nsfw: true,
