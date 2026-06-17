@@ -74,29 +74,40 @@ async function identity(token: string) {
   }
 
   const user: Patreon.User = identity.body.data
-  const tiers: Patreon.Tier[] =
-    identity.body.included?.filter((obj: Patreon.Include) => {
-      if (obj.type !== 'tier') return false
-      return obj.relationships.campaign?.data?.id === config.patreon.campaign_id
-    }) || []
+  const included: Patreon.Include[] = identity.body.included || []
 
-  const tier = tiers.length
-    ? tiers.reduce((prev, curr) => {
-        if (!prev) return curr
-        return curr.attributes.amount_cents > prev.attributes.amount_cents ? curr : prev
-      })
-    : undefined
+  const campaignTiers = included.filter(
+    (obj): obj is Patreon.Tier =>
+      obj.type === 'tier' && obj.relationships.campaign?.data?.id === config.patreon.campaign_id
+  )
+  const campaignTierIds = new Set(campaignTiers.map((t) => t.id))
 
-  if (!tier) return { user }
+  /**
+   * Members don't carry a campaign relationship in this payload, so we identify the relevant
+   * member by their entitled tiers belonging to our campaign, then fall back to the active member.
+   * This keeps `member` (and therefore patron_status/next_charge_date) available even when tier
+   * mapping is imperfect.
+   */
+  const members = included.filter((obj): obj is Patreon.Member => obj.type === 'member')
+  const member =
+    members.find((m) =>
+      m.relationships.currently_entitled_tiers?.data?.some((d) => campaignTierIds.has(d.id))
+    ) ||
+    members.find((m) => m.attributes.patron_status === 'active_patron') ||
+    members[0]
 
-  const member = identity.body.included?.find((obj: Patreon.Include) => {
-    if (obj.type !== 'member') return false
-    const match = obj.relationships.currently_entitled_tiers?.data?.some((d) => d.id === tier.id)
-    return match
-  })
+  const entitledTierIds = new Set(
+    member?.relationships.currently_entitled_tiers?.data?.map((d) => d.id) || []
+  )
+  const tier =
+    pickHighestTier(campaignTiers.filter((t) => entitledTierIds.has(t.id))) ||
+    pickHighestTier(campaignTiers)
 
-  const contrib = tier.attributes.amount_cents
-  const sub = getPatronSubscriptionTier(contrib)
+  if (!tier && !member) return { user }
+
+  const contrib =
+    member?.attributes.currently_entitled_amount_cents || tier?.attributes.amount_cents || 0
+  const sub = contrib ? getPatronSubscriptionTier(contrib) : undefined
 
   return { tier, sub, user, member }
 }
@@ -154,8 +165,15 @@ async function revalidatePatron(userId: string | AppSchema.User) {
   return next
 }
 
+function pickHighestTier(tiers: Patreon.Tier[]) {
+  return tiers.reduce<Patreon.Tier | undefined>((prev, curr) => {
+    if (!prev) return curr
+    return curr.attributes.amount_cents > prev.attributes.amount_cents ? curr : prev
+  }, undefined)
+}
+
 function getPatronSubscriptionTier(contrib: number) {
-  const sub = getCachedTiers().reduce((prev, curr) => {
+  const sub = getCachedTiers().reduce<AppSchema.SubscriptionTier | undefined>((prev, curr) => {
     if (!curr.enabled || curr.deletedAt) return prev
     if (!curr.patreon?.tierId) return prev
     if (curr.patreon.cost > contrib) return prev
@@ -163,7 +181,7 @@ function getPatronSubscriptionTier(contrib: number) {
     if (!prev) return curr
     if (prev.patreon?.cost! > curr.patreon.cost) return prev
     return curr
-  })
+  }, undefined)
 
   return sub
 }
@@ -177,22 +195,33 @@ async function initialVerifyPatron(userId: string, code: string) {
     throw new StatusError(`This Patreon account is already attributed to another user`, 400)
   }
 
+  const expires = new Date(Date.now() + token.expires_in * 1000).toISOString()
+
+  /**
+   * Grant premium consistently with `revalidatePatron`: any active patron gets premium, not only
+   * those whose tier could be mapped to a local sub. Tier mapping can fail (campaign payload quirks,
+   * annual/custom tiers) and must not block premium for a paying patron.
+   */
+  const isActivePatron =
+    patron.member?.attributes.patron_status === 'active_patron' ||
+    (patron.sub?.level ?? 0) > 0
+  const premiumUntil = new Date(patron.member?.attributes.next_charge_date || expires).getTime()
+
   const next = await store.users.updateUser(userId, {
     patreon: {
       ...token,
-      expires: new Date(Date.now() + token.expires_in * 1000).toISOString(),
+      expires,
       user: patron.user,
       member: patron.member,
       tier: patron.tier,
       sub: patron.sub ? { tierId: patron.sub._id, level: patron.sub.level } : undefined,
     },
     patreonUserId: patron.user.id,
+    ...(isActivePatron ? { premium: true, premiumUntil } : {}),
   })
-  if (next?.premium === false && patron.sub?.level && patron.sub?.level > 0) {
+  if (next && isActivePatron) {
     next.premium = true
-    await store.users.updateUser(userId, {
-      premium: true,
-    })
+    next.premiumUntil = premiumUntil
   }
 
   return next
