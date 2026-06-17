@@ -52,7 +52,7 @@ const Library: Component = () => {
 
         <Match when={tabs.current() === 'Templates'}>
           <PromptTemplates />
-        </Match> */}
+        </Match>
 
         <Match when={tabs.current() === 'Embeddings'}>
           <EmbedsTab />

@@ -478,6 +478,7 @@ export namespace Patreon {
     attributes: {
       campaign_lifetime_support_cents: number
       campaign_entitled_amount_cents: number
+      currently_entitled_amount_cents: number
       is_gifted: boolean
       last_charge_date: string
       last_charge_status:
