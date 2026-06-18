@@ -29,7 +29,7 @@ export async function getSubscriptionPreset(
 ) {
   if (!isConnected()) return
   if (!gen) return
-  if (gen.service !== 'agnaistic') return
+  if (gen.service !== 'charluv') return
 
   const tier = store.users.getUserSubTier(user)
   const level = user.admin ? 999999 : tier?.level ?? -1
@@ -37,7 +37,7 @@ export async function getSubscriptionPreset(
   let warning: string | undefined = undefined
 
   const fallback = await store.subs.getDefaultSubscription()
-  const subId = gen.registered?.agnaistic?.subscriptionId
+  const subId = gen.registered?.charluv?.subscriptionId
   let preset = subId ? await store.subs.getSubscription(subId) : fallback
 
   if (guest && preset?.allowGuestUsage === false) {
@@ -53,7 +53,7 @@ export async function getSubscriptionPreset(
     if (fallback && !fallback.subDisabled && fallback.subLevel <= level) {
       preset = fallback
       warning =
-        'Your configured Agnaistic model is no longer available. Using a fallback. Please update your preset.'
+        'Your configured Charluv model is no longer available. Using a fallback. Please update your preset.'
     } else {
       error = 'Model selected is invalid or disabled. Try another.'
     }
@@ -62,7 +62,7 @@ export async function getSubscriptionPreset(
   return { level, preset, error, warning, tier: tier?.tier }
 }
 
-export const handleAgnaistic: ModelAdapter = async function* (opts) {
+export const handleCharluv: ModelAdapter = async function* (opts) {
   const { char, members, prompt, log, gen } = opts
 
   if ('subscription' in opts === false) {
@@ -101,7 +101,7 @@ export const handleAgnaistic: ModelAdapter = async function* (opts) {
     await obtainLock(lockId, srv.lockSeconds)
   }
 
-  const useRecommended = !!opts.gen.registered?.agnaistic?.useRecommended
+  const useRecommended = !!opts.gen.registered?.charluv?.useRecommended
   if (useRecommended) {
     const {
       memoryChatEmbedLimit,
@@ -147,7 +147,7 @@ export const handleAgnaistic: ModelAdapter = async function* (opts) {
 
   const key =
     (subPreset.subApiKey ? decryptText(subPreset.subApiKey) : config.auth.inferenceKey) || ''
-  if (subPreset.service && subPreset.service !== 'agnaistic') {
+  if (subPreset.service && subPreset.service !== 'charluv') {
     let handler = handlers[subPreset.service]
 
     const userKey = subPreset.subApiKey
@@ -188,7 +188,7 @@ export const handleAgnaistic: ModelAdapter = async function* (opts) {
 
   yield { prompt }
 
-  log.debug({ ...body, prompt: null, imageData: null }, 'Agnaistic payload')
+  log.debug({ ...body, prompt: null, imageData: null }, 'Charluv payload')
 
   log.debug(`Prompt:\n${prompt}`)
 
@@ -232,7 +232,7 @@ export const handleAgnaistic: ModelAdapter = async function* (opts) {
     }
 
     if (generated.value.error) {
-      opts.log.error({ err: generated.value.error }, 'Agnaistic request failed')
+      opts.log.error({ err: generated.value.error }, 'Charluv request failed')
       yield generated.value
       return
     }
@@ -269,8 +269,8 @@ const settings: AdapterSetting[] = [
   },
 ]
 
-registerAdapter('agnaistic', handleAgnaistic, {
-  label: 'Agnaistic',
+registerAdapter('charluv', handleCharluv, {
+  label: 'Charluv',
   options: [
     'repetitionPenalty',
     'repetitionPenaltyRange',
@@ -314,7 +314,7 @@ export async function updateRegisteredSubs() {
 }
 
 /**
- * These need to be here because the Agnaistic service can invoke any other service
+ * These need to be here because the Charluv service can invoke any other service
  * Placing these in a 'common' module would cause a circular dependency graph between `generate.ts` and this module.
  */
 
@@ -324,13 +324,13 @@ export const handlers: { [key in AIAdapter]: ModelAdapter } = {
   horde: handleHorde,
   openai: handleOAI,
   claude: handleClaude,
-  agnaistic: handleAgnaistic,
+  charluv: handleCharluv,
   venus: handleVenus,
 }
 
 export function getHandlers(settings: Partial<AppSchema.GenSettings>) {
   switch (settings.service!) {
-    case 'agnaistic':
+    case 'charluv':
     case 'claude':
     case 'horde':
     case 'ooba':

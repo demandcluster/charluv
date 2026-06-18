@@ -9,7 +9,7 @@ import { AppSchema } from '../../common/types/schema'
 import { store } from '../db'
 import { RegisteredAdapter } from '/common/adapters'
 import { getHordeWorkers, getHordeModels } from './horde'
-import { updateRegisteredSubs } from '../adapter/agnaistic'
+import { updateRegisteredSubs } from '../adapter/charluv'
 
 const router = Router()
 

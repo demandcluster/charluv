@@ -247,7 +247,7 @@ export const serviceGenMap: { [key in ChatAdapter]?: GenMap } = {
     claudeModel: 'claudeModel',
     minP: '',
   },
-  agnaistic: {
+  charluv: {
     maxTokens: 'max_tokens',
     temp: 'temperature',
     repetitionPenalty: '',
@@ -283,8 +283,8 @@ export function getFallbackPreset(adapter: AIAdapter): Partial<AppSchema.GenSett
     case 'ooba':
       return deepClone(defaultPresets.basic)
 
-    case 'agnaistic':
-      return deepClone(defaultPresets.agnai)
+    case 'charluv':
+      return deepClone(defaultPresets.charluv)
 
     case 'openai':
       return deepClone(defaultPresets.openai)

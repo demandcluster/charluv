@@ -118,7 +118,7 @@ export async function getSubscriptionPreset(
   let preset
   const fallback = await store.subs.getDefaultSubscription()
   if (gen.registered) {
-    const subId = gen.registered?.agnaistic?.subscriptionId
+    const subId = gen.registered?.charluv?.subscriptionId
     preset = subId ? await store.subs.getSubscription(subId) : fallback
   }
   if (user?.premium && !user.sub?.level) {

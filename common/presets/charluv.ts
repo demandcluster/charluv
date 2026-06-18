@@ -2,10 +2,10 @@ import { OPENAI_MODELS } from '../adapters'
 import { AppSchema } from '../types'
 import { templates } from './templates'
 
-export const agnaiPresets = {
-  agnai: {
-    service: 'agnaistic',
-    name: 'Agnaistic',
+export const charluvPresets = {
+  charluv: {
+    service: 'charluv',
+    name: 'Charluv',
     maxTokens: 400,
     maxContextLength: 8192,
     repetitionPenalty: 1,

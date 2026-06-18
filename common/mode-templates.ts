@@ -40,7 +40,7 @@ export const cyoaTemplate = (service: AIAdapter, model?: string) => {
   return (
     service === 'claude'
       ? claudeCyoa
-      : service === 'agnaistic' || service === 'kobold' || service === 'ooba'
+      : service === 'charluv' || service === 'kobold' || service === 'ooba'
       ? alpacaCyoa
       : typicalCyoa
   ).replace(/{{jailbreak}}/gi, jailbreak || '')

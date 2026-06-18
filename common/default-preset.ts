@@ -4,10 +4,10 @@ import { hordePresets } from './presets/horde'
 import { koboldPresets } from './presets/kobold'
 import { oobaPresets } from './presets/ooba'
 import { openaiPresets } from './presets/openai'
-import { agnaiPresets } from './presets/agnaistic'
+import { charluvPresets } from './presets/charluv'
 
 export const defaultPresets = {
-  ...agnaiPresets,
+  ...charluvPresets,
   ...hordePresets,
   ...koboldPresets,
   ...openaiPresets,

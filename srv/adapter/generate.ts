@@ -22,7 +22,7 @@ import needle from 'needle'
 import { HORDE_GUEST_KEY } from '../api/horde'
 import { getTokenCounter } from '../tokenize'
 import { getAppConfig } from '../api/settings'
-import { getHandlers, getSubscriptionPreset, handlers } from './agnaistic'
+import { getHandlers, getSubscriptionPreset, handlers } from './charluv'
 import { deepClone, getSubscriptionModelLimits, parseStops, tryParse } from '/common/util'
 import { isDefaultTemplate, templates } from '/common/presets/templates'
 import {
@@ -134,7 +134,7 @@ export async function inferenceAsync(opts: InferenceRequest) {
 
     if (
       opts.guidance &&
-      (opts.settings?.service === 'horde' || opts.settings?.service === 'agnaistic')
+      (opts.settings?.service === 'horde' || opts.settings?.service === 'charluv')
     ) {
       try {
         const values = JSON.parse(generated)

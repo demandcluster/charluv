@@ -873,7 +873,7 @@ export function getContextLimit(
   if (gen?.service === 'kobold' || gen?.service === 'ooba') return configuredMax - genAmount
 
   switch (adapter) {
-    case 'agnaistic': {
+    case 'charluv': {
       const stratMax = _strategy(user, gen)
       const max = Math.min(configuredMax, stratMax?.context ?? configuredMax)
       return max - genAmount

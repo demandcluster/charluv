@@ -123,7 +123,7 @@ export function getEncoderByName(type: EncoderType) {
 
 export function getEncoder(adapter: AIAdapter | 'main', model?: string): Encoder {
   if (
-    adapter === 'agnaistic' ||
+    adapter === 'charluv' ||
     adapter === 'ooba' ||
     adapter === 'kobold' ||
     adapter === 'horde'

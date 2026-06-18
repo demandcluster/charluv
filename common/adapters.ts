@@ -44,7 +44,7 @@ export const PERSONA_LABELS: { [key in PersonaFormat]: string } = {
 }
 
 export const JSON_SCHEMA_SUPPORTED: { [key in AIAdapter | ThirdPartyFormat]?: boolean } = {
-  agnaistic: true,
+  charluv: true,
   llamacpp: true,
   tabby: true,
 }
@@ -82,7 +82,7 @@ export const THIRDPARTY_FORMATS = [
 ] as const
 
 export const AI_ADAPTERS = [
-  'agnaistic',
+  'charluv',
   'kobold',
   'ooba',
   'horde',
@@ -302,7 +302,7 @@ export const ADAPTER_LABELS: { [key in AIAdapter]: string } = {
   ooba: 'Textgen',
   openai: 'OpenAI',
   claude: 'Claude',
-  agnaistic: 'Agnaistic',
+  charluv: 'Charluv',
   venus: 'Venus',
 }
 
@@ -310,7 +310,7 @@ export const INSTRUCT_SERVICES: { [key in AIAdapter]?: boolean } = {
   openai: true,
   claude: true,
   horde: true,
-  agnaistic: true,
+  charluv: true,
   kobold: true,
   ooba: true,
 }

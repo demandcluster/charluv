@@ -176,12 +176,12 @@ export async function prepSubscriptionCache() {
 
 setContextLimitStrategy((user, gen) => {
   if (!gen) return
-  if (gen.service !== 'agnaistic') return
+  if (gen.service !== 'charluv') return
 
   const sub = getUserSubscriptionTier(user, getCachedTiers())
   const level = sub?.level ?? -1
 
-  const tierId = gen.registered?.agnaistic?.subscriptionId || ''
+  const tierId = gen.registered?.charluv?.subscriptionId || ''
   const tier = subCache.get(tierId)
 
   if (!tier) return
@@ -261,8 +261,8 @@ export async function replaceSubscription(id: string, replacementId: string) {
   }
 
   await db('gen-setting').updateMany(
-    { 'registered.agnaistic.subscriptionId': id },
-    { $set: { 'registered.agnaistic.subscriptionId': replacementId } }
+    { 'registered.charluv.subscriptionId': id },
+    { $set: { 'registered.charluv.subscriptionId': replacementId } }
   )
   await updateSubscription(id, { subDisabled: true })
 }
