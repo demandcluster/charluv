@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Coins,
+  Compass,
   Heart,
   HeartHandshake,
   HelpCircle,
@@ -338,6 +339,12 @@ const UserNavigation: Component = () => {
           </Show>
         </MultiItem>
 
+        <Item href="/discover" ariaLabel="Discover companions">
+          <Compass aria-hidden="true" /> Discover
+        </Item>
+        <Item href="/mine" ariaLabel="My AI companions">
+          <Heart aria-hidden="true" /> My AI
+        </Item>
         <Item class="tour-likes" href="/likes/list">
           <Users /> Likes
         </Item>
