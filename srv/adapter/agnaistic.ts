@@ -27,6 +27,7 @@ import { handleVenus } from './venus'
 import { sanitise, sanitiseAndTrim, trimResponseV2 } from '/common/requests/util'
 import { obtainLock, releaseLock } from '../api/chat/lock'
 import { getServerConfiguration } from '../db/admin'
+import { validateGenerationGate } from './gate'
 
 export async function getSubscriptionPreset(
   user: AppSchema.User,
@@ -75,52 +76,27 @@ export const handleAgnaistic: ModelAdapter = async function* (opts) {
     opts.subscription = await getSubscriptionPreset(opts.user, !!opts.guest, opts.gen)
   }
 
-  if (!opts.subscription || !opts.subscription.preset) {
+  const gate = await validateGenerationGate({
+    user: opts.user,
+    guest: opts.guest,
+    subscription: opts.subscription,
+    log: opts.log,
+  })
+  if (gate.error) {
+    yield { error: gate.error }
+    return
+  }
+  if (gate.warning) {
+    yield { warning: gate.warning }
+  }
+
+  if (!opts.subscription?.preset) {
     yield { error: 'Subscriptions are not enabled' }
     return
   }
 
-  if (opts.subscription.error) {
-    yield { error: opts.subscription.error }
-    return
-  }
-
-  if (opts.subscription.warning) {
-    yield { warning: opts.subscription.warning }
-  }
-
   const level = opts.user.admin ? 99999 : opts.subscription.level ?? -1
   const subPreset = opts.subscription.preset
-
-  let newLevel = await store.users.validateSubscription(opts.user)
-  if (newLevel === undefined) {
-    newLevel = -1
-  }
-
-  if (newLevel instanceof Error) {
-    yield { error: newLevel.message }
-    return
-  }
-
-  if (subPreset.subLevel > -1 && subPreset.subLevel > newLevel) {
-    opts.log.error(
-      {
-        preset: subPreset.name,
-        presetLevel: subPreset.subLevel,
-        newLevel,
-        nativeLevel: opts.user.sub?.level,
-        patronLevel: opts.user.patreon?.sub?.level,
-      },
-      `Subscription insufficient`
-    )
-    yield { error: 'Your account is ineligible for this model - Subscription tier insufficient' }
-    return
-  }
-
-  if (!subPreset.allowGuestUsage && opts.guest) {
-    yield { error: 'Please sign in to use this model' }
-    return
-  }
 
   const srv = await getServerConfiguration()
 

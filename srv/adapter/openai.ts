@@ -34,7 +34,11 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     return
   }
 
-  const oaiModel = gen.thirdPartyModel || gen.oaiModel || defaultPresets.openai.oaiModel
+  const oaiModel =
+    gen.thirdPartyModel ||
+    gen.oaiModel ||
+    (base.server && config.inference.textModel) ||
+    defaultPresets.openai.oaiModel
   const maxResponseLength = gen.maxTokens ?? defaultPresets.openai.maxTokens
 
   const body: any = {
@@ -50,7 +54,9 @@ export const handleOAI: ModelAdapter = async function* (opts) {
   body.frequency_penalty = gen.frequencyPenalty ?? defaultPresets.openai.frequencyPenalty
 
   const useChat =
-    (isThirdParty && gen.thirdPartyFormat === 'openai-chat') || !!OPENAI_CHAT_MODELS[oaiModel]
+    base.server ||
+    (isThirdParty && gen.thirdPartyFormat === 'openai-chat') ||
+    !!OPENAI_CHAT_MODELS[oaiModel]
   if (useChat) {
     const messages: CompletionItem[] = config.inference.flatChatCompletion
       ? [{ role: 'system', content: opts.prompt }]
@@ -77,7 +83,17 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     : !isThirdParty
     ? user.oaiKey
     : null
-  const bearer = !!guest ? `Bearer ${apiKey}` : apiKey ? `Bearer ${decryptText(apiKey)}` : null
+
+  // The server-configured self-hosted key is stored in plaintext config, not encrypted per-user.
+  const bearer = base.server
+    ? config.inference.textApiKey
+      ? `Bearer ${config.inference.textApiKey}`
+      : null
+    : !!guest
+    ? `Bearer ${apiKey}`
+    : apiKey
+    ? `Bearer ${decryptText(apiKey)}`
+    : null
 
   const headers: any = {
     'Content-Type': 'application/json',
@@ -147,15 +163,22 @@ export const handleOAI: ModelAdapter = async function* (opts) {
 
 function getBaseUrl(user: AppSchema.User, noSuffix: boolean, isThirdParty?: boolean) {
   if (isThirdParty && user.koboldUrl) {
-    if (noSuffix) return { url: user.koboldUrl, changed: true }
+    if (noSuffix) return { url: user.koboldUrl, changed: true, server: false }
 
     // If the user provides a versioned API URL for their third-party API, use that. Otherwise
     // fall back to the standard /v1 URL.
     const version = user.koboldUrl.match(/\/v\d+$/) ? '' : '/v1'
-    return { url: user.koboldUrl + version, changed: true }
+    return { url: user.koboldUrl + version, changed: true, server: false }
   }
 
-  return { url: `${baseUrl}/v1`, changed: false }
+  // Self-hosted, OpenAI-compatible default endpoint configured at the server level.
+  // Lets the platform run off its own model without a per-user OpenAI key.
+  if (config.inference.textUrl) {
+    const version = config.inference.textUrl.match(/\/v\d+$/) ? '' : '/v1'
+    return { url: config.inference.textUrl + version, changed: true, server: true }
+  }
+
+  return { url: `${baseUrl}/v1`, changed: false, server: false }
 }
 
 export type OAIUsage = {

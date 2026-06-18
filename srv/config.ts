@@ -142,6 +142,15 @@ export const config = {
 
   inference: {
     flatChatCompletion: !!env('SIMPLE_COMPLETION', ''),
+    /**
+     * Self-hosted, OpenAI-compatible text endpoint. When `textUrl` is set the
+     * `openai` adapter will target it (with `textApiKey` as the bearer) without
+     * requiring a per-user OpenAI key. Base URL should be the root that exposes
+     * `/v1/chat/completions` (the `/v1` suffix is added if absent).
+     */
+    textUrl: env('INFERENCE_TEXT_URL', ''),
+    textApiKey: env('INFERENCE_TEXT_KEY', ''),
+    textModel: env('INFERENCE_TEXT_MODEL', ''),
   },
   keys: {
     REPLICATE: env('REPLICATE_KEY', ''),
