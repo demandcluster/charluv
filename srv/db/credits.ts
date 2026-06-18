@@ -3,6 +3,8 @@ import { getChat } from './chats'
 import { db } from './client'
 import { sendOne } from '../api/ws'
 import { AppSchema } from '../../common/types/schema'
+import { getUserSubscriptionTier } from '../../common/util'
+import { getCachedTiers } from './subscriptions'
 
 export async function updateCredits(userId: string, amount: number, nextCredits: number = 0) {
   const user = await db('user').findOne({ kind: 'user', _id: userId })
@@ -114,13 +116,20 @@ export async function getFreeCredits() {
       //  sendOne(usr._id, { type: 'credits-updated', credits })
     }
   }
+  const tiers = getCachedTiers()
   for (const usr of expiredPremium) {
+    // Only deactivate if the user has no active entitlement across ANY source.
+    // Use the same canonical resolver that grants premium (native/paypal/patreon/manual)
+    // so the revoke path can't disagree with the grant path and flip an active patron.
+    const sub = getUserSubscriptionTier(usr, tiers)
+    const stillEntitled =
+      usr.billing?.status === 'active' ||
+      new Date(usr.manualSub?.expiresAt ?? 0).getTime() >= now ||
+      usr.patreon?.member?.attributes.patron_status === 'active_patron' ||
+      (sub?.level ?? 0) > 0
+
     // set premiumstatus to false
-    if (
-      usr.billing?.status !== 'active' &&
-      new Date(usr.manualSub?.expiresAt ?? 0).getTime() < now &&
-      usr.patreon?.member?.attributes.patron_status !== 'active_patron'
-    ) {
+    if (!stillEntitled) {
       console.log('---DEACTIVATE PREMIUM---', usr._id)
       await db('user')
         .updateOne({ kind: 'user', _id: usr._id }, { $set: { premium: false } })

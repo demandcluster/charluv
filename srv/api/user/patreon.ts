@@ -112,6 +112,15 @@ async function identity(token: string) {
   return { tier, sub, user, member }
 }
 
+// When Patreon omits `next_charge_date` (annual/custom pledges, payload quirks), fall back to
+// roughly one billing cycle out — NOT the OAuth token `expires`, which can be hours away and
+// would drop an active patron into the credits-cron `expiredPremium` sweep every couple minutes.
+const PATRON_FALLBACK_MS = 32 * 24 * 60 * 60 * 1000
+
+function patronPremiumUntil(nextChargeDate?: string | null) {
+  return nextChargeDate ? new Date(nextChargeDate).getTime() : Date.now() + PATRON_FALLBACK_MS
+}
+
 async function revalidatePatron(userId: string | AppSchema.User) {
   const user = typeof userId === 'string' ? await store.users.getUser(userId) : userId
   if (!user?.patreon) {
@@ -129,7 +138,10 @@ async function revalidatePatron(userId: string | AppSchema.User) {
       ...token,
       expires: new Date(Date.now() + token.expires_in * 1000).toISOString(),
     }
-    await store.users.updateUser(user._id, { premium: false, patreon: next })
+    // Refreshing the OAuth token says nothing about entitlement — persist only the new token.
+    // Writing `premium: false` here used to leave the user non-premium if identity() below threw
+    // or a concurrent request read the row before premium was restored.
+    await store.users.updateUser(user._id, { patreon: next })
     user.patreon = next
   }
 
@@ -148,9 +160,7 @@ async function revalidatePatron(userId: string | AppSchema.User) {
     await store.users.unlinkPatreonAccount(existing._id, `attributing to user ${user._id}`)
   }
 
-  const premiumUntil = new Date(
-    patron.member?.attributes.next_charge_date || user.patreon.expires
-  ).getTime()
+  const premiumUntil = patronPremiumUntil(patron.member?.attributes.next_charge_date)
   const next = await store.users.updateUser(user._id, {
     premium: true,
     premiumUntil: premiumUntil,
@@ -206,7 +216,7 @@ async function initialVerifyPatron(userId: string, code: string) {
    */
   const isActivePatron =
     patron.member?.attributes.patron_status === 'active_patron' || (patron.sub?.level ?? 0) > 0
-  const premiumUntil = new Date(patron.member?.attributes.next_charge_date || expires).getTime()
+  const premiumUntil = patronPremiumUntil(patron.member?.attributes.next_charge_date)
 
   const next = await store.users.updateUser(userId, {
     patreon: {
