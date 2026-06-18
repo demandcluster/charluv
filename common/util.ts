@@ -417,8 +417,14 @@ export function getPatreonEntitledTier(
   user: Pick<AppSchema.User, 'patreon'>,
   tiers: AppSchema.SubscriptionTier[]
 ) {
-  if (!user.patreon?.tier) return
-  const entitlement = user.patreon.tier.attributes?.amount_cents
+  if (!user.patreon) return
+
+  // Prefer the member's actual current pledge (`currently_entitled_amount_cents`) over the tier's
+  // nominal price. Tier mapping can be absent or mismatched (custom/annual pledges, payload quirks),
+  // and the pledge amount is what `identity()` uses to pick the matching local sub.
+  const entitlement =
+    user.patreon.member?.attributes?.currently_entitled_amount_cents ||
+    user.patreon.tier?.attributes?.amount_cents
   if (!entitlement) return
 
   return getPatreonEntitledTierByCost(entitlement, tiers)
