@@ -342,8 +342,7 @@ export async function injectPlaceholders(template: string, inject: InjectOpts) {
     const next = hist.lines.filter((line) => !line.includes(SAMPLE_CHAT_MARKER))
 
     const svc = opts.settings?.service
-    const postSample =
-      svc === 'openai' || svc === 'openrouter' || svc === 'scale' ? SAMPLE_CHAT_MARKER : '<START>'
+    const postSample = svc === 'openai' ? SAMPLE_CHAT_MARKER : '<START>'
 
     const msg = `${SAMPLE_CHAT_PREAMBLE}\n${sampleChat}\n${postSample}`
       .replace(BOT_REPLACE, opts.replyAs.name)
@@ -824,14 +823,6 @@ export function getAdapter(
   let model = ''
   let presetName = 'Fallback Preset'
 
-  if (adapter === 'replicate') {
-    model = preset?.replicateModelType || 'llama'
-  }
-
-  if (adapter === 'novel') {
-    model = user.novelModel
-  }
-
   if (adapter === 'openai') {
     model = preset?.thirdPartyModel || preset?.oaiModel || defaultPresets.openai.oaiModel
   }
@@ -889,46 +880,18 @@ export function getContextLimit(
     }
 
     // Any LLM could be used here so don't max any assumptions
-    case 'petals':
     case 'kobold':
     case 'horde':
     case 'ooba':
       return configuredMax - genAmount
-
-    case 'novel': {
-      if (model === NOVEL_MODELS.clio_v1 || model === NOVEL_MODELS.kayra_v1) {
-        return Math.min(8000, configuredMax) - genAmount
-      }
-
-      return configuredMax - genAmount
-    }
 
     case 'openai': {
       const limit = OPENAI_CONTEXTS[model] || 128000
       return Math.min(configuredMax, limit) - genAmount
     }
 
-    case 'replicate':
-      return configuredMax - genAmount
-
-    case 'scale':
-      return configuredMax - genAmount
-
     case 'claude':
       return configuredMax - genAmount
-
-    case 'goose':
-      return Math.min(configuredMax, 2048) - genAmount
-
-    case 'openrouter':
-      if (gen?.openRouterModel) {
-        return Math.min(gen.openRouterModel.context_length, configuredMax) - genAmount
-      }
-
-      return Math.min(configuredMax, 4096) - genAmount
-
-    case 'mancer':
-      return Math.min(configuredMax, 8000) - genAmount
 
     case 'venus':
       return Math.min(configuredMax, 7800) - genAmount

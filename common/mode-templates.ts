@@ -40,8 +40,6 @@ export const cyoaTemplate = (service: AIAdapter, model?: string) => {
   return (
     service === 'claude'
       ? claudeCyoa
-      : service === 'novel'
-      ? novelCyoa
       : service === 'agnaistic' || service === 'kobold' || service === 'ooba'
       ? alpacaCyoa
       : typicalCyoa

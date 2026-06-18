@@ -9,7 +9,6 @@ import { AppSchema } from '../../common/types/schema'
 import { store } from '../db'
 import { RegisteredAdapter } from '/common/adapters'
 import { getHordeWorkers, getHordeModels } from './horde'
-import { getOpenRouterModels } from '../adapter/openrouter'
 import { updateRegisteredSubs } from '../adapter/agnaistic'
 
 const router = Router()
@@ -36,7 +35,6 @@ export async function getAppConfig(user?: AppSchema.User) {
   const canAuth = isConnected()
   const workers = getHordeWorkers()
   const models = getHordeModels()
-  const openRouter = await getOpenRouterModels()
 
   const configuration = await store.admin.getServerConfiguration().catch(() => undefined)
   if (!user?.admin && configuration) {
@@ -75,7 +73,7 @@ export async function getAppConfig(user?: AppSchema.User) {
         models,
         workers: workers.filter((w) => w.type === 'text'),
       },
-      openRouter: { models: openRouter },
+      openRouter: { models: [] },
       subs,
       serverConfig: configuration,
     }
@@ -117,7 +115,6 @@ export async function getAppConfig(user?: AppSchema.User) {
   appConfig.serverConfig = configuration
   appConfig.subs = subs
   appConfig.registered = getRegisteredAdapters(user).map(toRegisteredAdapter)
-  appConfig.openRouter.models = openRouter
   appConfig.horde = {
     models,
     workers: workers.filter((w) => w.type === 'text'),

@@ -5,18 +5,11 @@ import { isConnected } from '../db/client'
 import { getCachedSubscriptions } from '../db/subscriptions'
 import { decryptText } from '../db/util'
 import { handleClaude } from './claude'
-import { handleGooseAI } from './goose'
 import { handleHorde } from './horde'
 import { handleThirdParty } from './kobold'
-import { handleMancer } from './mancer'
-import { handleNovel } from './novel'
 import { handleOAI } from './openai'
-import { handleOpenRouter } from './openrouter'
 import { getThirdPartyPayload } from './payloads'
-import { handlePetals } from './petals'
 import { registerAdapter } from './register'
-import { handleReplicate } from './replicate'
-import { handleScale } from './scale'
 import { websocketStream } from './stream'
 import { ModelAdapter } from './type'
 import { AIAdapter, AdapterSetting } from '/common/adapters'
@@ -184,30 +177,6 @@ export const handleAgnaistic: ModelAdapter = async function* (opts) {
       handler = handleThirdParty
     }
 
-    if (subPreset.service === 'goose') {
-      opts.user.adapterConfig.goose = {
-        engine: subPreset.registered?.goose?.engine,
-        apiKey: userKey,
-      }
-    }
-
-    if (subPreset.service === 'mancer') {
-      opts.user.adapterConfig.mancer = {
-        ...subPreset.registered?.mancer,
-        apiKey: userKey,
-      }
-    }
-
-    if (subPreset.service === 'replicate') {
-      opts.user.adapterConfig.replicate = {
-        apiToken: userKey,
-      }
-    }
-
-    if (subPreset.service === 'novel') {
-      opts.user.novelApiKey = userKey
-    }
-
     const stream = handler(opts)
     for await (const value of stream) {
       yield value
@@ -350,18 +319,11 @@ export async function updateRegisteredSubs() {
  */
 
 export const handlers: { [key in AIAdapter]: ModelAdapter } = {
-  novel: handleNovel,
   kobold: handleThirdParty,
   ooba: handleThirdParty,
   horde: handleHorde,
   openai: handleOAI,
-  scale: handleScale,
   claude: handleClaude,
-  goose: handleGooseAI,
-  replicate: handleReplicate,
-  openrouter: handleOpenRouter,
-  mancer: handleMancer,
-  petals: handlePetals,
   agnaistic: handleAgnaistic,
   venus: handleVenus,
 }
@@ -370,16 +332,9 @@ export function getHandlers(settings: Partial<AppSchema.GenSettings>) {
   switch (settings.service!) {
     case 'agnaistic':
     case 'claude':
-    case 'goose':
-    case 'replicate':
     case 'horde':
     case 'ooba':
-    case 'openrouter':
     case 'openai':
-    case 'scale':
-    case 'petals':
-    case 'mancer':
-    case 'novel':
     case 'venus':
       return handlers[settings.service]
   }
