@@ -5,6 +5,7 @@ import { CharacterPill } from '../../shared/CharacterPill'
 import { characterStore, chatStore, settingStore, userStore } from '../../store'
 import { msgStore } from '../../store'
 import InputBar from './components/InputBar'
+import StageIndicator from './components/StageIndicator'
 import { ContextState } from '/web/store/context'
 import { AppSchema } from '/common/types'
 
@@ -96,6 +97,7 @@ export const ChatFooter: Component<{
             </div>
           </div>
         </Show>
+        <StageIndicator char={chats.char} />
         <InputBar
           chat={chats.chat!}
           swiped={props.swipe !== 0}
