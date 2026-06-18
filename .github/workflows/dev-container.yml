@@ -4,6 +4,9 @@ name: Build DEV container
 # feat/charluv-rewrite) and push it to Docker Hub tagged `:dev`. Run it on
 # dev.charluv.com by pulling demandcluster/charluv:dev.
 on:
+  push:
+    branches:
+      - feat/charluv-rewrite
   workflow_dispatch:
 
 permissions:
