@@ -3,6 +3,7 @@ import './init'
 import {
   ARCHETYPES,
   DEFAULT_ARCHETYPE_ID,
+  STAGE_DEFINITIONS,
   formatStageToken,
   getProgressionSteps,
   resolveStage,
@@ -55,10 +56,24 @@ describe('Progression archetypes', () => {
     expect(resolveStage(50, { disabled: true })).to.equal(undefined)
   })
 
-  it('formats the LEVEL token the model expects', () => {
-    expect(formatStageToken({ minLevel: 1, stage: 'LOVER' })).to.equal('LEVEL("LOVER")')
-    expect(formatStageToken({ minLevel: 1, stage: 'LOVER', note: 'hi' })).to.equal(
+  it('formats the bare LEVEL token (definition disabled)', () => {
+    expect(formatStageToken({ minLevel: 1, stage: 'LOVER' }, false)).to.equal('LEVEL("LOVER")')
+    expect(formatStageToken({ minLevel: 1, stage: 'LOVER', note: 'hi' }, false)).to.equal(
       'LEVEL("LOVER") hi'
     )
+  })
+
+  it('injects the dataset stage definition by default', () => {
+    const out = formatStageToken({ minLevel: 1, stage: 'HARDCORE' })
+    expect(out).to.contain('LEVEL("HARDCORE")')
+    expect(out.toLowerCase()).to.contain('wild')
+  })
+
+  it('every archetype stage has a dataset definition', () => {
+    for (const a of ARCHETYPES) {
+      for (const s of a.steps) {
+        expect(STAGE_DEFINITIONS[s.stage], `${a.id}:${s.stage}`).to.be.a('string')
+      }
+    }
   })
 })

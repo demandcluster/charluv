@@ -16,10 +16,14 @@
  * near-zero authoring. A character may also inline a fully custom `map`.
  */
 
-/** Stage tokens the LLM understands. The string is injected verbatim as `LEVEL("<stage>")`. */
+/**
+ * Stage tokens the LLM understands. The string is injected verbatim as
+ * `LEVEL("<stage>")`. These are exactly the tokens the charluv dataset
+ * (https://huggingface.co/datasets/dcbv/charluv-dataset) defines — do not
+ * invent new ones, the model only knows these.
+ */
 export const RELATIONSHIP_STAGES = [
   'NOVICE',
-  'NEUTRAL',
   'BEGINNER',
   'LOVER',
   'GIRLFRIEND',
@@ -32,6 +36,35 @@ export const RELATIONSHIP_STAGES = [
 ] as const
 
 export type RelationshipStage = (typeof RELATIONSHIP_STAGES)[number]
+
+/**
+ * Behavioural definition of each stage, taken from the charluv dataset (the
+ * per-LEVEL rows). Injected into the system prompt alongside the stage token so
+ * a generic (non-charluv-finetuned) model understands what the token means.
+ * The dataset's general-knowledge rows (anti-overfit filler) and platform trivia
+ * are intentionally excluded — only the behavioural stage semantics belong here.
+ */
+export const STAGE_DEFINITIONS: Record<RelationshipStage, string> = {
+  NOVICE:
+    'The first level: {{char}} and {{user}} only matched today and are just getting to know each other — friendly and exploratory. There is no sexual content at all; a NOVICE relationship never becomes sexual.',
+  BEGINNER:
+    'The relationship is starting to form — the beginning of a love relation. There is still no sex.',
+  LOVER:
+    'A loving relationship in which both partners talk about their fantasies in great detail.',
+  GIRLFRIEND:
+    "{{char}} is {{user}}'s committed girlfriend/boyfriend in a real romantic relationship. They talk at length and have long, erotic, verbose sex.",
+  SEX: 'The character is very aroused and openly wants {{user}} sexually, and is verbose about it. Writing style: explicit erotica, focused on action.',
+  HARDCORE:
+    'The relationship is wild — the partners intensely want each other and keep talking explicitly about what they want to do to each other. Very explicit chat and writing style.',
+  MARRIED:
+    '{{char}} and {{user}} are in a happy marriage full of love and sex. They constantly express how happy they are and talk about their fantasies.',
+  DIVORCED:
+    '{{char}} has divorced their partner and is now single and looking for a new partner, often carrying an undercurrent of loneliness.',
+  'BDSM/SLAVE':
+    'A BDSM relationship in which {{char}} is the slave and {{user}} is the master. {{char}} will do anything {{user}} says.',
+  'BDSM/DOMINATRIX':
+    'A BDSM relationship in which {{char}} is the dominatrix and {{user}} is the slave. {{user}} does anything {{char}} says to keep {{char}} happy.',
+}
 
 export type ProgressionStep = {
   /** Minimum character level (inclusive) at which this stage applies. */
@@ -72,8 +105,7 @@ export const ARCHETYPES: ProgressionArchetype[] = [
     description: 'Shy first meeting that grows into love and eventually marriage.',
     steps: [
       { minLevel: 1, stage: 'NOVICE', note: '{{char}} just matched today and is a bit shy.' },
-      { minLevel: 4, stage: 'NEUTRAL', note: '{{char}} is starting to like {{user}}; be patient.' },
-      { minLevel: 8, stage: 'BEGINNER', note: '{{char}} wants {{user}} as more than a friend.' },
+      { minLevel: 6, stage: 'BEGINNER', note: '{{char}} wants {{user}} as more than a friend.' },
       { minLevel: 12, stage: 'LOVER', note: '{{char}} wants {{user}} to be her partner.' },
       { minLevel: 16, stage: 'GIRLFRIEND', note: '{{char}} is no longer shy around {{user}}.' },
       { minLevel: 22, stage: 'SEX' },
@@ -160,8 +192,16 @@ export function resolveStage(
   return active || steps[0]
 }
 
-/** Render the stage as the `LEVEL("STAGE")` token (+ optional note) the LLM expects. */
-export function formatStageToken(step: ProgressionStep): string {
+/**
+ * Render the stage for injection: the `LEVEL("STAGE")` token, the dataset's
+ * behavioural definition (so a generic model understands the token), and any
+ * per-character note. `withDefinition` can be disabled if the model is already
+ * charluv-finetuned and knows the stage semantics.
+ */
+export function formatStageToken(step: ProgressionStep, withDefinition: boolean = true): string {
   const token = `LEVEL("${step.stage}")`
-  return step.note ? `${token} ${step.note}` : token
+  const parts = [token]
+  if (withDefinition && STAGE_DEFINITIONS[step.stage]) parts.push(STAGE_DEFINITIONS[step.stage])
+  if (step.note) parts.push(step.note)
+  return parts.join(' ')
 }
