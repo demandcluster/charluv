@@ -25,7 +25,6 @@ import ThankYou from './pages/Premium/ThankYou'
 import Error from './pages/Premium/Error'
 import PremiumInfo from './pages/Premium/Info'
 
-import MatchRoutes from './pages/Match'
 
 import ImpersonateModal from './pages/Character/ImpersonateModal'
 import ChubRoutes from './pages/Chub'
@@ -63,7 +62,10 @@ const App: Component = () => {
     <Router root={Layout}>
       <CharacterRoutes />
       <ScenarioRoutes />
-      <MatchRoutes />
+      {/* Legacy swipe/Match UI retired — redirect to the Discover gallery. */}
+      <Route path="/likes" component={() => <Redirect internal="/discover" />} />
+      <Route path="/likes/list" component={() => <Redirect internal="/discover" />} />
+      <Route path="/likes/:id/profile" component={() => <Redirect internal="/discover" />} />
       <Route path="/checkout">
         <Route path="/success" component={CheckoutSuccess} />
         <Route path="/cancel" component={CheckoutCancel} />
@@ -83,7 +85,15 @@ const App: Component = () => {
       <Route path="/chat/:id" component={ChatDetail} />
       <Route path="/discover" component={lazy(() => import('./pages/Discover'))} />
       <Route path="/mine" component={lazy(() => import('./pages/MyAI'))} />
-      <Route path={['/info', '/']} component={HomePage} />
+      <Route path="/info" component={HomePage} />
+      <Route
+        path="/"
+        component={() => (
+          <Show when={state.loggedIn} fallback={<HomePage />}>
+            <Redirect internal="/discover" />
+          </Show>
+        )}
+      />
       <Route path="/presets/:id" component={lazy(() => import('./pages/GenerationPresets'))} />
       <Route
         path="/presets"

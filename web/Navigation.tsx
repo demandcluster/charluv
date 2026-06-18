@@ -345,9 +345,6 @@ const UserNavigation: Component = () => {
         <Item href="/mine" ariaLabel="My AI companions">
           <Heart aria-hidden="true" /> My AI
         </Item>
-        <Item class="tour-likes" href="/likes/list">
-          <Users /> Likes
-        </Item>
         <CharacterLink />
       </Show>
       <Show when={menu.flags.chub}>
