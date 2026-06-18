@@ -34,10 +34,12 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     return
   }
 
+  // When targeting the self-hosted endpoint, the server-configured model always
+  // wins — that host serves a single model, so a preset's model id is irrelevant.
   const oaiModel =
+    (base.server && config.inference.textModel) ||
     gen.thirdPartyModel ||
     gen.oaiModel ||
-    (base.server && config.inference.textModel) ||
     defaultPresets.openai.oaiModel
   const maxResponseLength = gen.maxTokens ?? defaultPresets.openai.maxTokens
 
@@ -47,7 +49,9 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     temperature: gen.temp ?? defaultPresets.openai.temp,
     max_tokens: maxResponseLength,
     top_p: gen.topP ?? 1,
-    stop: [`\n${handle}:`].concat(gen.stopSequences!),
+    // Filter falsy entries — a null/empty stop value makes strict OpenAI-compatible
+    // servers (e.g. vLLM) reject the request with HTTP 400.
+    stop: [`\n${handle}:`].concat(gen.stopSequences || []).filter(Boolean),
   }
 
   body.presence_penalty = gen.presencePenalty ?? defaultPresets.openai.presencePenalty
