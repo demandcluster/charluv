@@ -13,6 +13,20 @@ type Matchesstate = {
     loaded: boolean
     list: AppSchema.Match[]
   }
+  discover: {
+    loading: boolean
+    loaded: boolean
+    list: AppSchema.Character[]
+  }
+}
+
+export type DiscoverFilters = {
+  gender?: string
+  artStyle?: string
+  category?: string
+  nsfw?: boolean
+  search?: string
+  sort?: 'trending' | 'popular' | 'new'
 }
 
 export type NewMatch = {
@@ -31,10 +45,31 @@ export type NewMatch = {
 
 export const matchStore = createStore<Matchesstate>('Match', {
   Matches: { loaded: false, list: [] },
+  discover: { loading: false, loaded: false, list: [] },
 })((get, set) => {
   return {
     logout() {
-      return { Matches: { loaded: false, list: [] } }
+      return {
+        Matches: { loaded: false, list: [] },
+        discover: { loading: false, loaded: false, list: [] },
+      }
+    },
+    discover: async (_, filters: DiscoverFilters = {}) => {
+      set({ discover: { ...get().discover, loading: true } })
+      const query: Record<string, any> = { sort: filters.sort || 'trending' }
+      if (filters.gender) query.gender = filters.gender
+      if (filters.artStyle) query.artStyle = filters.artStyle
+      if (filters.category) query.category = filters.category
+      if (filters.search) query.search = filters.search
+      if (filters.nsfw === false) query.nsfw = 'false'
+
+      const res = await api.get('/match/discover', query)
+      if (res.error) {
+        toastStore.error('Failed to load Discover')
+        set({ discover: { ...get().discover, loading: false } })
+      } else {
+        set({ discover: { loading: false, loaded: true, list: res.result.characters } })
+      }
     },
     getMatches: async (_, lastid) => {
       const state = userStore()

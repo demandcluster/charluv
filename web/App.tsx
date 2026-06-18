@@ -80,6 +80,7 @@ const App: Component = () => {
         <Route path="/saga/:id" component={SagaDetail} />
       </Show>
       <Route path="/chat/:id" component={ChatDetail} />
+      <Route path="/discover" component={lazy(() => import('./pages/Discover'))} />
       <Route path={['/info', '/']} component={HomePage} />
       <Route path="/presets/:id" component={lazy(() => import('./pages/GenerationPresets'))} />
       <Route
