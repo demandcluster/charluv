@@ -35,6 +35,10 @@ export default defineConfig(({ mode }) => ({
   },
   define: {
     'process.env.NODE_ENV': JSON.stringify(mode),
+    // The process polyfill spoofs versions.node as a string, which makes
+    // node-detecting deps (onnxruntime-web/transformers in the embeddings
+    // worker) take the Node path and call require(). Force the browser path.
+    'process.versions.node': 'undefined',
   },
   build: {
     outDir: resolve(__dirname, 'dist'),

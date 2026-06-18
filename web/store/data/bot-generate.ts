@@ -24,8 +24,9 @@ import { replaceTags } from '/common/presets/templates'
 import { getServiceTempConfig } from '/web/shared/adapter'
 import { getActiveBots } from '/web/pages/Chat/util'
 import iconv from 'iconv-lite'
+import * as stream from 'stream'
 
-iconv.enableStreamingAPI(require('stream'))
+iconv.enableStreamingAPI(stream)
 
 export const botGen = {
   generate: generateResponse,
