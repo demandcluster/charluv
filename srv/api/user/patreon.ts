@@ -148,7 +148,9 @@ async function revalidatePatron(userId: string | AppSchema.User) {
     await store.users.unlinkPatreonAccount(existing._id, `attributing to user ${user._id}`)
   }
 
-  const premiumUntil = new Date(patron.member?.attributes.next_charge_date || user.patreon.expires).getTime();
+  const premiumUntil = new Date(
+    patron.member?.attributes.next_charge_date || user.patreon.expires
+  ).getTime()
   const next = await store.users.updateUser(user._id, {
     premium: true,
     premiumUntil: premiumUntil,
@@ -203,8 +205,7 @@ async function initialVerifyPatron(userId: string, code: string) {
    * annual/custom tiers) and must not block premium for a paying patron.
    */
   const isActivePatron =
-    patron.member?.attributes.patron_status === 'active_patron' ||
-    (patron.sub?.level ?? 0) > 0
+    patron.member?.attributes.patron_status === 'active_patron' || (patron.sub?.level ?? 0) > 0
   const premiumUntil = new Date(patron.member?.attributes.next_charge_date || expires).getTime()
 
   const next = await store.users.updateUser(userId, {
