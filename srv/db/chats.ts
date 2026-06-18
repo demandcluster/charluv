@@ -95,6 +95,12 @@ export async function create(
 
   await db('chat').insertOne(doc)
 
+  // Roll this chat up to the public Discover template (the copy's parent, or self).
+  await db('character').updateOne(
+    { _id: char.parent || characterId },
+    { $inc: { 'engagement.chats': 1 } }
+  )
+
   if (props.greeting) {
     const { parsed } = await parseTemplate(props.greeting, {
       chat: doc,

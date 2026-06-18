@@ -67,6 +67,20 @@ export async function createIndexes() {
 
   await db('character').createIndex({ userId: 1 }, { name: 'characters_userId' })
 
+  // Discover gallery: filter public templates by facet, sort by engagement.
+  await db('character').createIndex(
+    { match: 1, premium: 1, gender: 1, artStyle: 1 },
+    { name: 'characters_discover_facets' }
+  )
+  await db('character').createIndex(
+    { match: 1, 'engagement.trending': -1 },
+    { name: 'characters_discover_trending' }
+  )
+  await db('character').createIndex(
+    { name: 'text', tags: 'text', category: 'text' },
+    { name: 'characters_discover_text' }
+  )
+
   await db('chat').createIndex({ userId: 1 }, { name: 'chats_userId' })
   await db('chat').createIndex({ characterId: 1, userId: 1 }, { name: 'chats_characterId_userId' })
 

@@ -42,6 +42,23 @@ const getMatches = handle(async (req) => {
 
   return { characters: newChars }
 })
+const discover = handle(async (req) => {
+  const { userId } = req?.user || { userId: '' }
+  const q = req.query as Record<string, string | undefined>
+  const sort = q.sort === 'new' || q.sort === 'popular' ? q.sort : 'trending'
+  const characters = await store.matches.discover(userId, {
+    gender: q.gender as any,
+    artStyle: q.artStyle as any,
+    category: q.category,
+    nsfw: q.nsfw === 'false' ? false : undefined,
+    search: q.search,
+    sort,
+    skip: q.skip ? +q.skip : undefined,
+    limit: q.limit ? +q.limit : undefined,
+  })
+  return { characters }
+})
+
 const createCharacter = handle(async (req) => {
   // const body = await handleUpload(req, { ...valid, persona: 'string' })
   // const userId=params.user?.userId
@@ -71,6 +88,7 @@ const createCharacter = handle(async (req) => {
 router.use(loggedIn)
 //router.post('/', createMatch)
 router.get('/', getMatches)
+router.get('/discover', discover)
 router.post('/:id', createCharacter)
 //router.post('/:id', editMatch)
 //router.get('/:id', getMatch)

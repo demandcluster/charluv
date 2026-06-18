@@ -64,6 +64,17 @@ export interface Character extends BaseCharacter {
   /** Relationship progression config (archetype or custom level->stage map). */
   progression?: CharacterProgression
 
+  // --- Discover gallery metadata (additive; all optional, missing reads as unset/zero) ---
+  gender?: 'female' | 'male' | 'nonbinary'
+  artStyle?: 'realistic' | 'anime'
+  /** Display bucket for the age-gated gallery (e.g. "18-25"). */
+  ageRange?: string
+  /** Curated Discover categories (distinct from free-form `tags`). */
+  category?: string[]
+  nsfw?: boolean
+  /** Aggregated engagement counters, tracked on the public template character. */
+  engagement?: CharacterEngagement
+
   folder?: string
   // v2 stuff
   alternateGreetings?: string[]
@@ -86,6 +97,14 @@ export interface LibraryCharacter extends Omit<Character, 'kind' | 'tags'> {
   reactions: Record<string, number>
   chats: number
   messages: number
+}
+
+export interface CharacterEngagement {
+  chats: number
+  messages: number
+  favorites: number
+  /** Recency-weighted score for the "trending" sort; recomputed periodically. */
+  trending?: number
 }
 
 export interface ResponseSchema {
