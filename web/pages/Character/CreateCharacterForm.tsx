@@ -58,6 +58,7 @@ import { FullSprite } from '/common/types/sprite'
 import { getRandomBody } from '../../asset/sprite'
 import AvatarContainer from '../../shared/Avatar/Container'
 import { CharEditor, useCharEditor } from './editor'
+import { ARCHETYPES } from '/common/progression'
 import { downloadCharacterHub, jsonToCharacter } from './port'
 import { DownloadModal } from './DownloadModal'
 import ImportCharacterModal from './ImportCharacter'
@@ -587,6 +588,88 @@ export const CreateCharacterForm: Component<{
                   value={editor.state.scenario}
                   isMultiline
                   tokenCount={(v) => setTokens((prev) => ({ ...prev, scenario: v }))}
+                />
+              </Card>
+
+              <Card class="flex flex-col gap-3">
+                <FormLabel
+                  label="Relationship & Discovery"
+                  helperText="How this companion appears in Discover and how the relationship progresses. Progression injects the LEVEL(stage) the model is trained on."
+                />
+                <Select
+                  fieldName="progression"
+                  label="Progression archetype"
+                  items={[
+                    { label: 'None (fixed)', value: '' },
+                    ...ARCHETYPES.map((a) => ({ label: `${a.label} — ${a.description}`, value: a.id })),
+                  ]}
+                  value={editor.state.progression?.archetype ?? ''}
+                  onChange={(opt) =>
+                    editor.update('progression', opt.value ? { archetype: opt.value } : undefined)
+                  }
+                />
+                <div class="flex flex-wrap gap-3">
+                  <Select
+                    fieldName="gender"
+                    label="Gender"
+                    items={[
+                      { label: 'Unset', value: '' },
+                      { label: 'Female', value: 'female' },
+                      { label: 'Male', value: 'male' },
+                      { label: 'Nonbinary', value: 'nonbinary' },
+                    ]}
+                    value={editor.state.gender ?? ''}
+                    onChange={(opt) => editor.update('gender', opt.value || undefined)}
+                  />
+                  <Select
+                    fieldName="artStyle"
+                    label="Art style"
+                    items={[
+                      { label: 'Unset', value: '' },
+                      { label: 'Realistic', value: 'realistic' },
+                      { label: 'Anime', value: 'anime' },
+                    ]}
+                    value={editor.state.artStyle ?? ''}
+                    onChange={(opt) => editor.update('artStyle', opt.value || undefined)}
+                  />
+                  <Select
+                    fieldName="ageRange"
+                    label="Age"
+                    items={[
+                      { label: 'Unset', value: '' },
+                      { label: '18–21', value: '18-21' },
+                      { label: '22–29', value: '22-29' },
+                      { label: '30–39', value: '30-39' },
+                      { label: '40+', value: '40+' },
+                    ]}
+                    value={editor.state.ageRange ?? ''}
+                    onChange={(opt) => editor.update('ageRange', opt.value || undefined)}
+                  />
+                  <Select
+                    fieldName="category"
+                    label="Category"
+                    items={[
+                      { label: 'Unset', value: '' },
+                      { label: 'Romantic', value: 'Romantic' },
+                      { label: 'Playful', value: 'Playful' },
+                      { label: 'Casual', value: 'Casual' },
+                      { label: 'Submissive', value: 'Submissive' },
+                      { label: 'Dominant', value: 'Dominant' },
+                      { label: 'Fantasy', value: 'Fantasy' },
+                    ]}
+                    value={editor.state.category?.[0] ?? ''}
+                    onChange={(opt) => editor.update('category', opt.value ? [opt.value] : undefined)}
+                  />
+                </div>
+                <ToggleButtons
+                  label="Content"
+                  fieldName="nsfw"
+                  items={[
+                    { value: false, label: 'SFW' },
+                    { value: true, label: 'NSFW (18+)' },
+                  ]}
+                  onChange={(opt) => editor.update('nsfw', !!opt.value)}
+                  selected={editor.state.nsfw}
                 />
               </Card>
 

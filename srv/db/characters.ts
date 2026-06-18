@@ -38,6 +38,12 @@ export type CharacterUpdate = Partial<
     | 'imageSettings'
     | 'json'
     | 'folder'
+    | 'progression'
+    | 'gender'
+    | 'artStyle'
+    | 'ageRange'
+    | 'category'
+    | 'nsfw'
   >
 >
 
@@ -76,6 +82,12 @@ export async function createCharacter(
     | 'voiceDisabled'
     | 'imageSettings'
     | 'json'
+    | 'progression'
+    | 'gender'
+    | 'artStyle'
+    | 'ageRange'
+    | 'category'
+    | 'nsfw'
   >
 ) {
   const newChar: AppSchema.Character = {

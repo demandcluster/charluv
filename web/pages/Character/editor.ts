@@ -51,6 +51,14 @@ type EditState = {
   premium?: string
   visualType: string
 
+  // charluv: progression + Discover facets
+  progression?: AppSchema.Character['progression']
+  gender?: string
+  artStyle?: string
+  ageRange?: string
+  category?: string[]
+  nsfw?: boolean
+
   avatar?: File
   originalAvatar?: any
   sprite?: FullSprite
@@ -491,6 +499,12 @@ function getPayload(ev: any, state: EditState, original?: NewCharacter) {
     premium: state.premium?.toString() === 'true' || false,
     xp: 0,
     share: state.share ?? 'private',
+    progression: state.progression,
+    gender: state.gender,
+    artStyle: state.artStyle,
+    ageRange: state.ageRange,
+    category: state.category,
+    nsfw: state.nsfw,
 
     // New fields start here
     systemPrompt: body.systemPrompt ?? '',

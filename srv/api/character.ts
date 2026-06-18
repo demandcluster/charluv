@@ -39,6 +39,14 @@ const characterForm = {
   share: 'string?',
   premium: 'any?',
 
+  // Charluv: progression archetype/map + Discover facets
+  progression: 'string?',
+  gender: 'string?',
+  artStyle: 'string?',
+  ageRange: 'string?',
+  category: 'string?',
+  nsfw: 'any?',
+
   favorite: 'boolean?',
   voice: 'string?',
   voiceDisabled: 'string?',
@@ -126,6 +134,8 @@ const createCharacter = handle(async (req) => {
 
   const imageSettings = body.imageSettings ? JSON.parse(body.imageSettings) : undefined
   const json = body.json ? JSON.parse(body.json) : undefined
+  const progression = body.progression ? JSON.parse(body.progression) : undefined
+  const category = body.category ? JSON.parse(body.category) : undefined
 
   const char = await store.characters.createCharacter(req.user?.userId!, {
     name: body.name,
@@ -133,6 +143,12 @@ const createCharacter = handle(async (req) => {
     premium: !!body.premium,
     xp: 0,
     match: body.match?.toString() === 'true' || false,
+    progression,
+    gender: (body.gender as AppSchema.Character['gender']) || undefined,
+    artStyle: (body.artStyle as AppSchema.Character['artStyle']) || undefined,
+    ageRange: body.ageRange || undefined,
+    category,
+    nsfw: body.nsfw?.toString() === 'true' || undefined,
     share: body.share,
     sampleChat: body.sampleChat,
     description: body.description,
@@ -314,7 +330,7 @@ const editPartCharacter = handle(async ({ body, params, userId }) => {
   const id = params.id
   assertStrict({ type: characterPost }, body)
 
-  const update: CharacterUpdate = body
+  const update: CharacterUpdate = body as any
 
   if (update.avatar?.startsWith('data:image/png;base64')) {
     const filename = await entityUploadBase64('char', id, update.avatar)
@@ -415,6 +431,12 @@ const editFullCharacter = handle(async (req) => {
     imageSettings,
     insert,
     json,
+    progression: body.progression ? JSON.parse(body.progression) : undefined,
+    gender: (body.gender as AppSchema.Character['gender']) || undefined,
+    artStyle: (body.artStyle as AppSchema.Character['artStyle']) || undefined,
+    ageRange: body.ageRange || undefined,
+    category: body.category ? JSON.parse(body.category) : undefined,
+    nsfw: body.nsfw?.toString() === 'true' || undefined,
   }
 
   if (body.persona) {
