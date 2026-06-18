@@ -202,6 +202,9 @@ const CreateChatForm: Component<{
 
   onMount(() => {
     props.footer?.(footer)
+    // Ensure the user's characters are loaded so the picked character is
+    // selectable and its details populate the form.
+    if (!state.loaded) characterStore.getCharacters()
   })
 
   return (

@@ -122,6 +122,10 @@ export const matchStore = createStore<Matchesstate>('Match', {
         // console.log(charsIds().list,this.id,charsIds().list[charsIds().list.length - 1],props);
         const charId = res.result?._id
 
+        // Refresh the character list so the freshly-cloned copy is available to
+        // the create-chat form (otherwise it isn't selectable or loaded).
+        await characterStore.getCharacters(true)
+
         navi(`/chats/create/${charId}`)
 
         return true
