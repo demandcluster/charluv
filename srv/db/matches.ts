@@ -54,11 +54,13 @@ export async function discover(userId: string, filter: DiscoverFilter = {}) {
     $or: [{ premium: false }, { premium }],
   }
 
-  if (filter.gender) query.gender = filter.gender
-  if (filter.artStyle) query.artStyle = filter.artStyle
-  if (filter.category) query.category = filter.category
+  // Defensive: only ever place primitive strings into the query so a malformed
+  // caller can't inject Mongo operators (e.g. { $ne: ... }) via these fields.
+  if (typeof filter.gender === 'string') query.gender = filter.gender
+  if (typeof filter.artStyle === 'string') query.artStyle = filter.artStyle
+  if (typeof filter.category === 'string') query.category = filter.category
   if (filter.nsfw === false) query.nsfw = { $ne: true }
-  if (filter.search) query.$text = { $search: filter.search }
+  if (typeof filter.search === 'string') query.$text = { $search: filter.search }
 
   const sort: any =
     filter.sort === 'new'

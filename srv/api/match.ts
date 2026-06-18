@@ -42,19 +42,31 @@ const getMatches = handle(async (req) => {
 
   return { characters: newChars }
 })
+const GENDERS = ['female', 'male', 'nonbinary'] as const
+const ART_STYLES = ['realistic', 'anime'] as const
+
+/** Only accept primitive strings; reject objects/arrays (e.g. `?gender[$ne]=x`) to prevent operator injection. */
+const str = (v: unknown): string | undefined => (typeof v === 'string' ? v : undefined)
+const oneOf = <T extends string>(v: unknown, allowed: readonly T[]): T | undefined => {
+  const s = str(v)
+  return s && (allowed as readonly string[]).includes(s) ? (s as T) : undefined
+}
+
 const discover = handle(async (req) => {
   const { userId } = req?.user || { userId: '' }
-  const q = req.query as Record<string, string | undefined>
+  const q = req.query as Record<string, unknown>
   const sort = q.sort === 'new' || q.sort === 'popular' ? q.sort : 'trending'
+  const skip = Number(str(q.skip))
+  const limit = Number(str(q.limit))
   const characters = await store.matches.discover(userId, {
-    gender: q.gender as any,
-    artStyle: q.artStyle as any,
-    category: q.category,
-    nsfw: q.nsfw === 'false' ? false : undefined,
-    search: q.search,
+    gender: oneOf(q.gender, GENDERS),
+    artStyle: oneOf(q.artStyle, ART_STYLES),
+    category: str(q.category),
+    nsfw: str(q.nsfw) === 'false' ? false : undefined,
+    search: str(q.search),
     sort,
-    skip: q.skip ? +q.skip : undefined,
-    limit: q.limit ? +q.limit : undefined,
+    skip: Number.isFinite(skip) ? skip : undefined,
+    limit: Number.isFinite(limit) ? limit : undefined,
   })
   return { characters }
 })
