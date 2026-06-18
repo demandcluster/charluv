@@ -12,7 +12,7 @@ const ServiceWarning: Component<{ preset?: Partial<AppSchema.GenSettings> }> = (
   const noSub = createMemo(() => {
     if (!props.preset) return false
     return false
-    if (props.preset.service !== 'agnaistic') return false
+    if (props.preset.service !== 'charluv') return false
     if (!user.sub) return false
     const premiumLevel = user.premium ? 10 : -1
     const userLevel = user.admin ? Infinity : Math.max(premiumLevel, user.userLevel)

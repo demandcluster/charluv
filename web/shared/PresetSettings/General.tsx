@@ -366,7 +366,7 @@ export const GeneralSettings: Component<
           label="Replicate Model by Version (SHA)"
           helperText="Which Replicate model to use (see https://replicate.com/collections/language-models)"
           value={replicate.version}
-          placeholder={`E.g. ${defaultPresets.replicate_vicuna_13b.replicateModelVersion}`}
+          placeholder="E.g. a model version SHA"
           disabled={!!replicate.model || props.disabled}
           service={props.service}
           aiSetting={'replicateModelVersion'}

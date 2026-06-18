@@ -51,7 +51,7 @@ const PresetSettings: Component<PresetProps & { onSave: () => void }> = (props) 
   )
 
   const sub = createMemo(() => {
-    // if (props.inherit?.service !== 'agnaistic') return
+    // if (props.inherit?.service !== 'charluv') return
     const match = settings.config.subs.find(
       (sub) => sub._id === props.inherit?.registered?.agnaistic?.subscriptionId
     )

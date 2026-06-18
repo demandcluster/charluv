@@ -30,7 +30,7 @@ const PresetList: Component = () => {
     .filter(([_, pre]) => {
       if (!cfg.adapters.includes(pre.service)) return false
       if (!useableServices().includes(pre.service)) return false
-      if (pre.service !== 'agnaistic') return true
+      if (pre.service !== 'charluv') return true
       return cfg.subs.length > 0
     })
     .map(([id, cfg]) => ({ ...cfg, label: `[${cfg.service}] ${cfg.name}`, _id: id }))
