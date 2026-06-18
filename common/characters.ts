@@ -85,6 +85,17 @@ export function exportCharacter(char: AppSchema.Character, target: 'tavern' | 'o
               json: char.json,
               sprite: char.sprite,
             },
+            // Charluv-specific metadata. Lives in extensions so it round-trips
+            // through TavernAI / chara_card_v2 (JSON + PNG-embedded) cards.
+            // Engagement is a server-side aggregate, intentionally not exported.
+            charluv: {
+              progression: char.progression,
+              gender: char.gender,
+              artStyle: char.artStyle,
+              ageRange: char.ageRange,
+              category: char.category,
+              nsfw: char.nsfw,
+            },
           },
         },
       }

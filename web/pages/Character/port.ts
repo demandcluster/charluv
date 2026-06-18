@@ -127,6 +127,13 @@ export function jsonToCharacter(json: any): NewCharacter {
     voice: json.data.extensions.agnai?.voice,
     insert: json.data.extensions.depth_prompt,
     json: json.data.extensions.agnai?.json,
+    // Charluv metadata round-tripped via extensions.charluv
+    progression: json.data.extensions.charluv?.progression,
+    gender: json.data.extensions.charluv?.gender,
+    artStyle: json.data.extensions.charluv?.artStyle,
+    ageRange: json.data.extensions.charluv?.ageRange,
+    category: json.data.extensions.charluv?.category,
+    nsfw: json.data.extensions.charluv?.nsfw,
   }
 }
 
