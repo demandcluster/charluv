@@ -43,6 +43,7 @@ import FAQ from './pages/Home/FAQ'
 import CreateChatForm from './pages/Chat/CreateChatForm'
 import Modal from './shared/Modal'
 import { ContextProvider } from './store/context'
+import AgeGate from './shared/AgeGate'
 import MemoryGuide from './pages/Guides/Memory'
 import NovelGuide from './pages/Guides/NovelAI'
 import { ImageModal } from './pages/Chat/ImageModal'
@@ -188,6 +189,7 @@ const Layout: Component<{ children?: any }> = (props) => {
   return (
     <ContextProvider>
       <style>{css}</style>
+      <AgeGate />
       <div class="scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-[var(--hl-900)] app flex flex-col justify-between">
         <NavBar />
         <div class="flex w-full grow flex-row overflow-y-hidden">
