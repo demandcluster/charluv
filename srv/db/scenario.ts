@@ -70,11 +70,6 @@ export async function getScenario(scenarioId: string) {
   if (!book) return
   return book
 }
-export async function updateCharXp(charId: string, xp: number) {
-  const originalCharacter = await db('character').findOne({ _id: charId })
-  if (originalCharacter?.name === 'Aiva') {
-    return
-  }
-
-  await db('character').updateOne({ _id: charId }, { $inc: { xp: 1 } })
+export async function updateCharXp(charId: string, xp: number = 1) {
+  await db('character').updateOne({ _id: charId }, { $inc: { xp } })
 }

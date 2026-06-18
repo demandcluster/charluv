@@ -1,4 +1,5 @@
 import { PersonaFormat } from '../adapters'
+import { CharacterProgression } from '../progression'
 import { JsonField } from '../prompt'
 import { BaseImageSettings, ImageSettings } from './image-schema'
 import { MemoryBook } from './memory'
@@ -49,11 +50,19 @@ export interface Character extends BaseCharacter {
   json?: ResponseSchema
   parent?: string
   children?: number
-  match: any
-  xp: any
+  /** Flags this character as a public, pickable companion shown in Discover. */
+  match?: boolean
+  /** Relationship experience on the user's copy of the character. Drives the progression stage. */
+  xp?: number
   share?: string
   premium: boolean
+  /**
+   * @deprecated Legacy scenario-state-machine progression. Replaced by `progression` (archetypes).
+   * Retained only for back-compat with existing ScenarioBooks during migration.
+   */
   scenarioIds?: string[]
+  /** Relationship progression config (archetype or custom level->stage map). */
+  progression?: CharacterProgression
 
   folder?: string
   // v2 stuff

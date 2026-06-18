@@ -10,6 +10,8 @@ import { getMessageAuthor, getBotName, trimSentence, neat } from './util'
 import { Memory } from './types'
 import { promptOrderToTemplate } from './prompt-order'
 import { ModelFormat, replaceTags } from './presets/templates'
+import { getCharacterLevel } from './xplevel'
+import { formatStageToken, resolveStage } from './progression'
 
 export type TickHandler<T = any> = (response: string, state: InferenceState, json?: T) => void
 
@@ -994,7 +996,22 @@ export function resolveScenario(
     }
   }
 
-  return result.trim()
+  return prependProgressionStage(result.trim(), mainChar)
+}
+
+/**
+ * Prepend the live relationship stage token (e.g. `LEVEL("LOVER") ...`) the LLM
+ * is trained on, derived from the character copy's XP-level and progression
+ * archetype. This replaces the legacy per-character scenario-event state-machine.
+ */
+export function prependProgressionStage(scenario: string, mainChar: AppSchema.Character) {
+  // Opt-in: only characters configured with a progression archetype/map advance
+  // through relationship stages. Plain characters are left untouched.
+  if (!mainChar.progression) return scenario
+  const step = resolveStage(getCharacterLevel(mainChar.xp), mainChar.progression)
+  if (!step) return scenario
+  const token = formatStageToken(step)
+  return scenario ? `${token}\n${scenario}` : token
 }
 
 export type JsonType = { title?: string; description?: string; valid?: string } & (

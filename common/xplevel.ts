@@ -18,4 +18,7 @@ const XPLevel = (xp: number) => {
   return xpl
 }
 
+/** Canonical level-from-XP. Use this everywhere instead of the duplicated web-side impls. */
+export const getCharacterLevel = (xp: number = 0) => XPLevel(xp || 0)
+
 export default XPLevel
