@@ -433,9 +433,6 @@ export const GeneralSettings: Component<
           label="Stream Response"
           helperText="Stream the AI's response as it is generated"
           value={props.inherit?.streamResponse ?? true}
-          service={props.service}
-          format={props.format}
-          aiSetting="streamResponse"
           disabled={props.disabled}
         />
         <StoppingStrings inherit={props.inherit} service={props.service} format={props.format} />
