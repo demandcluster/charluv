@@ -149,118 +149,23 @@ export const handleCharluv: ModelAdapter = async function* (opts) {
 
   const allStops = Array.from(stops.values())
 
-  const key =
-    (subPreset.subApiKey ? decryptText(subPreset.subApiKey) : config.auth.inferenceKey) || ''
-  if (subPreset.service && subPreset.service !== 'charluv') {
-    let handler = handlers[subPreset.service]
+  // openai-endpoint-only: ignore the subscription model's stored service
+  // (production subs are 'horde') and always run the self-hosted openai
+  // endpoint. The subscription is used only for gating + model/limits, already
+  // applied above. base.server (INFERENCE_TEXT_URL) provides the endpoint+model.
+  opts.gen.service = 'openai'
+  opts.gen.oaiModel = subPreset.thirdPartyModel || subPreset.oaiModel || opts.gen.oaiModel
+  // Don't let a sub's third-party url/format divert us off the openai endpoint.
+  opts.gen.thirdPartyFormat = undefined
+  opts.user.koboldUrl = ''
 
-    const userKey = subPreset.subApiKey
-
-    opts.user.oaiKey = userKey
-    opts.gen.thirdPartyModel = subPreset.thirdPartyModel
-    opts.gen.oaiModel = subPreset.thirdPartyModel || subPreset.oaiModel
-
-    opts.user.claudeApiKey = userKey
-    opts.gen.claudeModel = subPreset.claudeModel
-
-    opts.user.novelApiKey = userKey
-    opts.gen.novelModel = subPreset.novelModel
-
-    opts.user.scaleApiKey = userKey
-
-    opts.gen.replicateModelType = subPreset.replicateModelType
-    opts.gen.replicateModelVersion = subPreset.replicateModelVersion
-    // opts.user.hordeKey = userKey
-
-    if (!opts.user.adapterConfig) {
-      opts.user.adapterConfig = {}
-    }
-
-    if (subPreset.service === 'kobold' && subPreset.thirdPartyFormat === 'llamacpp') {
-      opts.gen.service = 'kobold'
-      handler = handleThirdParty
-    }
-
-    const stream = handler(opts)
-    for await (const value of stream) {
-      yield value
-    }
-    return
-  }
-
-  const body = getThirdPartyPayload(opts, allStops)
-
-  yield { prompt }
-
-  log.debug({ ...body, prompt: null, imageData: null }, 'Charluv payload')
-
-  log.debug(`Prompt:\n${prompt}`)
-
-  const params = [
-    `type=text`,
-    `key=${key}`,
-    `id=${opts.user._id}`,
-    `model=${subPreset.subModel}`,
-    `level=${level}`,
-  ].join('&')
-
-  const resp = gen.streamResponse
-    ? await websocketStream({
-        url: `${subPreset.subServiceUrl || subPreset.thirdPartyUrl}/api/v1/stream?${params}`,
-        body,
-      })
-    : getTextgenCompletion(
-        'Agnastic',
-        `${subPreset.subServiceUrl || subPreset.thirdPartyUrl}/api/v1/generate?${params}`,
-        body,
-        {}
-      )
-
-  let accumulated = ''
-  let result = ''
-
-  while (true) {
-    let generated = await resp.next()
-
-    // Both the streaming and non-streaming generators return a full completion and yield errors.
-    if (generated.done) {
-      break
-    }
-
-    if (generated.value.meta) {
-      const meta = generated.value.meta
-      yield { meta }
-      if (meta.host && !opts.guest) {
-        sendOne(opts.user._id, { type: 'message-meta', host: meta.host })
-      }
-    }
-
-    if (generated.value.error) {
-      opts.log.error({ err: generated.value.error }, 'Charluv request failed')
-      yield generated.value
-      return
-    }
-
-    // Only the streaming generator yields individual tokens.
-    if (generated.value.token) {
-      if (opts.guidance) accumulated = generated.value.token
-      else accumulated += generated.value.token
-      yield { partial: sanitiseAndTrim(accumulated, prompt, char, opts.characters, members) }
-    }
-
-    if (typeof generated.value === 'string') {
-      result = generated.value
-      break
+  try {
+    yield* handleOAI(opts)
+  } finally {
+    if (+srv.lockSeconds > 0) {
+      await releaseLock(lockId)
     }
   }
-
-  if (+srv.lockSeconds > 0) {
-    await releaseLock(lockId)
-  }
-
-  const parsed = sanitise((result || accumulated).replace(prompt, ''))
-  const trimmed = trimResponseV2(parsed, opts.replyAs, members, opts.characters, ['END_OF_DIALOG'])
-  yield trimmed || parsed
 }
 
 const settings: AdapterSetting[] = [
