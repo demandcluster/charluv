@@ -147,6 +147,14 @@ const initState: EditState = {
   share: 'private',
   premium: 'false',
   visualType: 'avatar',
+  // charluv: progression + Discover facets (must be in initState so the Solid
+  // store tracks them reactively for the editor Selects)
+  progression: undefined,
+  gender: undefined,
+  artStyle: undefined,
+  ageRange: undefined,
+  category: undefined,
+  nsfw: undefined,
   tags: [],
   alternateGreetings: [],
   culture: defaultCulture,
