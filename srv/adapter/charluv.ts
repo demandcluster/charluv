@@ -69,6 +69,15 @@ export const handleCharluv: ModelAdapter = async function* (opts) {
     opts.subscription = await getSubscriptionPreset(opts.user, !!opts.guest, opts.gen)
   }
 
+  // openai-endpoint-only: if no subscription model is configured, generate via
+  // the self-hosted openai endpoint directly (ungated). Tier gating only applies
+  // when a subscription model exists.
+  if (!opts.subscription?.preset) {
+    opts.gen.service = 'openai'
+    yield* handleOAI(opts)
+    return
+  }
+
   const gate = await validateGenerationGate({
     user: opts.user,
     guest: opts.guest,
@@ -81,11 +90,6 @@ export const handleCharluv: ModelAdapter = async function* (opts) {
   }
   if (gate.warning) {
     yield { warning: gate.warning }
-  }
-
-  if (!opts.subscription?.preset) {
-    yield { error: 'Subscriptions are not enabled' }
-    return
   }
 
   const level = opts.user.admin ? 99999 : opts.subscription.level ?? -1
