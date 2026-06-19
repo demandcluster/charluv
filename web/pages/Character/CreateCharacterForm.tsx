@@ -603,10 +603,8 @@ export const CreateCharacterForm: Component<{
                     { label: 'None (fixed)', value: '' },
                     ...ARCHETYPES.map((a) => ({ label: `${a.label} — ${a.description}`, value: a.id })),
                   ]}
-                  value={editor.state.progression?.archetype ?? ''}
-                  onChange={(opt) =>
-                    editor.update('progression', { archetype: opt.value || '' })
-                  }
+                  value={editor.state.archetype ?? ''}
+                  onChange={(opt) => editor.update('archetype', opt.value)}
                 />
                 <div class="flex flex-wrap gap-3">
                   <Select
@@ -657,8 +655,8 @@ export const CreateCharacterForm: Component<{
                       { label: 'Dominant', value: 'Dominant' },
                       { label: 'Fantasy', value: 'Fantasy' },
                     ]}
-                    value={editor.state.category?.[0] ?? ''}
-                    onChange={(opt) => editor.update('category', opt.value ? [opt.value] : [])}
+                    value={editor.state.categoryValue ?? ''}
+                    onChange={(opt) => editor.update('categoryValue', opt.value)}
                   />
                 </div>
                 <ToggleButtons

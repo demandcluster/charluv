@@ -51,12 +51,15 @@ type EditState = {
   premium?: string
   visualType: string
 
-  // charluv: progression + Discover facets
-  progression?: AppSchema.Character['progression']
+  // charluv: progression + Discover facets. archetype/categoryValue are flat
+  // string fields bound to the editor Selects (Solid's store setState only
+  // updates reactively for primitives, not object/array values). The object
+  // (progression) and array (category) are assembled in getPayload.
+  archetype?: string
   gender?: string
   artStyle?: string
   ageRange?: string
-  category?: string[]
+  categoryValue?: string
   nsfw?: boolean
 
   avatar?: File
@@ -150,11 +153,11 @@ const initState: EditState = {
   // charluv: progression + Discover facets. Concrete (non-undefined) defaults so
   // the Solid store creates reactive signals for them (an undefined initial
   // value isn't tracked, so the Selects would revert).
-  progression: { archetype: '' },
+  archetype: '',
   gender: '',
   artStyle: '',
   ageRange: '',
-  category: [],
+  categoryValue: '',
   nsfw: false,
   tags: [],
   alternateGreetings: [],
@@ -387,12 +390,12 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
         visualType: char?.visualType || 'avatar',
         culture: char?.culture || defaultCulture,
         insert: char?.insert ? { prompt: char.insert.prompt, depth: char.insert.depth } : undefined,
-        // Keep these concrete so the reactive store signals survive edit-hydrate.
-        progression: (char as any)?.progression ?? { archetype: '' },
+        // Flat fields bound to the Selects; concrete so the store signals exist.
+        archetype: (char as any)?.progression?.archetype ?? '',
         gender: (char as any)?.gender ?? '',
         artStyle: (char as any)?.artStyle ?? '',
         ageRange: (char as any)?.ageRange ?? '',
-        category: (char as any)?.category ?? [],
+        categoryValue: (char as any)?.category?.[0] ?? '',
         nsfw: (char as any)?.nsfw ?? false,
       })
     })
@@ -515,11 +518,11 @@ function getPayload(ev: any, state: EditState, original?: NewCharacter) {
     premium: state.premium?.toString() === 'true' || false,
     xp: 0,
     share: state.share ?? 'private',
-    progression: state.progression?.archetype ? state.progression : undefined,
+    progression: state.archetype ? { archetype: state.archetype } : undefined,
     gender: state.gender || undefined,
     artStyle: state.artStyle || undefined,
     ageRange: state.ageRange || undefined,
-    category: state.category?.length ? state.category : undefined,
+    category: state.categoryValue ? [state.categoryValue] : undefined,
     nsfw: state.nsfw || undefined,
 
     // New fields start here
