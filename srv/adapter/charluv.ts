@@ -329,22 +329,7 @@ export const handlers: { [key in AIAdapter]: ModelAdapter } = {
 }
 
 export function getHandlers(settings: Partial<AppSchema.GenSettings>) {
-  switch (settings.service!) {
-    case 'charluv':
-    case 'claude':
-    case 'horde':
-    case 'ooba':
-    case 'openai':
-    case 'venus':
-      return handlers[settings.service]
-  }
-
-  switch (settings.thirdPartyFormat!) {
-    case 'claude':
-    case 'kobold':
-    case 'openai':
-      return handlers[settings.thirdPartyFormat!]
-  }
-
-  return handlers.ooba
+  // openai-endpoint-only: direct openai, everything else via the charluv gate.
+  if (settings.service === 'openai') return handlers.openai
+  return handlers.charluv
 }

@@ -820,6 +820,15 @@ export function getAdapter(
     adapter = THIRDPARTY_HANDLERS[user.thirdPartyFormat]
   }
 
+  // Charluv is openai-endpoint-only. Route any other/legacy text service
+  // (horde, kobold, ooba, claude, venus, unset) to the charluv meta-adapter,
+  // which gates via the subscription model and delegates to the openai endpoint.
+  // This keeps legacy live data working (it just generates via openai) with no
+  // data migration. `openai` stays direct.
+  if (adapter !== 'openai') {
+    adapter = 'charluv'
+  }
+
   let model = ''
   let presetName = 'Fallback Preset'
 
