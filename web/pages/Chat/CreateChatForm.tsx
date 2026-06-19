@@ -100,9 +100,7 @@ const CreateChatForm: Component<{
     setScenario(scenarios.find((s) => s._id === scenarioId))
   }
 
-  const [presetId, setPresetId] = createSignal(
-    user.defaultPreset ? '' : isEligible() ? 'agnai' : 'horde'
-  )
+  const [presetId, setPresetId] = createSignal(user.defaultPreset ? '' : 'charluv')
   const presets = presetStore((s) => s.presets)
   const presetOptions = createMemo(() => {
     const opts = getPresetOptions(presets, { builtin: true }).filter((pre) => pre.value !== 'chat')

@@ -109,7 +109,7 @@ export const config = {
   hordeKeyPremium: env('HORDE_KEY_PREMIUM', ''),
   hordeKeyImages: env('HORDE_KEY_IMAGES', ''),
   elevenLabsPremium: env('ELEVENLABS_PREMIUM', ''),
-  adapters: env('ADAPTERS', 'horde')
+  adapters: env('ADAPTERS', 'charluv')
     .split(',')
     .filter((i) => !!i && i in ADAPTER_LABELS) as AIAdapter[],
   storage: {

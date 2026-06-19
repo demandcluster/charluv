@@ -796,7 +796,7 @@ export function getChatPreset(
   }
 
   // #5
-  return getFallbackPreset(adapter || 'horde')
+  return getFallbackPreset(adapter || 'charluv')
 }
 
 /**
