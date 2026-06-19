@@ -605,7 +605,7 @@ export const CreateCharacterForm: Component<{
                   ]}
                   value={editor.state.progression?.archetype ?? ''}
                   onChange={(opt) =>
-                    editor.update('progression', opt.value ? { archetype: opt.value } : undefined)
+                    editor.update('progression', { archetype: opt.value || '' })
                   }
                 />
                 <div class="flex flex-wrap gap-3">
@@ -658,7 +658,7 @@ export const CreateCharacterForm: Component<{
                       { label: 'Fantasy', value: 'Fantasy' },
                     ]}
                     value={editor.state.category?.[0] ?? ''}
-                    onChange={(opt) => editor.update('category', opt.value ? [opt.value] : undefined)}
+                    onChange={(opt) => editor.update('category', opt.value ? [opt.value] : [])}
                   />
                 </div>
                 <ToggleButtons

@@ -147,14 +147,15 @@ const initState: EditState = {
   share: 'private',
   premium: 'false',
   visualType: 'avatar',
-  // charluv: progression + Discover facets (must be in initState so the Solid
-  // store tracks them reactively for the editor Selects)
-  progression: undefined,
-  gender: undefined,
-  artStyle: undefined,
-  ageRange: undefined,
-  category: undefined,
-  nsfw: undefined,
+  // charluv: progression + Discover facets. Concrete (non-undefined) defaults so
+  // the Solid store creates reactive signals for them (an undefined initial
+  // value isn't tracked, so the Selects would revert).
+  progression: { archetype: '' },
+  gender: '',
+  artStyle: '',
+  ageRange: '',
+  category: [],
+  nsfw: false,
   tags: [],
   alternateGreetings: [],
   culture: defaultCulture,
@@ -386,6 +387,13 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
         visualType: char?.visualType || 'avatar',
         culture: char?.culture || defaultCulture,
         insert: char?.insert ? { prompt: char.insert.prompt, depth: char.insert.depth } : undefined,
+        // Keep these concrete so the reactive store signals survive edit-hydrate.
+        progression: (char as any)?.progression ?? { archetype: '' },
+        gender: (char as any)?.gender ?? '',
+        artStyle: (char as any)?.artStyle ?? '',
+        ageRange: (char as any)?.ageRange ?? '',
+        category: (char as any)?.category ?? [],
+        nsfw: (char as any)?.nsfw ?? false,
       })
     })
   }
@@ -507,12 +515,12 @@ function getPayload(ev: any, state: EditState, original?: NewCharacter) {
     premium: state.premium?.toString() === 'true' || false,
     xp: 0,
     share: state.share ?? 'private',
-    progression: state.progression,
-    gender: state.gender,
-    artStyle: state.artStyle,
-    ageRange: state.ageRange,
-    category: state.category,
-    nsfw: state.nsfw,
+    progression: state.progression?.archetype ? state.progression : undefined,
+    gender: state.gender || undefined,
+    artStyle: state.artStyle || undefined,
+    ageRange: state.ageRange || undefined,
+    category: state.category?.length ? state.category : undefined,
+    nsfw: state.nsfw || undefined,
 
     // New fields start here
     systemPrompt: body.systemPrompt ?? '',
