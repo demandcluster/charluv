@@ -10,6 +10,7 @@ import { AppSchema } from '../../common/types/schema'
 import { CharacterUpdate } from '../db/characters'
 import { getVoiceService } from '../voice'
 import { generateImage } from '../image'
+import { makeLoraName, zimageEncode } from '../image/zimage'
 import { v4 } from 'uuid'
 import { validBook } from './memory'
 import { isObject, tryParse } from '/common/util'
@@ -526,6 +527,32 @@ const removeGalleryImage = handle(async ({ userId, params, body }) => {
   return { gallery }
 })
 
+/** Max reference images accepted by the Z-Image encode endpoint. */
+const MAX_LORA_REFS = 4
+
+const encodeLora = handle(async ({ userId, params, body }) => {
+  assertValid({ images: ['string'] }, body)
+
+  const char = await store.characters.getCharacter(userId!, params.id)
+  if (!char) throw errors.NotFound
+
+  const images = (body.images || []).filter((img: string) => !!img && img.includes(','))
+  if (!images.length) {
+    throw new StatusError('Provide at least one reference image', 400)
+  }
+  if (images.length > MAX_LORA_REFS) {
+    throw new StatusError(`At most ${MAX_LORA_REFS} reference images`, 400)
+  }
+
+  // Unique LoRA name: character name + randomizer (never name alone, to avoid
+  // collisions across characters/re-encodes).
+  const saveAs = makeLoraName(char.name)
+  const loraName = await zimageEncode(images, saveAs)
+
+  await store.characters.updateCharacter(params.id, userId!, { loraName })
+  return { loraName }
+})
+
 const deleteCharacter = handle(async ({ userId, params }) => {
   const id = params.id
   await store.characters.deleteCharacter({ userId: userId!, charId: id })
@@ -605,6 +632,7 @@ router.post('/:id/favorite', editCharacterFavorite)
 router.delete('/:id/avatar', removeAvatar)
 router.post('/:id/gallery', addGalleryImage)
 router.delete('/:id/gallery', removeGalleryImage)
+router.post('/:id/encode-lora', encodeLora)
 router.post('/bulk-update', bulkUpdate)
 
 export default router

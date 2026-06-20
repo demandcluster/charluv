@@ -24,6 +24,7 @@ export const charsApi = {
   publishCharacter,
   addGalleryImage,
   removeGalleryImage,
+  encodeLora,
 }
 
 /** Add an image (base64 data url) to a saved character's reference gallery. */
@@ -33,6 +34,11 @@ async function addGalleryImage(charId: string, image: string) {
 
 async function removeGalleryImage(charId: string, url: string) {
   return api.method<{ gallery: string[] }>('delete', `/character/${charId}/gallery`, { url })
+}
+
+/** Encode 1-4 reference images (base64 data urls) into a stored character LoRA. */
+async function encodeLora(charId: string, images: string[]) {
+  return api.post<{ loraName: string }>(`/character/${charId}/encode-lora`, { images })
 }
 
 async function getCharacterDetail(charId: string) {

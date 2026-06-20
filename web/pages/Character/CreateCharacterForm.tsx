@@ -1271,6 +1271,7 @@ const CharacterGallery: Component<{
   const [gallery, setGallery] = createSignal<string[]>(props.initial || [])
   const [selected, setSelected] = createSignal<string[]>([])
   const [busy, setBusy] = createSignal(false)
+  const [loraName, setLoraName] = createSignal<string>(props.editor.state.loraName || '')
 
   const full = () => gallery().length >= GALLERY_MAX
   const isSelected = (url: string) => selected().includes(url)
@@ -1326,6 +1327,37 @@ const CharacterGallery: Component<{
     const res = await charsApi.removeGalleryImage(props.charId, url)
     setBusy(false)
     if (res.result && 'gallery' in res.result) setGallery(res.result.gallery)
+  }
+
+  const buildLora = async () => {
+    if (!props.charId) return
+    const picks = selected()
+    if (!picks.length) {
+      toastStore.warn('Select 1-4 images for the LoRA')
+      return
+    }
+
+    setBusy(true)
+    // Gallery entries are asset URLs; the encode endpoint needs base64.
+    const images = (await Promise.all(picks.map((url) => imageApi.getImageData(url)))).filter(
+      (d): d is string => !!d
+    )
+
+    if (!images.length) {
+      setBusy(false)
+      toastStore.error('Could not read the selected images')
+      return
+    }
+
+    const res = await charsApi.encodeLora(props.charId, images)
+    setBusy(false)
+    if (res.result && 'loraName' in res.result) {
+      setLoraName(res.result.loraName)
+      props.editor.update('loraName', res.result.loraName)
+      toastStore.success(`LoRA built: ${res.result.loraName}`)
+    } else if (res.error) {
+      toastStore.error(`Could not build LoRA: ${res.error}`)
+    }
   }
 
   return (
@@ -1388,10 +1420,24 @@ const CharacterGallery: Component<{
             accept="image/png,image/jpeg,image/webp"
             onUpdate={upload}
           />
+          <Button
+            size="sm"
+            schema="success"
+            onClick={buildLora}
+            disabled={busy() || !selected().length}
+          >
+            Build LoRA ({selected().length}/{LORA_MAX})
+          </Button>
           <span class="text-600 text-sm">
             {gallery().length}/{GALLERY_MAX} images · {selected().length}/{LORA_MAX} picked for LoRA
           </span>
         </div>
+
+        <Show when={loraName()}>
+          <div class="text-600 text-sm">
+            Current LoRA: <span class="text-700 font-mono">{loraName()}</span>
+          </div>
+        </Show>
       </Show>
     </Card>
   )
