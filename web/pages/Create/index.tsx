@@ -326,6 +326,7 @@ const Create: Component = () => {
       greeting,
       scenario,
       sampleChat,
+      culture: 'en-us',
       persona,
       // gender carries a descriptive value (incl. "trans") used for prompts/tags;
       // cast to the schema's narrower union.

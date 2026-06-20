@@ -109,7 +109,9 @@ const newCharGuard = {
   name: 'string',
   description: 'string?',
   appearance: 'string?',
-  culture: 'string',
+  // No culture input in the single-page editor; keep optional and default it in
+  // getPayload from state (otherwise getStrictForm rejects: ".culture is undefined").
+  culture: 'string?',
   greeting: 'string',
   scenario: 'string',
   sampleChat: 'string',
@@ -654,7 +656,7 @@ function getPayload(ev: any, state: EditState, original?: NewCharacter) {
   const payload = {
     name: body.name,
     description: body.description,
-    culture: body.culture,
+    culture: body.culture || state.culture || defaultCulture,
     tags: state.tags,
     scenario: body.scenario,
     appearance: body.appearance,
