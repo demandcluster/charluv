@@ -169,7 +169,10 @@ export async function generateImage(
       if (!output) {
         output = `data:image/png;base64,${image.content.toString('base64')}`
       }
-    } else if (!opts.ephemeral && config.storage.saveImages) {
+      // Persist whenever this is a real chat image (has a chatId) OR the server
+      // opts into saving all images. Without this, chat images were uploaded but
+      // never attached to a message, so they vanished from history on refresh.
+    } else if (!opts.ephemeral && (config.storage.saveImages || !!chatId)) {
       const name = `${v4()}.${image.ext}`
 
       if (!output) {
