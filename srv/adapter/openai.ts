@@ -38,7 +38,32 @@ const IMAGE_TOOL = {
   },
 }
 
-/** Chat kinds where offering the image tool makes sense (a fresh assistant reply). */
+/**
+ * Native tool the model can call to durably remember a fact about the user or the
+ * relationship (name, preferences, promises, events). Stored in long-term memory
+ * and recalled (via RAG) in future chats with this character.
+ */
+const REMEMBER_TOOL = {
+  type: 'function',
+  function: {
+    name: 'remember',
+    description:
+      "Save an important, lasting fact about {{user}} or your relationship so you recall it in future conversations — e.g. their name, job, preferences, things they told you, promises, or significant events. Call this whenever something worth remembering comes up. Do NOT use it for trivial small-talk.",
+    parameters: {
+      type: 'object',
+      properties: {
+        fact: {
+          type: 'string',
+          description:
+            'A single concise, self-contained fact written in the third person, e.g. "{{user}} works as a nurse and has a dog named Max".',
+        },
+      },
+      required: ['fact'],
+    },
+  },
+}
+
+/** Chat kinds where offering the tools makes sense (a fresh assistant reply). */
 const IMAGE_TOOL_KINDS = new Set([
   'send',
   'request',
@@ -116,11 +141,17 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     yield { prompt }
   }
 
-  // Offer the native image tool on normal assistant replies when the Z-Image
-  // backend is configured. The model decides whether to call it.
-  const imageToolEnabled = useChat && isZImageConfigured() && IMAGE_TOOL_KINDS.has(kind as string)
-  if (imageToolEnabled) {
-    body.tools = [IMAGE_TOOL]
+  // Offer native tools on normal assistant replies. The model decides whether to
+  // call them. Image tool needs Z-Image configured; the memory tool has no
+  // external dependency (server-side embeddings).
+  const replyKind = useChat && IMAGE_TOOL_KINDS.has(kind as string)
+  const imageToolEnabled = replyKind && isZImageConfigured()
+  const memoryToolEnabled = replyKind
+  const tools: any[] = []
+  if (imageToolEnabled) tools.push(IMAGE_TOOL)
+  if (memoryToolEnabled) tools.push(REMEMBER_TOOL)
+  if (tools.length) {
+    body.tools = tools
     body.tool_choice = 'auto'
   }
 
@@ -190,20 +221,38 @@ export const handleOAI: ModelAdapter = async function* (opts) {
   }
 
   try {
-    // Did the model call the native image tool? Parse its prompt argument.
+    // Parse any native tool calls. Streaming returns tool_calls on the choice;
+    // non-streaming nests them under choice.message.
+    const choice0 = response?.choices?.[0] as any
+    const toolCalls: any[] = choice0?.tool_calls || choice0?.message?.tool_calls || []
+    const toolArgs = (name: string) => {
+      const call = toolCalls.find((t: any) => t?.function?.name === name)
+      if (!call?.function?.arguments) return undefined
+      try {
+        return JSON.parse(call.function.arguments)
+      } catch {
+        log.warn({ args: call.function.arguments }, `Bad ${name} tool arguments`)
+        return undefined
+      }
+    }
+
+    // Image tool → a prompt to generate.
     let imagePrompt = ''
     if (imageToolEnabled) {
-      // Streaming returns tool_calls on the choice; non-streaming nests them
-      // under choice.message.
-      const choice0 = response?.choices?.[0] as any
-      const toolCalls = choice0?.tool_calls || choice0?.message?.tool_calls
-      const imageCall = toolCalls?.find((t: any) => t?.function?.name === 'generate_image')
-      if (imageCall?.function?.arguments) {
+      const args = toolArgs('generate_image')
+      if (typeof args?.prompt === 'string') imagePrompt = args.prompt.trim()
+    }
+
+    // Memory tool → one or more facts to remember (the model may call it more than once).
+    const rememberFacts: string[] = []
+    if (memoryToolEnabled) {
+      for (const t of toolCalls) {
+        if (t?.function?.name !== 'remember' || !t.function.arguments) continue
         try {
-          const args = JSON.parse(imageCall.function.arguments)
-          if (typeof args?.prompt === 'string') imagePrompt = args.prompt.trim()
+          const args = JSON.parse(t.function.arguments)
+          if (typeof args?.fact === 'string' && args.fact.trim()) rememberFacts.push(args.fact.trim())
         } catch {
-          log.warn({ args: imageCall.function.arguments }, 'Bad generate_image tool arguments')
+          log.warn({ args: t.function.arguments }, 'Bad remember tool arguments')
         }
       }
     }
@@ -215,16 +264,21 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     }
 
     // Empty text is only an error when there's no tool call to act on (the model
-    // may reply with just an image).
-    if (!text?.length && !imagePrompt) {
+    // may reply with just an image or just a memory write).
+    if (!text?.length && !imagePrompt && !rememberFacts.length) {
       log.error({ body: response }, 'OpenAI request failed: Empty response')
       yield { error: `OpenAI request failed: Received empty response. Try again.` }
       return
     }
 
-    // Surface the tool call so the message handler can run image generation.
-    if (imagePrompt) {
-      yield { meta: { imageTool: { prompt: imagePrompt } } }
+    // Surface tool calls so the message handler can act on them.
+    if (imagePrompt || rememberFacts.length) {
+      yield {
+        meta: {
+          ...(imagePrompt ? { imageTool: { prompt: imagePrompt } } : {}),
+          ...(rememberFacts.length ? { rememberFacts } : {}),
+        },
+      }
     }
 
     gen.swipesPerGeneration! > 1

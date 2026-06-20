@@ -6,6 +6,7 @@ import { sendGuest, sendMany, sendOne } from '../ws'
 import { obtainLock, releaseLock } from './lock'
 import { generateImage } from '../../image'
 import { getXpPerMessage } from '/common/progression'
+import { rememberFact } from '../../memory/store'
 import { AppSchema } from '../../../common/types/schema'
 import { v4 } from 'uuid'
 import { Response } from 'express'
@@ -392,6 +393,19 @@ export const generateMessageV2 = handle(async (req, res) => {
   // the message is created (see below).
   const imageTool: { prompt?: string } | undefined = (meta as any).imageTool
   delete (meta as any).imageTool
+
+  // Native memory tool: facts the model chose to remember. Pull out of meta (not
+  // persisted on the message) and store them in long-term memory, scoped to this
+  // character so they're recalled (via RAG) in future chats.
+  const rememberFacts: string[] | undefined = (meta as any).rememberFacts
+  delete (meta as any).rememberFacts
+  if (rememberFacts?.length && chat.characterId) {
+    for (const fact of rememberFacts) {
+      rememberFact(userId!, chat.characterId, fact, 'tool').catch((err) =>
+        log.error({ err }, 'Failed to store long-term memory')
+      )
+    }
+  }
 
   // Summaries are a cheap utility generation (no user-facing message); don't
   // charge credits or advance relationship XP for them.

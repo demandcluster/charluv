@@ -32,6 +32,7 @@ import {
 } from '/common/guidance/guidance-parser'
 import { getCachedSubscriptionModels } from '../db/subscriptions'
 import { sendOne } from '../api/ws'
+import { recallMemories } from '../memory/store'
 import { ResponseSchema } from '/common/types/library'
 
 let version = ''
@@ -358,6 +359,26 @@ export async function createChatStream(
       [...opts.lines].reverse(),
       encoder
     )
+
+    // RAG: recall long-term memories relevant to the recent conversation and
+    // inject them into the {{memory}} slot (additive to any book memory). Scoped
+    // to the chat owner + character so they persist across chats.
+    try {
+      const charId = opts.chat?.characterId
+      const ownerId = opts.chat?.userId
+      if (charId && ownerId && opts.lines?.length) {
+        const query = [...opts.lines].slice(-3).join('\n')
+        const memories = await recallMemories(ownerId, charId, query, { k: 5 })
+        if (memories.length) {
+          const block = ['What you remember:']
+            .concat(memories.map((m) => `- ${m.text}`))
+            .join('\n')
+          opts.parts.memory = opts.parts.memory ? `${opts.parts.memory}\n${block}` : block
+        }
+      }
+    } catch (err) {
+      log.warn({ err }, 'Long-term memory recall failed')
+    }
   }
 
   if (opts.settings?.thirdPartyUrl) {
