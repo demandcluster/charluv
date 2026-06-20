@@ -632,3 +632,25 @@
     animation: none;
   }
 }
+
+/* ---- final-step portrait ---- */
+.cr-portrait {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+.cr-portrait-img,
+.cr-portrait-ph {
+  width: 96px;
+  height: 128px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid var(--dsc-line, rgba(255, 255, 255, 0.12));
+  background: linear-gradient(150deg, oklch(0.3 0.06 350), oklch(0.26 0.04 200));
+  flex: none;
+}
+.cr-portrait-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}

@@ -14,7 +14,9 @@ import {
   User,
 } from 'lucide-solid'
 import './create.css'
-import { characterStore, chatStore } from '../../store'
+import { characterStore, chatStore, userStore } from '../../store'
+import { imageApi } from '../../store/data/image'
+import FileInput, { FileInputResult } from '../../shared/FileInput'
 import { getAssetUrl, random } from '../../shared/util'
 import { DEFAULT_ARCHETYPE_ID } from '/common/progression'
 import { AppSchema } from '/common/types'
@@ -246,8 +248,39 @@ const Create: Component = () => {
   const [step, setStep] = createSignal(0)
   const [submitting, setSubmitting] = createSignal(false)
 
+  // Optional portrait chosen on the final step (generated or uploaded).
+  const [avatarFile, setAvatarFile] = createSignal<File>()
+  const [avatarUrl, setAvatarUrl] = createSignal<string>()
+  const [genBusy, setGenBusy] = createSignal(false)
+
   const next = () => setStep((s) => Math.min(TOTAL - 1, s + 1))
   const back = () => setStep((s) => Math.max(0, s - 1))
+
+  const setPortrait = async (file?: File) => {
+    if (!file) return
+    setAvatarFile(file)
+    const data = await imageApi.getImageData(file)
+    if (data) setAvatarUrl(data)
+  }
+
+  // Compose a text-to-image prompt from the wizard choices (no LoRA yet).
+  const portraitPrompt = () =>
+    `${labelOfImg(STYLES, answers.artStyle)} portrait, ${ethnicityLabel()} ${labelOfImg(
+      GENDERS,
+      answers.gender
+    )}, ${appearanceString()}`
+
+  const generatePortrait = () => {
+    const user = userStore().user
+    if (!user || genBusy()) return
+    setGenBusy(true)
+    characterStore.generateAvatar(user, portraitPrompt(), (_err: any, file?: File) => {
+      setGenBusy(false)
+      if (file) setPortrait(file)
+    })
+  }
+
+  const uploadPortrait = (files: FileInputResult[]) => setPortrait(files[0]?.file)
 
   const vibe = createMemo(() => VIBES.find((v) => v.slug === answers.vibe) ?? VIBES[0])
 
@@ -322,6 +355,7 @@ const Create: Component = () => {
 
     const payload: NewCharacter = {
       name,
+      avatar: avatarFile(),
       appearance,
       greeting,
       scenario,
@@ -573,6 +607,33 @@ const Create: Component = () => {
                       data-on={answers.nsfw}
                       onClick={() => setAnswers('nsfw', !answers.nsfw)}
                     />
+                  </div>
+                </div>
+
+                <div class="cr-field">
+                  <span class="cr-field-label">Portrait (optional)</span>
+                  <div class="cr-portrait">
+                    <Show
+                      when={avatarUrl()}
+                      fallback={<div class="cr-portrait-ph" aria-hidden="true" />}
+                    >
+                      <img class="cr-portrait-img" src={avatarUrl()} alt="Portrait preview" />
+                    </Show>
+                    <div class="cr-portrait-actions">
+                      <button
+                        class="cr-btn"
+                        type="button"
+                        onClick={generatePortrait}
+                        disabled={genBusy()}
+                      >
+                        {genBusy() ? 'Generating…' : 'Generate from choices'}
+                      </button>
+                      <FileInput
+                        fieldName="crPortrait"
+                        accept="image/png,image/jpeg,image/webp"
+                        onUpdate={uploadPortrait}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
