@@ -3,6 +3,10 @@ import { getDb } from '../db/client'
 import { embed } from './embed'
 import { logger } from '../middleware'
 
+// Memory text is user PII (names, preferences, etc.). Logs carry only metadata by
+// default; set MEMORY_DEBUG_LOG_TEXT=1 (dev only) to include the text for verification.
+const LOG_TEXT = process.env.MEMORY_DEBUG_LOG_TEXT === '1'
+
 /**
  * Long-term relationship memory. Scoped per user + character so memories persist
  * across all chats with that companion. Each document stores its own embedding
@@ -35,7 +39,10 @@ export async function rememberFact(
   // Skip near-duplicates (same character already has this exact fact).
   const existing = await collection().findOne({ userId, characterId, text: trimmed })
   if (existing) {
-    logger.debug({ characterId, text: trimmed }, 'memory: duplicate, skipped')
+    logger.debug(
+      { characterId, length: trimmed.length, ...(LOG_TEXT ? { text: trimmed } : {}) },
+      'memory: duplicate, skipped'
+    )
     return existing
   }
 
@@ -50,7 +57,10 @@ export async function rememberFact(
     createdAt: new Date().toISOString(),
   }
   await collection().insertOne(doc)
-  logger.info({ characterId, source, text: trimmed }, 'memory: stored')
+  logger.info(
+    { characterId, source, length: trimmed.length, ...(LOG_TEXT ? { text: trimmed } : {}) },
+    'memory: stored'
+  )
   return doc
 }
 
@@ -80,7 +90,14 @@ export async function recallMemories(
 
   if (scored.length) {
     logger.debug(
-      { characterId, recalled: scored.map((s) => ({ score: +s.score.toFixed(3), text: s.d.text })) },
+      {
+        characterId,
+        count: scored.length,
+        topScore: +scored[0].score.toFixed(3),
+        ...(LOG_TEXT
+          ? { recalled: scored.map((s) => ({ score: +s.score.toFixed(3), text: s.d.text })) }
+          : {}),
+      },
       'memory: recalled'
     )
   }

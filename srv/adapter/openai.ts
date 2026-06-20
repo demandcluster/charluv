@@ -153,6 +153,10 @@ export const handleOAI: ModelAdapter = async function* (opts) {
   if (tools.length) {
     body.tools = tools
     body.tool_choice = 'auto'
+    log.debug(
+      { tools: tools.map((t) => t.function.name), tool_choice: body.tool_choice },
+      'tools: attached to request'
+    )
   }
 
   if (gen.antiBond) body.logit_bias = { 3938: -50, 11049: -50, 64186: -50, 3717: -25 }
@@ -225,6 +229,16 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     // non-streaming nests them under choice.message.
     const choice0 = response?.choices?.[0] as any
     const toolCalls: any[] = choice0?.tool_calls || choice0?.message?.tool_calls || []
+    if (tools.length) {
+      log.debug(
+        {
+          finish_reason: choice0?.finish_reason,
+          toolCallCount: toolCalls.length,
+          names: toolCalls.map((t: any) => t?.function?.name),
+        },
+        'tools: response tool_calls'
+      )
+    }
     const toolArgs = (name: string) => {
       const call = toolCalls.find((t: any) => t?.function?.name === name)
       if (!call?.function?.arguments) return undefined
