@@ -349,10 +349,7 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
   }
 
   const createAvatar = async () => {
-    const current = payload()
-    const attributes = getAttributeMap(form())
-    const desc = current.appearance || (attributes?.appeareance || attributes?.looks)?.join(', ')
-    const avatar = await generateAvatar(desc || '')
+    const avatar = await generateAvatar(buildImagePrompt())
     if (!avatar) return
 
     return receiveAvatar(avatar)
@@ -361,12 +358,36 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
   // Like createAvatar but returns the image as base64 WITHOUT setting it as the
   // character's avatar (used to populate the gallery).
   const createGalleryImage = async () => {
-    const current = payload()
-    const attributes = getAttributeMap(form())
-    const desc = current.appearance || (attributes?.appeareance || attributes?.looks)?.join(', ')
-    const file = await generateAvatar(desc || '')
+    const desc = buildImagePrompt()
+    const file = await generateAvatar(desc)
     if (!file) return
     return imageApi.getImageData(file)
+  }
+
+  // Compose a real image-generation prompt from the assembled persona. W++
+  // attributes moved to fixed flat trait fields, so the old appeareance/looks
+  // lookup is empty now. Pull the visually-relevant traits + the appearance
+  // field, falling back to the character name so we never send an empty prompt.
+  const buildImagePrompt = () => {
+    const current = payload()
+    const attributes = (current.persona?.attributes ?? {}) as Record<string, string[] | undefined>
+    const join = (key: string) => {
+      const value = attributes[key]
+      return Array.isArray(value) ? value.filter((v) => !!v?.trim()).join(', ') : ''
+    }
+
+    const parts = [
+      current.appearance,
+      join('appearance'),
+      join('body'),
+      join('species'),
+      join('age'),
+    ]
+      .map((p) => p?.trim())
+      .filter((p) => !!p)
+
+    const desc = parts.join(', ').trim()
+    return desc || current.name || ''
   }
 
   const genField = async (field: string, trait?: string) => {
@@ -660,9 +681,12 @@ function getPayload(ev: any, state: EditState, original?: NewCharacter) {
     tags: state.tags,
     scenario: body.scenario,
     appearance: body.appearance,
-    visualType: state.visualType,
+    // Sprite editing has been removed from the UI. Always treat the character as
+    // an avatar visual type, but forward the original sprite through unchanged so
+    // existing characters don't lose their sprite data on save.
+    visualType: 'avatar',
     avatar: state.avatar ?? (null as any),
-    sprite: state.sprite ?? (null as any),
+    sprite: original?.sprite ?? state.sprite ?? (null as any),
     greeting: body.greeting,
     sampleChat: body.sampleChat,
     originalAvatar: original?.originalAvatar,

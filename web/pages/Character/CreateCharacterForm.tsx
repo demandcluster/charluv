@@ -15,9 +15,7 @@ import {
   X,
   Import,
   Download,
-  ArrowLeft,
   Trash,
-  ArrowRight,
   WandSparkles,
   SlidersVertical,
   Dices,
@@ -37,20 +35,15 @@ import {
   settingStore,
 } from '../../store'
 import { useNavigate } from '@solidjs/router'
-import AvatarIcon from '../../shared/AvatarIcon'
 import Select from '../../shared/Select'
 import TagInput from '../../shared/TagInput'
 import { AppSchema } from '../../../common/types/schema'
 import Loading from '/web/shared/Loading'
 import { JSX, For } from 'solid-js'
 import { Card, SolidCard, TitleCard } from '../../shared/Card'
-import { usePane, useRootModal } from '../../shared/hooks'
+import { usePane } from '../../shared/hooks'
 import Modal, { RootModal } from '/web/shared/Modal'
 import { ToggleButtons } from '../../shared/Toggle'
-import AvatarBuilder from '../../shared/Avatar/Builder'
-import { FullSprite } from '/common/types/sprite'
-import { getRandomBody } from '../../asset/sprite'
-import AvatarContainer from '../../shared/Avatar/Container'
 import { CharEditor, useCharEditor } from './editor'
 import { ARCHETYPES } from '/common/progression'
 import { downloadCharacterHub, jsonToCharacter } from './port'
@@ -59,7 +52,6 @@ import ImportCharacterModal from './ImportCharacter'
 import { rootModalStore } from '/web/store/root-modal'
 import { getAssetUrl, random } from '/web/shared/util'
 import { ImageSettings } from '../Settings/Image/ImageSettings'
-import { v4 } from 'uuid'
 import { imageApi } from '/web/store/data/image'
 import { Page } from '/web/Layout'
 import { ModeGenSettings } from '/web/shared/Mode/ModeGenSettings'
@@ -127,7 +119,6 @@ export const CreateCharacterForm: Component<{
     sample: 0,
   })
 
-  const [showBuilder, setShowBuilder] = createSignal(false)
   const [converted, setConverted] = createSignal<AppSchema.Character>()
   const [showImport, setImport] = createSignal(false)
 
@@ -215,18 +206,6 @@ export const CreateCharacterForm: Component<{
     props.footer?.(footer)
   })
 
-  const updateFile = async (files: FileInputResult[]) => {
-    if (!files.length) {
-      editor.update('avatar', undefined)
-      setImage(state.edit?.avatar)
-      return
-    }
-
-    const file = files[0].file
-    const data = await editor.receiveAvatar(file)
-    setImage(data)
-  }
-
   const onSubmit = async (ev: Event) => {
     const payload = editor.payload(true)
 
@@ -305,8 +284,6 @@ export const CreateCharacterForm: Component<{
   const showWarning = createMemo(
     () => !!props.chat?.overrides && props.chat.characterId === props.editId
   )
-
-  let spriteRef: any
 
   return (
     <Page>
@@ -443,96 +420,34 @@ export const CreateCharacterForm: Component<{
                 />
               </Card>
 
-              <Card class="flex w-full flex-col gap-4 sm:flex-row">
-                <div class="flex flex-col items-center gap-1">
-                  <Switch>
-                    <Match when={editor.state.visualType === 'sprite'}>
-                      <div class="flex h-24 w-full justify-center sm:w-24" ref={spriteRef}>
-                        <AvatarContainer body={editor.state.sprite} container={spriteRef} />
-                      </div>
-                    </Match>
-                    <Match when={!state.avatar.loading}>
-                      <div class="flex flex-col items-center gap-1">
-                        <div
-                          class="flex items-baseline"
-                          style={{ cursor: state.avatar.image || image() ? 'pointer' : 'unset' }}
-                          onClick={() => setImageUrl(editor.avatar() || image())}
-                        >
-                          <AvatarIcon
-                            format={{ corners: 'sm', size: '3xl' }}
-                            avatarUrl={editor.avatar() || image()}
-                          />
-                        </div>
-                      </div>
-                    </Match>
-                    <Match when={state.avatar.loading}>
-                      <div class="flex w-[80px] flex-col items-center justify-center">
-                        <Loading type="windmill" />
-                        <Show when={state.status && state.status.wait_time > 0}>
-                          <span class="text-500 text-xs italic">{state.status?.wait_time}s</span>
-                        </Show>
-                      </div>
-                    </Match>
-                  </Switch>
-                  <ReelControl editor={editor} loading={state.avatar.loading} />
-                </div>
-                <div class="flex w-full flex-col gap-2">
-                  <ToggleButtons
-                    items={[
-                      { value: 'avatar', label: 'Avatar' },
-                      { value: 'sprite', label: 'Sprite' },
-                    ]}
-                    onChange={(opt) => editor.update('visualType', opt.value)}
-                    selected={editor.state.visualType}
-                  />
-
-                  <Switch>
-                    <Match when={editor.state.visualType === 'avatar'}>
-                      <FileInput
-                        class="w-full"
-                        fieldName="avatar"
-                        label={
-                          <div class="flex gap-2">
-                            <div>Avatar</div>
-                          </div>
-                        }
-                        accept="image/png,image/jpeg,image/apng,image/gif,image/webp"
-                        onUpdate={updateFile}
+              <Card class="flex w-full flex-col gap-2">
+                <TextInput
+                  isMultiline
+                  parentClass="w-full"
+                  fieldName="appearance"
+                  label={
+                    <>
+                      Appearance{' '}
+                      <Regenerate
+                        field={'appearance'}
+                        editor={editor}
+                        allowed={editor.canGuidance}
                       />
-                      <div class="flex w-full flex-col gap-2 sm:flex-row">
-                        <TextInput
-                          isMultiline
-                          parentClass="w-full"
-                          fieldName="appearance"
-                          label={
-                            <>
-                              <Regenerate
-                                field={'appearance'}
-                                editor={editor}
-                                allowed={editor.canGuidance}
-                              />
-                            </>
-                          }
-                          helperText={`Leave the prompt empty to use your character's persona "looks" / "appearance" attributes`}
-                          placeholder="Appearance Prompt (used for Avatar Generation)"
-                          value={editor.state.appearance}
-                        />
-                      </div>
-                    </Match>
-                    <Match when={true}>
-                      <Button class="w-fit" onClick={() => setShowBuilder(true)}>
-                        Open Character Builder
-                      </Button>
-                    </Match>
-                  </Switch>
-                  <div></div>
-                </div>
+                    </>
+                  }
+                  helperText="Describes how your character looks. This drives image generation for the cover and gallery."
+                  placeholder="Appearance Prompt (used for Image Generation)"
+                  value={editor.state.appearance}
+                />
               </Card>
 
               <CharacterGallery
                 editor={editor}
                 charId={props.editId}
                 initial={state.edit?.gallery}
+                avatarUrl={editor.avatar() || image()}
+                avatarLoading={state.avatar.loading}
+                onCoverChange={(url) => setImage(url)}
               />
 
               <Card>
@@ -859,18 +774,6 @@ export const CreateCharacterForm: Component<{
           </div>
         </div>
       </form>
-      <Show when={showBuilder()}>
-        <SpriteModal
-          body={editor.state.sprite}
-          onChange={(body) => {
-            editor.update('sprite', body)
-            setShowBuilder(false)
-          }}
-          show={showBuilder()}
-          close={() => setShowBuilder(false)}
-        />
-      </Show>
-
       <Show when={converted()}>
         <DownloadModal
           show
@@ -1012,104 +915,6 @@ const AlternateGreetingsInput: Component<{
   )
 }
 
-const SpriteModal: Component<{
-  body?: FullSprite
-  onChange: (body: FullSprite) => void
-  show: boolean
-  close: () => void
-}> = (props) => {
-  let ref: any
-
-  const [original, setOriginal] = createSignal(props.body)
-  const [body, setBody] = createSignal(props.body || getRandomBody())
-
-  createEffect(() => {
-    if (props.body && !original()) {
-      setOriginal(props.body)
-    }
-  })
-
-  const handleChange = () => {
-    props.onChange(body())
-  }
-
-  useRootModal({
-    id: 'sprite-modal',
-    element: (
-      <Modal
-        show={props.show}
-        close={props.close}
-        fixedHeight
-        maxWidth="half"
-        footer={
-          <>
-            <Button onClick={() => props.onChange(original()!)} schema="secondary">
-              Cancel
-            </Button>
-            <Button onClick={handleChange}>Confirm</Button>
-          </>
-        }
-      >
-        <PageHeader title="Character Designer" />
-        <div class="h-[28rem] w-full text-sm sm:h-[42rem]" ref={ref}>
-          <AvatarBuilder body={body()} onChange={(body) => setBody(body)} bounds={ref} noHeader />
-        </div>
-      </Modal>
-    ),
-  })
-
-  return null
-}
-
-const ReelControl: Component<{ editor: CharEditor; loading: boolean }> = (props) => {
-  const createAvatar = async () => {
-    const base64 = await props.editor.createAvatar()
-    if (!base64) return
-
-    await props.editor.imageCache.addImage(base64, `${v4()}.png`)
-  }
-
-  const size = 14
-
-  return (
-    <div class="flex flex-col items-center gap-1">
-      <div class="flex w-fit gap-2">
-        <Button
-          size="sm"
-          disabled={props.editor.imageCache.state.images.length <= 1 || props.loading}
-          onClick={props.editor.imageCache.prev}
-        >
-          <ArrowLeft size={size} />
-        </Button>
-
-        <Button
-          size="sm"
-          disabled={props.editor.imageCache.state.imageId === '' || props.loading}
-          onClick={() => props.editor.imageCache.removeImage(props.editor.imageCache.state.imageId)}
-        >
-          <Trash size={size} />
-        </Button>
-
-        <Button
-          size="sm"
-          disabled={props.editor.imageCache.state.images.length <= 1 || props.loading}
-          onClick={props.editor.imageCache.next}
-        >
-          <ArrowRight size={size} />
-        </Button>
-      </div>
-      <div class="flex w-fit gap-2">
-        {/* <Button size="sm" >
-          <RotateCcw size={size} />
-        </Button> */}
-        <Button size="sm" onClick={createAvatar} disabled={props.loading}>
-          Generate Image
-        </Button>
-      </div>
-    </div>
-  )
-}
-
 const GALLERY_MAX = 10
 const LORA_MAX = 4
 
@@ -1117,6 +922,13 @@ const CharacterGallery: Component<{
   editor: CharEditor
   charId?: string
   initial?: string[]
+  /** The current cover/avatar — a stored asset URL or a freshly generated/
+   * uploaded data url. Rendered as the first ("Cover") tile. */
+  avatarUrl?: string
+  avatarLoading?: boolean
+  /** Called when the cover changes (Make cover) so the parent can update its
+   * displayed avatar. */
+  onCoverChange?: (url: string) => void
 }> = (props) => {
   const [gallery, setGallery] = createSignal<string[]>(props.initial || [])
   const [selected, setSelected] = createSignal<string[]>([])
@@ -1132,6 +944,7 @@ const CharacterGallery: Component<{
   const isSelected = (url: string) => selected().includes(url)
 
   const toggleSelected = (url: string) => {
+    if (!url) return
     if (isSelected(url)) {
       setSelected(selected().filter((u) => u !== url))
       return
@@ -1141,6 +954,22 @@ const CharacterGallery: Component<{
       return
     }
     setSelected([...selected(), url])
+  }
+
+  const makeCover = async (url: string) => {
+    if (!props.charId) {
+      toastStore.warn('Save the character first to set a cover')
+      return
+    }
+    setBusy(true)
+    const res = await charsApi.setCover(props.charId, url)
+    setBusy(false)
+    if (res.result && 'avatar' in res.result) {
+      props.onCoverChange?.(res.result.avatar)
+      toastStore.success('Cover updated')
+    } else if (res.error) {
+      toastStore.error(`Could not set cover: ${res.error}`)
+    }
   }
 
   const add = async (base64?: string) => {
@@ -1207,84 +1036,136 @@ const CharacterGallery: Component<{
     }
   }
 
+  const tileClass = (url: string) =>
+    `relative h-24 w-24 shrink-0 cursor-pointer rounded-md`
+
+  const selectionBadge = (url: string) => (
+    <Show when={isSelected(url)}>
+      <div class="absolute left-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--hl-500)] text-xs font-bold text-white">
+        {selected().indexOf(url) + 1}
+      </div>
+    </Show>
+  )
+
   return (
     <Card class="flex flex-col gap-3">
       <FormLabel
-        label="Image Gallery"
-        helperText={`Up to ${GALLERY_MAX} images of the same character. Click images to pick up to ${LORA_MAX} (3-4 recommended) as the reference set for the character's image LoRA.`}
+        label="Images"
+        helperText={`The first tile is the cover (avatar). Add up to ${GALLERY_MAX} more images of the same character. Click any image (including the cover) to pick up to ${LORA_MAX} (3-4 recommended) as the reference set for the character's image LoRA.`}
       />
 
       <Show when={!props.charId}>
         <div class="text-600 text-sm italic">
-          Save the character first, then add gallery images here.
+          You can set a cover below. Save the character first to add gallery images and build a LoRA.
         </div>
       </Show>
 
-      <Show when={props.charId}>
-        <div class="flex flex-wrap gap-2">
-          <For each={gallery()}>
-            {(url) => (
-              <div
-                class="relative h-24 w-24 cursor-pointer rounded-md"
-                classList={{
-                  'ring-2 ring-[var(--hl-500)]': isSelected(url),
-                }}
-                onClick={() => toggleSelected(url)}
-                title={isSelected(url) ? 'Selected for LoRA' : 'Click to select for LoRA'}
-              >
-                <img src={getAssetUrl(url)} class="h-24 w-24 rounded-md object-cover" />
-                <Show when={isSelected(url)}>
-                  <div class="absolute left-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--hl-500)] text-xs font-bold text-white">
-                    {selected().indexOf(url) + 1}
-                  </div>
-                </Show>
-                <Button
-                  size="pill"
-                  schema="red"
-                  class="absolute right-1 top-1"
-                  onClick={(ev) => {
-                    ev.stopPropagation()
-                    remove(url)
-                  }}
-                  disabled={busy()}
-                >
-                  <Trash size={12} />
-                </Button>
+      <div class="flex flex-wrap gap-2">
+        {/* Cover / avatar tile — always first, click-to-select, not removable. */}
+        <Show
+          when={!props.avatarLoading}
+          fallback={
+            <div class="flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded-md border border-[var(--bg-700)]">
+              <Loading type="windmill" />
+            </div>
+          }
+        >
+          <Show
+            when={props.avatarUrl}
+            fallback={
+              <div class="flex h-24 w-24 shrink-0 items-center justify-center rounded-md border border-[var(--bg-700)] text-center text-xs text-[var(--text-600)]">
+                No cover yet
               </div>
-            )}
-          </For>
-          <Show when={!gallery().length}>
-            <div class="text-600 text-sm italic">No images yet.</div>
-          </Show>
-        </div>
-
-        <div class="flex flex-wrap items-center gap-2">
-          <Button size="sm" onClick={generate} disabled={busy() || full()}>
-            Generate
-          </Button>
-          <FileInput
-            fieldName="galleryUpload"
-            accept="image/png,image/jpeg,image/webp"
-            onUpdate={upload}
-          />
-          <Button
-            size="sm"
-            schema="success"
-            onClick={buildLora}
-            disabled={busy() || !selected().length}
+            }
           >
-            Build LoRA ({selected().length}/{LORA_MAX})
-          </Button>
-          <span class="text-600 text-sm">
-            {gallery().length}/{GALLERY_MAX} images · {selected().length}/{LORA_MAX} picked for LoRA
-          </span>
-        </div>
-
-        <Show when={loraName()}>
-          <div class="text-600 text-sm">
-            Current LoRA: <span class="text-700 font-mono">{loraName()}</span>
-          </div>
+            <div
+              class={tileClass(props.avatarUrl!)}
+              classList={{ 'ring-2 ring-[var(--hl-500)]': isSelected(props.avatarUrl!) }}
+              onClick={() => toggleSelected(props.avatarUrl!)}
+              title={
+                isSelected(props.avatarUrl!) ? 'Selected for LoRA' : 'Click to select for LoRA'
+              }
+            >
+              <img src={getAssetUrl(props.avatarUrl!)} class="h-24 w-24 rounded-md object-cover" />
+              {selectionBadge(props.avatarUrl!)}
+              <div class="absolute bottom-1 left-1 rounded bg-[var(--hl-700)] px-1 text-[10px] font-bold text-white">
+                Cover
+              </div>
+            </div>
+          </Show>
         </Show>
+
+        {/* Gallery tiles — removable + can be promoted to cover. */}
+        <For each={gallery()}>
+          {(url) => (
+            <div
+              class={tileClass(url)}
+              classList={{ 'ring-2 ring-[var(--hl-500)]': isSelected(url) }}
+              onClick={() => toggleSelected(url)}
+              title={isSelected(url) ? 'Selected for LoRA' : 'Click to select for LoRA'}
+            >
+              <img src={getAssetUrl(url)} class="h-24 w-24 rounded-md object-cover" />
+              {selectionBadge(url)}
+              <Button
+                size="pill"
+                schema="red"
+                class="absolute right-1 top-1"
+                onClick={(ev) => {
+                  ev.stopPropagation()
+                  remove(url)
+                }}
+                disabled={busy()}
+              >
+                <Trash size={12} />
+              </Button>
+              <Button
+                size="pill"
+                class="absolute bottom-1 left-1"
+                onClick={(ev) => {
+                  ev.stopPropagation()
+                  makeCover(url)
+                }}
+                disabled={busy()}
+              >
+                Make cover
+              </Button>
+            </div>
+          )}
+        </For>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <Button size="sm" onClick={generate} disabled={busy() || full() || !props.charId}>
+          Generate
+        </Button>
+        <FileInput
+          fieldName="galleryUpload"
+          accept="image/png,image/jpeg,image/webp"
+          onUpdate={upload}
+        />
+        <Button
+          size="sm"
+          schema="success"
+          onClick={buildLora}
+          disabled={busy() || !selected().length || !props.charId}
+        >
+          Build LoRA ({selected().length}/{LORA_MAX})
+        </Button>
+        <span class="text-600 text-sm">
+          {gallery().length}/{GALLERY_MAX} images · {selected().length}/{LORA_MAX} picked
+        </span>
+      </div>
+
+      <Show when={!props.charId}>
+        <div class="text-600 text-sm italic">
+          Save the character first to generate, upload, or build a LoRA.
+        </div>
+      </Show>
+
+      <Show when={loraName()}>
+        <div class="text-600 text-sm">
+          Current LoRA: <span class="text-700 font-mono">{loraName()}</span>
+        </div>
       </Show>
     </Card>
   )

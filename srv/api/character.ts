@@ -547,6 +547,24 @@ const removeGalleryImage = handle(async ({ userId, params, body }) => {
   return { gallery }
 })
 
+/** Set the character's cover (avatar) to one of its existing images. The url
+ * must be the current avatar or part of the character's gallery so we never
+ * point the avatar at an arbitrary/unowned asset. */
+const setCover = handle(async ({ userId, params, body }) => {
+  assertValid({ url: 'string' }, body)
+
+  const char = await store.characters.getCharacter(userId!, params.id)
+  if (!char) throw errors.NotFound
+
+  const allowed = new Set([...(char.gallery || []), char.avatar].filter(Boolean) as string[])
+  if (!allowed.has(body.url)) {
+    throw new StatusError('Cover image is not part of this character', 400)
+  }
+
+  await store.characters.updateCharacter(params.id, userId!, { avatar: body.url })
+  return { avatar: body.url }
+})
+
 /** Max reference images accepted by the Z-Image encode endpoint. */
 const MAX_LORA_REFS = 4
 
@@ -564,7 +582,7 @@ const encodeLora = handle(async ({ userId, params, body }) => {
   // Entries may be base64 data urls (freshly generated/uploaded) or stored asset
   // URLs. Resolve everything to base64 server-side (avoids browser CORS on the
   // CDN). Restrict to the character's own gallery when an asset ref is given.
-  const allowed = new Set(char.gallery || [])
+  const allowed = new Set([...(char.gallery || []), char.avatar].filter(Boolean) as string[])
   const images: string[] = []
   for (const ref of refs) {
     if (ref.includes('base64,')) {
@@ -582,9 +600,10 @@ const encodeLora = handle(async ({ userId, params, body }) => {
     throw new StatusError('Could not read the reference images', 400)
   }
 
-  // Unique LoRA name: character name + randomizer (never name alone, to avoid
-  // collisions across characters/re-encodes).
-  const saveAs = makeLoraName(char.name)
+  // Reuse the character's existing LoRA name so re-encoding REPLACES it (Z-Image
+  // overwrites the stored LoRA under the same name). Only mint a new unique name
+  // (character name + randomizer) the first time.
+  const saveAs = char.loraName || makeLoraName(char.name)
   const loraName = await zimageEncode(images, saveAs)
 
   await store.characters.updateCharacter(params.id, userId!, { loraName })
@@ -670,6 +689,7 @@ router.post('/:id/favorite', editCharacterFavorite)
 router.delete('/:id/avatar', removeAvatar)
 router.post('/:id/gallery', addGalleryImage)
 router.delete('/:id/gallery', removeGalleryImage)
+router.post('/:id/cover', setCover)
 router.post('/:id/encode-lora', encodeLora)
 router.post('/bulk-update', bulkUpdate)
 

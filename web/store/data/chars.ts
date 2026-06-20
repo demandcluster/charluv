@@ -24,6 +24,7 @@ export const charsApi = {
   publishCharacter,
   addGalleryImage,
   removeGalleryImage,
+  setCover,
   encodeLora,
 }
 
@@ -34,6 +35,11 @@ async function addGalleryImage(charId: string, image: string) {
 
 async function removeGalleryImage(charId: string, url: string) {
   return api.method<{ gallery: string[] }>('delete', `/character/${charId}/gallery`, { url })
+}
+
+/** Set a saved character's cover (avatar) to one of its existing images. */
+async function setCover(charId: string, url: string) {
+  return api.post<{ avatar: string }>(`/character/${charId}/cover`, { url })
 }
 
 /** Encode 1-4 reference images (base64 data urls) into a stored character LoRA. */
