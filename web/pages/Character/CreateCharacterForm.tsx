@@ -660,23 +660,24 @@ export const CreateCharacterForm: Component<{
               <Card class="flex flex-col gap-3">
                 <FormLabel
                   label="Personality & Traits"
-                  helperText="The core traits that define your character. These are saved as the character's W++ persona. Gender, Age and Appearance are set in the cards above."
+                  helperText="The core traits that define your character (saved as the W++ persona). Gender, Appearance and Art style are set in the cards above."
                 />
                 <TextInput
-                  fieldName="traitSpecies"
-                  label="Species"
-                  placeholder="e.g. human, elf, android"
-                  value={editor.state.traitSpecies ?? ''}
-                  onChange={(ev) => editor.update('traitSpecies', ev.currentTarget.value)}
+                  isMultiline
+                  fieldName="traitDescription"
+                  label="Description"
+                  placeholder="The main description of who your character is, how they act, their situation and quirks."
+                  value={editor.state.traitDescription ?? ''}
+                  onChange={(ev) => editor.update('traitDescription', ev.currentTarget.value)}
+                  tokenCount={(v) => setTokens((prev) => ({ ...prev, persona: v }))}
                 />
                 <TextInput
                   isMultiline
                   fieldName="traitPersonality"
                   label="Personality"
-                  placeholder="e.g. warm, witty, fiercely loyal, a little stubborn"
+                  placeholder="e.g. shy, caring, introspective, sensitive, reserved, kind"
                   value={editor.state.traitPersonality ?? ''}
                   onChange={(ev) => editor.update('traitPersonality', ev.currentTarget.value)}
-                  tokenCount={(v) => setTokens((prev) => ({ ...prev, persona: v }))}
                 />
                 <TextInput
                   isMultiline
@@ -686,28 +687,88 @@ export const CreateCharacterForm: Component<{
                   value={editor.state.traitMind ?? ''}
                   onChange={(ev) => editor.update('traitMind', ev.currentTarget.value)}
                 />
+                <div class="flex flex-wrap gap-3">
+                  <TextInput
+                    parentClass="grow"
+                    fieldName="traitSpecies"
+                    label="Species"
+                    placeholder="e.g. human"
+                    value={editor.state.traitSpecies ?? ''}
+                    onChange={(ev) => editor.update('traitSpecies', ev.currentTarget.value)}
+                  />
+                  <TextInput
+                    parentClass="grow"
+                    fieldName="traitAge"
+                    label="Age"
+                    placeholder="e.g. 18 years old"
+                    value={editor.state.traitAge ?? ''}
+                    onChange={(ev) => editor.update('traitAge', ev.currentTarget.value)}
+                  />
+                </div>
+                <div class="flex flex-wrap gap-3">
+                  <TextInput
+                    parentClass="grow"
+                    fieldName="traitJob"
+                    label="Job"
+                    placeholder="e.g. babysitter"
+                    value={editor.state.traitJob ?? ''}
+                    onChange={(ev) => editor.update('traitJob', ev.currentTarget.value)}
+                  />
+                  <TextInput
+                    parentClass="grow"
+                    fieldName="traitZodiac"
+                    label="Zodiac"
+                    placeholder="e.g. virgo"
+                    value={editor.state.traitZodiac ?? ''}
+                    onChange={(ev) => editor.update('traitZodiac', ev.currentTarget.value)}
+                  />
+                </div>
+                <TextInput
+                  fieldName="traitSexuality"
+                  label="Sexuality"
+                  placeholder="e.g. heterosexual, straight"
+                  value={editor.state.traitSexuality ?? ''}
+                  onChange={(ev) => editor.update('traitSexuality', ev.currentTarget.value)}
+                />
                 <TextInput
                   fieldName="traitLikes"
                   label="Likes"
-                  placeholder="e.g. rainy days, old books, strong coffee"
+                  placeholder="e.g. drawing, playing with her cat"
                   value={editor.state.traitLikes ?? ''}
                   onChange={(ev) => editor.update('traitLikes', ev.currentTarget.value)}
                 />
                 <TextInput
-                  fieldName="traitDislikes"
-                  label="Dislikes"
-                  placeholder="e.g. crowds, dishonesty, cold weather"
-                  value={editor.state.traitDislikes ?? ''}
-                  onChange={(ev) => editor.update('traitDislikes', ev.currentTarget.value)}
+                  fieldName="traitLoves"
+                  label="Loves"
+                  placeholder="e.g. her cat Fluffy, rainy afternoons"
+                  value={editor.state.traitLoves ?? ''}
+                  onChange={(ev) => editor.update('traitLoves', ev.currentTarget.value)}
                 />
                 <TextInput
-                  isMultiline
-                  fieldName="traitBackground"
-                  label="Background"
-                  placeholder="Your character's history and backstory"
-                  value={editor.state.traitBackground ?? ''}
-                  onChange={(ev) => editor.update('traitBackground', ev.currentTarget.value)}
+                  fieldName="traitHates"
+                  label="Hates"
+                  placeholder="e.g. rude people, loud noises"
+                  value={editor.state.traitHates ?? ''}
+                  onChange={(ev) => editor.update('traitHates', ev.currentTarget.value)}
                 />
+                <div class="flex flex-wrap gap-3">
+                  <TextInput
+                    parentClass="grow"
+                    fieldName="traitCountry"
+                    label="Country"
+                    placeholder="e.g. England"
+                    value={editor.state.traitCountry ?? ''}
+                    onChange={(ev) => editor.update('traitCountry', ev.currentTarget.value)}
+                  />
+                  <TextInput
+                    parentClass="grow"
+                    fieldName="traitBody"
+                    label="Body"
+                    placeholder="e.g. slim, 5'2&quot;, petite"
+                    value={editor.state.traitBody ?? ''}
+                    onChange={(ev) => editor.update('traitBody', ev.currentTarget.value)}
+                  />
+                </div>
 
                 <Show when={Object.keys(editor.state.personaExtras ?? {}).length > 0}>
                   <SolidCard
@@ -1059,6 +1120,11 @@ const CharacterGallery: Component<{
 }> = (props) => {
   const [gallery, setGallery] = createSignal<string[]>(props.initial || [])
   const [selected, setSelected] = createSignal<string[]>([])
+
+  // The character (and its saved gallery) loads async after the editor mounts,
+  // so re-seed when props.initial arrives/changes. Local add/remove update the
+  // signal directly and don't touch props.initial, so they're preserved.
+  createEffect(() => setGallery(props.initial || []))
   const [busy, setBusy] = createSignal(false)
   const [loraName, setLoraName] = createSignal<string>(props.editor.state.loraName || '')
 

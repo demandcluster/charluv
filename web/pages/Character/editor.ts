@@ -70,12 +70,21 @@ type EditState = {
   // reactively for primitives, not nested object/array values). The persona
   // object is assembled from these (plus appearance/gender/ageRange) in
   // getPayload, and hydrated from char.persona.attributes in load()/reset().
+  // The canonical Charluv W++ keys (gender lives in metadata, appearance reuses
+  // the appearance field; both are handled outside these inputs).
   traitSpecies?: string
-  traitPersonality?: string
   traitMind?: string
+  traitPersonality?: string
+  traitAge?: string
+  traitJob?: string
+  traitDescription?: string
+  traitSexuality?: string
   traitLikes?: string
-  traitDislikes?: string
-  traitBackground?: string
+  traitLoves?: string
+  traitZodiac?: string
+  traitHates?: string
+  traitCountry?: string
+  traitBody?: string
   // Backward-compat: non-standard W++ attributes from existing characters.
   // Shown read-only; not editable and dropped on save.
   personaExtras?: Record<string, string[]>
@@ -183,11 +192,18 @@ const initState: EditState = {
   // Fixed W++ persona traits (flat string fields; assembled in getPayload).
   personaExtras: {},
   traitSpecies: '',
-  traitPersonality: '',
   traitMind: '',
+  traitPersonality: '',
+  traitAge: '',
+  traitJob: '',
+  traitDescription: '',
+  traitSexuality: '',
   traitLikes: '',
-  traitDislikes: '',
-  traitBackground: '',
+  traitLoves: '',
+  traitZodiac: '',
+  traitHates: '',
+  traitCountry: '',
+  traitBody: '',
   tags: [],
   alternateGreetings: [],
   culture: defaultCulture,
@@ -544,17 +560,27 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
 // trait fields used by the locked W++ editor. Each trait joins its string[] with
 // ', '. Existing 'text'-format characters keep their content via a fallback into
 // the Background field so nothing is lost.
-/** The fixed W++ trait keys the editor exposes. Everything else is "extra". */
+/**
+ * The canonical Charluv W++ keys the editor manages. `gender`/`appearance` are
+ * handled via the Gender facet / appearance field, but are still "consumed" here
+ * so they aren't flagged as removable extras.
+ */
 const FIXED_TRAIT_KEYS = [
   'species',
-  'gender',
-  'age',
-  'appearance',
-  'personality',
   'mind',
+  'personality',
+  'age',
+  'job',
+  'description',
+  'sexuality',
   'likes',
-  'dislikes',
-  'background',
+  'loves',
+  'zodiac',
+  'hates',
+  'country',
+  'body',
+  'appearance',
+  'gender',
 ]
 
 function hydratePersonaTraits(persona?: AppSchema.Persona) {
@@ -566,16 +592,23 @@ function hydratePersonaTraits(persona?: AppSchema.Persona) {
 
   const traits = {
     traitSpecies: join('species'),
-    traitPersonality: join('personality'),
     traitMind: join('mind'),
+    traitPersonality: join('personality'),
+    traitAge: join('age'),
+    traitJob: join('job'),
+    traitDescription: join('description'),
+    traitSexuality: join('sexuality'),
     traitLikes: join('likes'),
-    traitDislikes: join('dislikes'),
-    traitBackground: join('background'),
+    traitLoves: join('loves'),
+    traitZodiac: join('zodiac'),
+    traitHates: join('hates'),
+    traitCountry: join('country'),
+    traitBody: join('body'),
   }
 
   // Fallback: a plain-text persona has no per-trait keys; preserve its content.
-  if (persona?.kind === 'text' && !traits.traitBackground) {
-    traits.traitBackground = (attrs as Record<string, string[] | undefined>).text?.join(' ') ?? ''
+  if (persona?.kind === 'text' && !traits.traitDescription) {
+    traits.traitDescription = (attrs as Record<string, string[] | undefined>).text?.join(' ') ?? ''
   }
 
   // Backward-compat: surface any W++ attributes that aren't part of the fixed
@@ -602,14 +635,21 @@ function getPayload(ev: any, state: EditState, original?: NewCharacter) {
     if (trimmed) wppAttributes[key] = [trimmed]
   }
   addTrait('species', state.traitSpecies)
-  addTrait('gender', state.gender)
-  addTrait('age', state.ageRange)
-  addTrait('appearance', body.appearance)
-  addTrait('personality', state.traitPersonality)
   addTrait('mind', state.traitMind)
+  addTrait('personality', state.traitPersonality)
+  addTrait('age', state.traitAge)
+  addTrait('job', state.traitJob)
+  addTrait('description', state.traitDescription)
+  addTrait('sexuality', state.traitSexuality)
   addTrait('likes', state.traitLikes)
-  addTrait('dislikes', state.traitDislikes)
-  addTrait('background', state.traitBackground)
+  addTrait('loves', state.traitLoves)
+  addTrait('zodiac', state.traitZodiac)
+  addTrait('hates', state.traitHates)
+  addTrait('country', state.traitCountry)
+  addTrait('body', state.traitBody)
+  addTrait('appearance', body.appearance)
+  // gender is intentionally NOT a persona attribute — it lives in the charluv
+  // metadata (char.gender) and is injected into the prompt at chat time.
 
   const payload = {
     name: body.name,
@@ -640,7 +680,14 @@ function getPayload(ev: any, state: EditState, original?: NewCharacter) {
           }
         : undefined,
     gender: state.gender || undefined,
-    artStyle: state.artStyle || undefined,
+    // Art style is derived from tags (anime/realistic); fall back to the manual
+    // facet if no matching tag is present.
+    artStyle:
+      (state.tags?.includes('anime')
+        ? 'anime'
+        : state.tags?.includes('realistic')
+        ? 'realistic'
+        : state.artStyle) || undefined,
     ageRange: state.ageRange || undefined,
     category: state.categoryValue ? [state.categoryValue] : undefined,
     nsfw: state.nsfw || undefined,

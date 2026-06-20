@@ -158,7 +158,16 @@ export async function readAssetBase64(ref: string): Promise<string | undefined> 
     return buf.toString('base64')
   } catch {}
 
-  // Remote (S3/CDN) — server-to-server fetch against the configured host only,
+  // S3 object store — read directly, independent of ASSET_URL/CDN config.
+  if (config.storage.enabled) {
+    try {
+      const obj = await s3.getObject({ Bucket: config.storage.bucket, Key: `assets/${filename}` })
+      const bytes = await (obj.Body as any)?.transformToByteArray?.()
+      if (bytes) return Buffer.from(bytes).toString('base64')
+    } catch {}
+  }
+
+  // Remote (CDN) — server-to-server fetch against the configured host only,
   // no redirect-following (a redirect could otherwise point at an internal host).
   const base = config.assetUrl?.replace(/\/$/, '') || ''
   if (!base) return

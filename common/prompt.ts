@@ -968,7 +968,21 @@ export function resolveScenario(
     }
   }
 
-  return prependProgressionStage(result.trim(), mainChar)
+  return prependCharluvMeta(prependProgressionStage(result.trim(), mainChar), mainChar)
+}
+
+/**
+ * Inject Charluv metadata facets (gender, age range) into the prompt so the model
+ * sees them on chat. These live on the character document (not the W++ persona),
+ * so they would otherwise be invisible to the model.
+ */
+export function prependCharluvMeta(scenario: string, mainChar: AppSchema.Character) {
+  const parts: string[] = []
+  if (mainChar.gender) parts.push(`${mainChar.name} is ${mainChar.gender}`)
+  if (mainChar.ageRange) parts.push(`age range ${mainChar.ageRange}`)
+  if (!parts.length) return scenario
+  const line = parts.join(', ') + '.'
+  return scenario ? `${line}\n${scenario}` : line
 }
 
 /**
