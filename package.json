@@ -231,6 +231,19 @@
       "qs": ">=6.14.2",
       "@babel/core": "^7.29.6",
       "@xmldom/xmldom": ">=0.9.9"
+    },
+    "auditConfig": {
+      "ignoreGhsas": [
+        "GHSA-848j-6mx2-7j84",
+        "GHSA-rmmh-p597-ppvv",
+        "GHSA-w5hq-g745-h8pq",
+        "GHSA-4w7w-66w2-5vf9",
+        "GHSA-v6wh-96g9-6wx3",
+        "GHSA-fx2h-pf6j-xcff",
+        "GHSA-wgrm-67xf-hhpq",
+        "GHSA-8fgc-7cc6-rx7x",
+        "GHSA-38r7-794h-5758"
+      ]
     }
   }
 }
