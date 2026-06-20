@@ -90,12 +90,17 @@ export async function generateImage(
   const negative = imageSettings?.negative || DEFAULT_NEGATIVE
 
   if (!guestId) {
-    sendOne(user._id, {
+    // Broadcast to all chat members (not just sendOne) so the reply message can
+    // show a loading spinner while the image generates. Include `messageId` when
+    // attaching to an existing message (e.g. the native image tool path).
+    sendMany(broadcastIds, {
       type: 'image-generation-started',
       prompt,
       negative,
       service: imageSettings?.type,
       requestId: opts.requestId,
+      chatId,
+      messageId,
     })
   }
 
@@ -258,14 +263,17 @@ async function createImageMessage(opts: {
     const prev = await store.msgs.getMessage(opts.messageId)
     const extras = prev?.extras || []
     extras.push(opts.filename)
-    await store.msgs.editMessage(opts.messageId, { adapter: 'image', extras })
+    // Preserve the target message's existing adapter so its text still renders.
+    // Only update `extras` — setting adapter:'image' here would make the renderer
+    // treat the message text as an image URL.
+    await store.msgs.editMessage(opts.messageId, { extras })
     sendMany(opts.memberIds, {
       type: 'message-retry',
       chatId: opts.chatId,
       messageId: opts.messageId,
       message: prev?.msg || '',
       extras,
-      adapter: 'image',
+      adapter: prev?.adapter,
     })
     if (prev) prev.extras = extras
     return prev

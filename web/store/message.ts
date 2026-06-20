@@ -68,6 +68,11 @@ export type MsgState = {
   }
   nextLoading: boolean
   imagesSaved: boolean
+  /**
+   * Message ids that currently have a tool/in-chat image generating. Used to show
+   * a loading spinner in the message's images area until the image is attached.
+   */
+  imagesGenerating: string[]
   speaking: { messageId: string; status: VoiceState } | undefined
   lastInference?: {
     requestId: string
@@ -104,6 +109,7 @@ const initState: MsgState = {
   images: {},
   nextLoading: false,
   imagesSaved: false,
+  imagesGenerating: [],
   waiting: undefined,
   partial: undefined,
   retrying: undefined,
@@ -775,6 +781,23 @@ async function handleSummary() {
   msgStore.setState({ waiting: undefined })
 }
 
+function startImageSpinner(messageId: string) {
+  const { imagesGenerating } = msgStore.getState()
+  if (imagesGenerating.includes(messageId)) return
+  msgStore.setState({ imagesGenerating: imagesGenerating.concat(messageId) })
+}
+
+function stopImageSpinner(messageId?: string) {
+  const { imagesGenerating } = msgStore.getState()
+  if (!imagesGenerating.length) return
+  if (messageId && !imagesGenerating.includes(messageId)) return
+  msgStore.setState({
+    imagesGenerating: messageId
+      ? imagesGenerating.filter((id) => id !== messageId)
+      : [],
+  })
+}
+
 /**
  *
  * @param chatId
@@ -913,7 +936,7 @@ subscribe(
     chatId: 'string',
     message: 'string',
     continue: 'boolean?',
-    adapter: 'string',
+    adapter: 'string?',
     extras: ['string?'],
     meta: 'any?',
     retries: ['string?'],
@@ -932,6 +955,12 @@ subscribe(
 
     const prev = msgs.find((msg) => msg._id === body.messageId)
     const char = prev?.characterId ? characters.map[prev?.characterId] : undefined
+
+    // An image attached to an existing message (e.g. the native image tool) arrives
+    // via `extras` on a message-retry. Stop the spinner for that message.
+    if (body.extras?.length) {
+      stopImageSpinner(body.messageId)
+    }
 
     msgStore.setState({
       partial: undefined,
@@ -1137,7 +1166,20 @@ subscribe('chat-query', { requestId: 'string', response: 'string' }, (body) => {
   queryCallbacks.delete(body.requestId)
 })
 
+subscribe(
+  'image-generation-started',
+  { chatId: 'string?', messageId: 'string?', requestId: 'string?' },
+  (body) => {
+    const { activeChatId } = msgStore.getState()
+    if (!body.messageId) return
+    if (body.chatId && body.chatId !== activeChatId) return
+    startImageSpinner(body.messageId)
+  }
+)
+
 subscribe('image-failed', { chatId: 'string', error: 'string' }, (body) => {
+  const { activeChatId } = msgStore.getState()
+  if (body.chatId === activeChatId) stopImageSpinner()
   msgStore.setState({ waiting: undefined })
   toastStore.error(body.error)
 })
@@ -1146,6 +1188,8 @@ subscribe(
   'image-generated',
   { chatId: 'string', image: 'string', messageId: 'string?' },
   (body) => {
+    const { activeChatId } = msgStore.getState()
+    if (body.chatId === activeChatId) stopImageSpinner(body.messageId)
     handleImage(body.chatId, body.image, body.messageId)
   }
 )

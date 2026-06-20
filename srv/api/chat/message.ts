@@ -467,9 +467,10 @@ export const generateMessageV2 = handle(async (req, res) => {
       treeLeafId = requestId
 
       // Native image tool requested an image: generate it via Z-Image using the
-      // replying character's LoRA as its OWN image message (not appended onto the
-      // text reply — that would replace the text with an image). Fire-and-forget;
-      // it broadcasts a new message over WS and persists for refresh.
+      // replying character's LoRA and attach it to the just-created reply message
+      // (in its `extras`, below the text) so it behaves like the in-chat image
+      // generation — spinner on the reply, then the image attached. Fire-and-forget;
+      // it broadcasts a `message-retry` over WS and persists for refresh.
       if (imageTool?.prompt) {
         generateImage(
           {
@@ -479,7 +480,9 @@ export const generateMessageV2 = handle(async (req, res) => {
             characterId: replyAs._id,
             source: 'tool',
             requestId: v4(),
-            parentId: requestId,
+            messageId: requestId,
+            append: true,
+            parentId: undefined,
           },
           log
         ).catch((err) => log.error({ err }, 'Image tool generation failed'))

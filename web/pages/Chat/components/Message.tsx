@@ -103,6 +103,7 @@ const Message: Component<MessageProps> = (props) => {
   const [ctx] = useAppContext()
   const user = userStore()
   const state = chatStore()
+  const msgState = msgStore()
   const [edit, setEdit] = createSignal(false)
   const isBot = !!props.msg.characterId
   const isUser = !!props.msg.userId
@@ -120,6 +121,10 @@ const Message: Component<MessageProps> = (props) => {
 
   onMount(() => obs().observe(avatarRef))
   onCleanup(() => obs().disconnect())
+
+  const isGeneratingImage = createMemo(() =>
+    msgState.imagesGenerating.includes(props.msg._id)
+  )
 
   const format = createMemo(() => ({ size: user.ui.avatarSize, corners: user.ui.avatarCorners }))
   const content = createMemo(() => {
@@ -475,6 +480,29 @@ const Message: Component<MessageProps> = (props) => {
                   ></div>
                 </Match>
               </Switch>
+              {/* For non-image messages (e.g. the native image tool attaches its
+                  result to the assistant reply), render attached `extras` images
+                  below the text, plus a loading spinner while one generates. */}
+              <Show when={props.msg.adapter !== 'image' && !edit()}>
+                <Show when={(props.msg.extras?.length || 0) > 0 || isGeneratingImage()}>
+                  <div class="mt-2 flex flex-wrap items-center gap-2">
+                    <For each={props.msg.extras || []}>
+                      {(src, i) => (
+                        <img
+                          class={'mt-2 max-h-32 max-w-[unset] cursor-pointer rounded-md'}
+                          src={getAssetUrl(src)}
+                          onClick={() =>
+                            settingStore.showImage(src, [toImageDeleteButton(props.msg._id, i() + 1)])
+                          }
+                        />
+                      )}
+                    </For>
+                    <Show when={isGeneratingImage()}>
+                      <Spinner />
+                    </Show>
+                  </div>
+                </Show>
+              </Show>
             </div>
           </div>
           <Show when={!edit()}>{props.last && props.children}</Show>
