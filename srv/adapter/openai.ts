@@ -74,6 +74,62 @@ const IMAGE_TOOL_KINDS = new Set([
   'retry',
 ])
 
+/**
+ * Roleplay finetunes with a name-prefilled prompt format don't reliably emit
+ * native tool_calls. By default we use in-band MARKERS the model writes inside
+ * its reply, which the server parses out. Set CHARLUV_NATIVE_TOOLS=1 to use the
+ * native OpenAI tools/tool_calls path instead.
+ */
+const NATIVE_TOOLS = process.env.CHARLUV_NATIVE_TOOLS === '1'
+
+const IMG_MARKER = /<image>([\s\S]*?)<\/image>/gi
+const MEM_MARKER = /<remember>([\s\S]*?)<\/remember>/gi
+
+function markerInstructions(charName: string, userName: string, image: boolean, memory: boolean) {
+  const lines: string[] = []
+  if (image)
+    lines.push(
+      `- To SHOW an image, include on its own: <image>concise, comma-separated visual description from ${charName}'s point of view, no names</image>`
+    )
+  if (memory)
+    lines.push(
+      `- To REMEMBER a lasting fact about ${userName}, include: <remember>the fact, written in third person</remember>`
+    )
+  if (!lines.length) return ''
+  return (
+    `\n\nYou have special inline abilities. Write these tags as part of your reply; the system processes them and hides them from ${userName}:\n` +
+    lines.join('\n') +
+    `\nUse them naturally and only when it fits the moment.`
+  )
+}
+
+/** Remove marker tags (and any still-streaming unclosed/partial tag) from text. */
+function stripMarkers(text: string): string {
+  return text
+    .replace(IMG_MARKER, '')
+    .replace(MEM_MARKER, '')
+    .replace(/<image>[\s\S]*$/i, '')
+    .replace(/<remember>[\s\S]*$/i, '')
+    .replace(/<\/?(i(mage)?|r(emember)?)?$/i, '')
+}
+
+function parseMarkers(text: string) {
+  const images: string[] = []
+  const facts: string[] = []
+  let m: RegExpExecArray | null
+  IMG_MARKER.lastIndex = 0
+  while ((m = IMG_MARKER.exec(text))) {
+    const v = m[1].trim()
+    if (v) images.push(v)
+  }
+  MEM_MARKER.lastIndex = 0
+  while ((m = MEM_MARKER.exec(text))) {
+    const v = m[1].trim()
+    if (v) facts.push(v)
+  }
+  return { images, facts }
+}
+
 type CompletionContent<T> = Array<{ finish_reason: string; index: number } & ({ text: string } | T)>
 
 export type Inference = { message: { content: string; role: ChatRole } }
@@ -147,16 +203,33 @@ export const handleOAI: ModelAdapter = async function* (opts) {
   const replyKind = useChat && IMAGE_TOOL_KINDS.has(kind as string)
   const imageToolEnabled = replyKind && isZImageConfigured()
   const memoryToolEnabled = replyKind
-  const tools: any[] = []
-  if (imageToolEnabled) tools.push(IMAGE_TOOL)
-  if (memoryToolEnabled) tools.push(REMEMBER_TOOL)
-  if (tools.length) {
-    body.tools = tools
-    body.tool_choice = 'auto'
-    log.debug(
-      { tools: tools.map((t) => t.function.name), tool_choice: body.tool_choice },
-      'tools: attached to request'
+  // marker mode (default) injects instructions into the system message; native
+  // mode attaches OpenAI tools[]. Both feed the same downstream (meta.imageTool /
+  // meta.rememberFacts).
+  const markerMode = !NATIVE_TOOLS && (imageToolEnabled || memoryToolEnabled)
+
+  if (NATIVE_TOOLS) {
+    const tools: any[] = []
+    if (imageToolEnabled) tools.push(IMAGE_TOOL)
+    if (memoryToolEnabled) tools.push(REMEMBER_TOOL)
+    if (tools.length) {
+      body.tools = tools
+      body.tool_choice = 'auto'
+      log.debug(
+        { tools: tools.map((t) => t.function.name), tool_choice: body.tool_choice },
+        'tools: attached to request'
+      )
+    }
+  } else if (markerMode && Array.isArray(body.messages) && body.messages[0]?.role === 'system') {
+    const instr = markerInstructions(
+      opts.replyAs?.name || char?.name || 'the character',
+      handle,
+      imageToolEnabled,
+      memoryToolEnabled
     )
+    // Prepend (not append) so it isn't read as part of the trailing "<name>:" cue.
+    if (instr) body.messages[0].content = `${instr.trim()}\n\n${body.messages[0].content}`
+    log.debug({ imageToolEnabled, memoryToolEnabled }, 'tools: marker instructions injected')
   }
 
   if (gen.antiBond) body.logit_bias = { 3938: -50, 11049: -50, 64186: -50, 3717: -25 }
@@ -220,16 +293,25 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     // Only the streaming generator yields individual tokens.
     if ('token' in generated.value) {
       accumulated += generated.value.token
-      yield { partial: sanitiseAndTrim(accumulated, prompt, char, opts.characters, members) }
+      const shown = markerMode ? stripMarkers(accumulated) : accumulated
+      yield { partial: sanitiseAndTrim(shown, prompt, char, opts.characters, members) }
     }
   }
 
   try {
-    // Parse any native tool calls. Streaming returns tool_calls on the choice;
-    // non-streaming nests them under choice.message.
-    const choice0 = response?.choices?.[0] as any
-    const toolCalls: any[] = choice0?.tool_calls || choice0?.message?.tool_calls || []
-    if (tools.length) {
+    let text = getCompletionContent(response, log)
+    if (text instanceof Error) {
+      yield { error: `OpenAI returned an error: ${text.message}` }
+      return
+    }
+
+    let imagePrompt = ''
+    const rememberFacts: string[] = []
+
+    if (NATIVE_TOOLS) {
+      // Streaming returns tool_calls on the choice; non-streaming nests under message.
+      const choice0 = response?.choices?.[0] as any
+      const toolCalls: any[] = choice0?.tool_calls || choice0?.message?.tool_calls || []
       log.debug(
         {
           finish_reason: choice0?.finish_reason,
@@ -238,54 +320,47 @@ export const handleOAI: ModelAdapter = async function* (opts) {
         },
         'tools: response tool_calls'
       )
-    }
-    const toolArgs = (name: string) => {
-      const call = toolCalls.find((t: any) => t?.function?.name === name)
-      if (!call?.function?.arguments) return undefined
-      try {
-        return JSON.parse(call.function.arguments)
-      } catch {
-        log.warn({ args: call.function.arguments }, `Bad ${name} tool arguments`)
-        return undefined
-      }
-    }
-
-    // Image tool → a prompt to generate.
-    let imagePrompt = ''
-    if (imageToolEnabled) {
-      const args = toolArgs('generate_image')
-      if (typeof args?.prompt === 'string') imagePrompt = args.prompt.trim()
-    }
-
-    // Memory tool → one or more facts to remember (the model may call it more than once).
-    const rememberFacts: string[] = []
-    if (memoryToolEnabled) {
-      for (const t of toolCalls) {
-        if (t?.function?.name !== 'remember' || !t.function.arguments) continue
+      if (imageToolEnabled) {
+        const call = toolCalls.find((t: any) => t?.function?.name === 'generate_image')
         try {
-          const args = JSON.parse(t.function.arguments)
-          if (typeof args?.fact === 'string' && args.fact.trim()) rememberFacts.push(args.fact.trim())
+          const args = call?.function?.arguments ? JSON.parse(call.function.arguments) : undefined
+          if (typeof args?.prompt === 'string') imagePrompt = args.prompt.trim()
         } catch {
-          log.warn({ args: t.function.arguments }, 'Bad remember tool arguments')
+          log.warn({ args: call?.function?.arguments }, 'Bad generate_image tool arguments')
         }
       }
+      if (memoryToolEnabled) {
+        for (const t of toolCalls) {
+          if (t?.function?.name !== 'remember' || !t.function.arguments) continue
+          try {
+            const args = JSON.parse(t.function.arguments)
+            if (typeof args?.fact === 'string' && args.fact.trim())
+              rememberFacts.push(args.fact.trim())
+          } catch {
+            log.warn({ args: t.function.arguments }, 'Bad remember tool arguments')
+          }
+        }
+      }
+    } else if (markerMode && typeof text === 'string') {
+      // Parse in-band markers the model wrote, then strip them from the reply.
+      const { images, facts } = parseMarkers(text)
+      if (imageToolEnabled && images[0]) imagePrompt = images[0]
+      if (memoryToolEnabled) rememberFacts.push(...facts)
+      text = stripMarkers(text).trim()
+      if (imagePrompt || rememberFacts.length) {
+        log.debug({ image: !!imagePrompt, facts: rememberFacts.length }, 'tools: markers parsed')
+      }
     }
 
-    let text = getCompletionContent(response, log)
-    if (text instanceof Error) {
-      yield { error: `OpenAI returned an error: ${text.message}` }
-      return
-    }
-
-    // Empty text is only an error when there's no tool call to act on (the model
-    // may reply with just an image or just a memory write).
+    // Empty text is only an error when there's no tool action to surface (the
+    // model may reply with just an image or a memory write).
     if (!text?.length && !imagePrompt && !rememberFacts.length) {
       log.error({ body: response }, 'OpenAI request failed: Empty response')
       yield { error: `OpenAI request failed: Received empty response. Try again.` }
       return
     }
 
-    // Surface tool calls so the message handler can act on them.
+    // Surface tool intent so the message handler can act on it.
     if (imagePrompt || rememberFacts.length) {
       yield {
         meta: {
@@ -295,8 +370,9 @@ export const handleOAI: ModelAdapter = async function* (opts) {
       }
     }
 
+    const swipeText = markerMode ? stripMarkers(accumulated).trim() : accumulated
     gen.swipesPerGeneration! > 1
-      ? yield sanitiseAndTrim(accumulated, prompt, char, opts.characters, members)
+      ? yield sanitiseAndTrim(swipeText, prompt, char, opts.characters, members)
       : yield sanitiseAndTrim(text || '', prompt, opts.replyAs, opts.characters, members)
   } catch (ex: any) {
     log.error({ err: ex }, 'OpenAI failed to parse')
