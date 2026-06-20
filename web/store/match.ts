@@ -17,6 +17,7 @@ type Matchesstate = {
     loading: boolean
     loaded: boolean
     list: AppSchema.Character[]
+    selected?: AppSchema.Character
   }
 }
 
@@ -109,28 +110,52 @@ export const matchStore = createStore<Matchesstate>('Match', {
         return { characters: { list: chx, loaded: true } }
       }
     },
-    createMatch: async (_, char: AppSchema.Character, navi) => {
-      const form = new FormData()
-
-      const res = await api.post(`/match/${char._id}`)
+    createMatch: async (
+      _,
+      char: AppSchema.Character,
+      navi: (url: string) => void,
+      name?: string
+    ) => {
+      const res = await api.post(`/match/${char._id}`, { name })
 
       if (res.error) toastStore.error(`Failed to create Match: ${res.error}`)
       else {
         toastStore.success(`Successfully created Match`)
 
-        // const props = charsIds().list[charsIds().list.length - 1];
-        // console.log(charsIds().list,this.id,charsIds().list[charsIds().list.length - 1],props);
-        const charId = res.result?._id
+        const clone = res.result as AppSchema.Character
 
-        // Refresh the character list so the freshly-cloned copy is available to
-        // the create-chat form (otherwise it isn't selectable or loaded).
+        // Refresh the character list so the freshly-cloned copy is available
+        // (otherwise it isn't selectable or loaded).
         await characterStore.getCharacters(true)
 
-        navi(`/chats/create/${charId}`)
+        // Create a chat directly and jump straight into it, skipping the
+        // create-chat form step entirely.
+        chatStore.createChat(
+          clone._id,
+          {
+            name: clone.name,
+            greeting: clone.greeting,
+            scenario: clone.scenario,
+            sampleChat: clone.sampleChat,
+            useOverrides: false,
+          },
+          (chatId) => navi(`/chat/${chatId}`)
+        )
 
         return true
       }
-      debugger
+    },
+
+    getDiscoverChar: async (_, id: string) => {
+      const res = await api.get(`/match/${id}`)
+
+      if (res.error) {
+        toastStore.error(`Failed to load companion`)
+        return
+      }
+
+      set({ discover: { ...get().discover, selected: res.result } })
+      return res.result as AppSchema.Character
     },
   }
 })

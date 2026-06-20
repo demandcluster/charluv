@@ -52,7 +52,7 @@ const Discover: Component = () => {
     debounce = setTimeout(load, 300)
   }
 
-  const pick = (char: AppSchema.Character) => matchStore.createMatch(char, navigate)
+  const pick = (char: AppSchema.Character) => navigate(`/discover/${char._id}`)
 
   return (
     <div class="dsc-root">

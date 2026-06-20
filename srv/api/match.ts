@@ -3,7 +3,7 @@ import { assertValid } from 'frisker'
 import { store } from '../db'
 import { v4 } from 'uuid'
 import { loggedIn } from './auth'
-import { handle, StatusError } from './wrap'
+import { handle, StatusError, errors } from './wrap'
 //import { handleUpload } from './upload'
 import { now } from '../db/util'
 import { PERSONA_FORMATS } from '../../common/adapters'
@@ -89,6 +89,9 @@ const createCharacter = handle(async (req) => {
     newChar.createdAt = now()
     newChar.updatedAt = now()
   }
+  if (newChar && req.body?.name) {
+    newChar.name = String(req.body.name)
+  }
   if (newChar?._id) {
     const char = await store.characters.createCharacter(userId!, newChar)
     return char
@@ -97,10 +100,21 @@ const createCharacter = handle(async (req) => {
   }
 })
 
+const getDiscoverChar = handle(async (req) => {
+  const id = req.params.id || ''
+  const { userId } = req?.user || { userId: '' }
+
+  const char = await store.matches.getMatch(userId, id)
+  if (!char) throw errors.NotFound
+
+  return char
+})
+
 router.use(loggedIn)
 //router.post('/', createMatch)
 router.get('/', getMatches)
 router.get('/discover', discover)
+router.get('/:id', getDiscoverChar)
 router.post('/:id', createCharacter)
 //router.post('/:id', editMatch)
 //router.get('/:id', getMatch)
