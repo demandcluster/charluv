@@ -41,7 +41,10 @@ export async function toChatCompletionPayload(
   maxTokens: number
 ): Promise<CompletionItem[]> {
   if (opts.kind === 'plain') {
-    return [{ role: 'system', content: opts.prompt }]
+    // One-off utility prompts (inference/CYOA/summary/image-prompt) are a single
+    // blob. Send as `user` not `system`: the self-hosted endpoint rejects
+    // requests with no user-role message ("No user query found in messages").
+    return [{ role: 'user', content: opts.prompt }]
   }
 
   const { lines, gen, replyAs } = opts

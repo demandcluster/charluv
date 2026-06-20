@@ -151,6 +151,16 @@ export const config = {
     textUrl: env('INFERENCE_TEXT_URL', ''),
     textApiKey: env('INFERENCE_TEXT_KEY', ''),
     textModel: env('INFERENCE_TEXT_MODEL', ''),
+    /**
+     * Self-hosted Z-Image backend (separate from text). Does text-to-image and
+     * character-consistent generation via i2L: encode a character's reference
+     * images once into a stored LoRA (POST <imageUrl>/v1/encode), then generate
+     * that character forever (POST <imageUrl>/v1/generate with lora_name).
+     * Auth is an `X-API-Key` header. When set, all image generation routes here
+     * regardless of a chat/user's stored image `type`. No data migration.
+     */
+    imageUrl: env('ZIMAGE_BASE_URL', env('INFERENCE_IMAGE_URL', '')),
+    imageApiKey: env('ZIMAGE_API_KEY', env('INFERENCE_IMAGE_KEY', '')),
   },
   keys: {
     REPLICATE: env('REPLICATE_KEY', ''),

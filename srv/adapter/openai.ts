@@ -63,7 +63,9 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     !!OPENAI_CHAT_MODELS[oaiModel]
   if (useChat) {
     const messages: CompletionItem[] = config.inference.flatChatCompletion
-      ? [{ role: 'system', content: opts.prompt }]
+      ? // `user` not `system`: the self-hosted endpoint rejects requests with no
+        // user-role message ("No user query found in messages").
+        [{ role: 'user', content: opts.prompt }]
       : await toChatCompletionPayload(
           opts,
           getTokenCounter('openai', OPENAI_MODELS.Turbo),

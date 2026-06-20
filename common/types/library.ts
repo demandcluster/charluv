@@ -86,6 +86,20 @@ export interface Character extends BaseCharacter {
   creator?: string
   characterVersion?: string
   imageSettings?: BaseImageSettings
+
+  // --- Z-Image character-consistent generation (i2L) ---
+  /**
+   * Name of the stored Z-Image LoRA encoding this character's identity. Returned
+   * by POST /v1/encode; passed as `lora_name` to /v1/generate for every image.
+   */
+  loraName?: string
+  /**
+   * Locked seed used to bootstrap a consistent reference set at create time
+   * (before the LoRA exists). Reusing it keeps pre-LoRA previews coherent.
+   */
+  imageSeed?: number
+  /** Multi-image gallery (saved image URLs/filenames). `avatar` is the cover. */
+  gallery?: string[]
 }
 
 export interface LibraryCharacter extends Omit<Character, 'kind' | 'tags'> {

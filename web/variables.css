@@ -226,6 +226,18 @@
   --coolgray-900: #111827;
   --coolgray-1000: #0b111f;
 
+  /* Charluv "warm dusk" — plum-tinted neutrals (matches the Discover gallery) */
+  --plum-100: #f5eef2;
+  --plum-200: #e9dde4;
+  --plum-300: #d4c2cd;
+  --plum-400: #a98fa1;
+  --plum-500: #7d6374;
+  --plum-600: #5a4453;
+  --plum-700: #3e2d3a;
+  --plum-800: #2a1c26;
+  --plum-900: #1a1016;
+  --plum-1000: #140c11;
+
   --highlight: rgb(14 165 233);
 
   --rgba-chat-bot: rgba(0, 0, 0);

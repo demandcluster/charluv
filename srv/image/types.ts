@@ -21,6 +21,10 @@ export type ImageRequestOpts = {
   prompt: string
   negative: string
   settings: BaseImageSettings | undefined
+  /** Z-Image stored LoRA to generate the character from (i2L Mode A). */
+  loraName?: string
+  /** Locked seed for reproducible/consistent generation. */
+  seed?: number
 }
 
 export type ImageAdapter = (
@@ -29,4 +33,4 @@ export type ImageAdapter = (
   guestId?: string
 ) => Promise<ImageAdapterResponse>
 
-export type ImageAdapterResponse = { ext: string; content: Buffer | string }
+export type ImageAdapterResponse = { ext: string; content: Buffer | string; seed?: number }

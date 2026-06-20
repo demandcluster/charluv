@@ -8,6 +8,7 @@ import { saveFile } from '../api/upload'
 import { handleSDImage } from './stable-diffusion'
 import { sendGuest, sendMany, sendOne } from '../api/ws'
 import { handleHordeImage } from './horde'
+import { handleZImage, isZImageConfigured } from './zimage'
 
 const DEFAULT_NEGATIVE = ``
 
@@ -96,6 +97,25 @@ export async function generateImage(
   }
 
   try {
+    // image-endpoint-only: when the self-hosted Z-Image backend is configured,
+    // route all generation there regardless of the chat/user's stored `type`
+    // (production data is 'horde'). Generate from the character's stored LoRA
+    // (i2L Mode A) when present, with its locked seed for consistency. No data
+    // migration required.
+    if (isZImageConfigured()) {
+      image = await handleZImage(
+        {
+          user,
+          prompt,
+          negative,
+          settings: imageSettings,
+          loraName: character?.loraName,
+          seed: character?.imageSeed,
+        },
+        log,
+        guestId
+      )
+    } else
     switch (imageSettings?.type || 'horde') {
       case 'novel':
         image = await handleNovelImage(
