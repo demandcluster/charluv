@@ -85,6 +85,7 @@ const App: Component = () => {
       <Route path="/chat/:id" component={ChatDetail} />
       <Route path="/discover" component={lazy(() => import('./pages/Discover'))} />
       <Route path="/discover/:id" component={lazy(() => import('./pages/Discover/Profile'))} />
+      <Route path="/create" component={lazy(() => import('./pages/Create'))} />
       <Route path="/mine" component={lazy(() => import('./pages/MyAI'))} />
       <Route path="/info" component={HomePage} />
       <Route

@@ -740,7 +740,6 @@ const Sounds: Component<{}> = (props) => {
 }
 
 const CharacterLink = () => {
-  const user = userStore()
   return (
     <MultiItem>
       <Item
@@ -752,11 +751,6 @@ const CharacterLink = () => {
         <Heart aria-hidden="true" />
         <span aria-hidden="true"> Matches </span>
       </Item>
-      <EndItem>
-        <A class="icon-button" href="/editor" role="button" aria-label="Add a new character">
-          <Plus aria-hidden="true" />
-        </A>
-      </EndItem>
     </MultiItem>
   )
 }

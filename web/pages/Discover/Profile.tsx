@@ -56,6 +56,9 @@ const Profile: Component = () => {
     return c?.ageRange || attr(c, 'age')
   })
 
+  // Just the number, for the "Julia, 18" title (age may be "18", "18-21", "18 years old").
+  const ageShort = createMemo(() => age()?.match(/\d+/)?.[0] || '')
+
   const description = createMemo(() => {
     const c = char()
     return attr(c, 'description') || c?.description || ''
@@ -109,9 +112,12 @@ const Profile: Component = () => {
 
           {/* Detail */}
           <div class="dpf-detail">
-            <Show when={age()}>
-              <div class="dpf-age">Age {age()}</div>
-            </Show>
+            <h1 class="dpf-title">
+              {name() || char()!.name}
+              <Show when={ageShort()}>
+                <span class="dpf-title-age">, {ageShort()}</span>
+              </Show>
+            </h1>
 
             <div class="dpf-field">
               <TextInput

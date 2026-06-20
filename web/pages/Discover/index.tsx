@@ -1,5 +1,6 @@
 import { Component, For, Show, createMemo, createSignal, onMount } from 'solid-js'
-import { useNavigate } from '@solidjs/router'
+import { A, useNavigate } from '@solidjs/router'
+import { Sparkles } from 'lucide-solid'
 import './discover.css'
 import { matchStore, DiscoverFilters } from '../../store/match'
 import { getAssetUrl } from '../../shared/util'
@@ -57,9 +58,14 @@ const Discover: Component = () => {
   return (
     <div class="dsc-root">
       <header class="dsc-head">
-        <h1 class="dsc-title">
-          Find your <em>someone</em>
-        </h1>
+        <div class="dsc-headline">
+          <h1 class="dsc-title">
+            Find your <em>someone</em>
+          </h1>
+          <A class="dsc-create" href="/create">
+            <Sparkles size={17} /> Create your dream date
+          </A>
+        </div>
         <p class="dsc-tag">
           Companions who grow with you. Start a conversation — your relationship deepens the more you
           talk.
