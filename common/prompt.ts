@@ -496,12 +496,9 @@ export async function buildPromptParts(
     post.unshift(`${char.name}: ${opts.continue}`)
   }
 
-  const linesForMemory = [...lines].reverse()
-  const books: AppSchema.MemoryBook[] = []
-  if (replyAs.characterBook) books.push(replyAs.characterBook)
-  if (opts.book) books.push(opts.book)
-
-  parts.memory = await buildMemoryPrompt({ ...opts, books, lines: linesForMemory }, encoder)
+  // Legacy keyword memory books are disabled — long-term memory (RAG) replaces
+  // them and fills the {{memory}} slot server-side at generation time.
+  parts.memory = undefined
 
   const supplementary = getSupplementaryParts(opts, replyAs)
   parts.ujb = supplementary.ujb
@@ -951,22 +948,10 @@ export function resolveScenario(
   mainChar: AppSchema.Character,
   books: AppSchema.ScenarioBook[]
 ) {
-  if (chat.overrides) return chat.scenario || ''
-
-  let result = mainChar.scenario
-
-  for (const book of books) {
-    if (book.overwriteCharacterScenario) {
-      result = book.text || ''
-      break
-    }
-  }
-
-  for (const book of books) {
-    if (!book.overwriteCharacterScenario) {
-      result += `\n${book.text}`
-    }
-  }
+  // Attached scenario books are disabled — relationship progression (the LEVEL
+  // token) replaces the event/state-machine scenarios. Only the character's
+  // initial scenario remains (or the chat's overridden scenario).
+  const result = chat.overrides ? chat.scenario || '' : mainChar.scenario || ''
 
   return prependCharluvMeta(prependProgressionStage(result.trim(), mainChar), mainChar)
 }
