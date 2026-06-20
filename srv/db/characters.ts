@@ -44,6 +44,9 @@ export type CharacterUpdate = Partial<
     | 'ageRange'
     | 'category'
     | 'nsfw'
+    | 'loraName'
+    | 'imageSeed'
+    | 'gallery'
   >
 >
 
@@ -88,6 +91,9 @@ export async function createCharacter(
     | 'ageRange'
     | 'category'
     | 'nsfw'
+    | 'loraName'
+    | 'imageSeed'
+    | 'gallery'
   >
 ) {
   const newChar: AppSchema.Character = {

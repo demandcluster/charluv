@@ -4,7 +4,7 @@ import { store } from '../db'
 
 import { loggedIn, isAdmin } from './auth'
 import { errors, handle, StatusError } from './wrap'
-import { entityUpload, entityUploadBase64, handleForm } from './upload'
+import { entityUpload, entityUploadBase64, entityUploadBase64Unique, handleForm } from './upload'
 import { PERSONA_FORMATS } from '../../common/adapters'
 import { AppSchema } from '../../common/types/schema'
 import { CharacterUpdate } from '../db/characters'
@@ -46,6 +46,7 @@ const characterForm = {
   ageRange: 'string?',
   category: 'string?',
   nsfw: 'any?',
+  loraName: 'string?',
 
   favorite: 'boolean?',
   voice: 'string?',
@@ -149,6 +150,7 @@ const createCharacter = handle(async (req) => {
     ageRange: body.ageRange || undefined,
     category,
     nsfw: body.nsfw?.toString() === 'true' || undefined,
+    loraName: body.loraName || undefined,
     share: body.share,
     sampleChat: body.sampleChat,
     description: body.description,
@@ -437,6 +439,7 @@ const editFullCharacter = handle(async (req) => {
     ageRange: body.ageRange || undefined,
     category: body.category ? JSON.parse(body.category) : undefined,
     nsfw: body.nsfw?.toString() === 'true' || undefined,
+    loraName: body.loraName || undefined,
   }
 
   if (body.persona) {
@@ -487,6 +490,40 @@ const getCharacter = handle(async ({ userId, params }) => {
     throw new StatusError('Character not found', 404)
   }
   return char
+})
+
+/** Max images stored per character gallery. The LoRA reference set is a user-
+ * picked subset of these (max 4, the Z-Image encode limit). */
+const MAX_GALLERY = 10
+
+const addGalleryImage = handle(async ({ userId, params, body }) => {
+  assertValid({ image: 'string' }, body)
+
+  const char = await store.characters.getCharacter(userId!, params.id)
+  if (!char) throw errors.NotFound
+
+  const gallery = (char.gallery || []).slice()
+  if (gallery.length >= MAX_GALLERY) {
+    throw new StatusError(`Gallery is full (max ${MAX_GALLERY} images)`, 400)
+  }
+
+  const url = await entityUploadBase64Unique('char-gallery', params.id, body.image)
+  if (!url) throw new StatusError('Invalid image data', 400)
+
+  gallery.push(url)
+  await store.characters.updateCharacter(params.id, userId!, { gallery })
+  return { gallery }
+})
+
+const removeGalleryImage = handle(async ({ userId, params, body }) => {
+  assertValid({ url: 'string' }, body)
+
+  const char = await store.characters.getCharacter(userId!, params.id)
+  if (!char) throw errors.NotFound
+
+  const gallery = (char.gallery || []).filter((url) => url !== body.url)
+  await store.characters.updateCharacter(params.id, userId!, { gallery })
+  return { gallery }
 })
 
 const deleteCharacter = handle(async ({ userId, params }) => {
@@ -566,6 +603,8 @@ router.get('/:id', getCharacter)
 router.delete('/:id', loggedIn, deleteCharacter)
 router.post('/:id/favorite', editCharacterFavorite)
 router.delete('/:id/avatar', removeAvatar)
+router.post('/:id/gallery', addGalleryImage)
+router.delete('/:id/gallery', removeGalleryImage)
 router.post('/bulk-update', bulkUpdate)
 
 export default router

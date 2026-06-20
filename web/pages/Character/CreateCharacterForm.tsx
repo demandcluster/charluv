@@ -569,6 +569,12 @@ export const CreateCharacterForm: Component<{
                 </div>
               </Card>
 
+              <CharacterGallery
+                editor={editor}
+                charId={props.editId}
+                initial={state.edit?.gallery}
+              />
+
               <Card>
                 <TextInput
                   fieldName="scenario"
@@ -668,6 +674,14 @@ export const CreateCharacterForm: Component<{
                   ]}
                   onChange={(opt) => editor.update('nsfw', !!opt.value)}
                   selected={editor.state.nsfw}
+                />
+                <TextInput
+                  fieldName="loraName"
+                  label="Image LoRA name"
+                  helperText="Z-Image stored LoRA for character-consistent image generation. Temporary/manual for testing."
+                  placeholder="e.g. ashelle-1a2b3c4d"
+                  value={editor.state.loraName ?? ''}
+                  onChange={(ev) => editor.update('loraName', ev.currentTarget.value)}
                 />
               </Card>
 
@@ -1243,5 +1257,142 @@ const ReelControl: Component<{ editor: CharEditor; loading: boolean }> = (props)
         </Button>
       </div>
     </div>
+  )
+}
+
+const GALLERY_MAX = 10
+const LORA_MAX = 4
+
+const CharacterGallery: Component<{
+  editor: CharEditor
+  charId?: string
+  initial?: string[]
+}> = (props) => {
+  const [gallery, setGallery] = createSignal<string[]>(props.initial || [])
+  const [selected, setSelected] = createSignal<string[]>([])
+  const [busy, setBusy] = createSignal(false)
+
+  const full = () => gallery().length >= GALLERY_MAX
+  const isSelected = (url: string) => selected().includes(url)
+
+  const toggleSelected = (url: string) => {
+    if (isSelected(url)) {
+      setSelected(selected().filter((u) => u !== url))
+      return
+    }
+    if (selected().length >= LORA_MAX) {
+      toastStore.warn(`Pick at most ${LORA_MAX} images for the LoRA`)
+      return
+    }
+    setSelected([...selected(), url])
+  }
+
+  const add = async (base64?: string) => {
+    if (!props.charId) {
+      toastStore.warn('Save the character first to build its gallery')
+      return
+    }
+    if (!base64) return
+    if (full()) {
+      toastStore.warn(`Gallery is full (max ${GALLERY_MAX} images)`)
+      return
+    }
+
+    setBusy(true)
+    const res = await charsApi.addGalleryImage(props.charId, base64)
+    setBusy(false)
+    if (res.result && 'gallery' in res.result) setGallery(res.result.gallery)
+    else if (res.error) toastStore.error(`Could not add image: ${res.error}`)
+  }
+
+  const generate = async () => {
+    setBusy(true)
+    const base64 = await props.editor.createAvatar().catch(() => undefined)
+    setBusy(false)
+    await add(base64 || undefined)
+  }
+
+  const upload = async (files: FileInputResult[]) => {
+    const file = files[0]?.file
+    if (!file) return
+    const base64 = await imageApi.getImageData(file)
+    await add(base64)
+  }
+
+  const remove = async (url: string) => {
+    if (!props.charId) return
+    setSelected(selected().filter((u) => u !== url))
+    setBusy(true)
+    const res = await charsApi.removeGalleryImage(props.charId, url)
+    setBusy(false)
+    if (res.result && 'gallery' in res.result) setGallery(res.result.gallery)
+  }
+
+  return (
+    <Card class="flex flex-col gap-3">
+      <FormLabel
+        label="Image Gallery"
+        helperText={`Up to ${GALLERY_MAX} images of the same character. Click images to pick up to ${LORA_MAX} (3-4 recommended) as the reference set for the character's image LoRA.`}
+      />
+
+      <Show when={!props.charId}>
+        <div class="text-600 text-sm italic">
+          Save the character first, then add gallery images here.
+        </div>
+      </Show>
+
+      <Show when={props.charId}>
+        <div class="flex flex-wrap gap-2">
+          <For each={gallery()}>
+            {(url) => (
+              <div
+                class="relative h-24 w-24 cursor-pointer rounded-md"
+                classList={{
+                  'ring-2 ring-[var(--hl-500)]': isSelected(url),
+                }}
+                onClick={() => toggleSelected(url)}
+                title={isSelected(url) ? 'Selected for LoRA' : 'Click to select for LoRA'}
+              >
+                <img src={url} class="h-24 w-24 rounded-md object-cover" />
+                <Show when={isSelected(url)}>
+                  <div class="absolute left-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--hl-500)] text-xs font-bold text-white">
+                    {selected().indexOf(url) + 1}
+                  </div>
+                </Show>
+                <Button
+                  size="pill"
+                  schema="red"
+                  class="absolute right-1 top-1"
+                  onClick={(ev) => {
+                    ev.stopPropagation()
+                    remove(url)
+                  }}
+                  disabled={busy()}
+                >
+                  <Trash size={12} />
+                </Button>
+              </div>
+            )}
+          </For>
+          <Show when={!gallery().length}>
+            <div class="text-600 text-sm italic">No images yet.</div>
+          </Show>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <Button size="sm" onClick={generate} disabled={busy() || full()}>
+            Generate
+          </Button>
+          <FileInput
+            fieldName="galleryUpload"
+            accept="image/png,image/jpeg,image/webp"
+            onUpdate={upload}
+          />
+          <span class="text-600 text-sm">
+            {gallery().length}/{GALLERY_MAX} images · {selected().length}/{LORA_MAX} picked for LoRA
+          </span>
+        </div>
+      </Show>
+    </Card>
   )
 }

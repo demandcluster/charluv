@@ -385,9 +385,13 @@ export const generateMessageV2 = handle(async (req, res) => {
 
   let treeLeafId = ''
 
-  const credits = await store.credits.updateCredits(userId!, -10)
-  await store.scenario.updateCharXp(chat.characterId!, +1)
-  //sendOne(userId!, { type: 'credits-updated', credits })
+  // Summaries are a cheap utility generation (no user-facing message); don't
+  // charge credits or advance relationship XP for them.
+  if (body.kind !== 'summary') {
+    const credits = await store.credits.updateCredits(userId!, -10)
+    await store.scenario.updateCharXp(chat.characterId!, +1)
+    //sendOne(userId!, { type: 'credits-updated', credits })
+  }
 
   switch (body.kind) {
     case 'summary': {

@@ -22,6 +22,17 @@ export const charsApi = {
   getImageBuffer: getFileBuffer,
   setFavorite,
   publishCharacter,
+  addGalleryImage,
+  removeGalleryImage,
+}
+
+/** Add an image (base64 data url) to a saved character's reference gallery. */
+async function addGalleryImage(charId: string, image: string) {
+  return api.post<{ gallery: string[] }>(`/character/${charId}/gallery`, { image })
+}
+
+async function removeGalleryImage(charId: string, url: string) {
+  return api.method<{ gallery: string[] }>('delete', `/character/${charId}/gallery`, { url })
 }
 
 async function getCharacterDetail(charId: string) {

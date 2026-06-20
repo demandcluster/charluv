@@ -7,6 +7,7 @@ import { createReadStream, readdirSync } from 'fs'
 import { assertValid, Validator, UnwrapBody } from '/common/valid'
 import { config } from '../config'
 import { errors } from './wrap'
+import { v4 } from 'uuid'
 
 const s3 = new S3({
   region: 'us-east-1',
@@ -64,6 +65,16 @@ export async function entityUploadBase64(kind: string, id: string, content?: str
   const filename = `${kind}-${id}`
   const attachment = toAttachment(content)
   return upload(attachment, filename)
+}
+
+/**
+ * Like entityUploadBase64 but writes to a unique filename so multiple images can
+ * coexist (e.g. a character's image gallery). Returns the asset URL.
+ */
+export async function entityUploadBase64Unique(kind: string, id: string, content?: string) {
+  if (!content || !content.includes(',')) return
+  const attachment = toAttachment(content)
+  return upload(attachment, `${kind}-${id}-${v4().slice(0, 8)}`)
 }
 
 function toAttachment(content: string): Attachment {

@@ -61,6 +61,8 @@ type EditState = {
   ageRange?: string
   categoryValue?: string
   nsfw?: boolean
+  // Z-Image stored LoRA name (temp/manual for testing i2L Mode A generation).
+  loraName?: string
 
   avatar?: File
   originalAvatar?: any
@@ -159,6 +161,7 @@ const initState: EditState = {
   ageRange: '',
   categoryValue: '',
   nsfw: false,
+  loraName: '',
   tags: [],
   alternateGreetings: [],
   culture: defaultCulture,
@@ -397,6 +400,7 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
         ageRange: (char as any)?.ageRange ?? '',
         categoryValue: (char as any)?.category?.[0] ?? '',
         nsfw: (char as any)?.nsfw ?? false,
+        loraName: (char as any)?.loraName ?? '',
       })
     })
   }
@@ -524,6 +528,7 @@ function getPayload(ev: any, state: EditState, original?: NewCharacter) {
     ageRange: state.ageRange || undefined,
     category: state.categoryValue ? [state.categoryValue] : undefined,
     nsfw: state.nsfw || undefined,
+    loraName: state.loraName?.trim() || undefined,
 
     // New fields start here
     systemPrompt: body.systemPrompt ?? '',
