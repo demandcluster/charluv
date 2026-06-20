@@ -1,6 +1,7 @@
 import { v4 } from 'uuid'
 import { getDb } from '../db/client'
 import { embed } from './embed'
+import { logger } from '../middleware'
 
 /**
  * Long-term relationship memory. Scoped per user + character so memories persist
@@ -33,7 +34,10 @@ export async function rememberFact(
 
   // Skip near-duplicates (same character already has this exact fact).
   const existing = await collection().findOne({ userId, characterId, text: trimmed })
-  if (existing) return existing
+  if (existing) {
+    logger.debug({ characterId, text: trimmed }, 'memory: duplicate, skipped')
+    return existing
+  }
 
   const embedding = await embed(trimmed)
   const doc: LongTermMemory = {
@@ -46,6 +50,7 @@ export async function rememberFact(
     createdAt: new Date().toISOString(),
   }
   await collection().insertOne(doc)
+  logger.info({ characterId, source, text: trimmed }, 'memory: stored')
   return doc
 }
 
@@ -73,6 +78,12 @@ export async function recallMemories(
     .sort((a, b) => b.score - a.score)
     .slice(0, k)
 
+  if (scored.length) {
+    logger.debug(
+      { characterId, recalled: scored.map((s) => ({ score: +s.score.toFixed(3), text: s.d.text })) },
+      'memory: recalled'
+    )
+  }
   return scored.map((s) => s.d)
 }
 
