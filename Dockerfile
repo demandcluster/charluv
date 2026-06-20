@@ -12,6 +12,10 @@ ARG SHA=unknown
 
 ADD package.json pnpm-lock.yaml ./
 RUN pnpm i --frozen-lockfile
+# pnpm v10 skips dependency build scripts by default, so sharp's native binary
+# (pulled in by @xenova/transformers for long-term memory embeddings) is missing.
+# Force its install/build so the embedder can load at runtime.
+RUN pnpm rebuild sharp
 
 ADD tailwind.config.js tsconfig.json .babelrc .postcssrc .parcelrc .prettierrc srv.tsconfig.json vite.config.ts ./
 ADD common/ ./common/

@@ -89,19 +89,21 @@ function markerInstructions(charName: string, userName: string, image: boolean, 
   const lines: string[] = []
   if (image)
     lines.push(
-      `- Send a photo by writing a tag inline: <image>concise, comma-separated visual description of the photo, no names</image>. Charluv turns it into a real picture ${userName} sees in the chat.`
+      `- Share a photo with <image>concise, comma-separated visual description, no names</image>. ` +
+        `Only when ${userName} asks to see something or sharing a photo is a genuinely fitting moment — at most one per reply, not every message.`
     )
   if (memory)
     lines.push(
-      `- Remember something important about ${userName} by writing: <remember>the fact, in third person</remember>. Charluv saves it so ${charName} recalls it in future chats.`
+      `- Remember a fact with <remember>the fact, in third person</remember>. ` +
+        `Only for genuinely important, lasting details about ${userName} (name, job, preferences, promises) — never for routine chit-chat.`
     )
   if (!lines.length) return ''
   // Framed as a built-in Charluv platform capability (in-world), not a meta system
   // instruction — characters are far more likely to use it in-character.
   return (
-    `On Charluv, every companion can share photos and remember things about the people they talk to — it's a normal part of the platform:\n` +
+    `On Charluv, companions can share photos and remember things — it's a normal part of the platform:\n` +
     lines.join('\n') +
-    `\nWrite these tags as a natural part of your reply when it fits; the tag text itself is hidden from ${userName}.`
+    `\nWrite the tag inline as a natural part of your reply (don't announce or describe doing it); the tag text is hidden from ${userName}.`
   )
 }
 
