@@ -1308,7 +1308,8 @@ const CharacterGallery: Component<{
 
   const generate = async () => {
     setBusy(true)
-    const base64 = await props.editor.createAvatar().catch(() => undefined)
+    // createGalleryImage generates WITHOUT replacing the character's avatar.
+    const base64 = await props.editor.createGalleryImage().catch(() => undefined)
     setBusy(false)
     await add(base64 || undefined)
   }
@@ -1376,7 +1377,7 @@ const CharacterGallery: Component<{
                 onClick={() => toggleSelected(url)}
                 title={isSelected(url) ? 'Selected for LoRA' : 'Click to select for LoRA'}
               >
-                <img src={url} class="h-24 w-24 rounded-md object-cover" />
+                <img src={getAssetUrl(url)} class="h-24 w-24 rounded-md object-cover" />
                 <Show when={isSelected(url)}>
                   <div class="absolute left-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--hl-500)] text-xs font-bold text-white">
                     {selected().indexOf(url) + 1}

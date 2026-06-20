@@ -205,6 +205,7 @@ export async function editCharacter(
     appendFormOptional(form, 'ageRange', (char as any).ageRange)
     appendFormOptional(form, 'category', (char as any).category || [], JSON.stringify)
     appendFormOptional(form, 'nsfw', (char as any).nsfw)
+    appendFormOptional(form, 'loraName', (char as any).loraName)
 
     appendFormOptional(form, 'persona', JSON.stringify(char.persona))
     strictAppendFormOptional(form, 'description', char.description || '')
@@ -296,6 +297,7 @@ export async function createCharacter(char: NewCharacter) {
     appendFormOptional(form, 'ageRange', (char as any).ageRange)
     appendFormOptional(form, 'category', (char as any).category || [], JSON.stringify)
     appendFormOptional(form, 'nsfw', (char as any).nsfw)
+    appendFormOptional(form, 'loraName', (char as any).loraName)
     appendFormOptional(form, 'originalAvatar', char.originalAvatar)
     appendFormOptional(form, 'visualType', char.visualType)
     appendFormOptional(form, 'sprite', JSON.stringify(char.sprite))

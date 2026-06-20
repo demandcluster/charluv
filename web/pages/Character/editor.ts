@@ -314,6 +314,17 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
     return receiveAvatar(avatar)
   }
 
+  // Like createAvatar but returns the image as base64 WITHOUT setting it as the
+  // character's avatar (used to populate the gallery).
+  const createGalleryImage = async () => {
+    const current = payload()
+    const attributes = getAttributeMap(form())
+    const desc = current.appearance || (attributes?.appeareance || attributes?.looks)?.join(', ')
+    const file = await generateAvatar(desc || '')
+    if (!file) return
+    return imageApi.getImageData(file)
+  }
+
   const genField = async (field: string, trait?: string) => {
     const char = payload(false)
 
@@ -485,6 +496,7 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
     clear,
     genOptions,
     createAvatar,
+    createGalleryImage,
     receiveAvatar,
     avatar: imageData,
     generating,
