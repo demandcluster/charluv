@@ -1,4 +1,4 @@
-FROM node:22.14.0-bullseye-slim
+FROM node:22-bookworm-slim
 
 WORKDIR /app
 VOLUME [ "/app/db" ]
@@ -20,7 +20,7 @@ RUN for d in /app/node_modules/.pnpm/sharp@*/node_modules/sharp; do \
       if [ -d "$d" ]; then echo "Installing sharp binary in $d"; (cd "$d" && npm run install); fi; \
     done
 
-ADD tailwind.config.js tsconfig.json .babelrc .postcssrc .parcelrc .prettierrc srv.tsconfig.json vite.config.ts ./
+ADD tailwind.config.js tsconfig.json .babelrc .postcssrc .prettierrc srv.tsconfig.json vite.config.ts ./
 ADD common/ ./common/
 ADD srv/ ./srv/
 ADD web/ ./web

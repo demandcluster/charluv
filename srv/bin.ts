@@ -22,7 +22,6 @@ const port = flag(`Choose the port to run the server on. Default: 3001`, 'p', 'p
 
 const all = flag('Run Agnaistic and the Pipeline API', 'a', 'all')
 const pipeline = flag('Run the Pipeline API only', 'pipeline')
-const tunnel = flag('Expose your Agnai server using LocalTunnel', 't', 'tunnel')
 
 if (argv.help || argv.h) {
   help()
@@ -108,9 +107,6 @@ function help(code = 0) {
 start()
 
 async function start() {
-  if (tunnel) {
-    process.env.PUBLIC_TUNNEL = 'true'
-  }
   const runApi = all || !pipeline
   const runPipeline = all || pipeline
 

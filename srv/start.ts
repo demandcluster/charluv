@@ -1,6 +1,5 @@
 import 'module-alias/register'
 import { prepareTokenizers } from './tokenize'
-import lt from 'localtunnel'
 import * as os from 'os'
 import throng from 'throng'
 import { initMessageBus } from './api/ws'
@@ -43,10 +42,6 @@ export async function start() {
       { port: config.port, version: pkg.version },
       `Server started http://127.0.0.1:${config.port} (Listening: ${config.host})`
     )
-
-    if (config.publicTunnel) {
-      await startTunnel()
-    }
   })
 
   if (config.jsonStorage) {
@@ -95,11 +90,3 @@ if (config.clustering) {
   startWorker()
 }
 
-async function startTunnel() {
-  const proxy = await lt({ port: config.port })
-  logger.info(`[LocalTunnel] Charluv public URL: ${proxy.url}`)
-
-  proxy.on('close', () => {
-    logger.warn('[LocalTunnel] Agnaistic public URL close')
-  })
-}
