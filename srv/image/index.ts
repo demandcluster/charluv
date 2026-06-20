@@ -25,7 +25,10 @@ export async function generateImage(
       ? chat.characterId
       : chat?.imageSource === 'last-character'
       ? opts.characterId
-      : undefined
+      : // Explicit character (e.g. the native image tool) still resolves the
+        // character so its stored LoRA is used, without changing imageSettings
+        // source selection above.
+        opts.characterId
   const character =
     chat && characterId ? await store.characters.getCharacter(chat.userId, characterId) : undefined
 

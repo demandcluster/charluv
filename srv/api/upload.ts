@@ -1,13 +1,14 @@
 import { S3 } from '@aws-sdk/client-s3'
 import { mkdirpSync } from 'mkdirp'
 import { Request } from 'express'
-import { unlink, writeFile } from 'fs/promises'
+import { unlink, writeFile, readFile } from 'fs/promises'
 import { extname, normalize, resolve } from 'path'
 import { createReadStream, readdirSync } from 'fs'
 import { assertValid, Validator, UnwrapBody } from '/common/valid'
 import { config } from '../config'
 import { errors } from './wrap'
 import { v4 } from 'uuid'
+import needle from 'needle'
 
 const s3 = new S3({
   region: 'us-east-1',
@@ -130,6 +131,43 @@ export async function saveFile(filename: string, content: any, ttl?: number) {
   }
   await writeFile(safeRelativeResolve(config.assetFolder, filename), content, { encoding: 'utf8' })
   return `/assets/${filename}`
+}
+
+/**
+ * Read a stored asset (by `/assets/...` path or full URL) and return its raw
+ * base64. Used server-side to avoid CORS — the browser can't fetch cross-origin
+ * CDN assets, but the server can. Tries the local asset folder first, then
+ * fetches the configured asset URL (S3/CDN).
+ */
+export async function readAssetBase64(ref: string): Promise<string | undefined> {
+  if (!ref) return
+  if (ref.includes('base64,')) return ref.slice(ref.indexOf('base64,') + 7)
+
+  // SSRF guard: only ever resolve our own stored asset paths. Reject absolute
+  // URLs and anything outside `/assets/`, and disallow path traversal. The
+  // remote URL is always rebuilt from the trusted, configured asset host — an
+  // attacker-supplied host/path can never reach the outbound request.
+  const clean = ref.split('?')[0]
+  if (!/^\/assets\//.test(clean)) return
+  const filename = clean.replace(/^\/assets\//, '').replace(/^\/+/, '')
+  if (!filename || filename.includes('..')) return
+
+  // Local asset folder (non-S3 deployments)
+  try {
+    const buf = await readFile(safeRelativeResolve(config.assetFolder, filename))
+    return buf.toString('base64')
+  } catch {}
+
+  // Remote (S3/CDN) — server-to-server fetch against the configured host only,
+  // no redirect-following (a redirect could otherwise point at an internal host).
+  const base = config.assetUrl?.replace(/\/$/, '') || ''
+  if (!base) return
+  const url = `${base}/assets/${filename}`
+
+  const res: any = await needle('get', url, null, { parse: false, follow_max: 0 }).catch(() => null)
+  if (!res || (res.statusCode && res.statusCode >= 400)) return
+  const buf = res.body
+  return Buffer.isBuffer(buf) ? buf.toString('base64') : Buffer.from(buf).toString('base64')
 }
 
 export async function saveBase64File(filename: string, content: any) {

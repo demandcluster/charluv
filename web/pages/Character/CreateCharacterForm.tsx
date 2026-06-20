@@ -1338,18 +1338,9 @@ const CharacterGallery: Component<{
     }
 
     setBusy(true)
-    // Gallery entries are asset URLs; the encode endpoint needs base64.
-    const images = (await Promise.all(picks.map((url) => imageApi.getImageData(url)))).filter(
-      (d): d is string => !!d
-    )
-
-    if (!images.length) {
-      setBusy(false)
-      toastStore.error('Could not read the selected images')
-      return
-    }
-
-    const res = await charsApi.encodeLora(props.charId, images)
+    // Send the stored gallery URLs; the server resolves them to base64
+    // (browsers can't fetch the cross-origin CDN assets — CORS).
+    const res = await charsApi.encodeLora(props.charId, picks)
     setBusy(false)
     if (res.result && 'loraName' in res.result) {
       setLoraName(res.result.loraName)

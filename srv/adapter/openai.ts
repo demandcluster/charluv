@@ -9,8 +9,45 @@ import { requestFullCompletion, toChatCompletionPayload } from './chat-completio
 import { decryptText } from '../db/util'
 import { streamCompletion } from './stream'
 import { getTokenCounter } from '../tokenize'
+import { isZImageConfigured } from '../image/zimage'
 
 const baseUrl = `https://api.openai.com`
+
+/**
+ * Native tool the model can call mid-chat to show an image (e.g. user asks
+ * "show me your new bike"). The backend executes it via the Z-Image endpoint
+ * using the character's stored LoRA, then appends the image to the reply.
+ */
+const IMAGE_TOOL = {
+  type: 'function',
+  function: {
+    name: 'generate_image',
+    description:
+      "Generate and show an image to the user. Call this when the user asks to see something visual (a selfie, an object, a scene) or when sharing an image naturally fits the roleplay. Describe what should be depicted from the character's point of view.",
+    parameters: {
+      type: 'object',
+      properties: {
+        prompt: {
+          type: 'string',
+          description:
+            'A concise, comma-separated visual description of the image to generate (subject, setting, pose, lighting). Do not include the character name.',
+        },
+      },
+      required: ['prompt'],
+    },
+  },
+}
+
+/** Chat kinds where offering the image tool makes sense (a fresh assistant reply). */
+const IMAGE_TOOL_KINDS = new Set([
+  'send',
+  'request',
+  'self',
+  'send-event:world',
+  'send-event:character',
+  'send-event:hidden',
+  'retry',
+])
 
 type CompletionContent<T> = Array<{ finish_reason: string; index: number } & ({ text: string } | T)>
 
@@ -79,6 +116,14 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     yield { prompt }
   }
 
+  // Offer the native image tool on normal assistant replies when the Z-Image
+  // backend is configured. The model decides whether to call it.
+  const imageToolEnabled = useChat && isZImageConfigured() && IMAGE_TOOL_KINDS.has(kind as string)
+  if (imageToolEnabled) {
+    body.tools = [IMAGE_TOOL]
+    body.tool_choice = 'auto'
+  }
+
   if (gen.antiBond) body.logit_bias = { 3938: -50, 11049: -50, 64186: -50, 3717: -25 }
 
   const useThirdPartyPassword =
@@ -145,21 +190,46 @@ export const handleOAI: ModelAdapter = async function* (opts) {
   }
 
   try {
+    // Did the model call the native image tool? Parse its prompt argument.
+    let imagePrompt = ''
+    if (imageToolEnabled) {
+      // Streaming returns tool_calls on the choice; non-streaming nests them
+      // under choice.message.
+      const choice0 = response?.choices?.[0] as any
+      const toolCalls = choice0?.tool_calls || choice0?.message?.tool_calls
+      const imageCall = toolCalls?.find((t: any) => t?.function?.name === 'generate_image')
+      if (imageCall?.function?.arguments) {
+        try {
+          const args = JSON.parse(imageCall.function.arguments)
+          if (typeof args?.prompt === 'string') imagePrompt = args.prompt.trim()
+        } catch {
+          log.warn({ args: imageCall.function.arguments }, 'Bad generate_image tool arguments')
+        }
+      }
+    }
+
     let text = getCompletionContent(response, log)
     if (text instanceof Error) {
       yield { error: `OpenAI returned an error: ${text.message}` }
       return
     }
 
-    if (!text?.length) {
+    // Empty text is only an error when there's no tool call to act on (the model
+    // may reply with just an image).
+    if (!text?.length && !imagePrompt) {
       log.error({ body: response }, 'OpenAI request failed: Empty response')
       yield { error: `OpenAI request failed: Received empty response. Try again.` }
       return
     }
 
+    // Surface the tool call so the message handler can run image generation.
+    if (imagePrompt) {
+      yield { meta: { imageTool: { prompt: imagePrompt } } }
+    }
+
     gen.swipesPerGeneration! > 1
       ? yield sanitiseAndTrim(accumulated, prompt, char, opts.characters, members)
-      : yield sanitiseAndTrim(text, prompt, opts.replyAs, opts.characters, members)
+      : yield sanitiseAndTrim(text || '', prompt, opts.replyAs, opts.characters, members)
   } catch (ex: any) {
     log.error({ err: ex }, 'OpenAI failed to parse')
     yield { error: `OpenAI request failed: ${ex.message}` }

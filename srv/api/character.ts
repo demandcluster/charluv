@@ -4,7 +4,13 @@ import { store } from '../db'
 
 import { loggedIn, isAdmin } from './auth'
 import { errors, handle, StatusError } from './wrap'
-import { entityUpload, entityUploadBase64, entityUploadBase64Unique, handleForm } from './upload'
+import {
+  entityUpload,
+  entityUploadBase64,
+  entityUploadBase64Unique,
+  handleForm,
+  readAssetBase64,
+} from './upload'
 import { PERSONA_FORMATS } from '../../common/adapters'
 import { AppSchema } from '../../common/types/schema'
 import { CharacterUpdate } from '../db/characters'
@@ -536,12 +542,30 @@ const encodeLora = handle(async ({ userId, params, body }) => {
   const char = await store.characters.getCharacter(userId!, params.id)
   if (!char) throw errors.NotFound
 
-  const images = (body.images || []).filter((img: string) => !!img && img.includes(','))
-  if (!images.length) {
+  const refs = (body.images || []).filter((img: string) => !!img).slice(0, MAX_LORA_REFS)
+  if (!refs.length) {
     throw new StatusError('Provide at least one reference image', 400)
   }
-  if (images.length > MAX_LORA_REFS) {
-    throw new StatusError(`At most ${MAX_LORA_REFS} reference images`, 400)
+
+  // Entries may be base64 data urls (freshly generated/uploaded) or stored asset
+  // URLs. Resolve everything to base64 server-side (avoids browser CORS on the
+  // CDN). Restrict to the character's own gallery when an asset ref is given.
+  const allowed = new Set(char.gallery || [])
+  const images: string[] = []
+  for (const ref of refs) {
+    if (ref.includes('base64,')) {
+      images.push(ref)
+      continue
+    }
+    if (!allowed.has(ref)) {
+      throw new StatusError('Reference image is not part of this character gallery', 400)
+    }
+    const b64 = await readAssetBase64(ref)
+    if (b64) images.push(b64)
+  }
+
+  if (!images.length) {
+    throw new StatusError('Could not read the reference images', 400)
   }
 
   // Unique LoRA name: character name + randomizer (never name alone, to avoid

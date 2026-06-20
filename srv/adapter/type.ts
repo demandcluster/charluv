@@ -30,10 +30,19 @@ export type CompletionGenerator = (
 
 export type CompletionItem = { role: ChatRole; content: string; name?: string }
 
+export type ToolCall = {
+  index?: number
+  id?: string
+  type?: string
+  function?: { name?: string; arguments?: string }
+}
+
 export type CompletionContent<T> = Array<
-  { finish_reason: string; index: number } & ({ text: string } | T)
+  { finish_reason: string; index: number } & ({ text: string; tool_calls?: ToolCall[] } | T)
 >
-export type Inference = { message: { content: string; role: ChatRole } }
+export type Inference = {
+  message: { content: string; role: ChatRole; tool_calls?: ToolCall[] }
+}
 export type AsyncDelta = { delta: Partial<Inference['message']> }
 
 export type GenerateRequestV2 = {

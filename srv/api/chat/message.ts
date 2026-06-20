@@ -4,6 +4,7 @@ import { createChatStream, getResponseEntities } from '../../adapter/generate'
 import { AppRequest, StatusError, errors, handle } from '../wrap'
 import { sendGuest, sendMany, sendOne } from '../ws'
 import { obtainLock, releaseLock } from './lock'
+import { generateImage } from '../../image'
 import { AppSchema } from '../../../common/types/schema'
 import { v4 } from 'uuid'
 import { Response } from 'express'
@@ -385,6 +386,12 @@ export const generateMessageV2 = handle(async (req, res) => {
 
   let treeLeafId = ''
 
+  // Native image tool: the model may have requested an image. Pull it out of the
+  // transient meta so it isn't persisted on the message; we fire generation after
+  // the message is created (see below).
+  const imageTool: { prompt?: string } | undefined = (meta as any).imageTool
+  delete (meta as any).imageTool
+
   // Summaries are a cheap utility generation (no user-facing message); don't
   // charge credits or advance relationship XP for them.
   if (body.kind !== 'summary') {
@@ -441,6 +448,26 @@ export const generateMessageV2 = handle(async (req, res) => {
         json: hydration,
       })
       treeLeafId = requestId
+
+      // Native image tool requested an image: generate it via Z-Image using the
+      // replying character's LoRA and append it to this message. Fire-and-forget
+      // so it doesn't block the text reply; it broadcasts over WS when ready.
+      if (imageTool?.prompt) {
+        generateImage(
+          {
+            user: body.user!,
+            prompt: imageTool.prompt,
+            chatId,
+            messageId: requestId,
+            characterId: replyAs._id,
+            append: true,
+            source: 'tool',
+            requestId: v4(),
+            parentId: undefined,
+          },
+          log
+        ).catch((err) => log.error({ err }, 'Image tool generation failed'))
+      }
       break
     }
 

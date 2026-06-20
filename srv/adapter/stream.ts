@@ -35,6 +35,7 @@ export const streamCompletion: CompletionGenerator = async function* (
   })
 
   const tokens = []
+  const toolCalls: any[] = []
   let meta = { id: '', created: 0, model: '', object: '', finish_reason: '', index: 0 }
   let current: any = {}
 
@@ -100,6 +101,20 @@ export const streamCompletion: CompletionGenerator = async function* (
         tokens.push(token)
         yield { token }
       }
+
+      // Accumulate streamed tool-call deltas (merge fragments by index).
+      if ('delta' in choice && (choice.delta as any).tool_calls) {
+        for (const tc of (choice.delta as any).tool_calls) {
+          const i = tc.index ?? 0
+          const acc =
+            toolCalls[i] ||
+            (toolCalls[i] = { id: '', type: 'function', function: { name: '', arguments: '' } })
+          if (tc.id) acc.id = tc.id
+          if (tc.type) acc.type = tc.type
+          if (tc.function?.name) acc.function.name = tc.function.name
+          if (tc.function?.arguments) acc.function.arguments += tc.function.arguments
+        }
+      }
     }
   } catch (err: any) {
     log.error({ err, current }, `${service} streaming request failed`)
@@ -117,6 +132,7 @@ export const streamCompletion: CompletionGenerator = async function* (
         finish_reason: meta.finish_reason,
         index: meta.index,
         text: tokens.join(''),
+        tool_calls: toolCalls.filter(Boolean),
       },
     ],
   }
