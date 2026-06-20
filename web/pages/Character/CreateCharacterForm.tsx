@@ -32,27 +32,21 @@ import {
   characterStore,
   tagStore,
   toastStore,
-  memoryStore,
   chatStore,
   userStore,
   settingStore,
 } from '../../store'
-import { useNavigate, useSearchParams } from '@solidjs/router'
-import PersonaAttributes from '../../shared/PersonaAttributes'
+import { useNavigate } from '@solidjs/router'
 import AvatarIcon from '../../shared/AvatarIcon'
-import Select, { Option } from '../../shared/Select'
+import Select from '../../shared/Select'
 import TagInput from '../../shared/TagInput'
-import { CultureCodes } from '../../shared/CultureCodes'
-import VoicePicker from './components/VoicePicker'
 import { AppSchema } from '../../../common/types/schema'
 import Loading from '/web/shared/Loading'
 import { JSX, For } from 'solid-js'
-import { BUNDLED_CHARACTER_BOOK_ID, emptyBookWithEmptyEntry } from '/common/memory'
 import { Card, SolidCard, TitleCard } from '../../shared/Card'
 import { usePane, useRootModal } from '../../shared/hooks'
 import Modal, { RootModal } from '/web/shared/Modal'
-import EditMemoryForm, { EntrySort, getBookUpdate } from '../Memory/EditMemory'
-import { Toggle, ToggleButtons } from '../../shared/Toggle'
+import { ToggleButtons } from '../../shared/Toggle'
 import AvatarBuilder from '../../shared/Avatar/Builder'
 import { FullSprite } from '/common/types/sprite'
 import { getRandomBody } from '../../asset/sprite'
@@ -62,8 +56,6 @@ import { ARCHETYPES } from '/common/progression'
 import { downloadCharacterHub, jsonToCharacter } from './port'
 import { DownloadModal } from './DownloadModal'
 import ImportCharacterModal from './ImportCharacter'
-import Tabs, { useTabs } from '/web/shared/Tabs'
-import RangeInput from '/web/shared/RangeInput'
 import { rootModalStore } from '/web/store/root-modal'
 import { getAssetUrl, random } from '/web/shared/util'
 import { ImageSettings } from '../Settings/Image/ImageSettings'
@@ -73,19 +65,7 @@ import { Page } from '/web/Layout'
 import { ModeGenSettings } from '/web/shared/Mode/ModeGenSettings'
 import { charsApi } from '/web/store/data/chars'
 import Tooltip from '/web/shared/Tooltip'
-import { CharacterSchema } from './CharacterSchema'
 import { canStartTour, startTour } from '/web/tours'
-
-const formatOptions = [
-  { value: 'attributes', label: 'Attributes (Key: value)' },
-  { value: 'text', label: 'Plain Text' },
-]
-
-const backupFormats: any = {
-  sbf: { value: 'sbf', label: 'SBF' },
-  wpp: { value: 'wpp', label: 'W++' },
-  boostyle: { value: 'boostyle', label: 'Boostyle' },
-}
 
 export const CreateCharacterForm: Component<{
   chat?: AppSchema.Chat
@@ -100,7 +80,6 @@ export const CreateCharacterForm: Component<{
   onSuccess?: (char: AppSchema.Character) => void
 }> = (props) => {
   let personaRef: any
-  const [search, setSearch] = useSearchParams()
   const nav = useNavigate()
   const user = userStore()
 
@@ -151,14 +130,6 @@ export const CreateCharacterForm: Component<{
   const [showBuilder, setShowBuilder] = createSignal(false)
   const [converted, setConverted] = createSignal<AppSchema.Character>()
   const [showImport, setImport] = createSignal(false)
-
-  const personaFormats = createMemo(() => {
-    const options = formatOptions.slice()
-    if (editor.state.personaKind in backupFormats) {
-      options.push(backupFormats[editor.state.personaKind])
-    }
-    return options
-  })
 
   const totalTokens = createMemo(() => {
     const t = tokens()
@@ -335,8 +306,6 @@ export const CreateCharacterForm: Component<{
     () => !!props.chat?.overrides && props.chat.characterId === props.editId
   )
 
-  const tabs = useTabs(['Persona', 'Voice', 'Advanced'], +(search.char_tab || '0'))
-
   let spriteRef: any
 
   return (
@@ -422,16 +391,7 @@ export const CreateCharacterForm: Component<{
               </Show>
             </div>
 
-            <Tabs
-              select={(id) => {
-                tabs.select(id)
-                setSearch({ char_tab: id })
-              }}
-              selected={tabs.selected}
-              tabs={tabs.tabs}
-            />
-
-            <div class="flex flex-col gap-2" classList={{ hidden: tabs.current() !== 'Persona' }}>
+            <div class="flex flex-col gap-2">
               <Card class="tour-prefields">
                 <ButtonInput
                   fieldName="name"
@@ -612,6 +572,18 @@ export const CreateCharacterForm: Component<{
                   value={editor.state.archetype ?? ''}
                   onChange={(opt) => editor.update('archetype', opt.value)}
                 />
+                <Select
+                  fieldName="progressionSpeed"
+                  label="Progression speed"
+                  helperText="How fast the relationship advances (XP gained per message)."
+                  items={[
+                    { label: 'Slow', value: 'slow' },
+                    { label: 'Normal', value: 'normal' },
+                    { label: 'Fast', value: 'fast' },
+                  ]}
+                  value={editor.state.progressionSpeed ?? 'normal'}
+                  onChange={(opt) => editor.update('progressionSpeed', opt.value)}
+                />
                 <div class="flex flex-wrap gap-3">
                   <Select
                     fieldName="gender"
@@ -686,46 +658,82 @@ export const CreateCharacterForm: Component<{
               </Card>
 
               <Card class="flex flex-col gap-3">
-                <div>
-                  <FormLabel
-                    label={
-                      <div class="flex items-center gap-1">
-                        <Show when={editor.state.personaKind === 'text'}>
-                          <Regenerate
-                            field={'persona'}
-                            editor={editor}
-                            allowed={editor.canGuidance}
-                          />
-                        </Show>
-                        Personality
-                      </div>
-                    }
-                    helperText={
-                      <>
-                        <p>If you do not know what this mean, you can leave this as-is.</p>
-                        <p class="font-bold">
-                          WARNING: "Plain Text" and "Non-Plain Text" schemas are not compatible.
-                          Changing between them will cause data loss.
-                        </p>
-                        <p>Format to use for the character's format</p>
-                      </>
-                    }
-                  />
-                  <Select
-                    fieldName="kind"
-                    class="tour-persona"
-                    items={personaFormats()}
-                    value={editor.state.personaKind}
-                  />
-                </div>
-
-                <PersonaAttributes
-                  value={editor.state.persona.attributes}
-                  schema={editor.state.personaKind}
-                  tokenCount={(v) => setTokens((prev) => ({ ...prev, persona: v }))}
-                  form={personaRef}
-                  editor={editor}
+                <FormLabel
+                  label="Personality & Traits"
+                  helperText="The core traits that define your character. These are saved as the character's W++ persona. Gender, Age and Appearance are set in the cards above."
                 />
+                <TextInput
+                  fieldName="traitSpecies"
+                  label="Species"
+                  placeholder="e.g. human, elf, android"
+                  value={editor.state.traitSpecies ?? ''}
+                  onChange={(ev) => editor.update('traitSpecies', ev.currentTarget.value)}
+                />
+                <TextInput
+                  isMultiline
+                  fieldName="traitPersonality"
+                  label="Personality"
+                  placeholder="e.g. warm, witty, fiercely loyal, a little stubborn"
+                  value={editor.state.traitPersonality ?? ''}
+                  onChange={(ev) => editor.update('traitPersonality', ev.currentTarget.value)}
+                  tokenCount={(v) => setTokens((prev) => ({ ...prev, persona: v }))}
+                />
+                <TextInput
+                  isMultiline
+                  fieldName="traitMind"
+                  label="Mind"
+                  placeholder="How your character thinks, their worldview, intelligence, quirks"
+                  value={editor.state.traitMind ?? ''}
+                  onChange={(ev) => editor.update('traitMind', ev.currentTarget.value)}
+                />
+                <TextInput
+                  fieldName="traitLikes"
+                  label="Likes"
+                  placeholder="e.g. rainy days, old books, strong coffee"
+                  value={editor.state.traitLikes ?? ''}
+                  onChange={(ev) => editor.update('traitLikes', ev.currentTarget.value)}
+                />
+                <TextInput
+                  fieldName="traitDislikes"
+                  label="Dislikes"
+                  placeholder="e.g. crowds, dishonesty, cold weather"
+                  value={editor.state.traitDislikes ?? ''}
+                  onChange={(ev) => editor.update('traitDislikes', ev.currentTarget.value)}
+                />
+                <TextInput
+                  isMultiline
+                  fieldName="traitBackground"
+                  label="Background"
+                  placeholder="Your character's history and backstory"
+                  value={editor.state.traitBackground ?? ''}
+                  onChange={(ev) => editor.update('traitBackground', ev.currentTarget.value)}
+                />
+
+                <Show when={Object.keys(editor.state.personaExtras ?? {}).length > 0}>
+                  <SolidCard
+                    type="bg"
+                    class="border-[1px] border-[var(--orange-600)] text-sm"
+                  >
+                    <div class="font-bold text-[var(--orange-500)]">
+                      Extra attributes (will be removed on save)
+                    </div>
+                    <div class="text-600 mb-2">
+                      This character has non-standard W++ attributes that aren't part of the trait
+                      set. They're shown here for reference only and will be dropped the next time you
+                      save.
+                    </div>
+                    <div class="flex flex-col gap-1">
+                      <For each={Object.entries(editor.state.personaExtras ?? {})}>
+                        {([key, values]) => (
+                          <div class="flex gap-2">
+                            <span class="font-mono font-bold">{key}:</span>
+                            <span class="text-700">{(values as string[]).join(', ')}</span>
+                          </div>
+                        )}
+                      </For>
+                    </div>
+                  </SolidCard>
+                </Show>
               </Card>
               <Card class="flex flex-col gap-3">
                 <TextInput
@@ -777,46 +785,10 @@ export const CreateCharacterForm: Component<{
               </Card>
             </div>
 
-            <div class="flex flex-col gap-2" classList={{ hidden: tabs.current() !== 'Voice' }}>
-              <Card class="flex flex-col gap-3">
-                <h4 class="text-md font-bold">Voice</h4>
-                <Toggle
-                  fieldName="voiceDisabled"
-                  value={editor.state.voiceDisabled}
-                  label="Disable Character's Voice"
-                  helperText="Toggle on to disable this character from automatically speaking"
-                />
-                <div classList={{ hidden: !user.user?.admin }}>
-                  <VoicePicker
-                    value={editor.state.voice}
-                    culture={editor.state.culture}
-                    onChange={(voice) => editor.update('voice', voice)}
-                  />
-
-                  <Select
-                    fieldName="culture"
-                    label="Language"
-                    helperText={`The language this character speaks and understands.${
-                      editor.state.culture.startsWith('en') ?? true
-                        ? ''
-                        : ' NOTE: You need to also translate the preset gaslight to use a non-english language.'
-                    }`}
-                    value={editor.state.culture}
-                    items={CultureCodes}
-                    onChange={(option) => editor.update('culture', option.value)}
-                  />
-                </div>
-              </Card>
-            </div>
-
-            <div
-              class={`flex flex-col gap-2`}
-              classList={{ hidden: tabs.current() !== 'Advanced' }}
-            >
-              <AdvancedOptions editor={editor} />
-            </div>
-
-            <div class={`flex flex-col gap-2`} classList={{ hidden: tabs.current() !== 'xImages' }}>
+            {/* Image generation settings are no longer user-editable here, but the
+                form fields are required by the editor payload. Keep them mounted
+                (hidden) so existing values pass through on save. */}
+            <div class="hidden">
               <ImageSettings cfg={editor.state.imageSettings} inherit />
             </div>
 
@@ -1026,189 +998,6 @@ const SpriteModal: Component<{
   })
 
   return null
-}
-
-const MemoryBookPicker: Component<{
-  bundledBook: AppSchema.MemoryBook | undefined
-  setBundledBook: (newVal: AppSchema.MemoryBook | undefined) => void
-}> = (props) => {
-  const memory = memoryStore()
-  const [isModalShown, setIsModalShown] = createSignal(false)
-  const [entrySort, setEntrySort] = createSignal<EntrySort>('creationDate')
-  const updateEntrySort = (item: Option<string>) => {
-    if (item.value === 'creationDate' || item.value === 'alpha') {
-      setEntrySort(item.value)
-    }
-  }
-
-  const NONE_VALUE = '__none_character_book__'
-  const internalMemoryBookOptions = createMemo(() => [
-    { label: 'Import Memory Book', value: NONE_VALUE },
-    ...memory.books.list.map((book) => ({ label: book.name, value: book._id })),
-  ])
-  const pickInternalMemoryBook = (option: Option) => {
-    const newBook = memory.books.list.find((book) => book._id === option.value)
-    props.setBundledBook(newBook ? { ...newBook, _id: BUNDLED_CHARACTER_BOOK_ID } : undefined)
-  }
-  const initBlankCharacterBook = () => {
-    props.setBundledBook(emptyBookWithEmptyEntry())
-  }
-  const deleteBook = () => {
-    props.setBundledBook(undefined)
-  }
-  const ModalFooter = () => (
-    <>
-      <Button schema="secondary" onClick={() => setIsModalShown(false)}>
-        Close
-      </Button>
-      <Button type="submit">
-        <Save />
-        Save Character Book
-      </Button>
-    </>
-  )
-  const onSubmitCharacterBookChanges = (ev: Event) => {
-    ev.preventDefault()
-    const update = getBookUpdate(ev)
-    if (props.bundledBook) {
-      props.setBundledBook({ ...props.bundledBook, ...update })
-    }
-    setIsModalShown(false)
-  }
-
-  const BookModal = (
-    <Modal
-      title="Character Memory"
-      show={isModalShown()}
-      close={() => setIsModalShown(false)}
-      footer={<ModalFooter />}
-      onSubmit={onSubmitCharacterBookChanges}
-      maxWidth="half"
-      fixedHeight
-    >
-      <div class="text-sm">
-        <EditMemoryForm
-          hideSave
-          book={props.bundledBook!}
-          entrySort={entrySort()}
-          updateEntrySort={updateEntrySort}
-        />
-      </div>
-    </Modal>
-  )
-
-  useRootModal({ id: 'memoryBook', element: BookModal })
-
-  return (
-    <div>
-      <h4 class="flex gap-1 text-lg">
-        <div>Character Book</div>
-        <Button size="sm" onClick={initBlankCharacterBook}>
-          Create New Book
-        </Button>
-      </h4>
-      <Show when={!props.bundledBook}>
-        <span class="text-sm"> This character doesn't have a Character Book. </span>
-        <div class="flex flex-col gap-3 sm:flex-row">
-          <Select
-            fieldName="memoryBook"
-            value={NONE_VALUE}
-            items={internalMemoryBookOptions()}
-            onChange={pickInternalMemoryBook}
-          />
-        </div>
-      </Show>
-      <Show when={props.bundledBook}>
-        <span class="text-sm">This character has a Character Book.</span>
-        <div class="mt-2 flex gap-3">
-          <Button onClick={() => setIsModalShown(true)}>Edit Book</Button>
-          <Button onClick={deleteBook}>Delete Book</Button>
-        </div>
-      </Show>
-    </div>
-  )
-}
-
-const AdvancedOptions: Component<{ editor: CharEditor }> = (props) => {
-  return (
-    <>
-      <Card class="flex flex-col gap-2">
-        <CharacterSchema
-          characterId={props.editor.state.editId}
-          update={(next) => props.editor.update('json', next)}
-        />
-        <TextInput
-          isMultiline
-          fieldName="systemPrompt"
-          label="Character System Prompt (optional)"
-          helperText={
-            <span>
-              {`System prompt to bundle with your character. You can use the {{original}} placeholder to include the user's own system prompt, if you want to supplement it instead of replacing it.`}
-            </span>
-          }
-          placeholder="Enter roleplay mode. You will write {{char}}'s next reply in a dialogue between {{char}} and {{user}}. Do not decide what {{user}} says or does. Use Internet roleplay style, e.g. no quotation marks, and write user actions in italic in third person like: *example*. You are allowed to use markdown. Be proactive, creative, drive the plot and conversation forward. Write at least one paragraph, up to four. Always stay in character. Always keep the conversation going. (Repetition is highly discouraged)"
-          value={props.editor.state.systemPrompt}
-        />
-        <TextInput
-          isMultiline
-          fieldName="postHistoryInstructions"
-          label="Character Jailbreak (optional)"
-          helperText={
-            <span>
-              {`Prompt to bundle with your character, used at the bottom of the prompt. You can use the {{original}} placeholder to include the user's jailbreak (UJB), if you want to supplement it instead of replacing it.`}
-            </span>
-          }
-          placeholder="Write at least four paragraphs."
-          value={props.editor.state.postHistoryInstructions}
-        />
-        <TextInput
-          isMultiline
-          class="min-h-[80px]"
-          fieldName="insertPrompt"
-          label="Insert / Depth Prompt"
-          helperMarkdown={`A.k.a. Author's note. Prompt to be placed near the bottom of the chat history, **Insert Depth** messages from the bottom.`}
-          placeholder={`E.g. ### Instruction: Write like James Joyce.`}
-          value={props.editor.state.insert?.prompt}
-        />
-        <RangeInput
-          fieldName="insertDepth"
-          label="Insert Depth"
-          helperText={
-            <>
-              The number of messages that should exist below the <b>Insert Prompt</b>. Between 1 and
-              5 is recommended.
-            </>
-          }
-          min={0}
-          max={10}
-          step={1}
-          value={props.editor.state.insert?.depth ?? 3}
-        />
-      </Card>
-      <Card>
-        <MemoryBookPicker
-          setBundledBook={(book) => props.editor.update('book', book)}
-          bundledBook={props.editor.state.book}
-        />
-      </Card>
-      <Card>
-        <TextInput
-          fieldName="creator"
-          label="Creator (optional)"
-          placeholder="e.g. John1990"
-          value={props.editor.state.creator}
-        />
-      </Card>
-      <Card>
-        <TextInput
-          fieldName="characterVersion"
-          label="Character Version (optional)"
-          placeholder="any text e.g. 1, 2, v1, v1fempov..."
-          value={props.editor.state.characterVersion}
-        />
-      </Card>
-    </>
-  )
 }
 
 const ReelControl: Component<{ editor: CharEditor; loading: boolean }> = (props) => {

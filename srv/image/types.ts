@@ -25,6 +25,9 @@ export type ImageRequestOpts = {
   loraName?: string
   /** Locked seed for reproducible/consistent generation. */
   seed?: number
+  /** Output dimensions (chat images are smaller than character/avatar images). */
+  width?: number
+  height?: number
 }
 
 export type ImageAdapter = (

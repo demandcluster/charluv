@@ -172,17 +172,20 @@ export async function zimageListLoras(): Promise<string[]> {
  * character's stored LoRA when present (Mode A); otherwise plain text-to-image.
  */
 export const handleZImage: ImageAdapter = async (opts, log) => {
-  log.debug({ loraName: opts.loraName, seed: opts.seed }, 'Image: Z-Image generate')
+  log.debug(
+    { loraName: opts.loraName, seed: opts.seed, width: opts.width, height: opts.height },
+    'Image: Z-Image generate'
+  )
 
-  // Fixed settings for chat-message generation: small + fast. Encode/create-step
-  // and other call sites use zimageGenerate() directly with their own settings.
+  // Size is decided by the caller (chat = 512, character/avatar = 768). Steps/cfg
+  // are fixed for fast, consistent generation.
   const res = await zimageGenerate({
     prompt: opts.prompt,
     negative: opts.negative,
     loraName: opts.loraName,
     seed: opts.seed,
-    width: 512,
-    height: 512,
+    width: opts.width || 512,
+    height: opts.height || 512,
     steps: 20,
     cfg: 4,
   })

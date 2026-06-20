@@ -82,6 +82,8 @@ export type ProgressionArchetype = {
 }
 
 /** A character's progression configuration. */
+export type ProgressionSpeed = 'slow' | 'normal' | 'fast'
+
 export type CharacterProgression = {
   /** Reference into ARCHETYPES. Ignored when `map` is provided. */
   archetype?: string
@@ -89,6 +91,21 @@ export type CharacterProgression = {
   map?: ProgressionStep[]
   /** Disable relationship progression entirely for this character. */
   disabled?: boolean
+  /** How fast the relationship advances (XP granted per chat message). */
+  speed?: ProgressionSpeed
+}
+
+/** XP granted per generated chat message, by progression speed. */
+const XP_PER_MESSAGE: Record<ProgressionSpeed, number> = {
+  slow: 1,
+  normal: 3,
+  fast: 7,
+}
+
+/** XP to grant for one generated message given the character's progression. */
+export function getXpPerMessage(progression?: CharacterProgression): number {
+  if (progression?.disabled) return 0
+  return XP_PER_MESSAGE[progression?.speed || 'normal']
 }
 
 export const DEFAULT_ARCHETYPE_ID = 'romantic'

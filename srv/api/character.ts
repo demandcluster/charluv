@@ -145,6 +145,12 @@ const createCharacter = handle(async (req) => {
   const progression = body.progression ? JSON.parse(body.progression) : undefined
   const category = body.category ? JSON.parse(body.category) : undefined
 
+  // creator / characterVersion are set automatically (server-side). The user no
+  // longer edits these in the form, so any body values are ignored.
+  const profile = await store.users.getProfile(req.userId!)
+  const autoCreator = profile?.handle || ''
+  const autoVersion = '1'
+
   const char = await store.characters.createCharacter(req.user?.userId!, {
     name: body.name,
     persona,
@@ -176,8 +182,8 @@ const createCharacter = handle(async (req) => {
     characterBook,
     systemPrompt: body.systemPrompt,
     postHistoryInstructions: body.postHistoryInstructions,
-    creator: body.creator,
-    characterVersion: body.characterVersion,
+    creator: autoCreator,
+    characterVersion: autoVersion,
     insert: insert,
     imageSettings,
     json,
@@ -416,6 +422,13 @@ const editFullCharacter = handle(async (req) => {
   const imageSettings = body.imageSettings ? JSON.parse(body.imageSettings) : undefined
   const json = body.json ? JSON.parse(body.json) : undefined
 
+  // creator / characterVersion are managed automatically (server-side). Keep the
+  // existing creator untouched and auto-increment the version. Body values for
+  // these two are ignored.
+  const existing = await store.characters.getCharacter(req.userId!, id)
+  const parsedVersion = parseInt(existing?.characterVersion ?? '', 10)
+  const nextVersion = Number.isFinite(parsedVersion) ? String(parsedVersion + 1) : '1'
+
   const update: CharacterUpdate = {
     name: body.name,
     description: body.description,
@@ -430,8 +443,9 @@ const editFullCharacter = handle(async (req) => {
     characterBook: characterBook ?? null,
     systemPrompt: body.systemPrompt,
     postHistoryInstructions: body.postHistoryInstructions,
-    creator: body.creator,
-    characterVersion: body.characterVersion,
+    // creator left as-is (omitted from update so it isn't overwritten);
+    // characterVersion auto-incremented.
+    characterVersion: nextVersion,
     match: body.match?.toString() === 'true' || false,
     premium: body.premium?.toString() === 'true' || false,
     // xp: 0, // body.xp ? parseInt(body.xp) : 0,

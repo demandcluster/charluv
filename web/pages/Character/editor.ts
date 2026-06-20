@@ -3,7 +3,7 @@ import { createStore } from 'solid-js/store'
 import { AppSchema, VoiceSettings } from '/common/types'
 import { FullSprite } from '/common/types/sprite'
 import { defaultCulture } from '/web/shared/CultureCodes'
-import { ADAPTER_LABELS, PERSONA_FORMATS } from '/common/adapters'
+import { ADAPTER_LABELS } from '/common/adapters'
 import { getStrictForm, setFormField } from '/web/shared/util'
 import { getAttributeMap } from '/web/shared/PersonaAttributes'
 import {
@@ -56,6 +56,7 @@ type EditState = {
   // updates reactively for primitives, not object/array values). The object
   // (progression) and array (category) are assembled in getPayload.
   archetype?: string
+  progressionSpeed?: string
   gender?: string
   artStyle?: string
   ageRange?: string
@@ -63,6 +64,21 @@ type EditState = {
   nsfw?: boolean
   // Z-Image stored LoRA name (temp/manual for testing i2L Mode A generation).
   loraName?: string
+
+  // charluv: fixed W++ persona traits. Like archetype/gender these are FLAT
+  // string fields bound to TextInputs (Solid's store setState only updates
+  // reactively for primitives, not nested object/array values). The persona
+  // object is assembled from these (plus appearance/gender/ageRange) in
+  // getPayload, and hydrated from char.persona.attributes in load()/reset().
+  traitSpecies?: string
+  traitPersonality?: string
+  traitMind?: string
+  traitLikes?: string
+  traitDislikes?: string
+  traitBackground?: string
+  // Backward-compat: non-standard W++ attributes from existing characters.
+  // Shown read-only; not editable and dropped on save.
+  personaExtras?: Record<string, string[]>
 
   avatar?: File
   originalAvatar?: any
@@ -81,7 +97,6 @@ type EditState = {
 }
 
 const newCharGuard = {
-  kind: PERSONA_FORMATS,
   name: 'string',
   description: 'string?',
   appearance: 'string?',
@@ -93,14 +108,16 @@ const newCharGuard = {
   share: 'string?',
   match: 'string?',
   premium: 'string?',
-  systemPrompt: 'string',
-  postHistoryInstructions: 'string',
-  insertPrompt: 'string',
-  insertDepth: 'number',
-  creator: 'string',
-  characterVersion: 'string',
+  // The following fields no longer have form inputs (Voice/Advanced tabs removed).
+  // Kept optional so existing values pass through load()/getPayload unchanged.
+  systemPrompt: 'string?',
+  postHistoryInstructions: 'string?',
+  insertPrompt: 'string?',
+  insertDepth: 'number?',
+  creator: 'string?',
+  characterVersion: 'string?',
   voiceDisabled: 'boolean?',
-  jsonSchemaEnabled: 'boolean',
+  jsonSchemaEnabled: 'boolean?',
   ...baseImageValid,
 } as const
 
@@ -132,7 +149,7 @@ const fieldMap: Map<CharKey, GuardKey | 'tags'> = new Map([
 
 const initState: EditState = {
   name: '',
-  personaKind: 'text',
+  personaKind: 'wpp',
   sampleChat: '',
   description: '',
   appearance: '',
@@ -156,19 +173,28 @@ const initState: EditState = {
   // the Solid store creates reactive signals for them (an undefined initial
   // value isn't tracked, so the Selects would revert).
   archetype: '',
+  progressionSpeed: 'normal',
   gender: '',
   artStyle: '',
   ageRange: '',
   categoryValue: '',
   nsfw: false,
   loraName: '',
+  // Fixed W++ persona traits (flat string fields; assembled in getPayload).
+  personaExtras: {},
+  traitSpecies: '',
+  traitPersonality: '',
+  traitMind: '',
+  traitLikes: '',
+  traitDislikes: '',
+  traitBackground: '',
   tags: [],
   alternateGreetings: [],
   culture: defaultCulture,
   voice: { service: undefined },
   sprite: undefined,
   book: undefined,
-  persona: { kind: 'text', attributes: { text: [''] } },
+  persona: { kind: 'wpp', attributes: {} },
   imageSettings: {
     type: 'sd',
     width: 512,
@@ -370,14 +396,15 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
       const char = original()
       setState({ ...initState })
 
-      const personaKind = char?.persona.kind || state.personaKind
+      // Persona format is locked to W++ regardless of the source character's
+      // stored format. Existing data is migrated into the fixed trait fields below.
+      const personaKind = 'wpp'
       for (const [key, field] of fieldMap.entries()) {
         if (!char) setFormField(form(), field, '')
         else setFormField(form(), field, char[key] || '')
       }
 
       setState('personaKind', personaKind)
-      setFormField(form(), 'kind', personaKind)
 
       if (char?.originalAvatar) {
         // Intentionally do this in a separate tick
@@ -406,12 +433,16 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
         insert: char?.insert ? { prompt: char.insert.prompt, depth: char.insert.depth } : undefined,
         // Flat fields bound to the Selects; concrete so the store signals exist.
         archetype: (char as any)?.progression?.archetype ?? '',
+        progressionSpeed: (char as any)?.progression?.speed ?? 'normal',
         gender: (char as any)?.gender ?? '',
         artStyle: (char as any)?.artStyle ?? '',
         ageRange: (char as any)?.ageRange ?? '',
         categoryValue: (char as any)?.category?.[0] ?? '',
         nsfw: (char as any)?.nsfw ?? false,
         loraName: (char as any)?.loraName ?? '',
+        // Hydrate the fixed W++ trait fields from the source persona (any format).
+        // appearance/gender/ageRange already hydrate via existing code above.
+        ...hydratePersonaTraits((char as any)?.persona),
       })
     })
   }
@@ -509,9 +540,76 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
   }
 }
 
+// Maps an existing character's persona (of ANY stored format) into the six flat
+// trait fields used by the locked W++ editor. Each trait joins its string[] with
+// ', '. Existing 'text'-format characters keep their content via a fallback into
+// the Background field so nothing is lost.
+/** The fixed W++ trait keys the editor exposes. Everything else is "extra". */
+const FIXED_TRAIT_KEYS = [
+  'species',
+  'gender',
+  'age',
+  'appearance',
+  'personality',
+  'mind',
+  'likes',
+  'dislikes',
+  'background',
+]
+
+function hydratePersonaTraits(persona?: AppSchema.Persona) {
+  const attrs = persona?.attributes ?? {}
+  const join = (key: string) => {
+    const value = (attrs as Record<string, string[] | undefined>)[key]
+    return Array.isArray(value) ? value.join(', ') : ''
+  }
+
+  const traits = {
+    traitSpecies: join('species'),
+    traitPersonality: join('personality'),
+    traitMind: join('mind'),
+    traitLikes: join('likes'),
+    traitDislikes: join('dislikes'),
+    traitBackground: join('background'),
+  }
+
+  // Fallback: a plain-text persona has no per-trait keys; preserve its content.
+  if (persona?.kind === 'text' && !traits.traitBackground) {
+    traits.traitBackground = (attrs as Record<string, string[] | undefined>).text?.join(' ') ?? ''
+  }
+
+  // Backward-compat: surface any W++ attributes that aren't part of the fixed
+  // trait set so the user can see them. They're read-only and dropped on save.
+  const consumed = new Set([...FIXED_TRAIT_KEYS, 'text'])
+  const personaExtras: Record<string, string[]> = {}
+  for (const [key, value] of Object.entries(attrs as Record<string, string[] | undefined>)) {
+    if (consumed.has(key)) continue
+    if (Array.isArray(value) && value.some((v) => !!v?.trim())) personaExtras[key] = value
+  }
+
+  return { ...traits, personaExtras }
+}
+
 function getPayload(ev: any, state: EditState, original?: NewCharacter) {
   const body = getStrictForm(ev, newCharGuard)
-  const attributes = getAttributeMap(ev)
+
+  // Build the fixed W++ persona from the flat trait fields. appearance/gender/age
+  // are reused from their existing form/Discover fields. Each trait is omitted if
+  // empty/whitespace so we never persist [''].
+  const wppAttributes: Record<string, string[]> = {}
+  const addTrait = (key: string, value?: string) => {
+    const trimmed = value?.trim()
+    if (trimmed) wppAttributes[key] = [trimmed]
+  }
+  addTrait('species', state.traitSpecies)
+  addTrait('gender', state.gender)
+  addTrait('age', state.ageRange)
+  addTrait('appearance', body.appearance)
+  addTrait('personality', state.traitPersonality)
+  addTrait('mind', state.traitMind)
+  addTrait('likes', state.traitLikes)
+  addTrait('dislikes', state.traitDislikes)
+  addTrait('background', state.traitBackground)
 
   const payload = {
     name: body.name,
@@ -534,7 +632,13 @@ function getPayload(ev: any, state: EditState, original?: NewCharacter) {
     premium: state.premium?.toString() === 'true' || false,
     xp: 0,
     share: state.share ?? 'private',
-    progression: state.archetype ? { archetype: state.archetype } : undefined,
+    progression:
+      state.archetype || state.progressionSpeed
+        ? {
+            archetype: state.archetype || undefined,
+            speed: (state.progressionSpeed as any) || undefined,
+          }
+        : undefined,
     gender: state.gender || undefined,
     artStyle: state.artStyle || undefined,
     ageRange: state.ageRange || undefined,
@@ -542,18 +646,21 @@ function getPayload(ev: any, state: EditState, original?: NewCharacter) {
     nsfw: state.nsfw || undefined,
     loraName: state.loraName?.trim() || undefined,
 
-    // New fields start here
-    systemPrompt: body.systemPrompt ?? '',
-    postHistoryInstructions: body.postHistoryInstructions ?? '',
-    insert: { prompt: body.insertPrompt, depth: body.insertDepth },
+    // These fields no longer have form inputs; pass through existing values so a
+    // save doesn't clobber data set elsewhere. creator/characterVersion are now
+    // managed server-side (ignored there), but we still forward existing values.
+    systemPrompt: state.systemPrompt ?? '',
+    postHistoryInstructions: state.postHistoryInstructions ?? '',
+    insert: state.insert,
     alternateGreetings: state.alternateGreetings ?? [],
     characterBook: state.book,
-    creator: body.creator ?? '',
+    creator: state.creator ?? '',
     extensions: original?.extensions,
-    characterVersion: body.characterVersion ?? '',
+    characterVersion: state.characterVersion ?? '',
+    // Persona format is locked to W++; attributes assembled from the trait fields.
     persona: {
-      kind: body.kind,
-      attributes,
+      kind: 'wpp' as const,
+      attributes: wppAttributes,
     },
     imageSettings: {
       type: body.imageType,

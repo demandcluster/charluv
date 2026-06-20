@@ -25,10 +25,10 @@ export async function generateImage(
       ? chat.characterId
       : chat?.imageSource === 'last-character'
       ? opts.characterId
-      : // Explicit character (e.g. the native image tool) still resolves the
-        // character so its stored LoRA is used, without changing imageSettings
-        // source selection above.
-        opts.characterId
+      : // Fall back to the explicit character (e.g. the native image tool) or the
+        // chat's main character so the character's stored LoRA is always used.
+        // imageSettings source selection below is unchanged.
+        opts.characterId || chat?.characterId
   const character =
     chat && characterId ? await store.characters.getCharacter(chat.userId, characterId) : undefined
 
@@ -106,6 +106,8 @@ export async function generateImage(
     // (i2L Mode A) when present, with its locked seed for consistency. No data
     // migration required.
     if (isZImageConfigured()) {
+      // Character/avatar images are larger (768); chat images are smaller (512).
+      const size = opts.source === 'avatar' ? 768 : 512
       image = await handleZImage(
         {
           user,
@@ -114,6 +116,8 @@ export async function generateImage(
           settings: imageSettings,
           loraName: character?.loraName,
           seed: character?.imageSeed,
+          width: size,
+          height: size,
         },
         log,
         guestId

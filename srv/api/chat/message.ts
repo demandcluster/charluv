@@ -5,6 +5,7 @@ import { AppRequest, StatusError, errors, handle } from '../wrap'
 import { sendGuest, sendMany, sendOne } from '../ws'
 import { obtainLock, releaseLock } from './lock'
 import { generateImage } from '../../image'
+import { getXpPerMessage } from '/common/progression'
 import { AppSchema } from '../../../common/types/schema'
 import { v4 } from 'uuid'
 import { Response } from 'express'
@@ -396,7 +397,9 @@ export const generateMessageV2 = handle(async (req, res) => {
   // charge credits or advance relationship XP for them.
   if (body.kind !== 'summary') {
     const credits = await store.credits.updateCredits(userId!, -10)
-    await store.scenario.updateCharXp(chat.characterId!, +1)
+    // XP per message is driven by the character's progression speed (slow/normal/fast).
+    const xpGain = getXpPerMessage(replyAs.progression)
+    if (xpGain > 0) await store.scenario.updateCharXp(chat.characterId!, xpGain)
     //sendOne(userId!, { type: 'credits-updated', credits })
   }
 
