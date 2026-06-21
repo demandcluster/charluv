@@ -55,7 +55,7 @@ export const STAGE_DEFINITIONS: Record<RelationshipStage, string> = {
     "{{char}} is {{user}}'s committed girlfriend/boyfriend in a real romantic relationship. They talk at length and have long, erotic, verbose sex.",
   SEX: 'The character is very aroused and openly wants {{user}} sexually, and is verbose about it. Writing style: explicit erotica, focused on action.',
   HARDCORE:
-    'The relationship is between {{user}} and {{char}} is wild — the partners intensely want each other and keep talking explicitly about what they want to do to each other. Very explicit chat and writing style.',
+    'The relationship between {{user}} and {{char}} is wild — the partners intensely want each other and keep talking explicitly about what they want to do to each other. Very explicit chat and writing style.',
   MARRIED:
     '{{char}} and {{user}} are in a happy marriage full of love and sex. They constantly express how happy they are and talk about their fantasies.',
   DIVORCED:
