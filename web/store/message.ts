@@ -698,17 +698,15 @@ export const msgStore = createStore<MsgState>(
       }
     },
 
-    async *createSummary(
-      { msgs, activeChatId, activeCharId, waiting },
-      messageId?: string,
-      append?: boolean
-    ) {
+    async *createSummary({ activeChatId, activeCharId, waiting }, auto?: boolean) {
       if (waiting) return
 
       yield { waiting: { chatId: activeChatId, mode: 'send', characterId: activeCharId } }
 
       const res = await msgsApi.getChatSummary()
-      if (res?.error) {
+      // Auto summaries fire on a token threshold and routinely no-op until enough
+      // new content has accrued ("Need at least N more tokens") — stay silent then.
+      if (res?.error && !auto) {
         toastStore.error(`Failed to request summary: ${res.error}`)
       }
       msgStore.setState({ partial: undefined, waiting: undefined })
@@ -758,11 +756,45 @@ const [debouncedEmbed] = createDebounce((chatId: string, history: AppSchema.Chat
   embedApi.embedChat(chatId, history)
 }, 250)
 
+/**
+ * Auto-summarisation. With a 16K context window + long-term memory the manual
+ * "Summarize chat" button is gone; instead, once a chat's history grows past
+ * ~8K tokens we summarise once so the early narrative survives when old messages
+ * scroll out of the window. getChatSummary() itself no-ops until enough new
+ * content has accrued since the last summary, so re-attempts are cheap/silent.
+ */
+const AUTO_SUMMARY_TOKENS = 8000
+const CHARS_PER_TOKEN = 4
+// msgs.length at the last auto attempt, per chat — avoids re-checking every message.
+const lastAutoSummaryAt = new Map<string, number>()
+
+function maybeAutoSummary() {
+  const state = msgStore.getState()
+  if (state.partial || state.waiting) return
+  const chatId = state.activeChatId
+  if (!chatId) return
+
+  const history = state.messageHistory.concat(state.msgs)
+  if (history.length < 12) return
+
+  const chars = history.reduce((n, m) => n + (m.msg?.length || 0), 0)
+  if (chars < AUTO_SUMMARY_TOKENS * CHARS_PER_TOKEN) return
+
+  const last = lastAutoSummaryAt.get(chatId) ?? 0
+  if (history.length - last < 6) return
+
+  lastAutoSummaryAt.set(chatId, history.length)
+  msgStore.createSummary(true)
+}
+
+const [debouncedAutoSummary] = createDebounce(() => maybeAutoSummary(), 1500)
+
 msgStore.subscribe((state) => {
   if (state.partial) return
   if (!state.activeChatId) return
   if (!state.msgs.length) return
   debouncedEmbed(state.activeChatId, state.messageHistory.concat(state.msgs))
+  debouncedAutoSummary()
 })
 
 function processQueue() {

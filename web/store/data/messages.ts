@@ -293,8 +293,11 @@ async function getChatSummary() {
 
   const settings = getAuthGenSettings(chat, user)!
 
-  const template = getChatSummaryTemplate('horde')
-  if (!template) throw new Error(`No chat summary template available for horde`)
+  // Use the chat's actual service (charluv -> self-hosted vLLM), not the legacy
+  // hardcoded horde, which is demoted and no longer the text backend.
+  const service = settings.service || 'charluv'
+  const template = getChatSummaryTemplate(service)
+  if (!template) throw new Error(`No chat summary template available for ${service}`)
 
   const parse = await parseTemplate(template, opts)
   const prompt = parse.parsed
@@ -306,7 +309,7 @@ async function getChatSummary() {
   const values = await msgsApi.guidance<{ summary: string }>({
     prompt,
     settings,
-    service: 'horde',
+    service,
     maxTokens: 200,
   })
 

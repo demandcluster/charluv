@@ -1,6 +1,5 @@
 import {
   ImagePlus,
-  ClipboardList,
   ImageUp,
   Megaphone,
   MoreHorizontal,
@@ -160,12 +159,6 @@ const InputBar: Component<{
     })
   }, 100)
 
-  const createSummary = () => {
-    ref.value = ''
-    msgStore.createSummary()
-    toastStore.normal('Summarizing...')
-    setMenu(false)
-  }
 
   const createImage = () => {
     msgStore.createImage()
@@ -386,9 +379,6 @@ const InputBar: Component<{
             </Button>
             <Button schema="secondary" class="w-full" onClick={more} alignLeft>
               <PlusCircle size={18} /> Generate More
-            </Button>
-            <Button schema="secondary" class="w-full" onClick={createSummary} alignLeft>
-              <ClipboardList size={18} /> Summarize Chat
             </Button>
             <Show when={!!props.char?.voice?.service}>
               <Button schema="secondary" class="w-full" onClick={playVoice} alignLeft>
