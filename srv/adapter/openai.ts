@@ -90,7 +90,8 @@ function markerInstructions(charName: string, userName: string, image: boolean, 
   if (image)
     lines.push(
       `- Share a photo with <image>concise, comma-separated visual description, no names</image>. ` +
-        `Only when ${userName} asks to see something or sharing a photo is a genuinely fitting moment — at most one per reply, not every message.`
+        `Only when ${userName} explicitly asks to see something (you, a place, an object). ` +
+        `Do NOT send unprompted, "here's my situation", or opening/greeting photos — wait until ${userName} asks. At most one per reply.`
     )
   if (memory)
     lines.push(
