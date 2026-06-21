@@ -221,6 +221,7 @@ subscribe('image-failed', { requestId: 'string', error: 'string' }, (body) => {
 })
 
 const SUMMARY_BACKENDS: { [key in AIAdapter]?: (opts: PromptEntities) => boolean } = {
+  charluv: () => true,
   openai: () => true,
   novel: () => true,
   horde: () => true,
@@ -287,6 +288,7 @@ function getSummaryTemplate(service: AIAdapter, summaryPrompt?: string) {
       { ${prompt} }`
     }
 
+    case 'charluv':
     case 'openai':
     case 'openrouter':
     case 'claude':
