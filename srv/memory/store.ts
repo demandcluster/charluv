@@ -27,6 +27,34 @@ export type LongTermMemory = {
 
 const collection = () => getDb().collection<LongTermMemory>('longterm-memory')
 
+/**
+ * Cosine similarity above which a new fact is treated as a duplicate of an
+ * existing one (the same thing said with slightly different words). The
+ * all-MiniLM embeddings put genuine paraphrases ~0.85+; distinct facts sit well
+ * below, so this only collapses true restatements.
+ */
+const DUP_SIMILARITY = 0.85
+
+/**
+ * Reject transient, scene-level statements that aren't worth remembering long
+ * term — e.g. "Pete arrived at Julia's apartment", "she is sitting on the
+ * couch", "it's raining right now". These describe the current moment, not a
+ * durable fact about the people. Lasting facts (names, relationships,
+ * preferences, history, promises) don't match these episodic patterns.
+ */
+const EPHEMERAL_PATTERNS: RegExp[] = [
+  // momentary time anchors
+  /\b(right now|just now|at the moment|currently|this morning|this afternoon|this evening|tonight|today|earlier (today|tonight)|a (moment|minute|second) ago)\b/i,
+  // one-off motion / scene events
+  /\b(just )?(arrived|arrives|arriving|left|leaving|walked|walks|walking|entered|enters|came over|comes over|showed up|shows up|stepped|knocked|sat down|sits down|stood up|stands up|got up|lay down|opened the door|closed the door|went (to|into|over))\b/i,
+  // describing a present pose / ongoing action (transient state)
+  /\bis (now |currently )?(sitting|standing|lying|kneeling|walking|running|driving|eating|drinking|sleeping|crying|smiling|laughing|holding|wearing|waiting|heading|on (her|his|their) way)\b/i,
+]
+
+function isEphemeral(text: string): boolean {
+  return EPHEMERAL_PATTERNS.some((re) => re.test(text))
+}
+
 /** Store a fact the model chose to remember. Returns the created doc (or null). */
 export async function rememberFact(
   userId: string,
@@ -37,7 +65,17 @@ export async function rememberFact(
   const trimmed = text.trim()
   if (!trimmed || !characterId) return null
 
-  // Skip near-duplicates (same character already has this exact fact).
+  // Model-sourced facts get filtered for transient/scene content; a manual add
+  // is the user's deliberate choice, so it's trusted.
+  if (source !== 'manual' && isEphemeral(trimmed)) {
+    logger.debug(
+      { characterId, source, length: trimmed.length, ...(LOG_TEXT ? { text: trimmed } : {}) },
+      'memory: ephemeral, skipped'
+    )
+    return null
+  }
+
+  // Skip exact duplicates (same character already has this exact fact).
   const existing = await collection().findOne({ userId, characterId, text: trimmed })
   if (existing) {
     logger.debug(
@@ -48,6 +86,29 @@ export async function rememberFact(
   }
 
   const embedding = await embed(trimmed)
+
+  // Skip semantic near-duplicates — the same fact paraphrased. Manual adds are
+  // left to the user (they may intend a nuance), model facts are de-duped.
+  if (source !== 'manual') {
+    const docs = await collection().find({ userId, characterId }).toArray()
+    let best: { d: LongTermMemory; score: number } | null = null
+    for (const d of docs) {
+      const score = cosine(embedding, d.embedding)
+      if (!best || score > best.score) best = { d, score }
+    }
+    if (best && best.score >= DUP_SIMILARITY) {
+      logger.debug(
+        {
+          characterId,
+          score: +best.score.toFixed(3),
+          ...(LOG_TEXT ? { text: trimmed, existing: best.d.text } : {}),
+        },
+        'memory: near-duplicate, skipped'
+      )
+      return best.d
+    }
+  }
+
   const doc: LongTermMemory = {
     _id: v4(),
     userId,

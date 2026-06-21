@@ -96,7 +96,8 @@ function markerInstructions(charName: string, userName: string, image: boolean, 
   if (memory)
     lines.push(
       `- Remember a lasting detail with <remember>the fact, in third person</remember>. ` +
-        `Use it for things worth recalling in future chats — about ${userName} (their name, job, preferences, promises) AND about ${charName} yourself, INCLUDING details you state or invent in the moment (e.g. "${charName}'s cat is named Mochi", "${charName}'s brother is called Tom", where ${charName} lives, ${charName}'s backstory). Whenever you mention a new concrete personal detail about yourself, remember it. Skip routine chit-chat.`
+        `Only durable facts that stay true across days and weeks — names, relationships, jobs, preferences, promises, history — about ${userName} AND about ${charName} yourself, INCLUDING details you state or invent (e.g. "${charName}'s cat is named Mochi", "${charName}'s brother is called Tom", where ${charName} lives, ${charName}'s backstory). Whenever you mention a new concrete personal detail about yourself, remember it. ` +
+        `Do NOT remember moment-to-moment events or the current scene — who arrived, where someone is sitting, what is happening right now (e.g. "${userName} arrived at ${charName}'s apartment" is NOT a memory). One fact per tag; skip routine chit-chat and never restate something already remembered.`
     )
   if (!lines.length) return ''
   // Framed as a built-in Charluv platform capability (in-world), not a meta system
