@@ -236,6 +236,23 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     log.debug({ imageToolEnabled, memoryToolEnabled }, 'tools: marker instructions injected')
   }
 
+  // Some prompts emit a `system` message after the conversation has started
+  // (e.g. a post-history instruction, jailbreak, or a `System:` history line).
+  // Strict chat templates (Qwen on vLLM) reject this — "system messages should
+  // come before user/assistant messages" — and the request returns no reply.
+  // Demote any non-leading system message to `user` so its content still reaches
+  // the model in place. Leading system messages are untouched.
+  if (Array.isArray(body.messages)) {
+    let seenNonSystem = false
+    for (const m of body.messages as CompletionItem[]) {
+      if (m.role === 'system') {
+        if (seenNonSystem) m.role = 'user'
+      } else {
+        seenNonSystem = true
+      }
+    }
+  }
+
   if (gen.antiBond) body.logit_bias = { 3938: -50, 11049: -50, 64186: -50, 3717: -25 }
 
   const useThirdPartyPassword =
