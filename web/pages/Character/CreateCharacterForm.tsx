@@ -441,6 +441,23 @@ export const CreateCharacterForm: Component<{
                 />
               </Card>
 
+              <Card class="flex flex-col gap-1">
+                <div class="flex items-center justify-between gap-2">
+                  <FormLabel
+                    label="Base look seed"
+                    helperText="Locks this character's look so generated images stay consistent. (Chat images ignore it.)"
+                  />
+                  <Button size="sm" schema="secondary" onClick={() => editor.rerollSeed()}>
+                    <Dices size={14} /> Reroll
+                  </Button>
+                </div>
+                <div class="text-600 text-xs">
+                  Seed <span class="font-mono">{editor.state.imageSeed}</span> — rerolling changes
+                  your character's base appearance. Only reroll if the look isn't what you wanted;
+                  already-saved images are unaffected.
+                </div>
+              </Card>
+
               <CharacterGallery
                 editor={editor}
                 charId={props.editId}

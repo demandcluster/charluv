@@ -64,6 +64,9 @@ type EditState = {
   nsfw?: boolean
   // Z-Image stored LoRA name (temp/manual for testing i2L Mode A generation).
   loraName?: string
+  // Locked seed for the character's base look — used for editor image gen so all
+  // generated images stay consistent. Rerollable; ignored in chat generation.
+  imageSeed?: number
 
   // charluv: fixed W++ persona traits. Like archetype/gender these are FLAT
   // string fields bound to TextInputs (Solid's store setState only updates
@@ -158,6 +161,9 @@ const fieldMap: Map<CharKey, GuardKey | 'tags'> = new Map([
   ['systemPrompt', 'systemPrompt'],
 ])
 
+/** Random seed for the character's locked base look. */
+const makeSeed = () => Math.floor(Math.random() * 1_000_000_000)
+
 const initState: EditState = {
   name: '',
   personaKind: 'wpp',
@@ -191,6 +197,7 @@ const initState: EditState = {
   categoryValue: '',
   nsfw: false,
   loraName: '',
+  imageSeed: undefined,
   // Fixed W++ persona traits (flat string fields; assembled in getPayload).
   personaExtras: {},
   traitSpecies: '',
@@ -240,6 +247,9 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
 
   const [original, setOriginal] = createSignal(editing)
   const [state, setState] = createStore<EditState>({ ...initState })
+  // Every character gets a locked base-look seed (new chars too, before load()).
+  if (!state.imageSeed) setState('imageSeed', makeSeed())
+  const rerollSeed = () => setState('imageSeed', makeSeed())
   const [imageData, setImageData] = createSignal<string>()
   const [form, setForm] = createSignal<any>()
   const [generating, setGenerating] = createSignal(false)
@@ -349,7 +359,7 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
   }
 
   const createAvatar = async () => {
-    const avatar = await generateAvatar(buildImagePrompt())
+    const avatar = await generateAvatar(buildImagePrompt(), state.imageSeed)
     if (!avatar) return
 
     return receiveAvatar(avatar)
@@ -359,7 +369,7 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
   // character's avatar (used to populate the gallery).
   const createGalleryImage = async () => {
     const desc = buildImagePrompt()
-    const file = await generateAvatar(desc)
+    const file = await generateAvatar(desc, state.imageSeed)
     if (!file) return
     return imageApi.getImageData(file)
   }
@@ -479,6 +489,7 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
         categoryValue: (char as any)?.category?.[0] ?? '',
         nsfw: (char as any)?.nsfw ?? false,
         loraName: (char as any)?.loraName ?? '',
+        imageSeed: (char as any)?.imageSeed ?? makeSeed(),
         // Hydrate the fixed W++ trait fields from the source persona (any format).
         // appearance/gender/ageRange already hydrate via existing code above.
         ...hydratePersonaTraits((char as any)?.persona),
@@ -567,6 +578,7 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
     genOptions,
     createAvatar,
     createGalleryImage,
+    rerollSeed,
     receiveAvatar,
     avatar: imageData,
     generating,
@@ -718,6 +730,7 @@ function getPayload(ev: any, state: EditState, original?: NewCharacter) {
     category: state.categoryValue ? [state.categoryValue] : undefined,
     nsfw: state.nsfw || undefined,
     loraName: state.loraName?.trim() || undefined,
+    imageSeed: state.imageSeed,
 
     // These fields no longer have form inputs; pass through existing values so a
     // save doesn't clobber data set elsewhere. creator/characterVersion are now
@@ -756,19 +769,21 @@ function getPayload(ev: any, state: EditState, original?: NewCharacter) {
   return payload
 }
 
-async function generateAvatar(description: string) {
+async function generateAvatar(description: string, seed?: number) {
   const { user } = userStore.getState()
   if (!user) {
     return toastStore.error(`Image generation settings missing`)
   }
 
-  // const image = await imageApi.generateImageAsync(description)
-  // return image
-
   return new Promise<File>((resolve, reject) => {
-    characterStore.generateAvatar(user, description, (err, image) => {
-      if (image) return resolve(image)
-      reject(err)
-    })
+    characterStore.generateAvatar(
+      user,
+      description,
+      (err, image) => {
+        if (image) return resolve(image)
+        reject(err)
+      },
+      seed
+    )
   })
 }

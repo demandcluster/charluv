@@ -387,7 +387,8 @@ export const characterStore = createStore<CharacterState>(
       { generate: prev },
       user: AppSchema.User,
       persona: AppSchema.Persona | string,
-      onDone?: (err: any, image?: File) => void
+      onDone?: (err: any, image?: File) => void,
+      seed?: number
     ) {
       try {
         let prompt =
@@ -401,6 +402,7 @@ export const characterStore = createStore<CharacterState>(
         const res = await imageApi.generateImageWithPrompt({
           prompt,
           source: 'avatar',
+          seed,
           onTick: (status) => {
             set({ hordeStatus: status })
           },

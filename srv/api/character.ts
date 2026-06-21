@@ -54,6 +54,7 @@ const characterForm = {
   category: 'string?',
   nsfw: 'any?',
   loraName: 'string?',
+  imageSeed: 'any?',
 
   favorite: 'boolean?',
   voice: 'string?',
@@ -164,6 +165,7 @@ const createCharacter = handle(async (req) => {
     category,
     nsfw: body.nsfw?.toString() === 'true' || undefined,
     loraName: body.loraName || undefined,
+    imageSeed: body.imageSeed ? Number(body.imageSeed) : undefined,
     share: body.share,
     sampleChat: body.sampleChat,
     description: body.description,
@@ -461,6 +463,7 @@ const editFullCharacter = handle(async (req) => {
     category: body.category ? JSON.parse(body.category) : undefined,
     nsfw: body.nsfw?.toString() === 'true' || undefined,
     loraName: body.loraName || undefined,
+    imageSeed: body.imageSeed ? Number(body.imageSeed) : undefined,
   }
 
   if (body.persona) {
@@ -652,6 +655,7 @@ export const createImage = handle(async ({ body, userId, socketId, log }) => {
       chatId: 'string?',
       requestId: 'string?',
       parent: 'string?',
+      seed: 'number?',
     },
     body
   )
@@ -669,6 +673,7 @@ export const createImage = handle(async ({ body, userId, socketId, log }) => {
       characterId: body.characterId,
       requestId: body.requestId,
       parentId: body.parent,
+      seed: body.seed,
     },
     log,
     guestId

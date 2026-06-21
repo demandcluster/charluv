@@ -91,6 +91,7 @@ export async function generateImage({ chatId, messageId, onDone, ...opts }: Gene
 export async function generateImageWithPrompt(opts: {
   prompt: string
   source: string
+  seed?: number
   onDone: (result: { image: string; file: File; data?: string }) => void
   onTick?: (status: horde.HordeCheck) => void
 }) {
@@ -127,6 +128,7 @@ export async function generateImageWithPrompt(opts: {
     user,
     ephemeral: true,
     source,
+    seed: opts.seed,
   })
 
   return res

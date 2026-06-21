@@ -120,7 +120,10 @@ export async function generateImage(
           negative,
           settings: imageSettings,
           loraName: character?.loraName,
-          seed: character?.imageSeed,
+          // Seed is locked only when supplied by the caller (the character
+          // editor). Chat generation omits it so images vary (the LoRA gives
+          // identity). Persisted character.imageSeed is forwarded by the editor.
+          seed: opts.seed,
           width: size,
           height: size,
         },

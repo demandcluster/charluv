@@ -14,6 +14,8 @@ export type ImageGenerateRequest = {
   characterId?: string
   requestId?: string
   parentId: string | undefined
+  /** Locked seed for consistent results (editor only; chat omits it). */
+  seed?: number
 }
 
 export type ImageRequestOpts = {
