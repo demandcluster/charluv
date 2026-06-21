@@ -1,5 +1,5 @@
 import {
-  Book,
+  Brain,
   Download,
   Palette,
   Settings,
@@ -133,7 +133,7 @@ const ChatOptions: Component<{
             </Show>
           </Item>
           <Item onClick={() => props.togglePane('memory')} hide={!isOwner()}>
-            <Book /> Memory
+            <Brain /> Memory
           </Item>
         </Row>
 

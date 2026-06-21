@@ -17,6 +17,7 @@ import { CharacterUpdate } from '../db/characters'
 import { getVoiceService } from '../voice'
 import { generateImage } from '../image'
 import { makeLoraName, zimageEncode } from '../image/zimage'
+import { listMemories, rememberFact, deleteMemory } from '../memory/store'
 import { v4 } from 'uuid'
 import { validBook } from './memory'
 import { isObject, tryParse } from '/common/util'
@@ -568,6 +569,43 @@ const setCover = handle(async ({ userId, params, body }) => {
   return { avatar: body.url }
 })
 
+/**
+ * Long-term memory management for a character (the new "remember" system that
+ * replaces memory books). Scoped to the owner + character, so it spans every
+ * chat with that companion. The model writes these via the `remember` tool;
+ * these routes let the owner view, add, and remove them.
+ */
+const listCharacterMemories = handle(async ({ userId, params }) => {
+  const char = await store.characters.getCharacter(userId!, params.id)
+  if (!char) throw errors.NotFound
+  const memories = await listMemories(userId!, params.id)
+  return { memories: memories.map(({ embedding, ...m }) => m) }
+})
+
+const addCharacterMemory = handle(async ({ userId, params, body }) => {
+  assertValid({ text: 'string' }, body)
+  const char = await store.characters.getCharacter(userId!, params.id)
+  if (!char) throw errors.NotFound
+
+  const text = (body.text || '').trim()
+  if (!text) throw new StatusError('Memory text is required', 400)
+
+  const doc = await rememberFact(userId!, params.id, text, 'manual')
+  if (!doc) throw new StatusError('Could not store memory', 400)
+
+  const memories = await listMemories(userId!, params.id)
+  return { memories: memories.map(({ embedding, ...m }) => m) }
+})
+
+const removeCharacterMemory = handle(async ({ userId, params }) => {
+  const char = await store.characters.getCharacter(userId!, params.id)
+  if (!char) throw errors.NotFound
+
+  await deleteMemory(userId!, params.memId)
+  const memories = await listMemories(userId!, params.id)
+  return { memories: memories.map(({ embedding, ...m }) => m) }
+})
+
 /** Max reference images accepted by the Z-Image encode endpoint. */
 const MAX_LORA_REFS = 4
 
@@ -696,6 +734,9 @@ router.post('/:id/gallery', addGalleryImage)
 router.delete('/:id/gallery', removeGalleryImage)
 router.post('/:id/cover', setCover)
 router.post('/:id/encode-lora', encodeLora)
+router.get('/:id/memories', listCharacterMemories)
+router.post('/:id/memories', addCharacterMemory)
+router.delete('/:id/memories/:memId', removeCharacterMemory)
 router.post('/bulk-update', bulkUpdate)
 
 export default router

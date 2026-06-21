@@ -11,7 +11,7 @@ import {
 } from 'solid-js'
 import { characterStore, chatStore, toastStore } from '/web/store'
 import Convertible from '../../../shared/Mode/Convertible'
-import { A, useParams, useSearchParams } from '@solidjs/router'
+import { useParams, useSearchParams } from '@solidjs/router'
 import { getActiveBots } from '../util'
 import { AppSchema } from '/common/types'
 import { CreateCharacterForm } from '../../Character/CreateCharacterForm'
@@ -23,7 +23,7 @@ import UISettings from '../../Settings/UISettings'
 import { wait } from '/common/util'
 import CharacterSelect from '/web/shared/CharacterSelect'
 import ChatSettings from '../ChatSettings'
-import ChatMemoryModal from './MemoryModal'
+import LongTermMemory from './LongTermMemory'
 import { getClientPreset } from '/web/shared/adapter'
 import { usePaneManager } from '/web/shared/hooks'
 
@@ -188,16 +188,8 @@ const ChatPanes: Component<{}> = (props) => {
         </Match>
 
         <Match when={pane.pane() === 'memory'}>
-          <Convertible
-            close={closePane}
-            footer={paneFooter()}
-            title={
-              <A class="link" href="/guides/memory">
-                Memory Guide
-              </A>
-            }
-          >
-            <ChatMemoryModal chat={chats.chat!} close={closePane} footer={setPaneFooter} />
+          <Convertible close={closePane} footer={paneFooter()} title="Memory">
+            <LongTermMemory chat={chats.chat!} close={closePane} footer={setPaneFooter} />
           </Convertible>
         </Match>
 

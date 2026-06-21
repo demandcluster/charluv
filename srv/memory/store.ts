@@ -19,8 +19,9 @@ export type LongTermMemory = {
   characterId: string
   text: string
   embedding: number[]
-  /** How the memory was created: the model's `remember` tool, or automatic. */
-  source: 'tool' | 'auto'
+  /** How the memory was created: the model's `remember` tool, automatic, or the
+   * user adding it by hand in the memory pane. */
+  source: 'tool' | 'auto' | 'manual'
   createdAt: string
 }
 

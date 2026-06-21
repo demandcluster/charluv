@@ -26,6 +26,34 @@ export const charsApi = {
   removeGalleryImage,
   setCover,
   encodeLora,
+  listMemories,
+  addMemory,
+  deleteMemory,
+}
+
+/** A stored long-term memory (the new "remember" system), without its vector. */
+export type CharacterMemory = {
+  _id: string
+  userId: string
+  characterId: string
+  text: string
+  source: 'tool' | 'auto' | 'manual'
+  createdAt: string
+}
+
+async function listMemories(charId: string) {
+  return api.get<{ memories: CharacterMemory[] }>(`/character/${charId}/memories`)
+}
+
+async function addMemory(charId: string, text: string) {
+  return api.post<{ memories: CharacterMemory[] }>(`/character/${charId}/memories`, { text })
+}
+
+async function deleteMemory(charId: string, memId: string) {
+  return api.method<{ memories: CharacterMemory[] }>(
+    'delete',
+    `/character/${charId}/memories/${memId}`
+  )
 }
 
 /** Add an image (base64 data url) to a saved character's reference gallery. */

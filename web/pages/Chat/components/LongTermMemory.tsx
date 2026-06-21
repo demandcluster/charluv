@@ -1,0 +1,122 @@
+import { Component, For, JSX, Show, createSignal, onMount } from 'solid-js'
+import { Trash } from 'lucide-solid'
+import { AppSchema } from '../../../../common/types/schema'
+import Button from '../../../shared/Button'
+import TextInput from '../../../shared/TextInput'
+import Loading from '../../../shared/Loading'
+import { toastStore } from '../../../store'
+import { charsApi, CharacterMemory } from '../../../store/data/chars'
+
+/**
+ * Long-term memory pane — the new "remember" system that replaces memory books.
+ * Memories are scoped to the owner + character and persist across every chat
+ * with that companion. The model writes them via the `remember` tool; here the
+ * owner can review, add, and delete them.
+ */
+const LongTermMemory: Component<{
+  chat: AppSchema.Chat | undefined
+  close: () => void
+  footer?: (children: JSX.Element) => void
+}> = (props) => {
+  const charId = () => props.chat?.characterId
+  const [memories, setMemories] = createSignal<CharacterMemory[]>([])
+  const [loading, setLoading] = createSignal(true)
+  const [text, setText] = createSignal('')
+  const [busy, setBusy] = createSignal(false)
+
+  const load = async () => {
+    const id = charId()
+    if (!id) return
+    setLoading(true)
+    const res = await charsApi.listMemories(id)
+    setLoading(false)
+    if (res.result && 'memories' in res.result) setMemories(res.result.memories)
+    else if (res.error) toastStore.error(`Could not load memories: ${res.error}`)
+  }
+
+  onMount(load)
+
+  const add = async () => {
+    const id = charId()
+    const value = text().trim()
+    if (!id || !value) return
+    setBusy(true)
+    const res = await charsApi.addMemory(id, value)
+    setBusy(false)
+    if (res.result && 'memories' in res.result) {
+      setMemories(res.result.memories)
+      setText('')
+    } else if (res.error) {
+      toastStore.error(`Could not add memory: ${res.error}`)
+    }
+  }
+
+  const remove = async (memId: string) => {
+    const id = charId()
+    if (!id) return
+    setBusy(true)
+    const res = await charsApi.deleteMemory(id, memId)
+    setBusy(false)
+    if (res.result && 'memories' in res.result) setMemories(res.result.memories)
+    else if (res.error) toastStore.error(`Could not delete memory: ${res.error}`)
+  }
+
+  const sourceLabel = (s: CharacterMemory['source']) =>
+    s === 'manual' ? 'You added' : s === 'auto' ? 'Auto' : 'Remembered'
+
+  return (
+    <div class="flex flex-col gap-3 p-2">
+      <div class="text-600 text-sm">
+        Things this companion remembers about you and itself. These persist across all your chats
+        with them and are recalled when relevant. The character adds these on its own; you can also
+        add or remove them here.
+      </div>
+
+      <div class="flex items-end gap-2">
+        <TextInput
+          fieldName="newMemory"
+          parentClass="w-full"
+          placeholder="Add a memory, e.g. I'm allergic to peanuts"
+          value={text()}
+          onInputText={setText}
+          isMultiline
+        />
+        <Button onClick={add} disabled={busy() || !text().trim()}>
+          Add
+        </Button>
+      </div>
+
+      <Show when={!loading()} fallback={<Loading />}>
+        <Show
+          when={memories().length}
+          fallback={<div class="text-600 text-sm italic">No memories yet.</div>}
+        >
+          <div class="flex flex-col gap-2">
+            <For each={memories()}>
+              {(mem) => (
+                <div class="flex items-start justify-between gap-2 rounded-md border border-[var(--bg-700)] bg-[var(--bg-900)] p-2">
+                  <div class="flex flex-col gap-1">
+                    <div class="text-sm">{mem.text}</div>
+                    <div class="text-500 text-xs">
+                      {sourceLabel(mem.source)} · {new Date(mem.createdAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    schema="red"
+                    onClick={() => remove(mem._id)}
+                    disabled={busy()}
+                  >
+                    <Trash size={14} />
+                  </Button>
+                </div>
+              )}
+            </For>
+          </div>
+        </Show>
+      </Show>
+    </div>
+  )
+}
+
+export default LongTermMemory
