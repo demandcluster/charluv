@@ -250,6 +250,14 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
   // Every character gets a locked base-look seed (new chars too, before load()).
   if (!state.imageSeed) setState('imageSeed', makeSeed())
   const rerollSeed = () => setState('imageSeed', makeSeed())
+
+  // Set the displayed cover to an existing image URL (Make-cover). Updates the
+  // avatar display immediately and clears any staged avatar File so the next save
+  // doesn't re-upload over the cover (which Make-cover already saved server-side).
+  const applyCover = (url: string) => {
+    setImageData(url)
+    setState('avatar', undefined)
+  }
   const [imageData, setImageData] = createSignal<string>()
   const [form, setForm] = createSignal<any>()
   const [generating, setGenerating] = createSignal(false)
@@ -579,6 +587,7 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
     createAvatar,
     createGalleryImage,
     rerollSeed,
+    applyCover,
     receiveAvatar,
     avatar: imageData,
     generating,

@@ -464,7 +464,10 @@ export const CreateCharacterForm: Component<{
                 initial={state.edit?.gallery}
                 avatarUrl={editor.avatar() || image()}
                 avatarLoading={state.avatar.loading}
-                onCoverChange={(url) => setImage(url)}
+                onCoverChange={(url) => {
+                  setImage(url)
+                  editor.applyCover(url)
+                }}
               />
 
               <Card>
