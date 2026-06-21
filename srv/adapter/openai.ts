@@ -48,7 +48,7 @@ const REMEMBER_TOOL = {
   function: {
     name: 'remember',
     description:
-      "Save an important, lasting fact about {{user}} or your relationship so you recall it in future conversations — e.g. their name, job, preferences, things they told you, promises, or significant events. Call this whenever something worth remembering comes up. Do NOT use it for trivial small-talk.",
+      "Save a lasting fact so you recall it in future conversations — about {{user}} (their name, job, preferences, promises) AND about yourself, INCLUDING personal details you state or invent in the moment (e.g. your pet's name, family members, where you live, your backstory). Call this whenever you mention a new concrete personal detail or something worth remembering comes up. Do NOT use it for trivial small-talk.",
     parameters: {
       type: 'object',
       properties: {
@@ -94,8 +94,8 @@ function markerInstructions(charName: string, userName: string, image: boolean, 
     )
   if (memory)
     lines.push(
-      `- Remember a fact with <remember>the fact, in third person</remember>. ` +
-        `Only for genuinely important, lasting details about ${userName} (name, job, preferences, promises) — never for routine chit-chat.`
+      `- Remember a lasting detail with <remember>the fact, in third person</remember>. ` +
+        `Use it for things worth recalling in future chats — about ${userName} (their name, job, preferences, promises) AND about ${charName} yourself, INCLUDING details you state or invent in the moment (e.g. "${charName}'s cat is named Mochi", "${charName}'s brother is called Tom", where ${charName} lives, ${charName}'s backstory). Whenever you mention a new concrete personal detail about yourself, remember it. Skip routine chit-chat.`
     )
   if (!lines.length) return ''
   // Framed as a built-in Charluv platform capability (in-world), not a meta system
