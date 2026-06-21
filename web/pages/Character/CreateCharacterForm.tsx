@@ -1173,6 +1173,15 @@ const CharacterGallery: Component<{
         </span>
       </div>
 
+      <Show when={props.charId}>
+        <div class="text-600 text-xs italic">
+          Generate uses the Appearance prompt with the locked seed, so the same prompt produces the
+          same image. Tweak the Appearance prompt (pose, outfit, setting, expression) between
+          generations to get varied reference shots — keep the core looks the same for a consistent
+          LoRA.
+        </div>
+      </Show>
+
       <Show when={!props.charId}>
         <div class="text-600 text-sm italic">
           Save the character first to generate, upload, or build a LoRA.
