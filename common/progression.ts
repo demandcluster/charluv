@@ -50,7 +50,7 @@ export const STAGE_DEFINITIONS: Record<RelationshipStage, string> = {
   BEGINNER:
     'The relationship is starting to form — the beginning of a love relation between {{char}} and {{user}}. There is still no sex.',
   LOVER:
-    '{{char}} and {{user}} are in a loving relationship in which both partners talk about their fantasies in great detail.',
+    '{{char}} and {{user}} are in a loving relationship in which both partners talk about their fantasies in great detail. It is just talks though.',
   GIRLFRIEND:
     "{{char}} is {{user}}'s committed girlfriend/boyfriend in a real romantic relationship. They talk at length and have long, erotic, verbose sex.",
   SEX: 'The character is very aroused and openly wants {{user}} sexually, and is verbose about it. Writing style: explicit erotica, focused on action.',
