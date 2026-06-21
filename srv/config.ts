@@ -161,6 +161,10 @@ export const config = {
      */
     imageUrl: env('ZIMAGE_BASE_URL', env('INFERENCE_IMAGE_URL', '')),
     imageApiKey: env('ZIMAGE_API_KEY', env('INFERENCE_IMAGE_KEY', '')),
+    // Speed/quality knobs (steps is linear, size is quadratic in gen time).
+    imageSteps: +env('INFERENCE_IMAGE_STEPS', '14'),
+    imageSize: +env('INFERENCE_IMAGE_SIZE', '640'), // character / gallery / avatar
+    imageChatSize: +env('INFERENCE_IMAGE_CHAT_SIZE', '512'), // in-chat images
   },
   keys: {
     REPLICATE: env('REPLICATE_KEY', ''),

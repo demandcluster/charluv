@@ -111,8 +111,11 @@ export async function generateImage(
     // (i2L Mode A) when present, with its locked seed for consistency. No data
     // migration required.
     if (isZImageConfigured()) {
-      // Character/avatar images are larger (768); chat images are smaller (512).
-      const size = opts.source === 'avatar' ? 768 : 512
+      // Character/avatar/gallery images vs in-chat images (both env-tunable).
+      const size =
+        opts.source === 'avatar'
+          ? config.inference.imageSize || 640
+          : config.inference.imageChatSize || 512
       image = await handleZImage(
         {
           user,
