@@ -186,7 +186,7 @@ export const handleZImage: ImageAdapter = async (opts, log) => {
     seed: opts.seed,
     width: opts.width || 512,
     height: opts.height || 512,
-    steps: config.inference.imageSteps || 14,
+    steps: opts.steps || 20,
     cfg: 4,
   })
 

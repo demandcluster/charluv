@@ -111,11 +111,14 @@ export async function generateImage(
     // (i2L Mode A) when present, with its locked seed for consistency. No data
     // migration required.
     if (isZImageConfigured()) {
-      // Character/avatar/gallery images vs in-chat images (both env-tunable).
-      const size =
-        opts.source === 'avatar'
-          ? config.inference.imageSize || 640
-          : config.inference.imageChatSize || 512
+      // Character/avatar/gallery images (faster) vs in-chat images (keep quality).
+      const isCharImage = opts.source === 'avatar'
+      const size = isCharImage
+        ? config.inference.imageSize || 640
+        : config.inference.imageChatSize || 512
+      const steps = isCharImage
+        ? config.inference.imageSteps || 14
+        : config.inference.imageChatSteps || 20
       image = await handleZImage(
         {
           user,
@@ -129,6 +132,7 @@ export async function generateImage(
           seed: opts.seed,
           width: size,
           height: size,
+          steps,
         },
         log,
         guestId

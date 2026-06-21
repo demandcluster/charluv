@@ -30,6 +30,8 @@ export type ImageRequestOpts = {
   /** Output dimensions (chat images are smaller than character/avatar images). */
   width?: number
   height?: number
+  /** Diffusion steps (gallery/avatar is tuned faster than chat). */
+  steps?: number
 }
 
 export type ImageAdapter = (

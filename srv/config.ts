@@ -162,8 +162,10 @@ export const config = {
     imageUrl: env('ZIMAGE_BASE_URL', env('INFERENCE_IMAGE_URL', '')),
     imageApiKey: env('ZIMAGE_API_KEY', env('INFERENCE_IMAGE_KEY', '')),
     // Speed/quality knobs (steps is linear, size is quadratic in gen time).
-    imageSteps: +env('INFERENCE_IMAGE_STEPS', '14'),
-    imageSize: +env('INFERENCE_IMAGE_SIZE', '640'), // character / gallery / avatar
+    // Gallery/avatar is tuned for speed; chat keeps its higher-quality defaults.
+    imageSteps: +env('INFERENCE_IMAGE_STEPS', '14'), // gallery / avatar
+    imageSize: +env('INFERENCE_IMAGE_SIZE', '640'), // gallery / avatar
+    imageChatSteps: +env('INFERENCE_IMAGE_CHAT_STEPS', '20'), // in-chat images
     imageChatSize: +env('INFERENCE_IMAGE_CHAT_SIZE', '512'), // in-chat images
   },
   keys: {
