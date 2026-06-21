@@ -17,6 +17,7 @@ import {
 import { DropMenu } from '/web/shared/DropMenu'
 import Button from '/web/shared/Button'
 import Gauge from '/web/shared/Gauge'
+import { startChat } from '/web/store'
 
 export const CharacterListView: Component<ViewProps> = (props) => {
   return (
@@ -121,13 +122,14 @@ const CharacterListOptions: Component<{
             <Star class="icon-button" />
           </a>
         </Show>
-        <A
-          href={`/chats/create/${props.char._id}`}
+        <a
+          href="#"
+          onClick={(e) => (e.preventDefault(), startChat(props.char, nav))}
           role="button"
-          aria-label={`Create new chat with ${props.char.name}`}
+          aria-label={`Chat with ${props.char.name}`}
         >
           <MessageCircle class="icon-button" />
-        </A>
+        </a>
         <Show when={props.char?.name !== 'Aiva'}>
           <a
             href="#"
@@ -187,7 +189,7 @@ const CharacterListOptions: Component<{
               <Star /> Favorite
             </Show>
           </Button>
-          <Button onClick={() => nav(`/chats/create/${props.char._id}`)} alignLeft size="sm">
+          <Button onClick={() => startChat(props.char, nav)} alignLeft size="sm">
             <MessageCircle /> Chat
           </Button>
           <Show when={props.char?.name !== 'Aiva'}>

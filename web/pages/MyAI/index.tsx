@@ -22,7 +22,7 @@ const MyAI: Component = () => {
     )
   )
 
-  const open = (char: AppSchema.Character) => navigate(`/chats/create/${char._id}`)
+  const open = (char: AppSchema.Character) => navigate(`/mine/${char._id}`)
 
   return (
     <div class="dsc-root">

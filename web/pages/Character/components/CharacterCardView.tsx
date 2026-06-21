@@ -17,6 +17,7 @@ import {
 } from 'lucide-solid'
 import { DropMenu } from '/web/shared/DropMenu'
 import Button from '/web/shared/Button'
+import { startChat } from '/web/store'
 
 export const CharacterCardView: Component<ViewProps> = (props) => {
   return (
@@ -139,7 +140,7 @@ const Character: Component<CardProps> = (props) => {
 
             <Match when={!props.char.chat}>
               <button
-                onClick={() => nav(`/chats/create/${props.char._id}`)}
+                onClick={() => startChat(props.char, nav)}
                 aria-label="Open Character Chats"
               >
                 <ArrowRight size={size} />
@@ -172,7 +173,7 @@ const Character: Component<CardProps> = (props) => {
             customPosition="right-[9px] top-[6px]"
           >
             <div class="flex flex-col gap-2 p-2">
-              <Button alignLeft onClick={() => nav(`/chats/create/${props.char._id}`)} size="sm">
+              <Button alignLeft onClick={() => startChat(props.char, nav, { forceNew: true })} size="sm">
                 <MessageCirclePlus size={size} /> New Chat
               </Button>
 

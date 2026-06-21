@@ -1,6 +1,6 @@
 import { A, useNavigate, useParams } from '@solidjs/router'
 import { Component, createEffect, createMemo, createSignal, For, onMount, Show } from 'solid-js'
-import { AllChat, characterStore, chatStore } from '../../store'
+import { AllChat, characterStore, chatStore, startChat } from '../../store'
 import PageHeader from '../../shared/PageHeader'
 import { Edit, Import, Plus, Trash, SortAsc, SortDesc } from 'lucide-solid'
 import ImportChatModal from './ImportChat'
@@ -134,6 +134,24 @@ const CharacterChats: Component = () => {
     chatStore.getAllChats()
   })
 
+  const startNewChat = () => {
+    const id = params.id
+    // Generic hub (no character context) keeps the create-chat form.
+    if (!id) {
+      nav(`/chats/create`)
+      return
+    }
+
+    const char = chars.list.find((c) => c._id === id)
+    if (!char) {
+      nav(`/chats/create/${id}`)
+      return
+    }
+
+    // Per-character "New" always creates a fresh chat (never resumes).
+    startChat(char, nav, { forceNew: true })
+  }
+
   const Options = () => (
     <>
       <button
@@ -145,7 +163,7 @@ const CharacterChats: Component = () => {
 
       <button
         class={`btn-primary w-full items-center justify-start py-2 sm:w-fit sm:justify-center`}
-        onClick={() => nav(`/chats/create/${params.id || ''}`)}
+        onClick={startNewChat}
       >
         <Plus /> <span class="hidden sm:inline">New</span>
       </button>
@@ -247,6 +265,24 @@ const Chats: Component<{
   charId?: string
 }> = (props) => {
   const [showDelete, setDelete] = createSignal('')
+  const [editingId, setEditingId] = createSignal('')
+  const [editName, setEditName] = createSignal('')
+
+  const startRename = (chat: ChatLine) => {
+    setEditName(chat.name || '')
+    setEditingId(chat._id)
+  }
+
+  const cancelRename = () => {
+    setEditingId('')
+    setEditName('')
+  }
+
+  const saveRename = (chatId: string) => {
+    const name = editName().trim()
+    chatStore.editChat(chatId, { name }, false)
+    cancelRename()
+  }
 
   const groups = createMemo(() => {
     const chars = props.charId ? props.chars.filter((ch) => ch._id === props.charId) : props.chars
@@ -272,6 +308,31 @@ const Chats: Component<{
               </Show>
               <For each={chats}>
                 {(chat) => (
+                  <Show
+                    when={editingId() !== chat._id}
+                    fallback={
+                      <div class="flex w-full items-center gap-2 rounded-lg bg-[var(--bg-800)] p-1">
+                        <div class="grow">
+                          <TextInput
+                            fieldName={`rename-${chat._id}`}
+                            placeholder="Chat name"
+                            value={editName()}
+                            onInputText={setEditName}
+                            onKeyUp={(ev) => {
+                              if (ev.key === 'Enter') saveRename(chat._id)
+                              if (ev.key === 'Escape') cancelRename()
+                            }}
+                          />
+                        </div>
+                        <Button size="sm" onClick={() => saveRename(chat._id)}>
+                          Save
+                        </Button>
+                        <Button size="sm" schema="secondary" onClick={cancelRename}>
+                          Cancel
+                        </Button>
+                      </div>
+                    }
+                  >
                   <div class="flex w-full justify-between gap-2 rounded-lg bg-[var(--bg-800)] p-1 hover:bg-[var(--bg-700)]">
                     <A
                       class="flex w-10/12 cursor-pointer gap-2 sm:w-11/12"
@@ -318,10 +379,24 @@ const Chats: Component<{
                         </div>
                       </div>
                     </A>
-                    <div class="flex items-center px-2" onClick={() => setDelete(chat._id)}>
-                      <Trash size={20} class="icon-button" />
+                    <div class="flex items-center gap-1 px-2">
+                      <button
+                        type="button"
+                        aria-label={`Rename chat ${chat.name || ''}`.trim()}
+                        onClick={() => startRename(chat)}
+                      >
+                        <Edit size={20} class="icon-button" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Delete chat ${chat.name || ''}`.trim()}
+                        onClick={() => setDelete(chat._id)}
+                      >
+                        <Trash size={20} class="icon-button" />
+                      </button>
                     </div>
                   </div>
+                  </Show>
                 )}
               </For>
             </div>

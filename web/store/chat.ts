@@ -622,6 +622,49 @@ function sortDesc(left: { updatedAt: string }, right: { updatedAt: string }): nu
   return left.updatedAt > right.updatedAt ? -1 : left.updatedAt === right.updatedAt ? 0 : 1
 }
 
+/**
+ * Start or resume a chat for a character and navigate straight into it.
+ *
+ * - If `forceNew` is falsey and the character already has chats, navigate to
+ *   the most-recently-updated one (`/chat/:chatId`).
+ * - Otherwise create a fresh default chat (name = char.name, greeting/scenario/
+ *   sampleChat from the char, `useOverrides: false`) and navigate to it on
+ *   success.
+ *
+ * This replaces the per-character `/chats/create/:id` form for "open a
+ * character" actions so opening a character drops the user directly into chat.
+ */
+export async function startChat(
+  char: AppSchema.Character,
+  navigate: (url: string) => void,
+  opts: { forceNew?: boolean } = {}
+) {
+  if (!opts.forceNew) {
+    const res = await chatsApi.getBotChats(char._id)
+    const result = res.result as { chats?: AppSchema.Chat[] } | undefined
+    const existing = result?.chats
+    if (existing?.length) {
+      const recent = [...existing].sort(sortDesc)[0]
+      if (recent?._id) {
+        navigate(`/chat/${recent._id}`)
+        return
+      }
+    }
+  }
+
+  chatStore.createChat(
+    char._id,
+    {
+      name: char.name,
+      greeting: char.greeting,
+      scenario: char.scenario,
+      sampleChat: char.sampleChat,
+      useOverrides: false,
+    },
+    (chatId: string) => navigate(`/chat/${chatId}`)
+  )
+}
+
 subscribe('member-removed', { memberId: 'string', chatId: 'string' }, (body) => {
   const profile = getStore('user').getState().profile
   if (!profile) return
