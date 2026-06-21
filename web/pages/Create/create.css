@@ -654,3 +654,30 @@
   flex-direction: column;
   gap: 0.5rem;
 }
+.cr-portrait-ph {
+  display: grid;
+  place-items: center;
+}
+.cr-portrait-spinner {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dsc-muted);
+  text-align: center;
+  padding: 0 0.4rem;
+}
+.cr-prompt-label {
+  margin-top: 0.9rem;
+}
+.cr-prompt {
+  width: 100%;
+  resize: vertical;
+  min-height: 4.5rem;
+  line-height: 1.4;
+}
+.cr-hint {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--dsc-muted);
+}

@@ -16,6 +16,8 @@ import {
 import './create.css'
 import { characterStore, chatStore, userStore } from '../../store'
 import { imageApi } from '../../store/data/image'
+import { genApi } from '../../store/data/inference'
+import { defaultPresets } from '/common/presets'
 import FileInput, { FileInputResult } from '../../shared/FileInput'
 import { getAssetUrl, random } from '../../shared/util'
 import { DEFAULT_ARCHETYPE_ID } from '/common/progression'
@@ -263,22 +265,85 @@ const Create: Component = () => {
     if (data) setAvatarUrl(data)
   }
 
-  // Compose a text-to-image prompt from the wizard choices (no LoRA yet).
+  // The editable image prompt shown under the portrait. Seeded by the LLM from
+  // the wizard choices, then the user can tweak it and regenerate.
+  const [imagePrompt, setImagePrompt] = createSignal('')
+  const [promptLoading, setPromptLoading] = createSignal(false)
+  // Run the LLM craft + first auto-generation once, when the finish step opens.
+  const [finishInit, setFinishInit] = createSignal(false)
+  let nameRef: HTMLInputElement | undefined
+
+  // Fallback text-to-image prompt composed directly from the wizard choices.
   const portraitPrompt = () =>
     `${labelOfImg(STYLES, answers.artStyle)} portrait, ${ethnicityLabel()} ${labelOfImg(
       GENDERS,
       answers.gender
     )}, ${appearanceString()}`
 
+  // Plain-language brief of every choice for the LLM to turn into an image prompt.
+  const choicesBrief = () =>
+    [
+      `${labelOfImg(GENDERS, answers.gender)}`,
+      `${labelOfImg(STYLES, answers.artStyle)} art style`,
+      `age ${answers.age}`,
+      ethnicityLabel(),
+      `${answers.skinTone} skin`,
+      `${answers.hairColor} ${hairStyleLabel()} hair`,
+      `${answers.eyeColor} eyes`,
+      `${labelOfImg(BODIES, answers.body)} body`,
+      `${labelOfImg(BREASTS, answers.breast)} bust`,
+      `${labelOfImg(BUTTS, answers.butt)} butt`,
+      `${vibe().label} vibe`,
+      answers.nsfw ? 'explicit/NSFW allowed' : 'tasteful/SFW',
+    ].join(', ')
+
+  // Ask the LLM for a strong text-to-image prompt from the choices. Falls back to
+  // the locally-composed prompt if the model is unavailable.
+  const craftPrompt = async (): Promise<string> => {
+    const instruction =
+      `Write ONE concise Stable-Diffusion style image prompt for a character portrait. ` +
+      `Comma-separated keywords/phrases only — no full sentences, no names, no preamble. ` +
+      `Base it on these traits: ${choicesBrief()}. Reply with only the prompt.`
+    try {
+      const res = await genApi.basicInference({
+        prompt: instruction,
+        settings: defaultPresets['charluv-balanced'],
+        overrides: { maxTokens: 150, temp: 0.6, streamResponse: false },
+      })
+      const text =
+        res && 'result' in res ? ((res.result as any)?.response as string | undefined) : ''
+      const clean = (text || '').replace(/^["'\s]+|["'\s]+$/g, '').trim()
+      return clean || portraitPrompt()
+    } catch {
+      return portraitPrompt()
+    }
+  }
+
   const generatePortrait = () => {
     const user = userStore().user
     if (!user || genBusy()) return
+    const prompt = imagePrompt().trim() || portraitPrompt()
     setGenBusy(true)
-    characterStore.generateAvatar(user, portraitPrompt(), (_err: any, file?: File) => {
+    characterStore.generateAvatar(user, prompt, (_err: any, file?: File) => {
       setGenBusy(false)
       if (file) setPortrait(file)
     })
   }
+
+  // On reaching the finish step: focus the name field, ask the LLM for a prompt,
+  // then auto-generate the first portrait. Runs once so editing/regenerating and
+  // stepping back and forth don't clobber the user's tweaks.
+  createEffect(() => {
+    if (step() !== 5 || finishInit()) return
+    setFinishInit(true)
+    nameRef?.focus()
+    setPromptLoading(true)
+    void craftPrompt().then((prompt) => {
+      setImagePrompt(prompt)
+      setPromptLoading(false)
+      generatePortrait()
+    })
+  })
 
   const uploadPortrait = (files: FileInputResult[]) => setPortrait(files[0]?.file)
 
@@ -577,6 +642,7 @@ const Create: Component = () => {
                       placeholder="Give your date a name…"
                       value={answers.name}
                       maxLength={40}
+                      ref={(el) => (nameRef = el)}
                       onInput={(e) => setAnswers('name', e.currentTarget.value)}
                     />
                     <button
@@ -596,7 +662,7 @@ const Create: Component = () => {
                   <div class="cr-toggle">
                     <div class="cr-toggle-text">
                       <strong>NSFW (18+)</strong>
-                      <span>Allow mature, explicit conversations.</span>
+                      <span>Allow explicit profile pictures and descriptions. Does not affect chat.</span>
                     </div>
                     <button
                       class="cr-switch"
@@ -611,11 +677,17 @@ const Create: Component = () => {
                 </div>
 
                 <div class="cr-field">
-                  <span class="cr-field-label">Portrait (optional)</span>
+                  <span class="cr-field-label">Portrait</span>
                   <div class="cr-portrait">
                     <Show
                       when={avatarUrl()}
-                      fallback={<div class="cr-portrait-ph" aria-hidden="true" />}
+                      fallback={
+                        <div class="cr-portrait-ph" aria-hidden="true">
+                          <Show when={genBusy() || promptLoading()}>
+                            <span class="cr-portrait-spinner">Generating…</span>
+                          </Show>
+                        </div>
+                      }
                     >
                       <img class="cr-portrait-img" src={avatarUrl()} alt="Portrait preview" />
                     </Show>
@@ -624,9 +696,9 @@ const Create: Component = () => {
                         class="cr-btn"
                         type="button"
                         onClick={generatePortrait}
-                        disabled={genBusy()}
+                        disabled={genBusy() || promptLoading()}
                       >
-                        {genBusy() ? 'Generating…' : 'Generate from choices'}
+                        {genBusy() ? 'Generating…' : 'Regenerate'}
                       </button>
                       <FileInput
                         fieldName="crPortrait"
@@ -635,6 +707,21 @@ const Create: Component = () => {
                       />
                     </div>
                   </div>
+
+                  {/* Editable image prompt — tweak and hit Regenerate. */}
+                  <label class="cr-field-label cr-prompt-label" for="cr-prompt">
+                    Image prompt
+                  </label>
+                  <textarea
+                    id="cr-prompt"
+                    class="cr-input cr-prompt"
+                    rows={3}
+                    placeholder={promptLoading() ? 'Writing a prompt from your choices…' : 'Image prompt'}
+                    value={imagePrompt()}
+                    disabled={promptLoading()}
+                    onInput={(e) => setImagePrompt(e.currentTarget.value)}
+                  />
+                  <span class="cr-hint">Tweak the prompt and hit Regenerate for a different look.</span>
                 </div>
               </div>
 
