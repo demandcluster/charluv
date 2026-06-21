@@ -2,6 +2,7 @@ import { Component, For, Show, createEffect, createMemo, createSignal, onMount }
 import { useNavigate, useParams } from '@solidjs/router'
 import './profile.css'
 import { matchStore } from '../../store/match'
+import { settingStore } from '../../store'
 import { getAssetUrl } from '../../shared/util'
 import Loading from '../../shared/Loading'
 import TextInput from '../../shared/TextInput'
@@ -68,6 +69,8 @@ const Profile: Component = () => {
 
   const initial = () => char()?.name?.[0]?.toUpperCase() || '?'
 
+  const openImage = (url: string) => settingStore.showImage(getAssetUrl(url))
+
   const onMatch = () => {
     const c = char()
     if (!c) return
@@ -87,11 +90,14 @@ const Profile: Component = () => {
                 fallback={<div class="dpf-ph" aria-hidden="true">{initial()}</div>}
               >
                 <div class="dpf-gallery is-single">
-                  <img
-                    class="dpf-shot"
-                    src={getAssetUrl(char()!.avatar!)}
-                    alt={`Photo of ${char()!.name}`}
-                  />
+                  <button
+                    type="button"
+                    class="dpf-shot-btn"
+                    aria-label={`View photo of ${char()!.name} fullscreen`}
+                    onClick={() => openImage(char()!.avatar!)}
+                  >
+                    <img class="dpf-shot" src={getAssetUrl(char()!.avatar!)} alt={`Photo of ${char()!.name}`} />
+                  </button>
                 </div>
               </Show>
             }
@@ -99,12 +105,19 @@ const Profile: Component = () => {
             <div class="dpf-gallery" classList={{ 'is-single': gallery().length === 1 }}>
               <For each={gallery()}>
                 {(url, i) => (
-                  <img
-                    class="dpf-shot"
-                    src={getAssetUrl(url)}
-                    alt={`Photo ${i() + 1} of ${char()!.name}`}
-                    loading={i() === 0 ? 'eager' : 'lazy'}
-                  />
+                  <button
+                    type="button"
+                    class="dpf-shot-btn"
+                    aria-label={`View photo ${i() + 1} of ${char()!.name} fullscreen`}
+                    onClick={() => openImage(url)}
+                  >
+                    <img
+                      class="dpf-shot"
+                      src={getAssetUrl(url)}
+                      alt={`Photo ${i() + 1} of ${char()!.name}`}
+                      loading={i() === 0 ? 'eager' : 'lazy'}
+                    />
+                  </button>
                 )}
               </For>
             </div>
