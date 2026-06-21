@@ -97,11 +97,6 @@ const App: Component = () => {
           </Show>
         )}
       />
-      <Route path="/presets/:id" component={lazy(() => import('./pages/GenerationPresets'))} />
-      <Route
-        path="/presets"
-        component={lazy(() => import('./pages/GenerationPresets/PresetList'))}
-      />
       <Show when={cfg.flags.sounds}>
         <Route path="/sounds" component={SoundsPage} />
       </Show>

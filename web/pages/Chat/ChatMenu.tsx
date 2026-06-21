@@ -11,7 +11,6 @@ import {
   Brain,
   Palette,
   Settings,
-  Sliders,
   Users,
   Map,
   Download,
@@ -102,12 +101,6 @@ const ChatNav: Component<NavProps> = (props) => {
 
       <Nav.Item onClick={() => props.togglePane('chat-settings')}>
         <Settings size={size} /> Edit Chat
-      </Nav.Item>
-
-      <Nav.Item onClick={() => props.togglePane('preset')}>
-        <Sliders class="min-w-[24px]" width={'24px'} size={size} />
-        <span class="min-w-fit">Preset </span>
-        <span class="text-500 ellipsis text-xs italic">{props.adapterLabel}</span>
       </Nav.Item>
 
       <Show when={isOwner()}>

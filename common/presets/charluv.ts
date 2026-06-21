@@ -2,8 +2,7 @@ import { OPENAI_MODELS } from '../adapters'
 import { AppSchema } from '../types'
 import { templates } from './templates'
 
-export const charluvPresets = {
-  charluv: {
+const charluvBase = {
     service: 'charluv',
     name: 'Charluv',
     maxTokens: 400,
@@ -73,5 +72,28 @@ export const charluvPresets = {
         enabled: true,
       },
     ],
-  },
+} satisfies Partial<AppSchema.GenSettings>
+
+/**
+ * The user-facing preset choices. The full Agnai sampler/template editor is gone:
+ * a chat picks one of these fixed presets and they differ ONLY in temperature.
+ * Each id is a key in `defaultPresets`, so `chat.genPreset` stores the id and
+ * resolves through the existing default-preset machinery (no data migration).
+ */
+export const CHARLUV_TEMP_PRESETS = [
+  { id: 'charluv-precise', label: 'Precise', temp: 0.4, hint: 'Focused and consistent' },
+  { id: 'charluv-balanced', label: 'Balanced', temp: 0.8, hint: 'Natural variety (default)' },
+  { id: 'charluv-creative', label: 'Creative', temp: 1.1, hint: 'More varied and surprising' },
+  { id: 'charluv-wild', label: 'Wild', temp: 1.4, hint: 'Unpredictable, high variety' },
+] as const
+
+export const DEFAULT_CHARLUV_PRESET = 'charluv-balanced'
+
+export const charluvPresets = {
+  // Kept for backward compatibility: existing chats/users may reference 'charluv'.
+  charluv: { ...charluvBase },
+  'charluv-precise': { ...charluvBase, name: 'Precise', temp: 0.4 },
+  'charluv-balanced': { ...charluvBase, name: 'Balanced', temp: 0.8 },
+  'charluv-creative': { ...charluvBase, name: 'Creative', temp: 1.1 },
+  'charluv-wild': { ...charluvBase, name: 'Wild', temp: 1.4 },
 } satisfies Record<string, Partial<AppSchema.GenSettings>>

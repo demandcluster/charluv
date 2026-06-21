@@ -8,6 +8,7 @@ import { getStrictForm } from '../../shared/util'
 import { chatStore, msgStore, presetStore, scenarioStore, userStore } from '../../store'
 import { FormLabel } from '../../shared/FormLabel'
 import { defaultPresets, isDefaultPreset } from '/common/presets'
+import { CHARLUV_TEMP_PRESETS, DEFAULT_CHARLUV_PRESET } from '/common/presets/charluv'
 import { Card, TitleCard } from '/web/shared/Card'
 import { Toggle } from '/web/shared/Toggle'
 import TagInput from '/web/shared/TagInput'
@@ -55,6 +56,17 @@ const ChatSettings: Component<{
     if (isDefaultPreset(presetId)) return defaultPresets[presetId]
     return presets.find((pre) => pre._id === presetId)
   })
+
+  // Fixed temperature-only presets replace the old sampler/template editor. The
+  // selection is the chat's genPreset; anything unrecognised falls back to Balanced.
+  const currentPreset = createMemo(
+    () =>
+      CHARLUV_TEMP_PRESETS.find((p) => p.id === state.chat?.genPreset)?.id || DEFAULT_CHARLUV_PRESET
+  )
+  const changePreset = (id: string) => {
+    if (!state.chat?._id || id === currentPreset()) return
+    chatStore.editChatGenPreset(state.chat._id, id, () => {})
+  }
 
   let ref: any
   let nameRef: any
@@ -208,6 +220,17 @@ const ChatSettings: Component<{
             { label: 'App Settings', value: 'settings' },
           ]}
           value={state.chat?.imageSource || 'settings'}
+        />
+      </Card>
+
+      <Card>
+        <Select
+          fieldName="genPreset"
+          label="Reply style"
+          helperText="How varied the replies are. Higher = more creative and unpredictable."
+          items={CHARLUV_TEMP_PRESETS.map((p) => ({ label: `${p.label} — ${p.hint}`, value: p.id }))}
+          value={currentPreset()}
+          onChange={(ev) => changePreset(ev.value)}
         />
       </Card>
 

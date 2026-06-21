@@ -19,7 +19,6 @@ import Message from './components/Message'
 import PromptModal from './components/PromptModal'
 import DeleteMsgModal from './DeleteMsgModal'
 import { devCycleAvatarSettings, isDevCommand } from './dev-util'
-import ForcePresetModal from './ForcePreset'
 import DeleteChatModal from './components/DeleteChat'
 import { useEffect, usePaneManager } from '/web/shared/hooks'
 import { emptyMsg, LoadMore, insertImageMessages, SwipeMessage } from './helpers'
@@ -539,17 +538,6 @@ const ChatDetail: Component = () => {
 
       <Show when={!!removeId()}>
         <DeleteMsgModal show={!!removeId()} messageId={removeId()} close={() => setRemoveId('')} />
-      </Show>
-
-      <Show
-        when={
-          chats.chat &&
-          !chats.chat.genPreset &&
-          !chats.chat.genSettings &&
-          !user.user?.defaultPreset
-        }
-      >
-        <ForcePresetModal chat={chats.chat!} show={true} close={() => {}} />
       </Show>
 
       <PromptModal />

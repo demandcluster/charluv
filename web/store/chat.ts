@@ -56,7 +56,6 @@ export type ChatState = {
 
 export type ChatRightPane =
   | 'character'
-  | 'preset'
   | 'participants'
   | 'ui'
   | 'chat-settings'

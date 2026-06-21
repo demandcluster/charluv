@@ -16,7 +16,6 @@ import { getActiveBots } from '../util'
 import { AppSchema } from '/common/types'
 import { CreateCharacterForm } from '../../Character/CreateCharacterForm'
 import Loading from '/web/shared/Loading'
-import { ModeGenSettings } from '../../../shared/Mode/ModeGenSettings'
 import MemberModal from '../MemberModal'
 import Button from '/web/shared/Button'
 import UISettings from '../../Settings/UISettings'
@@ -24,7 +23,6 @@ import { wait } from '/common/util'
 import CharacterSelect from '/web/shared/CharacterSelect'
 import ChatSettings from '../ChatSettings'
 import LongTermMemory from './LongTermMemory'
-import { getClientPreset } from '/web/shared/adapter'
 import { usePaneManager } from '/web/shared/hooks'
 
 export { ChatPanes as default }
@@ -34,8 +32,8 @@ export const useValidChatPane = () => {
 
   const isValidPane = createMemo(() => {
     switch (search.pane) {
+      // 'preset' pane removed — reply style now lives in Chat Settings.
       case 'character':
-      case 'preset':
       case 'participants':
       case 'ui':
       case 'chat-settings':
@@ -69,8 +67,6 @@ const ChatPanes: Component<{}> = (props) => {
       tempBots: Object.values(s.active?.chat?.tempCharacters! || {}),
     }
   })
-
-  const clientPreset = createMemo(() => getClientPreset(chats.chat)?.preset)
 
   const [paneFooter, setPaneFooter] = createSignal<JSX.Element>()
   const [editId, setEditId] = createSignal<string>()
@@ -135,13 +131,6 @@ const ChatPanes: Component<{}> = (props) => {
     setEditId(chats.char?._id || '')
   }
 
-  const onPresetChanged = (presetId: string) => {
-    if (!chats.chat) return
-    chatStore.editChatGenPreset(chats.chat._id, presetId, () => {
-      toastStore.success('Chat preset changed')
-    })
-  }
-
   return (
     <Show when={pane.showing()}>
       <Switch>
@@ -173,17 +162,6 @@ const ChatPanes: Component<{}> = (props) => {
                 <Loading />
               </div>
             </Show>
-          </Convertible>
-        </Match>
-
-        <Match when={pane.pane() === 'preset'}>
-          <Convertible close={closePane} footer={paneFooter()}>
-            <ModeGenSettings
-              presetId={clientPreset()?._id}
-              onPresetChanged={onPresetChanged}
-              close={closePane}
-              footer={setPaneFooter}
-            />
           </Convertible>
         </Match>
 

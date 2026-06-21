@@ -25,7 +25,6 @@ import {
   Settings,
   Signal,
   ShoppingBag,
-  Sliders,
   Speaker,
   Sun,
   Volume2,
@@ -371,17 +370,6 @@ const UserNavigation: Component = () => {
       </Show>
 
       <Library />
-      <MultiItem>
-        <Item href="/presets" ariaLabel="Presets">
-          <Sliders aria-hidden="true" />
-          <span aria-hidden="true">Presets</span>
-        </Item>
-        <EndItem>
-          <A class="icon-button" href="/presets/new" role="button" aria-label="Add a new preset">
-            <Plus aria-hidden="true" />
-          </A>
-        </EndItem>
-      </MultiItem>
       <Show when={menu.flags.sounds}>
         <Sounds />
       </Show>
@@ -457,21 +445,6 @@ const GuestNavigation: Component = () => {
         <ChatLink />
 
         <Library />
-
-        <MultiItem>
-          <Item
-            href="/presets"
-            ariaLabel="Presets"
-            onClick={() => soundEmitter.emit('menu-item-clicked', 'presets')}
-          >
-            <Sliders /> Presets
-          </Item>
-          <EndItem>
-            <A class="icon-button" href="/presets/new" role="button" aria-label="Add a new preset">
-              <Plus aria-hidden="true" />
-            </A>
-          </EndItem>
-        </MultiItem>
 
         <Show when={menu.flags.sounds}>
           <Sounds />

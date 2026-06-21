@@ -17,7 +17,6 @@ import {
   Download,
   Trash,
   WandSparkles,
-  SlidersVertical,
   Dices,
   BookPlus,
 } from 'lucide-solid'
@@ -42,7 +41,7 @@ import Loading from '/web/shared/Loading'
 import { JSX, For } from 'solid-js'
 import { Card, SolidCard, TitleCard } from '../../shared/Card'
 import { usePane } from '../../shared/hooks'
-import Modal, { RootModal } from '/web/shared/Modal'
+import Modal from '/web/shared/Modal'
 import { ToggleButtons } from '../../shared/Toggle'
 import { CharEditor, useCharEditor } from './editor'
 import { ARCHETYPES } from '/common/progression'
@@ -54,7 +53,6 @@ import { getAssetUrl, random } from '/web/shared/util'
 import { ImageSettings } from '../Settings/Image/ImageSettings'
 import { imageApi } from '/web/store/data/image'
 import { Page } from '/web/Layout'
-import { ModeGenSettings } from '/web/shared/Mode/ModeGenSettings'
 import { charsApi } from '/web/store/data/chars'
 import Tooltip from '/web/shared/Tooltip'
 import { canStartTour, startTour } from '/web/tours'
@@ -90,8 +88,6 @@ export const CreateCharacterForm: Component<{
 
   const srcId = createMemo(() => props.editId || props.duplicateId || '')
   const [image, setImage] = createSignal<string | undefined>()
-  const [openPreset, setOpenPreset] = createSignal(false)
-  const [presetFooter, setPresetFooter] = createSignal<JSX.Element>()
 
   const editor = useCharEditor()
 
@@ -344,9 +340,6 @@ export const CreateCharacterForm: Component<{
             </Show>
 
             <div class="flex justify-end gap-2 text-[1em]">
-              <Button onClick={() => setOpenPreset(true)} class="tour-preset">
-                <SlidersVertical size={24} /> Preset
-              </Button>
               <Button onClick={() => setImport(true)}>
                 <Import /> Import
               </Button>
@@ -815,26 +808,6 @@ export const CreateCharacterForm: Component<{
       />
 
       <AvatarModal url={imgUrl()} close={() => setImageUrl('')} />
-
-      <Show when={openPreset()}>
-        <RootModal
-          title="Update Preset"
-          show
-          close={() => setOpenPreset(false)}
-          maxWidth="half"
-          maxHeight
-          footer={presetFooter()}
-        >
-          <sub>This preset used for character generation</sub>
-          <ModeGenSettings
-            presetId={user.user?.chargenPreset || user.user?.defaultPreset}
-            onPresetChanged={(id) => userStore.updatePartialConfig({ chargenPreset: id })}
-            close={() => setOpenPreset(false)}
-            hideTabs={['Memory', 'Prompt']}
-            footer={setPresetFooter}
-          />
-        </RootModal>
-      </Show>
     </Page>
   )
 }
