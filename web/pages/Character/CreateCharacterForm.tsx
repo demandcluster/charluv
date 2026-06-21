@@ -958,6 +958,10 @@ const CharacterGallery: Component<{
   // signal directly and don't touch props.initial, so they're preserved.
   createEffect(() => setGallery(props.initial || []))
   const [busy, setBusy] = createSignal(false)
+  // Gallery generation shares the global avatar `generate.loading` flag, which
+  // would otherwise spin the cover tile. Track it separately so the spinner
+  // lands in its own reserved tile instead of the main cover/profile slot.
+  const [genLoading, setGenLoading] = createSignal(false)
   const [loraName, setLoraName] = createSignal<string>(props.editor.state.loraName || '')
 
   const full = () => gallery().length >= GALLERY_MAX
@@ -1012,10 +1016,17 @@ const CharacterGallery: Component<{
 
   const generate = async () => {
     setBusy(true)
+    setGenLoading(true)
     // createGalleryImage generates WITHOUT replacing the character's avatar.
     const base64 = await props.editor.createGalleryImage().catch(() => undefined)
-    setBusy(false)
+    const before = gallery()
     await add(base64 || undefined)
+    setGenLoading(false)
+    setBusy(false)
+    // Gallery thumbnails are small and have no large view here, so pop the
+    // freshly generated image in the lightbox once so it can be inspected.
+    const fresh = gallery().find((u) => !before.includes(u))
+    if (fresh) settingStore.showImage(getAssetUrl(fresh))
   }
 
   const upload = async (files: FileInputResult[]) => {
@@ -1081,9 +1092,11 @@ const CharacterGallery: Component<{
       </Show>
 
       <div class="flex flex-wrap gap-2">
-        {/* Cover / avatar tile — always first, click-to-select, not removable. */}
+        {/* Cover / avatar tile — always first, click-to-select, not removable.
+            Only spin for an actual cover regeneration, not gallery generation
+            (which shares the global loading flag but gets its own tile below). */}
         <Show
-          when={!props.avatarLoading}
+          when={!props.avatarLoading || genLoading()}
           fallback={
             <div class="flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded-md border border-[var(--bg-700)]">
               <Loading type="windmill" />
@@ -1152,6 +1165,13 @@ const CharacterGallery: Component<{
             </div>
           )}
         </For>
+
+        {/* Reserved generation tile — spinner lives here, never on the cover. */}
+        <Show when={genLoading()}>
+          <div class="flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded-md border border-dashed border-[var(--bg-700)]">
+            <Loading type="windmill" />
+          </div>
+        </Show>
       </div>
 
       <div class="flex flex-wrap items-center gap-2">

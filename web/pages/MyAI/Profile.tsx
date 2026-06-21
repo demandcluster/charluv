@@ -1,4 +1,4 @@
-import { Component, For, Show, createMemo, onMount } from 'solid-js'
+import { Component, For, Show, createEffect, createMemo, createSignal, onMount } from 'solid-js'
 import { A, useNavigate, useParams } from '@solidjs/router'
 import '../Discover/profile.css'
 import { characterStore } from '../../store/character'
@@ -55,7 +55,18 @@ const Profile: Component = () => {
     return attr(c, 'description') || c?.description || ''
   })
 
-  const gallery = createMemo(() => char()?.gallery?.filter(Boolean) ?? [])
+  // The full photo set = cover/avatar first, then the gallery, de-duped. One
+  // image is "main" (large); the rest are thumbnails that swap it on click.
+  const shots = createMemo(() => {
+    const c = char()
+    if (!c) return [] as string[]
+    return Array.from(new Set([c.avatar, ...(c.gallery ?? [])].filter(Boolean) as string[]))
+  })
+  const [main, setMain] = createSignal<string>()
+  createEffect(() => {
+    const s = shots()
+    if (s.length && (!main() || !s.includes(main()!))) setMain(s[0])
+  })
 
   const initial = () => char()?.name?.[0]?.toUpperCase() || '?'
 
@@ -71,50 +82,19 @@ const Profile: Component = () => {
     <div class="dpf-root">
       <Show when={char()} fallback={<div class="dpf-loading"><Loading /></div>}>
         <div class="dpf-layout">
-          {/* Gallery */}
+          {/* Main image */}
           <Show
-            when={gallery().length}
-            fallback={
-              <Show
-                when={char()!.avatar}
-                fallback={<div class="dpf-ph" aria-hidden="true">{initial()}</div>}
-              >
-                <div class="dpf-gallery is-single">
-                  <button
-                    type="button"
-                    class="dpf-shot-btn"
-                    aria-label={`View photo of ${char()!.name} fullscreen`}
-                    onClick={() => openImage(char()!.avatar!)}
-                  >
-                    <img
-                      class="dpf-shot"
-                      src={getAssetUrl(char()!.avatar!)}
-                      alt={`Photo of ${char()!.name}`}
-                    />
-                  </button>
-                </div>
-              </Show>
-            }
+            when={main()}
+            fallback={<div class="dpf-ph" aria-hidden="true">{initial()}</div>}
           >
-            <div class="dpf-gallery" classList={{ 'is-single': gallery().length === 1 }}>
-              <For each={gallery()}>
-                {(url, i) => (
-                  <button
-                    type="button"
-                    class="dpf-shot-btn"
-                    aria-label={`View photo ${i() + 1} of ${char()!.name} fullscreen`}
-                    onClick={() => openImage(url)}
-                  >
-                    <img
-                      class="dpf-shot"
-                      src={getAssetUrl(url)}
-                      alt={`Photo ${i() + 1} of ${char()!.name}`}
-                      loading={i() === 0 ? 'eager' : 'lazy'}
-                    />
-                  </button>
-                )}
-              </For>
-            </div>
+            <button
+              type="button"
+              class="dpf-main-btn"
+              aria-label={`View photo of ${char()!.name} fullscreen`}
+              onClick={() => openImage(main()!)}
+            >
+              <img class="dpf-main" src={getAssetUrl(main()!)} alt={`Photo of ${char()!.name}`} />
+            </button>
           </Show>
 
           {/* Detail */}
@@ -146,6 +126,25 @@ const Profile: Component = () => {
                   )}
                 </For>
               </dl>
+            </Show>
+
+            <Show when={shots().length > 1}>
+              <div class="dpf-thumbs">
+                <For each={shots()}>
+                  {(url, i) => (
+                    <button
+                      type="button"
+                      class="dpf-thumb"
+                      classList={{ active: main() === url }}
+                      aria-pressed={main() === url}
+                      aria-label={`Show photo ${i() + 1}`}
+                      onClick={() => setMain(url)}
+                    >
+                      <img src={getAssetUrl(url)} alt="" loading="lazy" />
+                    </button>
+                  )}
+                </For>
+              </div>
             </Show>
 
             <div class="dpf-actions">

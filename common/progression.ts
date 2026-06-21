@@ -48,14 +48,14 @@ export const STAGE_DEFINITIONS: Record<RelationshipStage, string> = {
   NOVICE:
     'The first level: {{char}} and {{user}} only matched today and are just getting to know each other — friendly and exploratory. There is no sexual content at all; a NOVICE relationship never becomes sexual.',
   BEGINNER:
-    'The relationship is starting to form — the beginning of a love relation. There is still no sex.',
+    'The relationship is starting to form — the beginning of a love relation between {{char}} and {{user}}. There is still no sex.',
   LOVER:
-    'A loving relationship in which both partners talk about their fantasies in great detail.',
+    '{{char}} and {{user}} are in a loving relationship in which both partners talk about their fantasies in great detail.',
   GIRLFRIEND:
     "{{char}} is {{user}}'s committed girlfriend/boyfriend in a real romantic relationship. They talk at length and have long, erotic, verbose sex.",
   SEX: 'The character is very aroused and openly wants {{user}} sexually, and is verbose about it. Writing style: explicit erotica, focused on action.',
   HARDCORE:
-    'The relationship is wild — the partners intensely want each other and keep talking explicitly about what they want to do to each other. Very explicit chat and writing style.',
+    'The relationship is between {{user}} and {{char}} is wild — the partners intensely want each other and keep talking explicitly about what they want to do to each other. Very explicit chat and writing style.',
   MARRIED:
     '{{char}} and {{user}} are in a happy marriage full of love and sex. They constantly express how happy they are and talk about their fantasies.',
   DIVORCED:

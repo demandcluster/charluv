@@ -42,29 +42,8 @@
   }
 }
 
-/* ---- gallery ---- */
-.dpf-gallery {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: clamp(0.5rem, 1.5vw, 0.9rem);
-}
-.dpf-gallery.is-single {
-  grid-template-columns: 1fr;
-}
-.dpf-shot {
-  width: 100%;
-  border-radius: 16px;
-  object-fit: cover;
-  aspect-ratio: 3 / 4;
-  border: 1px solid var(--dpf-line);
-  background: linear-gradient(160deg, var(--dpf-surface), var(--dpf-bg-2));
-}
-.dpf-gallery.is-single .dpf-shot {
-  aspect-ratio: 3 / 4;
-  max-height: 70vh;
-}
-/* Image-as-button wrapper: reset button chrome, keep the image flush. */
-.dpf-shot-btn {
+/* ---- main image ---- */
+.dpf-main-btn {
   display: block;
   padding: 0;
   margin: 0;
@@ -73,11 +52,62 @@
   cursor: zoom-in;
   width: 100%;
   line-height: 0;
+  position: sticky;
+  top: 1.5rem;
 }
-.dpf-shot-btn:focus-visible {
+.dpf-main-btn:focus-visible {
   outline: 2px solid var(--dpf-green, #4ade80);
   outline-offset: 3px;
   border-radius: 16px;
+}
+.dpf-main {
+  width: 100%;
+  border-radius: 16px;
+  object-fit: cover;
+  aspect-ratio: 3 / 4;
+  max-height: 78vh;
+  border: 1px solid var(--dpf-line);
+  background: linear-gradient(160deg, var(--dpf-surface), var(--dpf-bg-2));
+}
+
+/* ---- thumbnail strip (under the profile text) ---- */
+.dpf-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.dpf-thumb {
+  appearance: none;
+  padding: 0;
+  margin: 0;
+  border: 2px solid transparent;
+  background: none;
+  cursor: pointer;
+  border-radius: 12px;
+  line-height: 0;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+.dpf-thumb img {
+  width: clamp(3.25rem, 8vw, 4.5rem);
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 10px;
+  display: block;
+}
+.dpf-thumb:hover {
+  transform: translateY(-2px);
+}
+.dpf-thumb.active {
+  border-color: var(--dpf-green);
+}
+.dpf-thumb:focus-visible {
+  outline: 2px solid var(--dpf-green);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dpf-thumb {
+    transition: none;
+  }
 }
 .dpf-ph {
   display: grid;
