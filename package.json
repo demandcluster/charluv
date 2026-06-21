@@ -212,8 +212,6 @@
       "minimatch": ">=10.0.1",
       "rollup": ">=4.59.0",
       "serialize-javascript": ">=7.0.3",
-      "path-to-regexp": ">=0.1.13",
-      "lodash": ">=4.18.0",
       "fast-uri": ">=3.1.1",
       "esbuild": ">=0.25.0",
       "undici": ">=6.27.0",
@@ -230,7 +228,8 @@
       "diff": ">=5.2.2",
       "qs": ">=6.14.2",
       "@babel/core": "^7.29.6",
-      "@xmldom/xmldom": ">=0.9.9"
+      "@xmldom/xmldom": ">=0.9.9",
+      "express>path-to-regexp": "0.1.13"
     },
     "auditConfig": {
       "ignoreGhsas": [
