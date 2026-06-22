@@ -4,7 +4,14 @@ import { AppSchema } from '../../common/types/schema'
 import { now } from './util'
 
 export async function getMatch(userId: string, id: string) {
-  const char = await db('character').findOne({ kind: 'character', _id: id, match: true })
+  // A public template is either a legacy admin-curated char (match) or a
+  // user-published one (published), and must not be hidden by moderation.
+  const char = await db('character').findOne({
+    kind: 'character',
+    _id: id,
+    'moderation.status': { $ne: 'hidden' },
+    $or: [{ match: true }, { published: true }],
+  })
 
   return char
 }
@@ -13,7 +20,14 @@ export async function getMatches(userId: string) {
   const user = await db('user').findOne({ kind: 'user', _id: userId })
   const premium = user?.premium || false
   const list = await db('character')
-    .find({ kind: 'character', match: true, $or: [{ premium: false }, { premium: premium }] })
+    .find({
+      kind: 'character',
+      'moderation.status': { $ne: 'hidden' },
+      $and: [
+        { $or: [{ match: true }, { published: true }] },
+        { $or: [{ premium: false }, { premium: premium }] },
+      ],
+    })
     .toArray()
   return list
 }
@@ -50,9 +64,14 @@ export async function discover(userId: string, filter: DiscoverFilter = {}) {
 
   const query: any = {
     kind: 'character',
-    match: true,
     draft: { $ne: true },
-    $or: [{ premium: false }, { premium }],
+    // Show legacy admin-curated templates (match) OR user-published characters,
+    // but never anything taken down by moderation/reports.
+    'moderation.status': { $ne: 'hidden' },
+    $and: [
+      { $or: [{ match: true }, { published: true }] },
+      { $or: [{ premium: false }, { premium }] },
+    ],
   }
 
   // Defensive: only ever place primitive strings into the query so a malformed

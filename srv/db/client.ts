@@ -80,6 +80,29 @@ export async function createIndexes() {
     { name: 'text', tags: 'text', category: 'text' },
     { name: 'characters_discover_text' }
   )
+  // User-published characters: facet/sort discovery + per-user daily publish cap.
+  await db('character').createIndex(
+    { published: 1, premium: 1, gender: 1, artStyle: 1 },
+    { name: 'characters_published_facets' }
+  )
+  await db('character').createIndex(
+    { published: 1, 'engagement.trending': -1 },
+    { name: 'characters_published_trending' }
+  )
+  await db('character').createIndex(
+    { userId: 1, publishedAt: -1 },
+    { name: 'characters_userId_publishedAt' }
+  )
+
+  // Character reports (moderation queue): one per (reporter, char); list by char.
+  await db('character-report').createIndex(
+    { reporterId: 1, charId: 1 },
+    { name: 'character-report_reporter_char', unique: true }
+  )
+  await db('character-report').createIndex(
+    { resolved: 1, createdAt: -1 },
+    { name: 'character-report_resolved_createdAt' }
+  )
 
   await db('chat').createIndex({ userId: 1 }, { name: 'chats_userId' })
   await db('chat').createIndex({ characterId: 1, userId: 1 }, { name: 'chats_characterId_userId' })

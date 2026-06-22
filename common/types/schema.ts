@@ -33,6 +33,7 @@ export type AllDoc =
   | AppSchema.Configuration
   | AppSchema.SagaTemplate
   | AppSchema.SagaSession
+  | AppSchema.CharacterReport
 
 export type OAuthScope = keyof typeof oauthScopes
 
@@ -45,6 +46,25 @@ export namespace AppSchema {
   export type Persona = Library.Persona
   export type BaseCharacter = Library.BaseCharacter
   export type Character = Library.Character
+  export type CharacterModeration = Library.CharacterModeration
+  export type ModerationFlag = Library.ModerationFlag
+
+  /** A user report filed against a published character. One per (reporter, char). */
+  export interface CharacterReport {
+    _id: string
+    kind: 'character-report'
+    charId: string
+    /** Owner of the reported character (denormalized for the admin queue). */
+    charOwnerId: string
+    reporterId: string
+    reason: string
+    note?: string
+    createdAt: string
+    /** Set once an admin has actioned the report (dismissed / unpublished / deleted). */
+    resolved?: boolean
+    resolvedAt?: string
+    resolvedBy?: string
+  }
 
   export type GenSettings = Preset.GenSettings
   export type UserGenPreset = Preset.UserGenPreset

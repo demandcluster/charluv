@@ -82,6 +82,21 @@ export interface Character extends BaseCharacter {
   /** Aggregated engagement counters, tracked on the public template character. */
   engagement?: CharacterEngagement
 
+  // --- User publishing + moderation (additive; distinct from the legacy admin `match` flag) ---
+  /**
+   * Live in Discover via the user-publishing system. Kept separate from `match`
+   * so legacy admin-curated templates (match:true) and user-published characters
+   * coexist, and a private character can never be exposed by accident.
+   */
+  published?: boolean
+  publishedAt?: number
+  /** The one-time 500-credit publish reward has been granted (never re-rewarded). */
+  publishRewarded?: boolean
+  /** Automated (vision-LLM) verdict + admin stage-2 review state. */
+  moderation?: CharacterModeration
+  /** Distinct user reports against the published character; >=3 auto-hides it. */
+  reportCount?: number
+
   folder?: string
   // v2 stuff
   alternateGreetings?: string[]
@@ -126,6 +141,37 @@ export interface CharacterEngagement {
   favorites: number
   /** Recency-weighted score for the "trending" sort; recomputed periodically. */
   trending?: number
+}
+
+/** Known moderation flag keys raised by the vision-LLM check. Free-form strings
+ * are allowed too — these are the ones the UI gives friendly labels to. */
+export type ModerationFlag =
+  | 'underage'
+  | 'violence'
+  | 'noncon'
+  | 'incest'
+  | 'copyright'
+  | 'illegal'
+  | 'other'
+
+export interface CharacterModeration {
+  /**
+   * approved — passed the automated check, live (pending optional admin stage-2).
+   * flagged  — borderline; live but surfaced to admins for stage-2 review.
+   * rejected — failed the automated check; not published.
+   * hidden   — taken down (report threshold or admin action); not shown in Discover.
+   */
+  status: 'approved' | 'flagged' | 'rejected' | 'hidden'
+  /** Issues the model raised (e.g. ['underage','violence']). */
+  flags?: ModerationFlag[] | string[]
+  /** Model explanation / decline message shown to the user. */
+  reason?: string
+  /** When the automated check last ran. */
+  autoCheckedAt?: number
+  /** An admin has completed stage-2 review of this live character. */
+  moderated?: boolean
+  moderatedBy?: string
+  moderatedAt?: number
 }
 
 export interface ResponseSchema {
