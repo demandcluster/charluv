@@ -308,6 +308,15 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
   const settings = await store.presets.getUserPreset(config.modPresetId)
   if (!settings) throw new StatusError('Moderation preset not found', 400)
 
+  // Always moderate the avatar. Prefer the client-sent data URL; otherwise read
+  // the saved avatar server-side so the image check can't be skipped.
+  let imageData = body.imageData
+  if (!imageData && character.avatar) {
+    const ref = character.avatar.startsWith('/assets') ? character.avatar : `/assets/${character.avatar}`
+    const b64 = await readAssetBase64(ref)
+    if (b64) imageData = `data:image/png;base64,${b64}`
+  }
+
   const prompt = buildModPrompt({
     char: character,
     prompt: config.modPrompt,
@@ -323,7 +332,7 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
     log,
     prompt,
     settings,
-    imageData: body.imageData,
+    imageData,
   })
 
   res.json({ success: true, generating: true, requestId })

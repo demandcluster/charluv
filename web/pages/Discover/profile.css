@@ -196,12 +196,35 @@
 }
 .dpf-btn {
   appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   border-radius: 12px;
   padding: 0.7rem 1.4rem;
   font-size: 0.95rem;
   font-weight: 700;
   cursor: pointer;
   transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+.dpf-btn.danger {
+  border: 1px solid var(--dpf-line);
+  background: transparent;
+  color: var(--dpf-muted, #b99);
+}
+.dpf-btn.danger:hover {
+  border-color: var(--dpf-wine, #b35);
+  color: var(--dpf-cream);
+}
+.dpf-public-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.7rem 1.2rem;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--dpf-green);
+  background: color-mix(in oklch, var(--dpf-green) 16%, transparent);
 }
 .dpf-btn:focus-visible {
   outline: 2px solid var(--dpf-green);

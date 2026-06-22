@@ -6,6 +6,8 @@ import { settingStore } from '../../store/settings'
 import { startChat } from '../../store/chat'
 import { getAssetUrl } from '../../shared/util'
 import Loading from '../../shared/Loading'
+import { Globe } from 'lucide-solid'
+import MakePublicModal from './MakePublicModal'
 import { AppSchema } from '/common/types'
 
 type Attributes = Record<string, string[] | undefined>
@@ -71,6 +73,9 @@ const Profile: Component = () => {
   const initial = () => char()?.name?.[0]?.toUpperCase() || '?'
 
   const openImage = (url: string) => settingStore.showImage(getAssetUrl(url))
+
+  const [showPublish, setShowPublish] = createSignal(false)
+  const isPublic = createMemo(() => char()?.published && char()?.moderation?.status !== 'hidden')
 
   const onChat = () => {
     const c = char()
@@ -154,12 +159,30 @@ const Profile: Component = () => {
               <A class="dpf-btn ghost" href={`/character/${params.id}/edit`}>
                 Edit
               </A>
+              <Show
+                when={!isPublic()}
+                fallback={
+                  <span class="dpf-public-tag">
+                    <Globe size={15} /> Public
+                  </span>
+                }
+              >
+                <button class="dpf-btn ghost" onClick={() => setShowPublish(true)}>
+                  <Globe size={15} /> Make public
+                </button>
+              </Show>
               <A class="dpf-btn ghost" href="/mine">
                 Back
               </A>
             </div>
           </div>
         </div>
+
+        <MakePublicModal
+          show={showPublish()}
+          close={() => setShowPublish(false)}
+          char={char()!}
+        />
       </Show>
     </div>
   )

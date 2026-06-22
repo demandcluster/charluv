@@ -6,6 +6,8 @@ import { settingStore, userStore } from '../../store'
 import { getAssetUrl } from '../../shared/util'
 import Loading from '../../shared/Loading'
 import TextInput from '../../shared/TextInput'
+import { Flag } from 'lucide-solid'
+import ReportModal from './ReportModal'
 import { AppSchema } from '/common/types'
 
 type Attributes = Record<string, string[] | undefined>
@@ -31,6 +33,7 @@ const Profile: Component = () => {
   const state = matchStore()
 
   const [name, setName] = createSignal('')
+  const [showReport, setShowReport] = createSignal(false)
 
   const char = createMemo<AppSchema.Character | undefined>(() => {
     const fromList = state.discover.list.find((c) => c._id === params.id)
@@ -179,9 +182,21 @@ const Profile: Component = () => {
               <button class="dpf-btn ghost" onClick={() => navigate('/discover')}>
                 Back
               </button>
+              <Show when={userStore().loggedIn && char()!.userId !== userStore().user?._id}>
+                <button class="dpf-btn danger" onClick={() => setShowReport(true)}>
+                  <Flag size={15} /> Report
+                </button>
+              </Show>
             </div>
           </div>
         </div>
+
+        <ReportModal
+          show={showReport()}
+          close={() => setShowReport(false)}
+          charId={char()!._id}
+          name={char()!.name}
+        />
       </Show>
     </div>
   )

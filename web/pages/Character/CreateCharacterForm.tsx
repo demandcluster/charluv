@@ -224,9 +224,13 @@ export const CreateCharacterForm: Component<{
   }
 
   const onPublish = async () => {
-    const char = editor.payload(false)
+    const id = (editor.payload(false) as any)._id
+    if (!id) {
+      toastStore.error('Save the character before publishing it')
+      return
+    }
     const image = editor.state.avatar ? await imageApi.getImageData(editor.state.avatar) : undefined
-    charsApi.publishCharacter(char, image, (response) => {})
+    charsApi.publishCharacter(id, image)
   }
 
   const footer = (

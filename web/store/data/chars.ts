@@ -24,6 +24,8 @@ export const charsApi = {
   getImageBuffer: getFileBuffer,
   setFavorite,
   publishCharacter,
+  getPublishStatus,
+  reportCharacter,
   addGalleryImage,
   removeGalleryImage,
   setCover,
@@ -93,25 +95,34 @@ async function getCharacterDetail(charId: string) {
   }
 }
 
-async function publishCharacter(
-  char: Partial<AppSchema.Character>,
-  image: string | undefined,
-  onTick: TickHandler
-) {
+/**
+ * Kick off publishing a saved character. The HTTP call only starts the
+ * (streamed) moderation; the accept/reject verdict arrives over the socket as a
+ * `publish-response` keyed by the returned requestId.
+ */
+async function publishCharacter(characterId: string, image?: string) {
   const requestId = v4()
+  const res = await api.post('/character/publish', { characterId, imageData: image, requestId })
+  return { res, requestId }
+}
 
-  genApi.subscribe(requestId, (body, state, output) => {
-    onTick(body, state, output)
-    const info = Object.entries(output).reduce((prev, [key, value]) => {
-      prev.push(`\`${key}\`\n${value}`)
-      return prev
-    }, [] as string[])
+export type PublishStatus = {
+  enabled: boolean
+  cap: number
+  used: number
+  remaining: number
+  reward: number
+  guidelines: string
+}
 
-    rootModalStore.info('Moderation', info.join('\n***\n'))
-  })
+/** Remaining publishes today + caps/reward, for the Make-Public modal. */
+async function getPublishStatus() {
+  return api.get<PublishStatus>('/character/publish/status')
+}
 
-  const res = await api.post('/character/publish', { character: char, imageData: image, requestId })
-  return res
+/** Report a published character. One report per user per character. */
+async function reportCharacter(charId: string, reason: string, note?: string) {
+  return api.post(`/character/${charId}/report`, { reason, note })
 }
 
 // Fetch the user's unfinished wizard draft (or null) so Create can resume it.
