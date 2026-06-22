@@ -1,7 +1,6 @@
 import {
   Brain,
   Download,
-  Palette,
   SlidersHorizontal,
   User,
   Trash,
@@ -132,9 +131,6 @@ const ChatOptions: Component<{
         <Row>
           <Item schema={cfg.anonymize ? 'primary' : 'grey'} onClick={settingStore.toggleAnonymize}>
             <VenetianMask /> Anonymize
-          </Item>
-          <Item onClick={() => props.togglePane('ui')}>
-            <Palette /> UI
           </Item>
         </Row>
 

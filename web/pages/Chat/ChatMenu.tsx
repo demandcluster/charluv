@@ -9,7 +9,6 @@ import { useSubNav } from '/web/subnav'
 import { Nav, UserProfile } from '/web/Navigation'
 import {
   Brain,
-  Palette,
   Settings,
   SlidersHorizontal,
   Users,
@@ -106,10 +105,6 @@ const ChatNav: Component<NavProps> = (props) => {
           <Brain size={size} /> Memory
         </Nav.Item>
       </Show>
-
-      <Nav.Item onClick={() => props.togglePane('ui')} class="tour-ui">
-        <Palette size={size} /> UI
-      </Nav.Item>
 
       <div class="flex flex-wrap justify-center gap-1 text-sm">
         <Nav.Item

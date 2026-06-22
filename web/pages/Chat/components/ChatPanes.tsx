@@ -17,8 +17,6 @@ import { AppSchema } from '/common/types'
 import { CreateCharacterForm } from '../../Character/CreateCharacterForm'
 import Loading from '/web/shared/Loading'
 import MemberModal from '../MemberModal'
-import Button from '/web/shared/Button'
-import UISettings from '../../Settings/UISettings'
 import { wait } from '/common/util'
 import CharacterSelect from '/web/shared/CharacterSelect'
 import ChatSettings from '../ChatSettings'
@@ -35,7 +33,6 @@ export const useValidChatPane = () => {
       // 'preset' pane removed — reply style now lives in Chat Settings.
       case 'character':
       case 'participants':
-      case 'ui':
       case 'chat-settings':
       case 'memory':
       case 'other':
@@ -173,16 +170,6 @@ const ChatPanes: Component<{}> = (props) => {
 
         <Match when={pane.pane() === 'participants'}>
           <MemberModal show chat={chats.chat!} charId={chats?.char?._id!} close={closePane} />
-        </Match>
-
-        <Match when={pane.pane() === 'ui'}>
-          <Convertible
-            close={closePane}
-            title="UI Settings"
-            footer={<Button onClick={() => closePane()}>Close</Button>}
-          >
-            <UISettings />
-          </Convertible>
         </Match>
 
         <Match when={pane.pane() === 'chat-settings'}>

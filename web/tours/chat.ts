@@ -67,14 +67,6 @@ chatTour.addSteps([
       element: '.tour-participants',
       on: menuSide,
     },
-    buttons: [prev, next],
-  },
-  {
-    id: 'tour-ui',
-    text: `${title(
-      'Customize your UI'
-    )} You can customize many aspects of the site and chat interface from the UI settings.`,
-    attachTo: { element: '.tour-ui', on: menuSide },
     buttons: [
       prev,
       btn.next(chatTour, () => {
