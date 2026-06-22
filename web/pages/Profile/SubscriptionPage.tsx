@@ -57,7 +57,10 @@ export const SubscriptionPage: Component = (props) => {
   })
 
   const renews = createMemo(() => {
-    if (cfg.type === 'paypal') return new Date(user.user.premiumUntil).toLocaleDateString()
+    if (cfg.type === 'paypal')
+      return user.user?.premiumUntil
+        ? new Date(user.user.premiumUntil).toLocaleDateString()
+        : ''
     if (cfg.type === 'manual') {
       const last = new Date(user.user?.manualSub?.expiresAt!)
       return last.toLocaleDateString()
@@ -118,7 +121,7 @@ export const SubscriptionPage: Component = (props) => {
 
           <PatreonControls />
 
-          <Show when={user.sub?.level! > 0 || user.premium}>
+          <Show when={user.sub?.level! > 0 || user.user?.premium}>
             <h3 class="font-bold">Current Subscription</h3>
             <TierCard tier={cfg.tier!}>
               <div class="flex flex-col items-center gap-2">
@@ -281,7 +284,7 @@ export const SubscriptionPage: Component = (props) => {
               Validate
             </Button> */}
 
-            <Show when={cfg.tier && cfg.tier !== 'paypal' && !hasExpired()}>
+            <Show when={cfg.tier && cfg.type !== 'paypal' && !hasExpired()}>
               <Button schema="red" onClick={() => setUnsub(true)} disabled={user.billingLoading}>
                 Unsubscribe
               </Button>
