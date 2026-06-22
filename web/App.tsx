@@ -7,6 +7,7 @@ import './store'
 import { Component, createMemo, Show, lazy, onMount, Switch, Match } from 'solid-js'
 import { Route, Router, useLocation } from '@solidjs/router'
 import NavBar from './shared/NavBar'
+import GuestTopBar from './shared/GuestTopBar'
 import Notifications from './Toasts'
 import CharacterRoutes from './pages/Character'
 import ScenarioRoutes from './pages/Scenario'
@@ -188,6 +189,11 @@ const Layout: Component<{ children?: any }> = (props) => {
     return location.pathname.startsWith('/chat/') || location.pathname.startsWith('/saga/')
   })
 
+  // Logged-out visitors browsing the landing/gallery get a full-width top bar
+  // instead of the left drawer. Chat pages keep the drawer for everyone (guest
+  // chat needs the chat options pane).
+  const guestLanding = createMemo(() => !state.loggedIn && !isChat())
+
   const bgStyles = useCharacterBg('layout')
 
   return (
@@ -195,16 +201,20 @@ const Layout: Component<{ children?: any }> = (props) => {
       <style>{css}</style>
       <AgeGate />
       <div class="scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-[var(--hl-900)] app flex flex-col justify-between">
-        <NavBar />
+        <Show when={guestLanding()} fallback={<NavBar />}>
+          <GuestTopBar />
+        </Show>
         <div class="flex w-full grow flex-row overflow-y-hidden">
-          <Navigation />
+          <Show when={!guestLanding()}>
+            <Navigation />
+          </Show>
 
           <main
             id="main-content"
             class="w-full overflow-y-auto"
             classList={{
-              'sm:ml-[302px]': cfg.showMenu,
-              'sm:ml-0': !cfg.showMenu,
+              'sm:ml-[302px]': cfg.showMenu && !guestLanding(),
+              'sm:ml-0': !cfg.showMenu || guestLanding(),
             }}
             data-background
             style={{ ...bgStyles(), 'scrollbar-gutter': 'stable both-edges' }}

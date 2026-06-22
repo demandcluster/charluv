@@ -12,7 +12,6 @@ const NavBar: Component = () => {
     loaded: s.loaded,
     opts: s.opts,
   }))
-  console.log(logoDark)
   const isChat = isChatPage()
 
   const Title = (
