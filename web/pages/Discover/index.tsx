@@ -3,6 +3,7 @@ import { A, useNavigate } from '@solidjs/router'
 import { Sparkles } from 'lucide-solid'
 import './discover.css'
 import { matchStore, DiscoverFilters } from '../../store/match'
+import { userStore } from '../../store'
 import { getAssetUrl } from '../../shared/util'
 import { getCharacterLevel } from '/common/xplevel'
 import { resolveStage, getArchetype } from '/common/progression'
@@ -67,9 +68,11 @@ const Discover: Component = () => {
             you talk.
           </p>
         </div>
-        <A class="dsc-create" href="/create">
-          <Sparkles size={17} /> Create your dream date
-        </A>
+        <Show when={userStore().loggedIn}>
+          <A class="dsc-create" href="/create">
+            <Sparkles size={17} /> Create your dream date
+          </A>
+        </Show>
       </header>
 
       <div class="dsc-filters" role="search">
