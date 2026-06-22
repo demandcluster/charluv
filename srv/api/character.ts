@@ -298,9 +298,10 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
     throw new StatusError(`Below the minimum requirements — ${missing.join(', ')}`, 400)
   }
 
-  // Daily cap (re-publishing an already-public character doesn't consume quota).
+  // Daily cap applies only to a character's first publish; re-publishing after
+  // an edit (publishRewarded already set) is exempt and never re-rewarded.
   const cap = publishCap(config, user.premium)
-  if (!character.published) {
+  if (!character.publishRewarded) {
     const used = await store.characters.countPublishedToday(userId!)
     if (used >= cap) throw new StatusError(`Daily publish limit reached (${cap} per day)`, 429)
   }
@@ -547,9 +548,42 @@ const editPartCharacter = handle(async ({ body, params, userId }) => {
     }
   }
 
+  // If this partial update changes moderatable content on a live public
+  // character, take it private for re-publishing (see editFullCharacter). A
+  // non-content tweak (favourite, folder, …) leaves the public state alone.
+  if (CONTENT_FIELDS.some((f) => f in update)) {
+    const existing = await store.characters.getCharacter(userId!, id)
+    if (existing?.published) {
+      update.published = false
+      update.moderation = {
+        ...(existing.moderation || { status: 'approved' }),
+        status: 'review',
+        moderated: false,
+      }
+    }
+  }
+
   const char = await store.characters.partialUpdateCharacter(id, userId, update)
   return char
 })
+
+/** Character fields whose change requires re-moderation before staying public. */
+const CONTENT_FIELDS: (keyof CharacterUpdate)[] = [
+  'name',
+  'persona',
+  'greeting',
+  'scenario',
+  'sampleChat',
+  'description',
+  'appearance',
+  'avatar',
+  'sprite',
+  'visualType',
+  'systemPrompt',
+  'postHistoryInstructions',
+  'alternateGreetings',
+  'characterBook',
+]
 
 export const bulkUpdate = handle(async (req) => {
   assertValid(
@@ -648,6 +682,19 @@ const editFullCharacter = handle(async (req) => {
   )
   if (filename) {
     update.avatar = filename + `?v=${v4().slice(0, 4)}`
+  }
+
+  // Editing a live public character takes it private again: the content changed
+  // and must be re-moderated. The owner re-publishes (re-running the automated
+  // check) to make it public again. publishRewarded is left set so re-publishing
+  // is exempt from the daily cap and isn't re-rewarded.
+  if (existing?.published) {
+    update.published = false
+    update.moderation = {
+      ...(existing.moderation || { status: 'approved' }),
+      status: 'review',
+      moderated: false,
+    }
   }
 
   // Finalizing a draft is free: the 50-credit creation fee was already taken

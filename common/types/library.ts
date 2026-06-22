@@ -160,8 +160,9 @@ export interface CharacterModeration {
    * flagged  — borderline; live but surfaced to admins for stage-2 review.
    * rejected — failed the automated check; not published.
    * hidden   — taken down (report threshold or admin action); not shown in Discover.
+   * review   — was public but has been edited; private until re-published + re-checked.
    */
-  status: 'approved' | 'flagged' | 'rejected' | 'hidden'
+  status: 'approved' | 'flagged' | 'rejected' | 'hidden' | 'review'
   /** Issues the model raised (e.g. ['underage','violence']). */
   flags?: ModerationFlag[] | string[]
   /** Model explanation / decline message shown to the user. */

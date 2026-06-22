@@ -76,6 +76,10 @@ const Profile: Component = () => {
 
   const [showPublish, setShowPublish] = createSignal(false)
   const isPublic = createMemo(() => char()?.published && char()?.moderation?.status !== 'hidden')
+  // Was public, then edited — needs re-publishing to go live again.
+  const needsRepublish = createMemo(
+    () => !char()?.published && char()?.moderation?.status === 'review'
+  )
 
   const onChat = () => {
     const c = char()
@@ -168,7 +172,7 @@ const Profile: Component = () => {
                 }
               >
                 <button class="dpf-btn ghost" onClick={() => setShowPublish(true)}>
-                  <Globe size={15} /> Make public
+                  <Globe size={15} /> {needsRepublish() ? 'Re-publish' : 'Make public'}
                 </button>
               </Show>
               <A class="dpf-btn ghost" href="/mine">
