@@ -903,6 +903,10 @@ function getUIsettings(guest = false) {
 
   const ui = { ...UI.defaultUIsettings, ...settings }
 
+  // Light theme is retired — the app is dark-only. Force the mode regardless of
+  // any previously-saved preference so we never render a half-styled light UI.
+  ui.mode = 'dark'
+
   if (!ui.dark.chatEmphasisColor) {
     ui.dark.chatQuoteColor = UI.defaultUIsettings.dark.chatQuoteColor
     ui.light.chatQuoteColor = UI.defaultUIsettings.light.chatQuoteColor

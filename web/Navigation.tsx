@@ -15,7 +15,6 @@ import {
   Menu,
   MessageCircle,
   ShoppingCart,
-  Moon,
   Bot,
   Star,
   Plus,
@@ -25,7 +24,6 @@ import {
   Signal,
   ShoppingBag,
   Speaker,
-  Sun,
   Volume2,
   VolumeX,
   Wand2,
@@ -508,17 +506,6 @@ const NavIcons: Component<{
 
         <Item onClick={() => settingStore.modal(true)} ariaLabel="Open settings page">
           <Settings aria-hidden="true" />
-        </Item>
-
-        <Item
-          ariaLabel="Toggle between light and dark mode"
-          onClick={() => {
-            userStore.saveUI({ mode: props.user.ui.mode === 'light' ? 'dark' : 'light' })
-          }}
-        >
-          <Show when={props.user.ui.mode === 'dark'} fallback={<Sun />}>
-            <Moon aria-hidden="true" />
-          </Show>
         </Item>
 
         <Item
