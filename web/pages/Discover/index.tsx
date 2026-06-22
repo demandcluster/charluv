@@ -5,8 +5,7 @@ import './discover.css'
 import { matchStore, DiscoverFilters } from '../../store/match'
 import { userStore } from '../../store'
 import { getAssetUrl } from '../../shared/util'
-import { getCharacterLevel } from '/common/xplevel'
-import { resolveStage, getArchetype } from '/common/progression'
+import { getArchetype } from '/common/progression'
 import { AppSchema } from '/common/types'
 
 const GENDERS = [
@@ -180,11 +179,9 @@ const Card: Component<{ char: AppSchema.Character; onPick: (c: AppSchema.Charact
   props
 ) => {
   const [broken, setBroken] = createSignal(false)
-  const stageLabel = createMemo(() => {
-    const arch = getArchetype(props.char.progression?.archetype)
-    const stage = resolveStage(getCharacterLevel(props.char.xp), props.char.progression)
-    return arch?.label || (stage ? stage.stage.replace('BDSM/', '') : undefined)
-  })
+  // Only the (level-independent) archetype label — public templates are always
+  // level 0, so a stage badge would just read "Novice" on every card.
+  const stageLabel = createMemo(() => getArchetype(props.char.progression?.archetype)?.label)
   const eng = () => props.char.engagement
   const initial = () => props.char.name?.[0]?.toUpperCase() || '?'
 
