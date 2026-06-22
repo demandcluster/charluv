@@ -1,0 +1,86 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - paragraph [ref=e6]: Charluv · Create
+      - heading "Create your dream date" [level=1] [ref=e7]:
+        - text: Create your
+        - emphasis [ref=e8]: dream date
+  - generic [ref=e9]:
+    - generic [ref=e10]:
+      - heading "Meet your date" [level=2] [ref=e11]
+      - paragraph [ref=e12]: Tweak anything, then bring them to life.
+    - generic [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - generic [ref=e17]:
+            - generic [ref=e18]:
+              - textbox [ref=e19]: Ashley Passie
+              - button "Random name" [ref=e20] [cursor=pointer]: ⚄
+            - paragraph [ref=e21]: A flirty, easygoing fling — no strings.
+          - generic [ref=e22]:
+            - button "✦ Regenerate" [ref=e23] [cursor=pointer]
+            - button "Upload" [ref=e24] [cursor=pointer]
+          - group [ref=e25]:
+            - generic "Refine image prompt" [ref=e26] [cursor=pointer]
+            - textbox [ref=e27]: realistic portrait, tanned skin, blonde wavy hair, blue eyes, curvy build, balcony at dusk
+            - generic [ref=e28]: Tweak the prompt and hit Regenerate for a different look.
+          - generic [ref=e29]:
+            - generic [ref=e30]: Tags
+            - generic [ref=e31]:
+              - generic [ref=e32]: Female
+              - generic [ref=e33]: Realistic
+              - generic [ref=e34]: Flirty
+              - generic [ref=e35]: "23"
+              - generic [ref=e36]: 18+
+        - generic [ref=e37]:
+          - button "Ethnicity European ✎" [ref=e38] [cursor=pointer]:
+            - generic [ref=e39]: Ethnicity
+            - generic [ref=e40]: European
+            - generic [ref=e41]: ✎
+          - button "Skin Tan ✎" [ref=e42] [cursor=pointer]:
+            - generic [ref=e43]: Skin
+            - generic [ref=e44]: Tan
+            - generic [ref=e46]: ✎
+          - button "Hair Blonde Wavy ✎" [ref=e47] [cursor=pointer]:
+            - generic [ref=e48]: Hair
+            - generic [ref=e49]: Blonde Wavy
+            - generic [ref=e51]: ✎
+          - button "Eyes Blue ✎" [ref=e52] [cursor=pointer]:
+            - generic [ref=e53]: Eyes
+            - generic [ref=e54]: Blue
+            - generic [ref=e56]: ✎
+          - button "Body Curvy ✎" [ref=e57] [cursor=pointer]:
+            - generic [ref=e58]: Body
+            - generic [ref=e59]: Curvy
+            - generic [ref=e60]: ✎
+          - button "Bust Large ✎" [ref=e61] [cursor=pointer]:
+            - generic [ref=e62]: Bust
+            - generic [ref=e63]: Large
+            - generic [ref=e64]: ✎
+          - button "Butt Large ✎" [ref=e65] [cursor=pointer]:
+            - generic [ref=e66]: Butt
+            - generic [ref=e67]: Large
+            - generic [ref=e68]: ✎
+          - button "Age 23 ✎" [ref=e69] [cursor=pointer]:
+            - generic [ref=e70]: Age
+            - generic [ref=e71]: "23"
+            - generic [ref=e72]: ✎
+          - button "Style Realistic ✎" [ref=e73] [cursor=pointer]:
+            - generic [ref=e74]: Style
+            - generic [ref=e75]: Realistic
+            - generic [ref=e76]: ✎
+          - button "Vibe Flirty ✎" [ref=e77] [cursor=pointer]:
+            - generic [ref=e78]: Vibe
+            - generic [ref=e79]: Flirty
+            - generic [ref=e80]: ✎
+          - generic [ref=e81]:
+            - generic [ref=e82]:
+              - generic [ref=e83]: Content
+              - generic [ref=e84]: NSFW (18+)
+              - generic [ref=e85]: Explicit profile pictures & descriptions. Doesn't affect chat.
+            - switch [checked] [ref=e86] [cursor=pointer]
+      - navigation [ref=e87]:
+        - button "‹ Back" [ref=e88] [cursor=pointer]
+        - generic [ref=e89]:
+          - button "↺ Reset" [ref=e90] [cursor=pointer]
+          - button "♥ Create my date" [ref=e91] [cursor=pointer]
