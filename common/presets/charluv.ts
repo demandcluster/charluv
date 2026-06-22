@@ -89,11 +89,15 @@ export const CHARLUV_TEMP_PRESETS = [
 
 export const DEFAULT_CHARLUV_PRESET = 'charluv-balanced'
 
+// Sampler floors that scale with temperature. top_p tightens and min_p (a
+// coherence floor honoured by vLLM) rises as temp climbs, so the hotter presets
+// stay coherent instead of sampling the full distribution tail. top_k stays 0
+// (disabled) but is now transmitted, so it can be set per preset if ever needed.
 export const charluvPresets = {
   // Kept for backward compatibility: existing chats/users may reference 'charluv'.
   charluv: { ...charluvBase },
-  'charluv-precise': { ...charluvBase, name: 'Precise', temp: 0.4 },
-  'charluv-balanced': { ...charluvBase, name: 'Balanced', temp: 0.8 },
-  'charluv-creative': { ...charluvBase, name: 'Creative', temp: 1.1 },
-  'charluv-wild': { ...charluvBase, name: 'Wild', temp: 1.4 },
+  'charluv-precise': { ...charluvBase, name: 'Precise', temp: 0.4, topP: 1.0, minP: 0 },
+  'charluv-balanced': { ...charluvBase, name: 'Balanced', temp: 0.8, topP: 0.98, minP: 0.02 },
+  'charluv-creative': { ...charluvBase, name: 'Creative', temp: 1.1, topP: 0.95, minP: 0.05 },
+  'charluv-wild': { ...charluvBase, name: 'Wild', temp: 1.4, topP: 0.92, minP: 0.08 },
 } satisfies Record<string, Partial<AppSchema.GenSettings>>

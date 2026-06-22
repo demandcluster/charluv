@@ -181,6 +181,15 @@ export const handleOAI: ModelAdapter = async function* (opts) {
   body.presence_penalty = gen.presencePenalty ?? defaultPresets.openai.presencePenalty
   body.frequency_penalty = gen.frequencyPenalty ?? defaultPresets.openai.frequencyPenalty
 
+  // vLLM honours top_k / min_p as OpenAI-API extensions. Only send them to the
+  // self-hosted server (base.server) — real OpenAI / third-party endpoints would
+  // reject unknown sampler fields with HTTP 400. Omit disabled values (top_k 0,
+  // min_p 0) so vLLM keeps its own defaults.
+  if (base.server) {
+    if (typeof gen.topK === 'number' && gen.topK > 0) body.top_k = gen.topK
+    if (typeof gen.minP === 'number' && gen.minP > 0) body.min_p = gen.minP
+  }
+
   const useChat =
     base.server ||
     (isThirdParty && gen.thirdPartyFormat === 'openai-chat') ||
