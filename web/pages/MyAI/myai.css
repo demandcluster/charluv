@@ -1,4 +1,27 @@
 /* My AI — header actions (add a new companion). Reuses the Discover tokens. */
+@import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
+
+/* Bold, condensed Impact-style status stamp over each companion card. */
+.myai-status {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.7rem;
+  z-index: 2;
+  font-family: 'Anton', 'Arial Narrow', system-ui, sans-serif;
+  font-size: 1.45rem;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  pointer-events: none;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
+}
+.myai-status.public {
+  color: var(--dsc-green, #2ec27e);
+}
+.myai-status.private {
+  color: rgba(255, 255, 255, 0.82);
+}
+
 .myai-actions {
   margin-top: 0.9rem;
   display: flex;

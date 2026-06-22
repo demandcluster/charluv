@@ -70,6 +70,9 @@ const Companion: Component<{ char: AppSchema.Character; onOpen: (c: AppSchema.Ch
   const level = createMemo(() => getCharacterLevel(props.char.xp))
   const stage = createMemo(() => resolveStage(level(), props.char.progression))
   const initial = () => props.char.name?.[0]?.toUpperCase() || '?'
+  const isPublic = createMemo(
+    () => props.char.published && props.char.moderation?.status !== 'hidden'
+  )
 
   return (
     <article
@@ -79,6 +82,10 @@ const Companion: Component<{ char: AppSchema.Character; onOpen: (c: AppSchema.Ch
       onKeyDown={(e) => e.key === 'Enter' && props.onOpen(props.char)}
     >
       <span class="dsc-badge">Lv {level()}{stage() ? ` · ${stage()!.stage.replace('BDSM/', '')}` : ''}</span>
+
+      <span class="myai-status" classList={{ public: isPublic(), private: !isPublic() }}>
+        {isPublic() ? 'Public' : 'Private'}
+      </span>
 
       <Show when={props.char.avatar} fallback={<div class="dsc-ph">{initial()}</div>}>
         <img class="dsc-photo" src={getAssetUrl(props.char.avatar!)} alt={props.char.name} loading="lazy" />
