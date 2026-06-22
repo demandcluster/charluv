@@ -398,7 +398,7 @@ const Create: Component = () => {
     setAnswers('name', name)
   }
 
-  const persistAnswers = () => setStoredValue(DRAFT_KEY, { answers: { ...answers } })
+  const persistAnswers = () => setStoredValue(DRAFT_KEY, { answers: { ...answers }, step: step() })
   const clearDraft = () => setStoredValue(DRAFT_KEY, null)
 
   const buildPayload = async (): Promise<NewCharacter> => {
@@ -473,9 +473,15 @@ const Create: Component = () => {
   // credit is charged: it creates a hidden draft character so the user has
   // "paid to reach the final step". Resuming an existing draft never re-charges.
   const payAndContinue = async () => {
-    // Guests have no server-side characters or credits — keep their flow simple
-    // (no draft, charged-on-create handled locally). Just advance.
-    if (!userStore().loggedIn) return next()
+    // The final step is gated: guests must register before continuing (this is
+    // where logged-in users are charged). Save their selections so they resume
+    // exactly here after signing up, then send them to register.
+    if (!userStore().loggedIn) {
+      persistAnswers()
+      toastStore.normal('Create a free account to bring your date to life — your choices are saved.')
+      navigate('/register')
+      return
+    }
     if (draftId()) return next()
     if (submitting()) return
     setSubmitting(true)
@@ -549,14 +555,19 @@ const Create: Component = () => {
     const res = await charsApi.getDraft()
     const draft =
       res.result && 'character' in (res.result as any) ? (res.result as any).character : null
-    const saved = getStoredValue<{ answers?: Answers } | null>(DRAFT_KEY, null)
+    const saved = getStoredValue<{ answers?: Answers; step?: number } | null>(DRAFT_KEY, null)
+
+    if (saved?.answers) setAnswers(saved.answers)
 
     if (draft) {
-      if (saved?.answers) setAnswers(saved.answers)
+      // Paid, finalize-pending draft: jump straight to the portrait step.
       setDraftId(draft._id)
       setStep(TOTAL - 1)
-    } else if (saved) {
-      clearDraft()
+    } else if (saved?.answers) {
+      // In-progress selections with no draft yet — e.g. a guest who hit the
+      // register wall and just signed up. Resume where they left off so their
+      // next "Continue" is the (now logged-in) paid step.
+      setStep(Math.min(saved.step ?? 0, TOTAL - 1))
     }
   })
 
