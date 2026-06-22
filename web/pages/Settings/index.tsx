@@ -179,7 +179,7 @@ const Settings: Component<{ footer?: (children: any) => void }> = (props) => {
   const tabClass = `flex flex-col gap-4`
 
   const version = (
-    window.charluv_version?.includes('unknown') ? '' : <window className="charluv"></window>
+    window.charluv_version?.includes('unknown') ? '' : window.charluv_version || ''
   ).slice(0, 7)
 
   onMount(() => {
