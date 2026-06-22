@@ -90,8 +90,14 @@ export function personaText(persona?: AppSchema.Persona): string {
 
 const len = (v?: string) => (typeof v === 'string' ? v.trim().length : 0)
 
-/** Evaluate a character against the minimum-quality thresholds. */
-export function checkPublishRequirements(char: Partial<AppSchema.Character>): {
+/**
+ * Evaluate a character against the minimum-quality thresholds. Pass `mins` to
+ * use admin-configured thresholds; falls back to PUBLISH_MIN when omitted.
+ */
+export function checkPublishRequirements(
+  char: Partial<AppSchema.Character>,
+  mins: typeof PUBLISH_MIN = PUBLISH_MIN
+): {
   ok: boolean
   requirements: PublishRequirement[]
 } {
@@ -105,9 +111,9 @@ export function checkPublishRequirements(char: Partial<AppSchema.Character>): {
   const requirements = (Object.keys(PUBLISH_MIN) as (keyof typeof PUBLISH_MIN)[]).map((key) => ({
     key,
     label: REQUIREMENT_LABELS[key],
-    min: PUBLISH_MIN[key],
+    min: mins[key] ?? PUBLISH_MIN[key],
     actual: actuals[key],
-    ok: actuals[key] >= PUBLISH_MIN[key],
+    ok: actuals[key] >= (mins[key] ?? PUBLISH_MIN[key]),
   }))
 
   return { ok: requirements.every((r) => r.ok), requirements }

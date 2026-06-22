@@ -134,6 +134,12 @@ export interface Configuration {
   publishDailyPremium: number
   publishReward: number
 
+  /** Minimum character-count thresholds a character must meet to be published. */
+  publishMinGreeting: number
+  publishMinDescription: number
+  publishMinScenario: number
+  publishMinPersonality: number
+
   actionCalls: ActionCall[]
 }
 

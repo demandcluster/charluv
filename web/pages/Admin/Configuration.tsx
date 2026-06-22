@@ -79,6 +79,10 @@ const ServerConfiguration: Component = () => {
       publishDailyFree: 'number',
       publishDailyPremium: 'number',
       publishReward: 'number',
+      publishMinGreeting: 'number',
+      publishMinDescription: 'number',
+      publishMinScenario: 'number',
+      publishMinPersonality: 'number',
     })
 
     adminStore.updateServerConfig({

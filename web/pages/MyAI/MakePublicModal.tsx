@@ -27,7 +27,7 @@ const MakePublicModal: Component<{
     {}
   )
 
-  const reqs = createMemo(() => checkPublishRequirements(props.char))
+  const reqs = createMemo(() => checkPublishRequirements(props.char, status()?.mins))
   const ready = createMemo(
     () => reqs().ok && (status()?.enabled ?? true) && (status()?.remaining ?? 1) > 0
   )

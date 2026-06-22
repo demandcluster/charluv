@@ -113,6 +113,7 @@ export type PublishStatus = {
   remaining: number
   reward: number
   guidelines: string
+  mins: { greeting: number; description: number; scenario: number; personality: number }
 }
 
 /** Remaining publishes today + caps/reward, for the Make-Public modal. */

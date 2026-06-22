@@ -54,6 +54,33 @@ export const CharLibrary: Component<{ setSchema: Setter<JsonField[]> }> = (props
           value={state.config?.publishReward ?? 500}
         />
       </div>
+      <div class="text-700 text-sm font-bold">Minimum requirements (characters)</div>
+      <div class="flex flex-wrap gap-2">
+        <TextInput
+          type="number"
+          fieldName="publishMinGreeting"
+          label="Greeting"
+          value={state.config?.publishMinGreeting ?? 50}
+        />
+        <TextInput
+          type="number"
+          fieldName="publishMinDescription"
+          label="Description"
+          value={state.config?.publishMinDescription ?? 150}
+        />
+        <TextInput
+          type="number"
+          fieldName="publishMinScenario"
+          label="Scenario"
+          value={state.config?.publishMinScenario ?? 300}
+        />
+        <TextInput
+          type="number"
+          fieldName="publishMinPersonality"
+          label="Personality & details"
+          value={state.config?.publishMinPersonality ?? 400}
+        />
+      </div>
       <PresetSelect
         label="Preset"
         fieldName="modPresetId"

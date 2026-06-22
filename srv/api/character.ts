@@ -23,7 +23,7 @@ import { validBook } from './memory'
 import { isObject, tryParse } from '/common/util'
 import { assertStrict } from '/common/valid/validate'
 import { buildModPrompt, fromJsonResponse } from '/common/prompt'
-import { checkPublishRequirements, PUBLISH_DEFAULTS } from '/common/publish'
+import { checkPublishRequirements, PUBLISH_DEFAULTS, PUBLISH_MIN } from '/common/publish'
 import { createInferenceStream } from '../adapter/generate'
 import { sendOne } from './ws'
 
@@ -240,6 +240,16 @@ function publishCap(config: AppSchema.Configuration, premium?: boolean) {
     : config.publishDailyFree || PUBLISH_DEFAULTS.dailyFree
 }
 
+/** Admin-configured minimum-quality thresholds (falling back to shared defaults). */
+function publishMins(config: AppSchema.Configuration) {
+  return {
+    greeting: config.publishMinGreeting ?? PUBLISH_MIN.greeting,
+    description: config.publishMinDescription ?? PUBLISH_MIN.description,
+    scenario: config.publishMinScenario ?? PUBLISH_MIN.scenario,
+    personality: config.publishMinPersonality ?? PUBLISH_MIN.personality,
+  }
+}
+
 /** Whether this user is allowed to publish given the configured audience gate. */
 function canPublish(audience: AppSchema.Configuration['charlibPublish'], user: AppSchema.User) {
   switch (audience) {
@@ -269,6 +279,7 @@ const getPublishStatus = handle(async ({ userId }) => {
     remaining: Math.max(0, cap - used),
     reward: config.publishReward || PUBLISH_DEFAULTS.reward,
     guidelines: config.charlibGuidelines || '',
+    mins: publishMins(config),
   }
 })
 
@@ -289,8 +300,8 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
   if (character.draft) throw new StatusError('Finish creating the character before publishing', 400)
   if (!character.avatar) throw new StatusError('Add an avatar before publishing', 400)
 
-  // Minimum-quality thresholds.
-  const { ok, requirements } = checkPublishRequirements(character)
+  // Minimum-quality thresholds (admin-configured).
+  const { ok, requirements } = checkPublishRequirements(character, publishMins(config))
   if (!ok) {
     const missing = requirements
       .filter((r) => !r.ok)

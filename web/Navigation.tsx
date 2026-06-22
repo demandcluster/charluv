@@ -392,6 +392,9 @@ const UserNavigation: Component = () => {
           <SubItem href="/admin/users" parent="/" ariaLabel="Users">
             Users
           </SubItem>
+          <SubItem href="/admin/moderation" parent="/" ariaLabel="Moderation">
+            Moderation
+          </SubItem>
           <SubItem href="/admin/subscriptions" parent="/" ariaLabel="Subscriptions">
             Subscriptions
           </SubItem>
