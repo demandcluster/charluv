@@ -187,7 +187,9 @@ export const handleOAI: ModelAdapter = async function* (opts) {
   // min_p 0) so vLLM keeps its own defaults.
   if (base.server) {
     if (typeof gen.topK === 'number' && gen.topK > 0) body.top_k = gen.topK
-    if (typeof gen.minP === 'number' && gen.minP > 0) body.min_p = gen.minP
+    // min_p is unsupported with speculative decoding on the self-hosted endpoint.
+    if (!config.inference.specDecoding && typeof gen.minP === 'number' && gen.minP > 0)
+      body.min_p = gen.minP
   }
 
   const useChat =
@@ -264,7 +266,9 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     }
   }
 
-  if (gen.antiBond) body.logit_bias = { 3938: -50, 11049: -50, 64186: -50, 3717: -25 }
+  // logit_bias is also unsupported with speculative decoding on the self-hosted endpoint.
+  if (gen.antiBond && !(base.server && config.inference.specDecoding))
+    body.logit_bias = { 3938: -50, 11049: -50, 64186: -50, 3717: -25 }
 
   const useThirdPartyPassword =
     base.changed && isThirdParty && (gen.thirdPartyKey || user.thirdPartyPassword)

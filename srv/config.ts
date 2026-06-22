@@ -152,6 +152,14 @@ export const config = {
     textApiKey: env('INFERENCE_TEXT_KEY', ''),
     textModel: env('INFERENCE_TEXT_MODEL', ''),
     /**
+     * The self-hosted text endpoint runs speculative decoding, which vLLM does
+     * not yet support alongside `min_p` / `logit_bias` (it aborts the response:
+     * "min_p and logit_bias sampling parameters are not yet supported with
+     * speculative decoding"). When true (default) we omit those two fields.
+     * Set INFERENCE_SPEC_DECODING=false if the endpoint ever drops spec-decoding.
+     */
+    specDecoding: env('INFERENCE_SPEC_DECODING', 'true') !== 'false',
+    /**
      * Self-hosted Z-Image backend (separate from text). Does text-to-image and
      * character-consistent generation via i2L: encode a character's reference
      * images once into a stored LoRA (POST <imageUrl>/v1/encode), then generate
