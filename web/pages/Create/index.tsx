@@ -9,9 +9,11 @@ import {
   FileText,
   Heart,
   Image as ImageIcon,
+  Pencil,
   PersonStanding,
   RotateCcw,
   Smile,
+  Sparkles,
   User,
 } from 'lucide-solid'
 import './create.css'
@@ -250,6 +252,25 @@ const makeDefaultAnswers = (): Answers => ({
   nsfw: false,
 })
 
+/** Hex swatch for a named color option (eye/hair/skin), if known. */
+const swatchColor = (arr: Swatch[], label: string) => arr.find((s) => s.label === label)?.color
+
+/** One read-only-but-editable choice on the review step. Click to jump back. */
+const TraitCard: Component<{ label: string; value: string; dot?: string; onEdit: () => void }> = (
+  props
+) => (
+  <button class="cr-trait" type="button" onClick={props.onEdit} title={`Edit ${props.label}`}>
+    <span class="cr-trait-label">{props.label}</span>
+    <span class="cr-trait-value">
+      <Show when={props.dot}>
+        <span class="cr-trait-dot" style={{ background: props.dot! }} aria-hidden="true" />
+      </Show>
+      {props.value}
+    </span>
+    <Pencil class="cr-trait-edit" size={13} aria-hidden="true" />
+  </button>
+)
+
 /* ---------------------------------------------------------------- page */
 
 const Create: Component = () => {
@@ -397,6 +418,16 @@ const Create: Component = () => {
     const name = await random('first', {})
     setAnswers('name', name)
   }
+
+  // Short descriptive chips shown under the portrait on the review step.
+  const tagChips = () =>
+    [
+      labelOfImg(GENDERS, answers.gender),
+      labelOfImg(STYLES, answers.artStyle),
+      vibe().label,
+      answers.age,
+      ...(answers.nsfw ? ['18+'] : []),
+    ].filter(Boolean)
 
   const persistAnswers = () => setStoredValue(DRAFT_KEY, { answers: { ...answers }, step: step() })
   const clearDraft = () => setStoredValue(DRAFT_KEY, null)
@@ -745,133 +776,158 @@ const Create: Component = () => {
 
         {/* Step 6 — Finish */}
         <Show when={step() === 5}>
-          <Step title="Almost ready" sub="Name your date and choose your content level.">
+          <Step title="Meet your date" sub="Tweak anything, then bring them to life.">
             <div class="cr-finish">
-              <div>
-                <div class="cr-field">
-                  <label class="cr-field-label" for="cr-name">
-                    Name
-                  </label>
-                  <div class="cr-name-row">
-                    <input
-                      id="cr-name"
-                      class="cr-input"
-                      type="text"
-                      placeholder="Give your date a name…"
-                      value={answers.name}
-                      maxLength={40}
-                      ref={(el) => (nameRef = el)}
-                      onInput={(e) => setAnswers('name', e.currentTarget.value)}
-                    />
-                    <button
-                      class="cr-dice"
-                      type="button"
-                      aria-label="Pick a random name"
-                      title="Random name"
-                      onClick={rollName}
-                    >
-                      <Dices size={20} />
-                    </button>
-                  </div>
-                </div>
+              {/* LEFT — portrait with the name overlaid, refine controls, tags */}
+              <div class="cr-finish-left">
+                <div class="cr-portrait-card">
+                  <Show
+                    when={avatarUrl()}
+                    fallback={
+                      <div class="cr-portrait-empty" aria-hidden="true">
+                        <Show
+                          when={genBusy() || promptLoading()}
+                          fallback={<span>Your portrait appears here</span>}
+                        >
+                          <span class="cr-portrait-spinner">Generating…</span>
+                        </Show>
+                      </div>
+                    }
+                  >
+                    <img class="cr-portrait-photo" src={avatarUrl()} alt="Portrait preview" />
+                  </Show>
 
-                <div class="cr-field">
-                  <span class="cr-field-label">Content</span>
-                  <div class="cr-toggle">
-                    <div class="cr-toggle-text">
-                      <strong>NSFW (18+)</strong>
-                      <span>Allow explicit profile pictures and descriptions. Does not affect chat.</span>
-                    </div>
-                    <button
-                      class="cr-switch"
-                      type="button"
-                      role="switch"
-                      aria-checked={answers.nsfw}
-                      aria-label="Toggle NSFW content"
-                      data-on={answers.nsfw}
-                      onClick={() => setAnswers('nsfw', !answers.nsfw)}
-                    />
-                  </div>
-                </div>
-
-                <div class="cr-field">
-                  <span class="cr-field-label">Portrait</span>
-                  <div class="cr-portrait">
-                    <Show
-                      when={avatarUrl()}
-                      fallback={
-                        <div class="cr-portrait-ph" aria-hidden="true">
-                          <Show when={genBusy() || promptLoading()}>
-                            <span class="cr-portrait-spinner">Generating…</span>
-                          </Show>
-                        </div>
-                      }
-                    >
-                      <img class="cr-portrait-img" src={avatarUrl()} alt="Portrait preview" />
-                    </Show>
-                    <div class="cr-portrait-actions">
-                      <button
-                        class="cr-btn"
-                        type="button"
-                        onClick={generatePortrait}
-                        disabled={genBusy() || promptLoading()}
-                      >
-                        {genBusy() ? 'Generating…' : 'Regenerate'}
-                      </button>
-                      <FileInput
-                        fieldName="crPortrait"
-                        accept="image/png,image/jpeg,image/webp"
-                        onUpdate={uploadPortrait}
+                  <div class="cr-portrait-overlay">
+                    <div class="cr-name-edit">
+                      <input
+                        id="cr-name"
+                        class="cr-name-input"
+                        type="text"
+                        placeholder="Name your date…"
+                        value={answers.name}
+                        maxLength={40}
+                        ref={(el) => (nameRef = el)}
+                        onInput={(e) => setAnswers('name', e.currentTarget.value)}
                       />
+                      <button
+                        class="cr-name-dice"
+                        type="button"
+                        aria-label="Pick a random name"
+                        title="Random name"
+                        onClick={rollName}
+                      >
+                        <Dices size={18} />
+                      </button>
                     </div>
+                    <p class="cr-portrait-sub">{vibe().desc}</p>
                   </div>
+                </div>
 
-                  {/* Editable image prompt — tweak and hit Regenerate. */}
-                  <label class="cr-field-label cr-prompt-label" for="cr-prompt">
-                    Image prompt
-                  </label>
+                <div class="cr-refine">
+                  <button
+                    class="cr-btn"
+                    type="button"
+                    onClick={generatePortrait}
+                    disabled={genBusy() || promptLoading()}
+                  >
+                    <Sparkles size={15} /> {genBusy() ? 'Generating…' : 'Regenerate'}
+                  </button>
+                  <FileInput
+                    fieldName="crPortrait"
+                    accept="image/png,image/jpeg,image/webp"
+                    onUpdate={uploadPortrait}
+                  />
+                </div>
+
+                <details class="cr-prompt-wrap">
+                  <summary>Refine image prompt</summary>
                   <textarea
                     id="cr-prompt"
                     class="cr-input cr-prompt"
                     rows={3}
-                    placeholder={promptLoading() ? 'Writing a prompt from your choices…' : 'Image prompt'}
+                    placeholder={
+                      promptLoading() ? 'Writing a prompt from your choices…' : 'Image prompt'
+                    }
                     value={imagePrompt()}
                     disabled={promptLoading()}
                     onInput={(e) => setImagePrompt(e.currentTarget.value)}
                   />
-                  <span class="cr-hint">Tweak the prompt and hit Regenerate for a different look.</span>
+                  <span class="cr-hint">
+                    Tweak the prompt and hit Regenerate for a different look.
+                  </span>
+                </details>
+
+                <div class="cr-tagline">
+                  <span class="cr-tagline-label">Tags</span>
+                  <div class="cr-tagline-chips">
+                    <For each={tagChips()}>{(t) => <span class="cr-chip">{t}</span>}</For>
+                  </div>
                 </div>
               </div>
 
-              <aside class="cr-summary">
-                <h3>Your dream date</h3>
-                <dl>
-                  <dt>Gender</dt>
-                  <dd>{labelOfImg(GENDERS, answers.gender)}</dd>
-                  <dt>Style</dt>
-                  <dd>{labelOfImg(STYLES, answers.artStyle)}</dd>
-                  <dt>Age</dt>
-                  <dd>{answers.age}</dd>
-                  <dt>Ethnicity</dt>
-                  <dd>{ethnicityLabel()}</dd>
-                  <dt>Skin</dt>
-                  <dd>{answers.skinTone}</dd>
-                  <dt>Hair</dt>
-                  <dd>
-                    {answers.hairColor} {hairStyleLabel()}
-                  </dd>
-                  <dt>Eyes</dt>
-                  <dd>{answers.eyeColor}</dd>
-                  <dt>Body</dt>
-                  <dd>{labelOfImg(BODIES, answers.body)}</dd>
-                  <dt>Bust</dt>
-                  <dd>{labelOfImg(BREASTS, answers.breast)}</dd>
-                  <dt>Butt</dt>
-                  <dd>{labelOfImg(BUTTS, answers.butt)}</dd>
-                  <dt>Vibe</dt>
-                  <dd>{vibe().label}</dd>
-                </dl>
-              </aside>
+              {/* RIGHT — the choices as editable trait cards */}
+              <div class="cr-traits">
+                <TraitCard label="Ethnicity" value={ethnicityLabel()} onEdit={() => setStep(1)} />
+                <TraitCard
+                  label="Skin"
+                  value={answers.skinTone}
+                  dot={swatchColor(SKIN_TONES, answers.skinTone)}
+                  onEdit={() => setStep(1)}
+                />
+                <TraitCard
+                  label="Hair"
+                  value={`${answers.hairColor} ${hairStyleLabel()}`}
+                  dot={swatchColor(HAIR_COLORS, answers.hairColor)}
+                  onEdit={() => setStep(2)}
+                />
+                <TraitCard
+                  label="Eyes"
+                  value={answers.eyeColor}
+                  dot={swatchColor(EYE_COLORS, answers.eyeColor)}
+                  onEdit={() => setStep(2)}
+                />
+                <TraitCard
+                  label="Body"
+                  value={labelOfImg(BODIES, answers.body)}
+                  onEdit={() => setStep(3)}
+                />
+                <TraitCard
+                  label="Bust"
+                  value={labelOfImg(BREASTS, answers.breast)}
+                  onEdit={() => setStep(3)}
+                />
+                <TraitCard
+                  label="Butt"
+                  value={labelOfImg(BUTTS, answers.butt)}
+                  onEdit={() => setStep(3)}
+                />
+                <TraitCard label="Age" value={answers.age} onEdit={() => setStep(0)} />
+                <TraitCard
+                  label="Style"
+                  value={labelOfImg(STYLES, answers.artStyle)}
+                  onEdit={() => setStep(0)}
+                />
+                <TraitCard label="Vibe" value={vibe().label} onEdit={() => setStep(4)} />
+
+                <div class="cr-trait cr-trait-toggle">
+                  <div class="cr-trait-toggle-text">
+                    <span class="cr-trait-label">Content</span>
+                    <span class="cr-trait-value">NSFW (18+)</span>
+                    <span class="cr-trait-note">
+                      Explicit profile pictures &amp; descriptions. Doesn't affect chat.
+                    </span>
+                  </div>
+                  <button
+                    class="cr-switch"
+                    type="button"
+                    role="switch"
+                    aria-checked={answers.nsfw}
+                    aria-label="Toggle NSFW content"
+                    data-on={answers.nsfw}
+                    onClick={() => setAnswers('nsfw', !answers.nsfw)}
+                  />
+                </div>
+              </div>
             </div>
           </Step>
         </Show>
