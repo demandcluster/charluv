@@ -10,7 +10,6 @@ import {
   Heart,
   HeartHandshake,
   HelpCircle,
-  Info,
   LogIn,
   MailQuestion,
   Menu,
@@ -75,7 +74,6 @@ import { navStore } from './subnav'
 import { getRgbaFromVar } from './shared/colors'
 import { CallToAction } from './shared/CallToAction'
 import Button from './shared/Button'
-import { clearTours } from './tours'
 
 const Navigation: Component = () => {
   let parent: any
@@ -212,7 +210,7 @@ const Navigation: Component = () => {
             <div class="flex w-2/12 justify-end">
               <Switch>
                 <Match when={nav.body && subnav()}>
-                  <div class="icon-button tour-main-menu" onClick={() => setSubnav(false)}>
+                  <div class="icon-button" onClick={() => setSubnav(false)}>
                     <ChevronLeft />
                   </div>
                 </Match>
@@ -314,7 +312,7 @@ const UserNavigation: Component = () => {
       <UserProfile />
       <Show when={user.loggedIn}>
         <MultiItem>
-          <Item class="tour-credits" href="/premium">
+          <Item href="/premium">
             <Coins />
             <div class="min-w-32">{user.user?.credits || 0}</div>
             <Show when={user.user?.premium ? user.user?.credits < 1000 : user.user?.credits < 200}>
@@ -424,7 +422,6 @@ const GuestNavigation: Component = () => {
           href="/login"
           ariaLabel="Login to the application"
           onClick={() => soundEmitter.emit('menu-item-clicked', 'login')}
-          class="tour-register"
         >
           <LogIn /> Login
         </Item>
@@ -557,16 +554,6 @@ const NavIcons: Component<{
           </Show>
         </ExternalLink>
 
-        <Item
-          onClick={() => {
-            clearTours()
-            window.location.href = location.origin
-          }}
-        >
-          <Tooltip tip="Show Welcome Tours" position="top">
-            <Info />
-          </Tooltip>
-        </Item>
       </div>
     </>
   )
@@ -719,7 +706,6 @@ const CharacterLink = () => {
         href="/character/list"
         ariaLabel="Matches"
         onClick={() => soundEmitter.emit('menu-item-clicked', 'characters')}
-        class="tour-character"
       >
         <Heart aria-hidden="true" />
         <span aria-hidden="true"> Matches </span>
@@ -756,7 +742,7 @@ export const UserProfile = () => {
   return (
     <>
       <div
-        class="tour-user-profile grid w-full items-center justify-between gap-2"
+        class="grid w-full items-center justify-between gap-2"
         style={{
           'grid-template-columns': '1fr max-content',
         }}

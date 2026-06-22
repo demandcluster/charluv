@@ -26,7 +26,6 @@ import Button from '/web/shared/Button'
 import Slot from '/web/shared/Slot'
 import { adaptersToOptions } from '/common/adapters'
 import { useRef } from '/web/shared/hooks'
-import { canStartTour, startTour } from '/web/tours'
 
 const enum Sub {
   None,
@@ -123,12 +122,6 @@ const HomePage: Component = () => {
 
   onMount(() => {
     announceStore.getAll()
-
-    emitter.on('loaded', () => {
-      if (!canStartTour('home')) return
-      settingStore.menu(true)
-      startTour('home')
-    })
   })
 
   return (
@@ -326,7 +319,6 @@ const RecentChats: Component<{ emitter: ComponentEmitter<'loaded'> }> = (props) 
                 aria-label={`Chat with ${char?.name}, ${elapsedSince(chat.updatedAt)} ago ${
                   chat.name
                 }`}
-                classList={{ 'tour-first-chat': index() === 0 }}
                 class="bg-800 hover:bg-700 hidden h-24 w-full cursor-pointer rounded-md border-[1px] border-[var(--bg-700)] transition duration-300 sm:flex"
                 onClick={() => nav(`/chat/${chat._id}`)}
               >
@@ -370,7 +362,6 @@ const RecentChats: Component<{ emitter: ComponentEmitter<'loaded'> }> = (props) 
                 aria-label={`Chat with ${char?.name}, ${elapsedSince(chat.updatedAt)} ago ${
                   chat.name
                 }`}
-                classList={{ 'tour-first-chat-mobile': index() === 0 }}
                 class="bg-800 hover:bg-700 flex w-full cursor-pointer flex-col rounded-md border-[1px] border-[var(--bg-700)] transition duration-300 sm:hidden"
                 onClick={() => nav(`/chat/${chat._id}`)}
               >

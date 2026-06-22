@@ -677,7 +677,6 @@ const MessageOptions: Component<{
 
       <div
         class="flex items-center"
-        classList={{ 'tour-message-opts': props.index === 0 }}
         onClick={() => props.showMore[1](true)}
       >
         <MoreHorizontal class="icon-button" />

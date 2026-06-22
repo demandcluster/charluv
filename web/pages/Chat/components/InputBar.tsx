@@ -324,7 +324,7 @@ const InputBar: Component<{
       <Button
         schema="clear"
         onClick={onButtonClick}
-        class="tour-message-actions h-full bg-[var(--bg-800)] px-2 py-2"
+        class="h-full bg-[var(--bg-800)] px-2 py-2"
       >
         <MoreHorizontal class="icon-button" />
       </Button>

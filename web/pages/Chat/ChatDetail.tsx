@@ -35,7 +35,6 @@ import { ConfirmModal } from '/web/shared/Modal'
 import { TitleCard } from '/web/shared/Card'
 import { EVENTS, events } from '/web/emitter'
 import { AppSchema } from '/common/types'
-import { startTour } from '/web/tours'
 
 export { ChatDetail as default }
 
@@ -254,13 +253,6 @@ const ChatDetail: Component = () => {
     if (!params.id) {
       if (!chats.lastId) return nav('/character/list')
       return nav(`/chat/${chats.lastId}`)
-    }
-
-    if (charName) {
-      settingStore.menu(true)
-      setTimeout(() => {
-        startTour('chat')
-      }, 500)
     }
 
     events.emit(EVENTS.chatOpened, params.id)

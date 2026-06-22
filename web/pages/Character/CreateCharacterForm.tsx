@@ -55,7 +55,6 @@ import { imageApi } from '/web/store/data/image'
 import { Page } from '/web/Layout'
 import { charsApi } from '/web/store/data/chars'
 import Tooltip from '/web/shared/Tooltip'
-import { canStartTour, startTour } from '/web/tours'
 
 export const CreateCharacterForm: Component<{
   chat?: AppSchema.Chat
@@ -131,12 +130,6 @@ export const CreateCharacterForm: Component<{
   onMount(async () => {
     characterStore.clearGeneratedAvatar()
     characterStore.clearCharacter()
-
-    if (canStartTour('char')) {
-      settingStore.closeMenu()
-    }
-
-    startTour('char')
 
     if (srcId()) {
       characterStore.getCharacter(srcId(), props.chat)
@@ -295,9 +288,6 @@ export const CreateCharacterForm: Component<{
                   {totalTokens()} tokens, {totalPermanentTokens()} permanent
                 </em>
               </div>
-              <Button size="pill" class="w-fit" onClick={() => startTour('char', true)}>
-                AI Character Generation Guide
-              </Button>
             </>
           }
         />
@@ -362,7 +352,7 @@ export const CreateCharacterForm: Component<{
             </div>
 
             <div class="flex flex-col gap-2">
-              <Card class="tour-prefields">
+              <Card>
                 <ButtonInput
                   fieldName="name"
                   required
@@ -472,7 +462,6 @@ export const CreateCharacterForm: Component<{
                         field={'scenario'}
                         editor={editor}
                         allowed={editor.canGuidance}
-                        class="tour-gen-field"
                       />
                       Scenario{' '}
                     </>

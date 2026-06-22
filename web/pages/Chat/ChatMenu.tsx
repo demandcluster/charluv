@@ -18,9 +18,7 @@ import {
   RotateCcw,
   ChevronLeft,
   Pencil,
-  Info,
 } from 'lucide-solid'
-import { startTour } from '/web/tours'
 
 type NavProps = {
   ctx: ContextState
@@ -90,7 +88,7 @@ const ChatNav: Component<NavProps> = (props) => {
         </Nav.Item>
       </Nav.DoubleItem>
 
-      <Nav.DoubleItem class="tour-participants">
+      <Nav.DoubleItem>
         <Nav.Item onClick={() => props.togglePane('participants')}>
           <Users size={size} /> Participants
         </Nav.Item>
@@ -126,9 +124,6 @@ const ChatNav: Component<NavProps> = (props) => {
         <Nav.Item onClick={() => props.setModal('delete')} tooltip="Delete Chat">
           <Trash size={size} />
         </Nav.Item>
-        <Nav.Item onClick={() => startTour('chat', true)} tooltip="Chat Guide">
-          <Info size={size} />
-        </Nav.Item>
       </div>
     </>
   )
@@ -137,7 +132,7 @@ const ChatMenuTitle: Component<NavProps> = (props) => {
   return (
     <div
       onClick={() => props.togglePane('character')}
-      class="bg-700 hover:bg-600 tour-edit-char flex h-8 max-w-[80%] cursor-pointer items-center gap-2 rounded-md px-2"
+      class="bg-700 hover:bg-600 flex h-8 max-w-[80%] cursor-pointer items-center gap-2 rounded-md px-2"
     >
       <Pencil size={16} color="var(--bg-500)" class="min-h-[12px] min-w-[12px]" />
       <span class="ellipsis text-md">{props.ctx.char?.name}</span>
