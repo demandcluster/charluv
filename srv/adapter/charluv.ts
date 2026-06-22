@@ -36,9 +36,18 @@ export async function getSubscriptionPreset(
   let error: string | undefined = undefined
   let warning: string | undefined = undefined
 
+  // The model is no longer user-selectable. It's decided purely by the user's
+  // tier: premium users always get the highest model their level allows, and
+  // everyone else (free / non-paying) gets the default subscription. Any
+  // `registered.charluv.subscriptionId` left over on old presets is ignored.
   const fallback = await store.subs.getDefaultSubscription()
-  const subId = gen.registered?.charluv?.subscriptionId
-  let preset = subId ? await store.subs.getSubscription(subId) : fallback
+  const all = await store.subs.getSubscriptions()
+  const best = all
+    .filter((sub) => !sub.subDisabled)
+    .filter((sub) => (guest ? sub.allowGuestUsage !== false : true))
+    .filter((sub) => (user.admin ? true : sub.subLevel <= level))
+    .sort((l, r) => r.subLevel - l.subLevel)[0]
+  let preset = best || fallback
 
   if (guest && preset?.allowGuestUsage === false) {
     error = 'Please sign in to use this model.'

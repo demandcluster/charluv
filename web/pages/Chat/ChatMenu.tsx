@@ -21,7 +21,6 @@ import {
   Pencil,
   Info,
 } from 'lucide-solid'
-import { AgnaisticModel } from '/web/shared/PresetSettings/Agnaistic'
 import { startTour } from '/web/tours'
 
 type NavProps = {
@@ -75,7 +74,6 @@ const ChatNav: Component<NavProps> = (props) => {
     () => props.ctx.chat?.userId === props.ctx.user?._id && props.ctx.chat?.mode !== 'companion'
   )
 
-  const canModel = createMemo(() => props.ctx.preset?.service === 'charluv')
 
   const size = 20
 
@@ -112,12 +110,6 @@ const ChatNav: Component<NavProps> = (props) => {
       <Nav.Item onClick={() => props.togglePane('ui')} class="tour-ui">
         <Palette size={size} /> UI
       </Nav.Item>
-
-      <Show when={canModel()}>
-        <div class="flex w-full justify-center">
-          <AgnaisticModel inherit={props.ctx.preset} />
-        </div>
-      </Show>
 
       <div class="flex flex-wrap justify-center gap-1 text-sm">
         <Nav.Item
