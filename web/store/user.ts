@@ -833,6 +833,10 @@ function init(): UserState {
 }
 
 async function updateTheme(ui: UI.UISettings) {
+  // Dark-only app. Coerce here — the universal point every theme path (guest,
+  // logged-in receiveUI, saveUI of defaults) flows through — so a saved or
+  // default 'light' mode can never paint a white UI.
+  ui.mode = 'dark'
   storage.localSetItem(getUIKey(), JSON.stringify(ui))
   const root = document.documentElement
 

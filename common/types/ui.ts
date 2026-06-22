@@ -112,7 +112,8 @@ export const defaultUIsettings: UISettings = {
 
   bgCustomGradient: '',
 
-  mode: 'light',
+  // Dark-only app — the light theme is retired (also enforced in updateTheme).
+  mode: 'dark',
   avatarSize: 'md',
   avatarCorners: 'circle',
   font: 'default',
