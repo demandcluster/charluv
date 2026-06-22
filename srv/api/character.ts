@@ -23,6 +23,7 @@ import { validBook } from './memory'
 import { isObject, tryParse } from '/common/util'
 import { assertStrict } from '/common/valid/validate'
 import { buildModPrompt, fromJsonResponse } from '/common/prompt'
+import { checkPublishRequirements, PUBLISH_DEFAULTS } from '/common/publish'
 import { createInferenceStream } from '../adapter/generate'
 import { sendOne } from './ws'
 
@@ -232,36 +233,80 @@ const getDraft = handle(async ({ userId }) => {
   return { character: character || null }
 })
 
-const publishCharacter = handle(async ({ userId, body, log }, res) => {
-  assertValid(
-    { requestId: 'string?', character: 'any?', characterId: 'any?', imageData: 'string?' },
-    body
-  )
+/** Resolve the per-tier daily publish cap from config (with shared defaults). */
+function publishCap(config: AppSchema.Configuration, premium?: boolean) {
+  return premium
+    ? config.publishDailyPremium || PUBLISH_DEFAULTS.dailyPremium
+    : config.publishDailyFree || PUBLISH_DEFAULTS.dailyFree
+}
+
+/** Whether this user is allowed to publish given the configured audience gate. */
+function canPublish(audience: AppSchema.Configuration['charlibPublish'], user: AppSchema.User) {
+  switch (audience) {
+    case 'off':
+      return false
+    case 'users':
+      return true
+    case 'subscribers':
+      return !!user.premium || !!user.admin
+    case 'moderators':
+    case 'admins':
+      return !!user.admin
+    default:
+      return false
+  }
+}
+
+const getPublishStatus = handle(async ({ userId }) => {
   const config = await store.admin.getServerConfiguration()
-  console.log(config)
-  if (!config.modPresetId) {
-    throw new StatusError(`Mod preset not configured`, 400)
+  const user = await store.users.getUser(userId!)
+  const cap = publishCap(config, user?.premium)
+  const used = await store.characters.countPublishedToday(userId!)
+  return {
+    enabled: canPublish(config.charlibPublish, user!),
+    cap,
+    used,
+    remaining: Math.max(0, cap - used),
+    reward: config.publishReward || PUBLISH_DEFAULTS.reward,
+    guidelines: config.charlibGuidelines || '',
+  }
+})
+
+const publishCharacter = handle(async ({ userId, body, log }, res) => {
+  assertValid({ requestId: 'string?', characterId: 'string', imageData: 'string?' }, body)
+
+  const config = await store.admin.getServerConfiguration()
+  const user = await store.users.getUser(userId!)
+  if (!user) throw new StatusError('Not authorized', 401)
+
+  if (!canPublish(config.charlibPublish, user)) {
+    throw new StatusError('Publishing is not available for your account', 403)
+  }
+  if (!config.modPresetId) throw new StatusError('Moderation is not configured', 400)
+
+  const character = await store.characters.getCharacter(userId!, body.characterId)
+  if (!character) throw new StatusError('Character not found', 404)
+  if (character.draft) throw new StatusError('Finish creating the character before publishing', 400)
+  if (!character.avatar) throw new StatusError('Add an avatar before publishing', 400)
+
+  // Minimum-quality thresholds.
+  const { ok, requirements } = checkPublishRequirements(character)
+  if (!ok) {
+    const missing = requirements
+      .filter((r) => !r.ok)
+      .map((r) => `${r.label} (${r.actual}/${r.min})`)
+    throw new StatusError(`Below the minimum requirements — ${missing.join(', ')}`, 400)
   }
 
-  const user = await store.users.getUser(userId)
-  if (!user) {
-    throw new StatusError('Not authorized', 401)
+  // Daily cap (re-publishing an already-public character doesn't consume quota).
+  const cap = publishCap(config, user.premium)
+  if (!character.published) {
+    const used = await store.characters.countPublishedToday(userId!)
+    if (used >= cap) throw new StatusError(`Daily publish limit reached (${cap} per day)`, 429)
   }
 
   const settings = await store.presets.getUserPreset(config.modPresetId)
-  if (!settings) {
-    throw new StatusError('Mod preset not found', 400)
-  }
-
-  let character = body.character
-
-  if (body.characterId) {
-    character = await store.characters.getCharacter(userId, body.characterId)
-  }
-
-  if (!character) {
-    throw new StatusError(`Character not provided`, 400)
-  }
+  if (!settings) throw new StatusError('Moderation preset not found', 400)
 
   const prompt = buildModPrompt({
     char: character,
@@ -283,9 +328,7 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
 
   res.json({ success: true, generating: true, requestId })
 
-  if (user.admin) {
-    sendOne(userId, { type: 'inference-prompt', prompt })
-  }
+  if (user.admin) sendOne(userId, { type: 'inference-prompt', prompt })
 
   let response = ''
   let partial = ''
@@ -297,11 +340,9 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
         response = gen
         continue
       }
-
       if ('meta' in gen && user.admin) {
         sendOne(userId, { type: 'inference-meta', meta: gen.meta, requestId })
       }
-
       if ('partial' in gen) {
         partial = gen.partial
         fromJsonResponse(config.modSchema, gen.partial, output)
@@ -309,60 +350,146 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
           sendOne(userId, { type: 'inference-partial', partial, service, requestId, output })
         continue
       }
-
       if ('error' in gen) {
         sendOne(userId, { type: 'inference-error', partial, error: gen.error, requestId })
         continue
       }
-
       if ('warning' in gen) {
         sendOne(userId, { type: 'inference-warning', requestId, warning: gen.warning })
         continue
       }
     }
   } catch (ex: any) {
-    if (ex instanceof StatusError) {
-      sendOne(userId, {
-        type: 'inference-error',
-        partial,
-        error: `[${ex.status}] ${ex.message}`,
-        requestId,
-      })
-    } else {
-      sendOne(userId, { type: 'inference-error', partial, error: `${ex.message || ex}`, requestId })
-    }
+    const msg = ex instanceof StatusError ? `[${ex.status}] ${ex.message}` : `${ex.message || ex}`
+    sendOne(userId, { type: 'inference-error', partial, error: msg, requestId })
+    sendOne(userId, {
+      type: 'publish-response',
+      acceptable: false,
+      requestId,
+      reason: 'The moderation check could not be completed. Please try again.',
+    })
+    return
   }
 
-  if (!response) return
-  if (user.admin) sendOne(userId, { type: 'inference', requestId, response: response, output })
+  if (!response) {
+    sendOne(userId, {
+      type: 'publish-response',
+      acceptable: false,
+      requestId,
+      reason: 'The moderation check returned no result. Please try again.',
+    })
+    return
+  }
+  if (user.admin) sendOne(userId, { type: 'inference', requestId, response, output })
 
+  // A field is a violation when its moderation-schema rule isn't satisfied; the
+  // field name doubles as the moderation flag (e.g. 'underage', 'violence').
   let acceptable = true
+  const flags: string[] = []
   for (const [key, value] of Object.entries(output)) {
     const def = config.modSchema.find((s) => s.name === key)
-    if (!def) continue
-    if (!def.type.valid) continue
+    if (!def || !def.type.valid) continue
 
+    let fieldOk = true
     switch (def.type.type) {
       case 'integer':
       case 'string':
         continue
-
-      case 'bool': {
-        const expected = def.type.valid === 'true'
-        if (value !== expected) acceptable = false
-        continue
-      }
-
-      case 'enum': {
-        const values = def.type.valid.split(',').map((v) => v.trim())
-        const valid = values.includes((value || '') as string)
-        if (!valid) acceptable = false
-        continue
-      }
+      case 'bool':
+        fieldOk = value === (def.type.valid === 'true')
+        break
+      case 'enum':
+        fieldOk = def.type.valid
+          .split(',')
+          .map((v) => v.trim())
+          .includes((value || '') as string)
+        break
+    }
+    if (!fieldOk) {
+      acceptable = false
+      flags.push(def.name)
     }
   }
 
-  sendOne(userId, { type: 'publish-response', acceptable, requestId })
+  const checkedAt = Date.now()
+
+  if (!acceptable) {
+    const moderation: AppSchema.CharacterModeration = {
+      status: 'rejected',
+      flags,
+      reason: flags.length ? `Flagged for: ${flags.join(', ')}` : 'Did not pass the content check',
+      autoCheckedAt: checkedAt,
+    }
+    await store.characters.updateCharacter(character._id, userId!, { moderation })
+    sendOne(userId, {
+      type: 'publish-response',
+      acceptable: false,
+      requestId,
+      flags,
+      reason: moderation.reason,
+    })
+    return
+  }
+
+  const reward = config.publishReward || PUBLISH_DEFAULTS.reward
+  const shouldReward = !character.publishRewarded && reward > 0
+
+  const moderation: AppSchema.CharacterModeration = {
+    status: 'approved',
+    flags,
+    autoCheckedAt: checkedAt,
+    moderated: false,
+  }
+  await store.characters.updateCharacter(character._id, userId!, {
+    published: true,
+    publishedAt: checkedAt,
+    publishRewarded: character.publishRewarded || shouldReward,
+    moderation,
+  })
+
+  if (shouldReward) await store.credits.updateCredits(userId!, reward)
+
+  sendOne(userId, {
+    type: 'publish-response',
+    acceptable: true,
+    requestId,
+    rewarded: shouldReward ? reward : 0,
+  })
+})
+
+const reportCharacter = handle(async ({ userId, params, body }) => {
+  assertValid({ reason: 'string', note: 'string?' }, body)
+  if (!body.reason.trim()) throw new StatusError('A reason is required', 400)
+
+  // Only publicly-visible characters can be reported (and never your own).
+  const char = await store.matches.getMatch(userId!, params.id)
+  if (!char) throw new StatusError('Character not found', 404)
+  if (char.userId === userId) throw new StatusError(`You can't report your own character`, 400)
+
+  const { count } = await store.reports.createReport({
+    charId: char._id,
+    charOwnerId: char.userId,
+    reporterId: userId!,
+    reason: body.reason.trim().slice(0, 60),
+    note: body.note?.toString().slice(0, 500),
+  })
+
+  // Auto-hide once enough distinct users have reported it; admins review next.
+  if (count >= PUBLISH_DEFAULTS.reportThreshold && char.moderation?.status !== 'hidden') {
+    await store.characters.setCharacterModeration(char._id, {
+      published: false,
+      moderation: {
+        ...(char.moderation || { status: 'approved' }),
+        status: 'hidden',
+        reason: `Auto-hidden after ${count} reports`,
+      },
+      reportCount: count,
+    })
+  } else {
+    await store.characters.setCharacterModeration(char._id, { reportCount: count })
+  }
+
+  return { success: true }
 })
 
 const editPartCharacter = handle(async ({ body, params, userId }) => {
@@ -754,7 +881,9 @@ router.post('/', loggedIn, createCharacter)
 router.post('/import', loggedIn, importCharacter)
 router.get('/', getCharacters)
 router.get('/draft', loggedIn, getDraft)
+router.get('/publish/status', getPublishStatus)
 router.post('/publish', publishCharacter)
+router.post('/:id/report', reportCharacter)
 router.post('/:id/update', editPartCharacter)
 router.post('/:id', editFullCharacter)
 router.get('/:id', getCharacter)

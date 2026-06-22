@@ -4,6 +4,7 @@ import { encryptPassword } from './util'
 import { AppSchema } from '../../common/types/schema'
 import { domain } from '../domains'
 import { config } from '../config'
+import { PUBLISH_DEFAULTS } from '../../common/publish'
 
 type UsersOpts = {
   username?: string
@@ -41,6 +42,9 @@ export async function getServerConfiguration() {
     googleEnabled: false,
     charlibPublish: 'off',
     charlibGuidelines: '',
+    publishDailyFree: PUBLISH_DEFAULTS.dailyFree,
+    publishDailyPremium: PUBLISH_DEFAULTS.dailyPremium,
+    publishReward: PUBLISH_DEFAULTS.reward,
     modFieldPrompt: '',
     modPresetId: '',
     modPrompt: '',

@@ -134,6 +134,36 @@ export async function getPublicCharacter(name: string) {
   return char
 }
 
+/** Number of characters this user has published since the start of the UTC day. */
+export async function countPublishedToday(userId: string) {
+  const start = new Date()
+  start.setUTCHours(0, 0, 0, 0)
+  return db('character').countDocuments({
+    kind: 'character',
+    userId,
+    publishedAt: { $gte: start.getTime() },
+  })
+}
+
+/**
+ * Update publish/moderation state on a character by id only (no userId scope).
+ * Used by report auto-hide and admin moderation actions, which act on characters
+ * the caller does not own.
+ */
+export async function setCharacterModeration(
+  characterId: string,
+  update: Pick<
+    CharacterUpdate,
+    'published' | 'publishedAt' | 'publishRewarded' | 'moderation' | 'reportCount'
+  >
+) {
+  await db('character').updateOne(
+    { _id: characterId, kind: 'character' },
+    { $set: { ...update, updatedAt: now() } }
+  )
+  return db('character').findOne({ _id: characterId, kind: 'character' })
+}
+
 export async function getSubmitted() {
   const list = await db('character').find({ kind: 'character', share: 'submitted' }).toArray()
   return list || []
@@ -237,6 +267,9 @@ export async function getCharacters(userId: string) {
       xp: 1,
       children: 1,
       match: 1,
+      published: 1,
+      moderation: 1,
+      reportCount: 1,
       parent: 1,
       voiceDisabled: 1,
       folder: 1,
