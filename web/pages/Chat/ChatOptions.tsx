@@ -2,7 +2,7 @@ import {
   Brain,
   Download,
   Palette,
-  Settings,
+  SlidersHorizontal,
   User,
   Trash,
   Users,
@@ -113,7 +113,7 @@ const ChatOptions: Component<{
 
         <Row>
           <Item onClick={() => props.togglePane('chat-settings')} hide={!isOwner()}>
-            <Settings /> Edit Chat
+            <SlidersHorizontal /> Reply Style
           </Item>
         </Row>
         <Row>

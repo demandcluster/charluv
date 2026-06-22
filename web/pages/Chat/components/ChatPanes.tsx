@@ -186,7 +186,7 @@ const ChatPanes: Component<{}> = (props) => {
         </Match>
 
         <Match when={pane.pane() === 'chat-settings'}>
-          <Convertible close={closePane} title="Chat Settings" footer={paneFooter()}>
+          <Convertible close={closePane} title="Reply Style" footer={paneFooter()}>
             <ChatSettings footer={setPaneFooter} close={closePane} />
           </Convertible>
         </Match>

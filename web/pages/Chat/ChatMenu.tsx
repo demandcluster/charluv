@@ -11,6 +11,7 @@ import {
   Brain,
   Palette,
   Settings,
+  SlidersHorizontal,
   Users,
   Download,
   VenetianMask,
@@ -99,7 +100,7 @@ const ChatNav: Component<NavProps> = (props) => {
       </Nav.DoubleItem>
 
       <Nav.Item onClick={() => props.togglePane('chat-settings')}>
-        <Settings size={size} /> Edit Chat
+        <SlidersHorizontal size={size} /> Reply Style
       </Nav.Item>
 
       <Show when={isOwner()}>
