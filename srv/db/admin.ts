@@ -14,9 +14,6 @@ type UsersOpts = {
 }
 
 export async function getServerConfiguration() {
-  const cfg = await db('configuration').findOne({ kind: 'configuration' })
-  if (cfg) return cfg
-
   const next: AppSchema.Configuration = {
     kind: 'configuration',
     apiAccess: 'off',
@@ -55,6 +52,14 @@ export async function getServerConfiguration() {
     modSchema: [],
     actionCalls: [],
     lockSeconds: 0,
+  }
+
+  const cfg = await db('configuration').findOne({ kind: 'configuration' })
+  if (cfg) {
+    // Backfill any field added in a newer version so an older stored config
+    // still exposes every field (the admin form needs them all to save).
+    // Existing values win; only missing keys fall back to defaults. No migration.
+    return { ...next, ...cfg }
   }
 
   await db('configuration').insertOne(next)
