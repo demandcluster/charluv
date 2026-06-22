@@ -14,6 +14,7 @@ import {
   RotateCcw,
   Smile,
   Sparkles,
+  Upload,
   User,
 } from 'lucide-solid'
 import './create.css'
@@ -24,6 +25,7 @@ import { imageApi } from '../../store/data/image'
 import { genApi } from '../../store/data/inference'
 import { defaultPresets } from '/common/presets'
 import FileInput, { FileInputResult } from '../../shared/FileInput'
+import ImportCharacterModal from '../Character/ImportCharacter'
 import { getAssetUrl, random } from '../../shared/util'
 import { DEFAULT_ARCHETYPE_ID } from '/common/progression'
 import { AppSchema } from '/common/types'
@@ -419,6 +421,21 @@ const Create: Component = () => {
     setAnswers('name', name)
   }
 
+  // Importing a ready-made character card. Imports skip the creation charge and
+  // drop straight into My AI — no wizard, no portrait generation.
+  const [showImport, setShowImport] = createSignal(false)
+  const onImportChars = (chars: NewCharacter[]) => {
+    setShowImport(false)
+    if (!chars.length) return
+    let i = 0
+    const next = () => {
+      const c = chars[i++]
+      if (!c) return navigate('/mine')
+      characterStore.createCharacter({ ...c, imported: true } as NewCharacter, next)
+    }
+    next()
+  }
+
   // Short descriptive chips shown under the portrait on the review step.
   const tagChips = () =>
     [
@@ -619,9 +636,16 @@ const Create: Component = () => {
               Create your <em>dream date</em>
             </h1>
           </div>
-          <A class="cr-back-link" href="/discover">
-            <ChevronLeft size={15} /> Back to Discover
-          </A>
+          <div class="cr-head-actions">
+            <Show when={step() === 0}>
+              <button class="cr-back-link" type="button" onClick={() => setShowImport(true)}>
+                <Upload size={15} /> Import a card
+              </button>
+            </Show>
+            <A class="cr-back-link" href="/discover">
+              <ChevronLeft size={15} /> Back to Discover
+            </A>
+          </div>
         </header>
 
         <Stepper current={step()} />
@@ -975,6 +999,12 @@ const Create: Component = () => {
           </Show>
         </nav>
       </div>
+
+      <ImportCharacterModal
+        show={showImport()}
+        close={() => setShowImport(false)}
+        onSave={onImportChars}
+      />
     </div>
   )
 }

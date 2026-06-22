@@ -1,0 +1,29 @@
+/* My AI — header actions (add a new companion). Reuses the Discover tokens. */
+.myai-actions {
+  margin-top: 0.9rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.myai-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  color: var(--dsc-bg, #0b0b0f);
+  background: var(--dsc-green, #2ec27e);
+  border: 1px solid transparent;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+.myai-new:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+.myai-new:focus-visible {
+  outline: 2px solid var(--dsc-green, #2ec27e);
+  outline-offset: 2px;
+}

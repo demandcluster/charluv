@@ -61,6 +61,12 @@
   font-style: italic;
   color: var(--cr-accent);
 }
+.cr-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
 .cr-back-link {
   appearance: none;
   border: 1px solid var(--dsc-line);

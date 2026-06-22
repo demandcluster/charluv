@@ -1,6 +1,8 @@
 import { Component, For, Show, createMemo, onMount } from 'solid-js'
 import { useNavigate, A } from '@solidjs/router'
+import { Plus } from 'lucide-solid'
 import '../Discover/discover.css'
+import './myai.css'
 import { characterStore } from '../../store/character'
 import { getAssetUrl } from '../../shared/util'
 import { getCharacterLevel } from '/common/xplevel'
@@ -34,6 +36,11 @@ const MyAI: Component = () => {
           Your companions and the relationships you're building. Pick up where you left off — or find
           someone new in <A href="/discover" style={{ color: 'var(--dsc-green)' }}>Discover</A>.
         </p>
+        <div class="myai-actions">
+          <A class="myai-new" href="/create">
+            <Plus size={16} aria-hidden="true" /> New companion
+          </A>
+        </div>
       </header>
 
       <div class="dsc-grid">

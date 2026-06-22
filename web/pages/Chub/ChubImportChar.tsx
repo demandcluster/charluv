@@ -25,7 +25,8 @@ const ChubImportCharModal: Component<{
   const onImport = () => {
     if (!props.char) return
     try {
-      characterStore.createCharacter(props.char)
+      // Imports are not charged the creation fee — the character is ready-made.
+      characterStore.createCharacter({ ...props.char, imported: true } as NewCharacter)
     } catch (error) {
       toastStore.error(`Error importing ${props.char.name}! ${error}`)
     }

@@ -55,6 +55,7 @@ const characterForm = {
   category: 'string?',
   nsfw: 'any?',
   draft: 'any?',
+  imported: 'any?',
   loraName: 'string?',
   imageSeed: 'any?',
 
@@ -137,11 +138,15 @@ const createCharacter = handle(async (req) => {
   if (!isObject(extensions) && extensions !== undefined) {
     throw new StatusError('Character `extensions` field must be an object or undefined.', 400)
   }
-  const user = await store.users.getUser(req.userId!)
-  if (user?.credits && user?.credits < 50) {
-    throw new StatusError('Not enough credits', 400)
+  // Imports bring a ready-made character (nothing is generated for them), so they
+  // are not charged the creation fee. Only fresh wizard/builder characters pay.
+  if (body.imported?.toString() !== 'true') {
+    const user = await store.users.getUser(req.userId!)
+    if (user?.credits && user?.credits < 50) {
+      throw new StatusError('Not enough credits', 400)
+    }
+    await store.credits.updateCredits(req.userId!, -50)
   }
-  await store.credits.updateCredits(req.userId!, -50)
 
   const imageSettings = body.imageSettings ? JSON.parse(body.imageSettings) : undefined
   const json = body.json ? JSON.parse(body.json) : undefined

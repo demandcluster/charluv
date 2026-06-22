@@ -334,6 +334,7 @@ export async function createCharacter(char: NewCharacter) {
     appendFormOptional(form, 'premium', char.premium)
     appendFormOptional(form, 'share', char.share)
     appendFormOptional(form, 'draft', (char as any).draft)
+    appendFormOptional(form, 'imported', (char as any).imported)
     appendFormOptional(form, 'progression', JSON.stringify((char as any).progression))
     appendFormOptional(form, 'gender', (char as any).gender)
     appendFormOptional(form, 'artStyle', (char as any).artStyle)
