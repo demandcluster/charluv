@@ -68,10 +68,6 @@ export const SubscriptionPage: Component = (props) => {
     return last.toLocaleDateString()
   })
 
-  const onSubscribe = (tierId: string) => {
-    userStore.startCheckout(tierId)
-  }
-
   const currentText = createMemo(() => {
     if (cfg.type === 'manual') return 'Valid until'
     if (cfg.type === 'patreon') return `Patreon Subscriber`
@@ -221,7 +217,9 @@ export const SubscriptionPage: Component = (props) => {
                             Subscribed!
                           </Button>
                         </Match>
-                        <Match when={cfg.tier && cfg.level < each.level}>
+                        <Match
+                          when={user.sub?.type === 'native' && cfg.tier && cfg.level < each.level}
+                        >
                           <Button
                             schema="success"
                             disabled={canResume() || user.billingLoading}
@@ -257,28 +255,16 @@ export const SubscriptionPage: Component = (props) => {
                           </Button>
                         </Match>
 
-                        <Match when={hasExpired() && each._id === user.sub?.tier._id}>
-                          <Button schema="success" onClick={() => onSubscribe(each._id)}>
-                            Re-subscribe
-                          </Button>
-                        </Match>
-
-                        <Match when={user.sub?.level! > each.level}>
-                          <Button schema="secondary" disabled onClick={() => onSubscribe(each._id)}>
-                            Subscribe
-                          </Button>
-                        </Match>
-
+                        {/* New subscriptions are Patreon-only. Stripe (native) is
+                            kept solely to manage existing grandfathered subs above. */}
                         <Match when>
-                          <Button
-                            schema="success"
-                            disabled={
-                              each._id === cfg.tier?._id || canResume() || user.billingLoading
-                            }
-                            onClick={() => onSubscribe(each._id)}
+                          <a
+                            class="link font-bold"
+                            href="https://patreon.com/charluv"
+                            target="_blank"
                           >
-                            Subscribe
-                          </Button>
+                            <Button schema="success">Subscribe via Patreon</Button>
+                          </a>
                         </Match>
                       </Switch>
                     </div>
@@ -303,14 +289,6 @@ export const SubscriptionPage: Component = (props) => {
           </div>
 
           <div class="flex justify-center text-sm">Patreon price shown is excl. VAT.</div>
-
-          <div class="flex justify-center">
-            <a href="/shop">
-              <Button schema="green" disabled={user.billingLoading}>
-                Non-Subscription (Legacy) Shop
-              </Button>
-            </a>
-          </div>
         </div>
       </div>
       <ConfirmModal

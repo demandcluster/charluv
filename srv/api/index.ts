@@ -22,7 +22,6 @@ import charImport from './charimport'
 
 import match from './match'
 
-import cart from './cart'
 import paypalcheck from './paypal'
 
 const router = Router()
@@ -41,7 +40,6 @@ router.use('/memory', memory)
 router.use('/scenario', scenario)
 router.use('/voice', voice)
 router.use('/freecredits', freeCredits)
-router.use('/shop', cart)
 router.use('/match', match)
 router.use('/announce', announcements)
 router.use('/paypalcheck', paypalcheck)

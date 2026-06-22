@@ -20,9 +20,7 @@ import Button from './shared/Button'
 
 import CharacterList from './pages/Character/CharacterList'
 
-import PremiumOptions from './pages/Premium/PremiumOptions'
 import ThankYou from './pages/Premium/ThankYou'
-import Error from './pages/Premium/Error'
 import PremiumInfo from './pages/Premium/Info'
 
 
@@ -120,9 +118,7 @@ const App: Component = () => {
         <Route path="/novel" component={NovelGuide} />
       </Route>
       <Show when={state.loggedIn}>
-        <Route path="/shop" component={PremiumOptions} />
         <Route path="/thankyou" component={ThankYou} />
-        <Route path="/shop/error" component={Error} />
         <Route path="/premium" component={PremiumInfo} />
 
         <Route path="/invites" component={lazy(() => import('./pages/Invite/InvitesPage'))} />
