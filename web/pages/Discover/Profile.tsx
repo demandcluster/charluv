@@ -2,7 +2,7 @@ import { Component, For, Show, createEffect, createMemo, createSignal, onMount }
 import { useNavigate, useParams } from '@solidjs/router'
 import './profile.css'
 import { matchStore } from '../../store/match'
-import { settingStore } from '../../store'
+import { settingStore, userStore } from '../../store'
 import { getAssetUrl } from '../../shared/util'
 import Loading from '../../shared/Loading'
 import TextInput from '../../shared/TextInput'
@@ -85,6 +85,12 @@ const Profile: Component = () => {
   const onMatch = () => {
     const c = char()
     if (!c) return
+    // Cloning a companion writes to the user's collection, so guests must
+    // register first. Return them straight back to this profile afterwards.
+    if (!userStore().loggedIn) {
+      navigate(`/register?return=/discover/${c._id}`)
+      return
+    }
     matchStore.createMatch(c, navigate, name().trim() || c.name)
   }
 

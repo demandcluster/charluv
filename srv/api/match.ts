@@ -110,11 +110,17 @@ const getDiscoverChar = handle(async (req) => {
   return char
 })
 
+// Public reads — guests can browse the Discover gallery and preview a
+// character without an account. The handlers tolerate an empty userId (no
+// premium templates for guests). Keep '/discover' before '/:id' so the literal
+// route isn't captured as an id.
+router.get('/discover', discover)
+router.get('/:id', getDiscoverChar)
+
+// Everything below mutates or returns the caller's own data — login required.
 router.use(loggedIn)
 //router.post('/', createMatch)
 router.get('/', getMatches)
-router.get('/discover', discover)
-router.get('/:id', getDiscoverChar)
 router.post('/:id', createCharacter)
 //router.post('/:id', editMatch)
 //router.get('/:id', getMatch)
