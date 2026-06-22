@@ -58,18 +58,18 @@ const Discover: Component = () => {
   return (
     <div class="dsc-root">
       <header class="dsc-head">
-        <div class="dsc-headline">
+        <div class="dsc-intro">
           <h1 class="dsc-title">
             Find your <em>someone</em>
           </h1>
-          <A class="dsc-create" href="/create">
-            <Sparkles size={17} /> Create your dream date
-          </A>
+          <p class="dsc-tag">
+            Companions who grow with you. Start a conversation — your relationship deepens the more
+            you talk.
+          </p>
         </div>
-        <p class="dsc-tag">
-          Companions who grow with you. Start a conversation — your relationship deepens the more you
-          talk.
-        </p>
+        <A class="dsc-create" href="/create">
+          <Sparkles size={17} /> Create your dream date
+        </A>
       </header>
 
       <div class="dsc-filters" role="search">
@@ -157,7 +157,12 @@ const Discover: Component = () => {
           <Show
             when={state.discover.list.length}
             fallback={
-              <div class="dsc-empty">No companions match those filters yet. Try widening them.</div>
+              <div class="dsc-empty">
+                <p>No companions match those filters yet. Try widening them — or make your own.</p>
+                <A class="dsc-create" href="/create">
+                  <Sparkles size={17} /> Create your dream date
+                </A>
+              </div>
             }
           >
             <For each={state.discover.list}>{(char) => <Card char={char} onPick={pick} />}</For>

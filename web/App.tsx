@@ -194,6 +194,10 @@ const Layout: Component<{ children?: any }> = (props) => {
   // chat needs the chat options pane).
   const guestLanding = createMemo(() => !state.loggedIn && !isChat())
 
+  // Pages that paint their own full-bleed chrome opt out of the centered,
+  // boxed content wrapper so their background runs edge-to-edge.
+  const fullBleed = createMemo(() => location.pathname.startsWith('/discover'))
+
   const bgStyles = useCharacterBg('layout')
 
   return (
@@ -220,9 +224,11 @@ const Layout: Component<{ children?: any }> = (props) => {
             style={{ ...bgStyles(), 'scrollbar-gutter': 'stable both-edges' }}
           >
             <div
-              class={`mx-auto h-full min-h-full ${isChat() ? maxW() : 'max-w-8xl'}`}
+              class={`mx-auto h-full min-h-full ${
+                isChat() ? maxW() : fullBleed() ? 'max-w-full' : 'max-w-8xl'
+              }`}
               classList={{
-                'content-background': !isChat(),
+                'content-background': !isChat() && !fullBleed(),
               }}
             >
               <Switch>

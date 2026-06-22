@@ -25,3 +25,6 @@ settings.json
 !web/pkg/*.js
 !llama3.js
 
+
+# Playwright MCP scratch artifacts
+.playwright-mcp/

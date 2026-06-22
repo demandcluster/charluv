@@ -30,9 +30,14 @@
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 1.25rem 2rem;
   flex-wrap: wrap;
   margin-bottom: clamp(1.5rem, 4vw, 2.75rem);
+}
+.dsc-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
 }
 .dsc-title {
   font-family: 'Fraunces', Georgia, serif;
@@ -45,12 +50,6 @@
 .dsc-title em {
   font-style: italic;
   color: var(--dsc-green);
-}
-.dsc-headline {
-  display: flex;
-  align-items: center;
-  gap: 1rem 1.5rem;
-  flex-wrap: wrap;
 }
 .dsc-create {
   display: inline-flex;
@@ -79,8 +78,9 @@
 }
 .dsc-tag {
   color: var(--dsc-muted);
-  max-width: 34ch;
-  font-size: clamp(0.9rem, 1.4vw, 1.05rem);
+  max-width: 48ch;
+  margin: 0;
+  font-size: clamp(0.9rem, 1.4vw, 1.1rem);
   line-height: 1.5;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -153,6 +153,19 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: clamp(0.9rem, 2vw, 1.4rem);
+}
+/* Keep two cards per row on phones rather than one giant stack. */
+@media (max-width: 640px) {
+  .dsc-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.7rem;
+  }
+  .dsc-name {
+    font-size: 1rem;
+  }
+  .dsc-card:nth-child(7n + 1) {
+    aspect-ratio: 3 / 4;
+  }
 }
 .dsc-card {
   position: relative;
@@ -289,11 +302,19 @@
 .dsc-empty,
 .dsc-loading {
   grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
   text-align: center;
   color: var(--dsc-muted);
-  padding: 4rem 1rem;
+  padding: clamp(3rem, 9vw, 6rem) 1rem;
   font-family: 'Fraunces', serif;
-  font-size: 1.2rem;
+  font-size: 1.3rem;
+}
+.dsc-empty p {
+  margin: 0;
+  max-width: 30ch;
 }
 .dsc-skel {
   border-radius: 18px;
