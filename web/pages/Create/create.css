@@ -578,6 +578,11 @@
   padding-top: 1.5rem;
   border-top: 1px solid var(--dsc-line);
 }
+.cr-nav-final {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
 .cr-btn {
   appearance: none;
   border-radius: 12px;

@@ -18,6 +18,7 @@ export type CharacterUpdate = Partial<
     | 'tags'
     | 'favorite'
     | 'match'
+    | 'draft'
     | 'xp'
     | 'share'
     | 'premium'
@@ -66,6 +67,7 @@ export async function createCharacter(
     | 'tags'
     | 'favorite'
     | 'match'
+    | 'draft'
     | 'xp'
     | 'premium'
     | 'share'
@@ -206,9 +208,16 @@ export async function getCharacter(
   return char || undefined
 }
 
+/** The user's current unfinished wizard draft, if any. One draft per user. */
+export async function getDraftCharacter(userId: string) {
+  const char = await db('character').findOne({ userId, kind: 'character', draft: true })
+  return char || undefined
+}
+
 export async function getCharacters(userId: string) {
   const list = await db('character')
-    .find({ userId })
+    // Hide unfinished wizard drafts from the My AI list.
+    .find({ userId, draft: { $ne: true } })
     .project({
       _id: 1,
       userId: 1,

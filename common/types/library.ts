@@ -57,6 +57,13 @@ export interface Character extends BaseCharacter {
   share?: string
   premium: boolean
   /**
+   * Incomplete wizard character. The creation credit is charged when the draft
+   * is created (on entering the final/portrait step); it's finalized — and made
+   * visible — only when the user completes creation. Drafts are hidden from
+   * Discover and the My AI list. One draft per user; abandoning forfeits it.
+   */
+  draft?: boolean
+  /**
    * @deprecated Legacy scenario-state-machine progression. Replaced by `progression` (archetypes).
    * Retained only for back-compat with existing ScenarioBooks during migration.
    */

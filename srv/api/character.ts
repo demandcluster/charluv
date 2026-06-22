@@ -54,6 +54,7 @@ const characterForm = {
   ageRange: 'string?',
   category: 'string?',
   nsfw: 'any?',
+  draft: 'any?',
   loraName: 'string?',
   imageSeed: 'any?',
 
@@ -159,6 +160,7 @@ const createCharacter = handle(async (req) => {
     premium: !!body.premium,
     xp: 0,
     match: body.match?.toString() === 'true' || false,
+    draft: body.draft?.toString() === 'true' || undefined,
     progression,
     gender: (body.gender as AppSchema.Character['gender']) || undefined,
     artStyle: (body.artStyle as AppSchema.Character['artStyle']) || undefined,
@@ -209,6 +211,13 @@ const createCharacter = handle(async (req) => {
 const getCharacters = handle(async ({ userId }) => {
   const chars = await store.characters.getCharacters(userId!)
   return { characters: chars }
+})
+
+// Returns the user's unfinished wizard draft so Create can resume it. The
+// creation credit was already charged when the draft was made.
+const getDraft = handle(async ({ userId }) => {
+  const character = await store.characters.getDraftCharacter(userId!)
+  return { character: character || null }
 })
 
 const publishCharacter = handle(async ({ userId, body, log }, res) => {
@@ -450,6 +459,9 @@ const editFullCharacter = handle(async (req) => {
     // characterVersion auto-incremented.
     characterVersion: nextVersion,
     match: body.match?.toString() === 'true' || false,
+    // Editing always lands a finished character. Finalizing a draft clears the
+    // flag (making it visible); editing a normal character is a harmless no-op.
+    draft: false,
     premium: body.premium?.toString() === 'true' || false,
     // xp: 0, // body.xp ? parseInt(body.xp) : 0,
     share: body.share || 'private',
@@ -490,11 +502,16 @@ const editFullCharacter = handle(async (req) => {
     update.avatar = filename + `?v=${v4().slice(0, 4)}`
   }
 
-  const user = await store.users.getUser(req.userId!)
-  if (user?.credits && user?.credits < 20) {
-    throw new StatusError('Not enough credits', 400)
+  // Finalizing a draft is free: the 50-credit creation fee was already taken
+  // when the draft was created (on entering the final step). Only charge the
+  // 20-credit edit fee for edits to already-finished characters.
+  if (!existing?.draft) {
+    const user = await store.users.getUser(req.userId!)
+    if (user?.credits && user?.credits < 20) {
+      throw new StatusError('Not enough credits', 400)
+    }
+    await store.credits.updateCredits(req.userId!, -20)
   }
-  await store.credits.updateCredits(req.userId!, -20)
 
   const char = await store.characters.updateCharacter(id, req.userId!, update)
 
@@ -723,6 +740,7 @@ router.post('/image', createImage)
 router.use(loggedIn)
 router.post('/', loggedIn, createCharacter)
 router.get('/', getCharacters)
+router.get('/draft', loggedIn, getDraft)
 router.post('/publish', publishCharacter)
 router.post('/:id/update', editPartCharacter)
 router.post('/:id', editFullCharacter)

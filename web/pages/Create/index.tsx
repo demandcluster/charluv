@@ -1,4 +1,4 @@
-import { Component, For, Show, createEffect, createMemo, createSignal } from 'solid-js'
+import { Component, For, Show, createEffect, createMemo, createSignal, onMount } from 'solid-js'
 import { createStore } from 'solid-js/store'
 import { A, useNavigate } from '@solidjs/router'
 import {
@@ -10,11 +10,14 @@ import {
   Heart,
   Image as ImageIcon,
   PersonStanding,
+  RotateCcw,
   Smile,
   User,
 } from 'lucide-solid'
 import './create.css'
-import { characterStore, chatStore, userStore } from '../../store'
+import { characterStore, chatStore, toastStore, userStore } from '../../store'
+import { charsApi } from '../../store/data/chars'
+import { getStoredValue, setStoredValue } from '../../shared/hooks'
 import { imageApi } from '../../store/data/image'
 import { genApi } from '../../store/data/inference'
 import { defaultPresets } from '/common/presets'
@@ -218,37 +221,47 @@ const STEPS = [
 
 const TOTAL = STEPS.length
 
+// LocalStorage key for the in-progress wizard selections. The server holds the
+// authoritative hidden draft character (and the paid credit); this just lets us
+// restore the exact slug choices for the review/portrait step on resume.
+const DRAFT_KEY = 'create-wizard-answers'
+
+const makeDefaultAnswers = (): Answers => ({
+  gender: GENDERS[0].slug,
+  artStyle: STYLES[0].slug,
+  age: AGES[0],
+
+  ethnicity: ETHNICITIES[0].slug,
+  ethnicityCustom: '',
+  skinTone: SKIN_TONES[0].label,
+
+  hairStyle: HAIR_STYLES[0].slug,
+  hairStyleCustom: '',
+  hairColor: HAIR_COLORS[0].label,
+  eyeColor: EYE_COLORS[0].label,
+
+  body: BODIES[0].slug,
+  breast: BREASTS[2].slug,
+  butt: BUTTS[1].slug,
+
+  vibe: VIBES[0].slug,
+
+  name: '',
+  nsfw: false,
+})
+
 /* ---------------------------------------------------------------- page */
 
 const Create: Component = () => {
   const navigate = useNavigate()
 
-  const [answers, setAnswers] = createStore<Answers>({
-    gender: GENDERS[0].slug,
-    artStyle: STYLES[0].slug,
-    age: AGES[0],
-
-    ethnicity: ETHNICITIES[0].slug,
-    ethnicityCustom: '',
-    skinTone: SKIN_TONES[0].label,
-
-    hairStyle: HAIR_STYLES[0].slug,
-    hairStyleCustom: '',
-    hairColor: HAIR_COLORS[0].label,
-    eyeColor: EYE_COLORS[0].label,
-
-    body: BODIES[0].slug,
-    breast: BREASTS[2].slug,
-    butt: BUTTS[1].slug,
-
-    vibe: VIBES[0].slug,
-
-    name: '',
-    nsfw: false,
-  })
+  const [answers, setAnswers] = createStore<Answers>(makeDefaultAnswers())
 
   const [step, setStep] = createSignal(0)
   const [submitting, setSubmitting] = createSignal(false)
+  // The server-side hidden draft character. Created (and charged) on entering
+  // the final step; finalized for free on "Create my date"; deleted by Reset.
+  const [draftId, setDraftId] = createSignal<string>()
 
   // Optional portrait chosen on the final step (generated or uploaded).
   const [avatarFile, setAvatarFile] = createSignal<File>()
@@ -385,10 +398,10 @@ const Create: Component = () => {
     setAnswers('name', name)
   }
 
-  const create = async () => {
-    if (submitting()) return
-    setSubmitting(true)
+  const persistAnswers = () => setStoredValue(DRAFT_KEY, { answers: { ...answers } })
+  const clearDraft = () => setStoredValue(DRAFT_KEY, null)
 
+  const buildPayload = async (): Promise<NewCharacter> => {
     let name = answers.name.trim()
     if (!name) name = await random('first', {})
 
@@ -418,7 +431,7 @@ const Create: Component = () => {
     const scenario = `{{user}} and {{char}} have just matched and are getting to know each other on a first date.`
     const sampleChat = `{{user}}: Hi there!\n{{char}}: *smiles warmly* Hi {{user}} — I've been looking forward to this.`
 
-    const payload: NewCharacter = {
+    return {
       name,
       avatar: avatarFile(),
       appearance,
@@ -441,24 +454,118 @@ const Create: Component = () => {
       shared: undefined,
       originalAvatar: undefined,
     }
+  }
 
-    characterStore.createCharacter(payload, (result) => {
-      chatStore.createChat(
-        result._id,
-        {
-          name: result.name,
-          greeting: result.greeting,
-          scenario: result.scenario,
-          sampleChat: result.sampleChat,
-          useOverrides: false,
-        },
-        (chatId: string) => navigate(`/chat/${chatId}`)
-      )
-    })
+  const startChat = (result: AppSchema.Character) =>
+    chatStore.createChat(
+      result._id,
+      {
+        name: result.name,
+        greeting: result.greeting,
+        scenario: result.scenario,
+        sampleChat: result.sampleChat,
+        useOverrides: false,
+      },
+      (chatId: string) => navigate(`/chat/${chatId}`)
+    )
+
+  // Step 4 -> 5 ("Next" on the last details step). This is where the creation
+  // credit is charged: it creates a hidden draft character so the user has
+  // "paid to reach the final step". Resuming an existing draft never re-charges.
+  const payAndContinue = async () => {
+    // Guests have no server-side characters or credits — keep their flow simple
+    // (no draft, charged-on-create handled locally). Just advance.
+    if (!userStore().loggedIn) return next()
+    if (draftId()) return next()
+    if (submitting()) return
+    setSubmitting(true)
+    try {
+      const payload = await buildPayload()
+      const res = await charsApi.createCharacter({
+        ...payload,
+        avatar: undefined,
+        draft: true,
+      } as NewCharacter)
+      if (res.error || !res.result) {
+        const msg = /credit/i.test(res.error || '')
+          ? 'Not enough credits to create a character.'
+          : res.error || 'Could not start creation.'
+        toastStore.error(msg)
+        return
+      }
+      setDraftId(res.result._id)
+      persistAnswers()
+      next()
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // Final step: finalize the draft (free — the credit was already taken) and
+  // open the chat. Falls back to a normal create if somehow there's no draft.
+  const create = async () => {
+    if (submitting()) return
+    setSubmitting(true)
+
+    const payload = await buildPayload()
+    const id = draftId()
+
+    if (id) {
+      const res = await charsApi.editCharacter(id, payload)
+      if (res.error || !res.result) {
+        toastStore.error(res.error || 'Could not finish your character.')
+        setSubmitting(false)
+        return
+      }
+      clearDraft()
+      characterStore.getCharacters(true)
+      startChat(res.result as AppSchema.Character)
+    } else {
+      characterStore.createCharacter(payload, startChat)
+    }
 
     // Re-enable in case creation fails (no navigation occurs).
     setTimeout(() => setSubmitting(false), 4000)
   }
+
+  // Discard the draft and start fresh. Forfeits the paid credit (no refund).
+  const reset = async () => {
+    const id = draftId()
+    setSubmitting(false)
+    if (id) await charsApi.deleteCharacter(id)
+    clearDraft()
+    setDraftId(undefined)
+    setAnswers(makeDefaultAnswers())
+    setAvatarFile(undefined)
+    setAvatarUrl(undefined)
+    setImagePrompt('')
+    setFinishInit(false)
+    setStep(0)
+  }
+
+  // Resume an in-progress creation: if the user has a server-side draft, restore
+  // their saved selections (same device) and drop them on the final step.
+  onMount(async () => {
+    const res = await charsApi.getDraft()
+    const draft =
+      res.result && 'character' in (res.result as any) ? (res.result as any).character : null
+    const saved = getStoredValue<{ answers?: Answers } | null>(DRAFT_KEY, null)
+
+    if (draft) {
+      if (saved?.answers) setAnswers(saved.answers)
+      setDraftId(draft._id)
+      setStep(TOTAL - 1)
+    } else if (saved) {
+      clearDraft()
+    }
+  })
+
+  // Keep the saved selections current while a draft exists (e.g. name tweaks on
+  // the final step) so a later resume is accurate.
+  createEffect(() => {
+    if (!draftId()) return
+    persistAnswers()
+  })
 
   return (
     <div class="cr-root">
@@ -766,19 +873,38 @@ const Create: Component = () => {
           <Show
             when={step() === TOTAL - 1}
             fallback={
-              <button class="cr-btn cr-btn-primary" type="button" onClick={next}>
-                Next <ChevronRight size={16} />
+              <button
+                class="cr-btn cr-btn-primary"
+                type="button"
+                onClick={step() === TOTAL - 2 ? payAndContinue : next}
+                disabled={submitting()}
+              >
+                <Show
+                  when={step() === TOTAL - 2}
+                  fallback={
+                    <>
+                      Next <ChevronRight size={16} />
+                    </>
+                  }
+                >
+                  {submitting() ? 'Starting…' : 'Continue'} <ChevronRight size={16} />
+                </Show>
               </button>
             }
           >
-            <button
-              class="cr-btn cr-btn-primary"
-              type="button"
-              onClick={create}
-              disabled={submitting()}
-            >
-              <Heart size={16} /> {submitting() ? 'Creating…' : 'Create my date'}
-            </button>
+            <div class="cr-nav-final">
+              <button class="cr-btn" type="button" onClick={reset} disabled={submitting()}>
+                <RotateCcw size={16} /> Reset
+              </button>
+              <button
+                class="cr-btn cr-btn-primary"
+                type="button"
+                onClick={create}
+                disabled={submitting()}
+              >
+                <Heart size={16} /> {submitting() ? 'Creating…' : 'Create my date'}
+              </button>
+            </div>
           </Show>
         </nav>
       </div>

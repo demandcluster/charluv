@@ -51,6 +51,7 @@ export async function discover(userId: string, filter: DiscoverFilter = {}) {
   const query: any = {
     kind: 'character',
     match: true,
+    draft: { $ne: true },
     $or: [{ premium: false }, { premium }],
   }
 

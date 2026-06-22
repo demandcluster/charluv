@@ -13,6 +13,7 @@ import { genApi } from './inference'
 export const charsApi = {
   getCharacterDetail,
   getCharacters,
+  getDraft,
   removeAvatar,
   editAvatar,
   deleteCharacter,
@@ -110,6 +111,12 @@ async function publishCharacter(
 
   const res = await api.post('/character/publish', { character: char, imageData: image, requestId })
   return res
+}
+
+// Fetch the user's unfinished wizard draft (or null) so Create can resume it.
+export async function getDraft() {
+  if (!isLoggedIn()) return localApi.result({ character: null })
+  return api.get<{ character: AppSchema.Character | null }>('/character/draft')
 }
 
 export async function getCharacters() {
@@ -326,6 +333,7 @@ export async function createCharacter(char: NewCharacter) {
     appendFormOptional(form, 'match', char.match)
     appendFormOptional(form, 'premium', char.premium)
     appendFormOptional(form, 'share', char.share)
+    appendFormOptional(form, 'draft', (char as any).draft)
     appendFormOptional(form, 'progression', JSON.stringify((char as any).progression))
     appendFormOptional(form, 'gender', (char as any).gender)
     appendFormOptional(form, 'artStyle', (char as any).artStyle)
