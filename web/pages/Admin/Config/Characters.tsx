@@ -34,6 +34,26 @@ export const CharLibrary: Component<{ setSchema: Setter<JsonField[]> }> = (props
         isMultiline
         value={state.config?.charlibGuidelines}
       />
+      <div class="flex flex-wrap gap-2">
+        <TextInput
+          type="number"
+          fieldName="publishDailyFree"
+          label="Daily publishes (free)"
+          value={state.config?.publishDailyFree ?? 2}
+        />
+        <TextInput
+          type="number"
+          fieldName="publishDailyPremium"
+          label="Daily publishes (premium)"
+          value={state.config?.publishDailyPremium ?? 10}
+        />
+        <TextInput
+          type="number"
+          fieldName="publishReward"
+          label="Publish reward (credits)"
+          value={state.config?.publishReward ?? 500}
+        />
+      </div>
       <PresetSelect
         label="Preset"
         fieldName="modPresetId"

@@ -76,6 +76,9 @@ const ServerConfiguration: Component = () => {
       charlibGuidelines: 'string',
       lockSeconds: 'number',
       charlibPublish: ['off', 'users', 'subscribers', 'moderators', 'admins'],
+      publishDailyFree: 'number',
+      publishDailyPremium: 'number',
+      publishReward: 'number',
     })
 
     adminStore.updateServerConfig({
