@@ -207,16 +207,26 @@ const Navigation: Component = () => {
               </A>
             </Show>
 
-            <div class="flex w-2/12 justify-end">
+            <div class="flex justify-end">
               <Switch>
                 <Match when={nav.body && subnav()}>
-                  <div class="icon-button" onClick={() => setSubnav(false)}>
-                    <ChevronLeft />
+                  <div
+                    class="icon-button flex items-center gap-1 whitespace-nowrap text-sm"
+                    onClick={() => setSubnav(false)}
+                    role="button"
+                    aria-label="Show the main menu"
+                  >
+                    <ChevronLeft size={18} aria-hidden="true" /> Menu
                   </div>
                 </Match>
                 <Match when={nav.body && !subnav()}>
-                  <div class="icon-button" onClick={() => setSubnav(true)}>
-                    <ChevronRight />
+                  <div
+                    class="icon-button flex items-center gap-1 whitespace-nowrap text-sm"
+                    onClick={() => setSubnav(true)}
+                    role="button"
+                    aria-label="Show chat options"
+                  >
+                    Chat <ChevronRight size={18} aria-hidden="true" />
                   </div>
                 </Match>
               </Switch>

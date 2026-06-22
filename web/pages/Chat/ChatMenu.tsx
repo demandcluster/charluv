@@ -16,7 +16,6 @@ import {
   VenetianMask,
   Trash,
   RotateCcw,
-  ChevronLeft,
   Pencil,
 } from 'lucide-solid'
 
@@ -78,21 +77,9 @@ const ChatNav: Component<NavProps> = (props) => {
     <>
       <UserProfile />
 
-      <Nav.DoubleItem>
-        <Nav.Item class="min-h-8" href={`/character/list`}>
-          <ChevronLeft size={16} /> Matches
-        </Nav.Item>
-
-        <Nav.Item class="min-h-8" href={`/character/${props.ctx.char?._id}/chats`}>
-          <ChevronLeft size={16} /> Chats
-        </Nav.Item>
-      </Nav.DoubleItem>
-
-      <Nav.DoubleItem>
-        <Nav.Item onClick={() => props.togglePane('participants')}>
-          <Users size={size} /> Participants
-        </Nav.Item>
-      </Nav.DoubleItem>
+      <Nav.Item onClick={() => props.togglePane('participants')}>
+        <Users size={size} /> Participants
+      </Nav.Item>
 
       <Nav.Item onClick={() => props.togglePane('chat-settings')}>
         <SlidersHorizontal size={size} /> Reply Style
