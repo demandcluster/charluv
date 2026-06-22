@@ -479,7 +479,7 @@ const Create: Component = () => {
     if (!userStore().loggedIn) {
       persistAnswers()
       toastStore.normal('Create a free account to bring your date to life — your choices are saved.')
-      navigate('/register')
+      navigate('/register?return=/create')
       return
     }
     if (draftId()) return next()

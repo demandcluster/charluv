@@ -12,6 +12,14 @@ import { TitleCard } from '/web/shared/Card'
 import { Page } from '/web/Layout'
 import { useGoogleReady } from '/web/shared/hooks'
 
+// A `?return=` value is only honoured if it's a same-origin internal path, so
+// it can't be abused as an open-redirect to another site.
+const internalReturn = (p?: string | string[]) => {
+  if (typeof p !== 'string') return ''
+  if (!p.startsWith('/') || p.startsWith('//') || p.startsWith('/\\')) return ''
+  return p
+}
+
 const LoginPage: Component = () => {
   setComponentPageTitle('Login')
   const store = userStore()
@@ -154,6 +162,7 @@ type FormProps = {
 
 const RegisterForm: Component<FormProps> = (props) => {
   const navigate = useNavigate()
+  const [query] = useSearchParams()
 
   const ecu = userStore.getECU()
   const register = (evt: Event) => {
@@ -171,7 +180,10 @@ const RegisterForm: Component<FormProps> = (props) => {
       return
     }
 
-    userStore.register({ handle, username, password, invitecode }, () => navigate('/profile'))
+    // Return the user to where they came from (e.g. the create wizard) when a
+    // safe internal `?return=` path was supplied; otherwise land on the profile.
+    const dest = internalReturn(query.return) || '/profile'
+    userStore.register({ handle, username, password, invitecode }, () => navigate(dest))
   }
 
   return (
@@ -287,6 +299,12 @@ const LoginForm: Component<FormProps> = (props) => {
     if (!username || !password) return
 
     userStore.login(username, password, () => {
+      const ret = internalReturn(query.return)
+      if (ret) {
+        navigate(ret)
+        return
+      }
+
       if (query.callback) {
         handleLogin()
         return
