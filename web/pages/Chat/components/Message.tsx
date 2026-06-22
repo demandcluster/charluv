@@ -14,7 +14,6 @@ import {
   Delete,
   X,
   Zap,
-  Split,
   MoreHorizontal,
 } from 'lucide-solid'
 import {
@@ -578,9 +577,10 @@ const MessageOptions: Component<{
   const open = createMemo(() => props.showMore[0]())
 
   const logic = createMemo(() => {
-    const items: Record<
-      UI.MessageOption,
-      {
+    const items: Partial<
+      Record<
+        UI.MessageOption,
+        {
         key: UI.MessageOption
         outer: { outer: boolean; pos: number }
         label: string
@@ -589,7 +589,8 @@ const MessageOptions: Component<{
         show: boolean
         schema?: ButtonSchema
         icon: (props: LucideProps) => JSX.Element
-      }
+        }
+      >
     > = {
       prompt: {
         key: 'prompt',
@@ -609,16 +610,6 @@ const MessageOptions: Component<{
         show: props.msg.adapter !== 'image',
         onClick: props.startEdit,
         icon: Pencil,
-      },
-
-      fork: {
-        key: 'fork',
-        label: 'Fork',
-        class: 'fork-btn',
-        show: !props.last,
-        outer: props.ui.msgOptsInline.fork,
-        onClick: () => !props.partial && msgStore.fork(props.msg._id),
-        icon: Split,
       },
 
       regen: {
@@ -652,7 +643,9 @@ const MessageOptions: Component<{
     open()
     logic()
 
+    const defs = logic()
     return Object.entries(props.ui.msgOptsInline)
+      .filter(([key]) => !!defs[key as UI.MessageOption])
       .sort((l, r) => l[1].pos - r[1].pos)
       .map(([key, item]) => ({ key: key as UI.MessageOption, ...item }))
   })
@@ -663,7 +656,7 @@ const MessageOptions: Component<{
 
       <For each={order()}>
         {(item) => {
-          const def = logic()[item.key]
+          const def = logic()[item.key]!
 
           return (
             <MessageOption

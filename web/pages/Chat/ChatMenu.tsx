@@ -12,7 +12,6 @@ import {
   Palette,
   Settings,
   Users,
-  Map,
   Download,
   VenetianMask,
   Trash,
@@ -112,12 +111,6 @@ const ChatNav: Component<NavProps> = (props) => {
       <Nav.Item onClick={() => props.togglePane('ui')} class="tour-ui">
         <Palette size={size} /> UI
       </Nav.Item>
-
-      <Show when={isOwner()}>
-        <Nav.Item onClick={() => props.setModal('graph')} class="tour-chat-graph">
-          <Map size={size} /> Chat Graph
-        </Nav.Item>
-      </Show>
 
       <Show when={canModel()}>
         <div class="flex w-full justify-center">

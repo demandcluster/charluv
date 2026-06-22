@@ -33,7 +33,6 @@ import { ChatMenu } from './ChatMenu'
 import { ChatFooter } from './ChatFooter'
 import { ConfirmModal } from '/web/shared/Modal'
 import { TitleCard } from '/web/shared/Card'
-import { ChatGraphModal } from './components/GraphModal'
 import { EVENTS, events } from '/web/emitter'
 import { AppSchema } from '/common/types'
 import { startTour } from '/web/tours'
@@ -376,11 +375,6 @@ const ChatDetail: Component = () => {
         msgStore.request(msg.chatId, msg.characterId)
       }
 
-      if (ev.key === 'g') {
-        ev.preventDefault()
-        chatStore.option({ options: false, modal: 'graph' })
-      }
-
       if (ev.key === 'p') {
         ev.preventDefault()
         msgStore.createImage()
@@ -521,15 +515,6 @@ const ChatDetail: Component = () => {
 
       <Show when={chats.opts.modal === 'export'}>
         <ChatExport show={true} close={clearModal} />
-      </Show>
-
-      <Show when={chats.opts.modal === 'graph'}>
-        <ChatGraphModal
-          tree={ctx.chatTree}
-          show
-          close={clearModal}
-          leafId={chatMsgs().slice(-1)[0]?._id || ''}
-        />
       </Show>
 
       <Show when={chats.opts.modal === 'delete'}>

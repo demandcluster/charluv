@@ -75,14 +75,6 @@ chatTour.addSteps([
       'Customize your UI'
     )} You can customize many aspects of the site and chat interface from the UI settings.`,
     attachTo: { element: '.tour-ui', on: menuSide },
-    buttons: [prev, next],
-  },
-  {
-    id: 'tour-chat-graph',
-    text: `${title(
-      'Chat Graph and Forking'
-    )} Want to take your chat in a different direction without deleting any messages? Use the <code>FORK</code> button in the message options. <br/>You can use the <code>Chat Graph</code> to restore your chat to any point at any time.`,
-    attachTo: { element: '.tour-chat-graph', on: 'bottom' },
     buttons: [
       prev,
       btn.next(chatTour, () => {
@@ -100,8 +92,6 @@ chatTour.addSteps([
     text: `${title(
       'Message Options'
     )} You can <b>Edit</b>, <b>Retry</b>, and <b>Delete</b> your messages from the <code>Message Options</code>.<br />
-    You can also <b>Fork</b> your conversation from here as well.<br />
-    Remember to use the <code>Chat Graph</code> to load up a different chat 'path' when using forking.<br />
     The order and position of the message options can be customized in the <code>UI Settings</code>.`,
     attachTo: { element: '.tour-message-opts', on: 'bottom-end' },
 

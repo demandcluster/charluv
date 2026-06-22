@@ -25,7 +25,6 @@ const msgInlineLabels: Record<UI.MessageOption, string> = {
   edit: 'Edit',
   regen: 'Regenerate',
   prompt: 'Prompt View',
-  fork: 'Fork',
   trash: 'Delete',
 }
 
@@ -76,12 +75,14 @@ const UISettings: Component = () => {
       (opts) => {
         if (inline().length) return
 
-        const next = Object.entries(opts).map(([key, item], i) => ({
-          id: i,
-          value: key,
-          label: msgInlineLabels[key as UI.MessageOption],
-          enabled: item.outer,
-        }))
+        const next = Object.entries(opts)
+          .filter(([key]) => !!msgInlineLabels[key as UI.MessageOption])
+          .map(([key, item], i) => ({
+            id: i,
+            value: key,
+            label: msgInlineLabels[key as UI.MessageOption],
+            enabled: item.outer,
+          }))
         setInline(next)
       }
     )

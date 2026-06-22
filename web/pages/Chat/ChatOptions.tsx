@@ -9,7 +9,6 @@ import {
   Camera,
   VenetianMask,
   AlertTriangle,
-  Map,
 } from 'lucide-solid'
 import { Component, Show, createMemo, JSX } from 'solid-js'
 import Button, { ButtonSchema } from '../../shared/Button'
@@ -27,7 +26,6 @@ export type ChatModal =
   | 'members'
   | 'delete'
   | 'none'
-  | 'graph'
   | 'restart'
 
 const ChatOptions: Component<{
@@ -151,14 +149,6 @@ const ChatOptions: Component<{
 
         <Show when={chats.chat}>
           <Row>
-            <Item
-              onClick={() => {
-                props.setModal('graph')
-              }}
-            >
-              <Map />
-              Chat Graph
-            </Item>
             <Item
               onClick={() => {
                 chatStore.option({ confirm: true, options: false })
