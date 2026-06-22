@@ -210,7 +210,14 @@ export async function generateImage(
         if (msg) return
       }
     } else {
-      output = output || (await saveFile(`temp-${v4()}.${image.ext}`, image.content, 300))
+      // Ephemeral preview — e.g. the create-wizard portrait (or an avatar
+      // regen) before the character is saved. Never persist these: previously
+      // they were written as `temp-*` files with a 300s TTL, but on S3/R2 that
+      // TTL is only the HTTP `Expires` cache header, NOT an object-expiration
+      // rule, so abandoned previews orphaned in the bucket forever. Return the
+      // image inline as base64 instead — nothing touches storage. The real
+      // avatar is persisted separately when the character is actually saved.
+      output = output || `data:image/${image.ext};base64,${image.content.toString('base64')}`
     }
   }
 
