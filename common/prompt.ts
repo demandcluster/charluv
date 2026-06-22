@@ -5,6 +5,7 @@ import { formatCharacter } from './characters'
 import { defaultTemplate } from './mode-templates'
 import { buildMemoryPrompt } from './memory'
 import { defaultPresets, getFallbackPreset, isDefaultPreset } from './presets'
+import { charluvPresets, DEFAULT_CHARLUV_PRESET } from './presets/charluv'
 import { parseTemplate } from './template-parser'
 import { getMessageAuthor, getBotName, trimSentence, neat } from './util'
 import { Memory } from './types'
@@ -748,52 +749,20 @@ function sortMessagesDesc(l: AppSchema.ChatMessage, r: AppSchema.ChatMessage) {
 
 export function getChatPreset(
   chat: AppSchema.Chat,
-  user: AppSchema.User,
-  userPresets: AppSchema.UserGenPreset[]
+  _user: AppSchema.User,
+  _userPresets: AppSchema.UserGenPreset[]
 ): Partial<AppSchema.UserGenPreset> {
-  /**
-   * Order of precedence:
-   * 1. chat.genPreset
-   * 2. chat.genSettings (Deprecated)
-   * 3. user.defaultPreset
-   * 4. user.servicePreset -- Deprecated: Service presets are completely removed apart from users that already have them.
-   * 5. built-in fallback preset (horde)
-   */
+  // Charluv runs exclusively on its built-in reply-style presets (Precise /
+  // Balanced / Creative / Wild — they differ only in sampling). The full Agnai
+  // preset editor is gone, so custom user presets, deprecated inline
+  // `chat.genSettings`, and legacy default ids (e.g. 'horde') are no longer
+  // honoured: anything that isn't one of ours falls back to our default style.
+  // The stored `chat.genPreset` id is simply re-interpreted here at
+  // prompt-build time, so no data migration is needed.
+  const id =
+    chat.genPreset && chat.genPreset in charluvPresets ? chat.genPreset : DEFAULT_CHARLUV_PRESET
 
-  // #1
-  if (chat.genPreset) {
-    if (isDefaultPreset(chat.genPreset))
-      return { _id: chat.genPreset, ...defaultPresets[chat.genPreset] }
-
-    const preset = userPresets.find((preset) => preset._id === chat.genPreset)
-    if (preset) return preset
-  }
-
-  // #2
-  if (chat.genSettings) {
-    return chat.genSettings
-  }
-
-  // #3
-  const defaultId = user.defaultPreset
-  if (defaultId) {
-    if (isDefaultPreset(defaultId)) return { _id: defaultId, ...defaultPresets[defaultId] }
-    const preset = userPresets.find((preset) => preset._id === defaultId)
-    if (preset) return preset
-  }
-
-  // #4
-  const { adapter, isThirdParty } = getAdapter(chat, user, undefined)
-  const fallbackId = user.defaultPresets?.[isThirdParty ? 'kobold' : adapter]
-
-  if (fallbackId) {
-    if (isDefaultPreset(fallbackId)) return { _id: fallbackId, ...defaultPresets[fallbackId] }
-    const preset = userPresets.find((preset) => preset._id === fallbackId)
-    if (preset) return preset
-  }
-
-  // #5
-  return getFallbackPreset(adapter || 'charluv')
+  return { _id: id, ...defaultPresets[id as keyof typeof defaultPresets] }
 }
 
 /**
