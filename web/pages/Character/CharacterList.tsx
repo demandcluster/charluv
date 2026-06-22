@@ -136,7 +136,7 @@ const CharacterList: Component = () => {
     const char = importQueue.shift()
     if (!char) return
     // Imports are not charged the creation fee — the character is ready-made.
-    characterStore.createCharacter({ ...char, imported: true } as NewCharacter, dequeue)
+    characterStore.createCharacter(char, dequeue, true)
   }
 
   const mobile = isMobile()

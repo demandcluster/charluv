@@ -220,12 +220,15 @@ export const characterStore = createStore<CharacterState>(
     async *createCharacter(
       { creating, characters: { list, loaded } },
       char: NewCharacter,
-      onSuccess?: (result: AppSchema.Character) => void
+      onSuccess?: (result: AppSchema.Character) => void,
+      // Imports hit a distinct, charge-free server route. The billing decision is
+      // server-side (the route) — this only picks which endpoint to call.
+      imported?: boolean
     ) {
       if (creating) return
 
       yield { creating: true }
-      const res = await charsApi.createCharacter(char)
+      const res = imported ? await charsApi.importCharacter(char) : await charsApi.createCharacter(char)
       yield { creating: false }
       if (res.error) toastStore.error(`Failed to create character: ${res.error}`)
       if (res.result) {

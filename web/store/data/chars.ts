@@ -20,6 +20,7 @@ export const charsApi = {
   editCharacter,
   editPartialCharacter,
   createCharacter,
+  importCharacter,
   getImageBuffer: getFileBuffer,
   setFavorite,
   publishCharacter,
@@ -315,54 +316,52 @@ export async function setFavorite(charId: string, favorite: boolean) {
   return { result: nextChar, error: undefined }
 }
 
-export async function createCharacter(char: NewCharacter) {
-  if (isLoggedIn()) {
-    const form = new FormData()
-    form.append('name', char.name)
-    form.append('greeting', char.greeting)
-    form.append('scenario', char.scenario)
-    form.append('sampleChat', char.sampleChat)
-    appendFormOptional(form, 'persona', char.persona, JSON.stringify)
-    appendFormOptional(form, 'description', char.description)
-    appendFormOptional(form, 'appearance', char.appearance)
-    appendFormOptional(form, 'culture', char.culture)
-    appendFormOptional(form, 'voice', char.voice, JSON.stringify)
-    appendFormOptional(form, 'tags', char.tags, JSON.stringify)
-    appendFormOptional(form, 'avatar', char.avatar)
-    appendFormOptional(form, 'xp', char.xp)
-    appendFormOptional(form, 'match', char.match)
-    appendFormOptional(form, 'premium', char.premium)
-    appendFormOptional(form, 'share', char.share)
-    appendFormOptional(form, 'draft', (char as any).draft)
-    appendFormOptional(form, 'imported', (char as any).imported)
-    appendFormOptional(form, 'progression', JSON.stringify((char as any).progression))
-    appendFormOptional(form, 'gender', (char as any).gender)
-    appendFormOptional(form, 'artStyle', (char as any).artStyle)
-    appendFormOptional(form, 'ageRange', (char as any).ageRange)
-    appendFormOptional(form, 'category', (char as any).category || [], JSON.stringify)
-    appendFormOptional(form, 'nsfw', (char as any).nsfw)
-    appendFormOptional(form, 'loraName', (char as any).loraName)
-    appendFormOptional(form, 'imageSeed', (char as any).imageSeed)
-    appendFormOptional(form, 'originalAvatar', char.originalAvatar)
-    appendFormOptional(form, 'visualType', char.visualType)
-    appendFormOptional(form, 'sprite', JSON.stringify(char.sprite))
-    appendFormOptional(form, 'imageSettings', JSON.stringify(char.imageSettings))
-    appendFormOptional(form, 'json', JSON.stringify(char.json))
+function buildCharacterForm(char: NewCharacter) {
+  const form = new FormData()
+  form.append('name', char.name)
+  form.append('greeting', char.greeting)
+  form.append('scenario', char.scenario)
+  form.append('sampleChat', char.sampleChat)
+  appendFormOptional(form, 'persona', char.persona, JSON.stringify)
+  appendFormOptional(form, 'description', char.description)
+  appendFormOptional(form, 'appearance', char.appearance)
+  appendFormOptional(form, 'culture', char.culture)
+  appendFormOptional(form, 'voice', char.voice, JSON.stringify)
+  appendFormOptional(form, 'tags', char.tags, JSON.stringify)
+  appendFormOptional(form, 'avatar', char.avatar)
+  appendFormOptional(form, 'xp', char.xp)
+  appendFormOptional(form, 'match', char.match)
+  appendFormOptional(form, 'premium', char.premium)
+  appendFormOptional(form, 'share', char.share)
+  appendFormOptional(form, 'draft', (char as any).draft)
+  appendFormOptional(form, 'progression', JSON.stringify((char as any).progression))
+  appendFormOptional(form, 'gender', (char as any).gender)
+  appendFormOptional(form, 'artStyle', (char as any).artStyle)
+  appendFormOptional(form, 'ageRange', (char as any).ageRange)
+  appendFormOptional(form, 'category', (char as any).category || [], JSON.stringify)
+  appendFormOptional(form, 'nsfw', (char as any).nsfw)
+  appendFormOptional(form, 'loraName', (char as any).loraName)
+  appendFormOptional(form, 'imageSeed', (char as any).imageSeed)
+  appendFormOptional(form, 'originalAvatar', char.originalAvatar)
+  appendFormOptional(form, 'visualType', char.visualType)
+  appendFormOptional(form, 'sprite', JSON.stringify(char.sprite))
+  appendFormOptional(form, 'imageSettings', JSON.stringify(char.imageSettings))
+  appendFormOptional(form, 'json', JSON.stringify(char.json))
 
-    // v2 fields start here
-    appendFormOptional(form, 'alternateGreetings', char.alternateGreetings, JSON.stringify)
-    appendFormOptional(form, 'characterBook', char.characterBook, JSON.stringify)
-    appendFormOptional(form, 'extensions', char.extensions, JSON.stringify)
-    appendFormOptional(form, 'insert', char.insert, JSON.stringify)
-    appendFormOptional(form, 'systemPrompt', char.systemPrompt)
-    appendFormOptional(form, 'postHistoryInstructions', char.postHistoryInstructions)
-    appendFormOptional(form, 'creator', char.creator)
-    appendFormOptional(form, 'characterVersion', char.characterVersion)
-    appendFormOptional(form, 'voiceDisabled', char.voiceDisabled)
-    const res = await api.upload<AppSchema.Character>(`/character`, form)
-    return res
-  }
+  // v2 fields start here
+  appendFormOptional(form, 'alternateGreetings', char.alternateGreetings, JSON.stringify)
+  appendFormOptional(form, 'characterBook', char.characterBook, JSON.stringify)
+  appendFormOptional(form, 'extensions', char.extensions, JSON.stringify)
+  appendFormOptional(form, 'insert', char.insert, JSON.stringify)
+  appendFormOptional(form, 'systemPrompt', char.systemPrompt)
+  appendFormOptional(form, 'postHistoryInstructions', char.postHistoryInstructions)
+  appendFormOptional(form, 'creator', char.creator)
+  appendFormOptional(form, 'characterVersion', char.characterVersion)
+  appendFormOptional(form, 'voiceDisabled', char.voiceDisabled)
+  return form
+}
 
+async function createCharacterLocal(char: NewCharacter) {
   const { avatar: file, ...props } = char
   const avatar = file
     ? await getImageData(file)
@@ -377,6 +376,23 @@ export async function createCharacter(char: NewCharacter) {
   await localApi.saveChars(next)
 
   return { result: newChar, error: undefined }
+}
+
+export async function createCharacter(char: NewCharacter) {
+  if (isLoggedIn()) {
+    return api.upload<AppSchema.Character>(`/character`, buildCharacterForm(char))
+  }
+  return createCharacterLocal(char)
+}
+
+// Imports go to a distinct server route that never charges the creation fee.
+// The no-charge decision is the route itself — not a client-supplied flag — so
+// it can't be abused to dodge the charge on a generated character.
+export async function importCharacter(char: NewCharacter) {
+  if (isLoggedIn()) {
+    return api.upload<AppSchema.Character>(`/character/import`, buildCharacterForm(char))
+  }
+  return createCharacterLocal(char)
 }
 
 export async function getFileBuffer(file?: File) {

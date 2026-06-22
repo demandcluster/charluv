@@ -431,7 +431,7 @@ const Create: Component = () => {
     const next = () => {
       const c = chars[i++]
       if (!c) return navigate('/mine')
-      characterStore.createCharacter({ ...c, imported: true } as NewCharacter, next)
+      characterStore.createCharacter(c, next, true)
     }
     next()
   }

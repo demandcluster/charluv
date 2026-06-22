@@ -55,7 +55,6 @@ const characterForm = {
   category: 'string?',
   nsfw: 'any?',
   draft: 'any?',
-  imported: 'any?',
   loraName: 'string?',
   imageSeed: 'any?',
 
@@ -111,10 +110,15 @@ const personaValidator = {
   attributes: 'any',
 } as const
 
-const createCharacter = handle(async (req) => {
-  const body = handleForm(req, newCharacterValidator)
-  const persona = JSON.parse(body.persona) as AppSchema.Persona
-  assertValid(personaValidator, persona)
+// Shared by the create (`charge: true`) and import (`charge: false`) endpoints.
+// Whether to bill the creation fee is decided SERVER-SIDE by which route was
+// hit — never by a client-supplied flag — so imports can't be used to dodge the
+// charge on a generated character.
+const createCharacterFor = (charge: boolean) =>
+  handle(async (req) => {
+    const body = handleForm(req, newCharacterValidator)
+    const persona = JSON.parse(body.persona) as AppSchema.Persona
+    assertValid(personaValidator, persona)
 
   const sprite = body.sprite ? JSON.parse(body.sprite) : undefined
   const voice = parseAndValidateVoice(body.voice)
@@ -138,9 +142,9 @@ const createCharacter = handle(async (req) => {
   if (!isObject(extensions) && extensions !== undefined) {
     throw new StatusError('Character `extensions` field must be an object or undefined.', 400)
   }
-  // Imports bring a ready-made character (nothing is generated for them), so they
-  // are not charged the creation fee. Only fresh wizard/builder characters pay.
-  if (body.imported?.toString() !== 'true') {
+  // Imports bring a ready-made character (nothing is generated for them) and are
+  // created via the separate, charge-free /import route. The create route bills.
+  if (charge) {
     const user = await store.users.getUser(req.userId!)
     if (user?.credits && user?.credits < 50) {
       throw new StatusError('Not enough credits', 400)
@@ -212,6 +216,9 @@ const createCharacter = handle(async (req) => {
 
   return char
 })
+
+const createCharacter = createCharacterFor(true)
+const importCharacter = createCharacterFor(false)
 
 const getCharacters = handle(async ({ userId }) => {
   const chars = await store.characters.getCharacters(userId!)
@@ -744,6 +751,7 @@ export const createImage = handle(async ({ body, userId, socketId, log }) => {
 router.post('/image', createImage)
 router.use(loggedIn)
 router.post('/', loggedIn, createCharacter)
+router.post('/import', loggedIn, importCharacter)
 router.get('/', getCharacters)
 router.get('/draft', loggedIn, getDraft)
 router.post('/publish', publishCharacter)
