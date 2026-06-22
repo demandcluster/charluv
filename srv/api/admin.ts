@@ -48,39 +48,141 @@ const getUserInfo = handle(async ({ params }) => {
   return info
 })
 
-const getSubmitted = handle(async () => {
-  const submitted = await store.characters.getSubmitted()
+// --- Character moderation: stage-2 review of live published characters ---
 
-  return submitted
-})
-const declineSubmitted = handle(async (req) => {
-  const body = req.body || false
-
-  //assertValid({ characterId: 'string', reason: 'string', userId: 'string' }, body)
-  const char = await store.characters.getCharacter(body?.userId, body?.characterId)
-  if (!char) return { error: 'Character not found' }
-  await store.characters.declineSubmitted(body?.characterId, body?.userId, body?.reason)
-
-  sendOne(body?.userId, {
-    type: 'admin-notification',
-    message: `Your character ${char?.name} has been declined, reason: ${body?.reason}`,
-  })
-  return { success: true }
+const getPublished = handle(async () => {
+  const characters = await store.characters.getPublishedForReview()
+  return { characters }
 })
 
-const acceptSubmitted = handle(async (req) => {
-  const body = req.body || false
+/** Stage-2 actions on a live published character. */
+const moderatePublished = handle(async ({ params, body, userId }) => {
+  assertValid({ action: 'string' }, body)
+  const char = await store.characters.getCharacterById(params.id)
+  if (!char) throw new StatusError('Character not found', 404)
 
-  //assertValid({ characterId: 'string', reason: 'string', userId: 'string' }, body)
-  const char = await store.characters.getCharacter(body?.userId, body?.characterId)
-  if (!char) return { error: 'Character not found' }
-  await store.characters.acceptSubmitted(body?.characterId, body?.userId, body?.amount)
+  switch (body.action) {
+    case 'reviewed':
+      await store.characters.setCharacterModeration(char._id, {
+        moderation: {
+          ...(char.moderation || { status: 'approved' }),
+          status: char.moderation?.status === 'hidden' ? 'hidden' : 'approved',
+          moderated: true,
+          moderatedBy: userId!,
+          moderatedAt: Date.now(),
+        },
+      })
+      return { success: true }
 
-  sendOne(body?.userId, {
-    type: 'admin-notification',
-    message: `Your character ${char?.name} has been accepted and copied! Reward: ${body?.amount}`,
+    case 'unpublish':
+      await store.characters.setCharacterModeration(char._id, {
+        published: false,
+        moderation: {
+          ...(char.moderation || { status: 'approved' }),
+          status: 'hidden',
+          moderated: true,
+          moderatedBy: userId!,
+          moderatedAt: Date.now(),
+        },
+      })
+      sendOne(char.userId, {
+        type: 'admin-notification',
+        message: `Your public character "${char.name}" has been unpublished by a moderator.`,
+      })
+      return { success: true }
+
+    case 'delete':
+      await store.reports.resolveReportsForChar(char._id, userId!)
+      await store.characters.adminDeleteCharacter(char._id)
+      sendOne(char.userId, {
+        type: 'admin-notification',
+        message: `Your public character "${char.name}" was removed by a moderator.`,
+      })
+      return { success: true }
+
+    default:
+      throw new StatusError('Unknown action', 400)
+  }
+})
+
+// --- Reports queue ---
+
+const getReports = handle(async () => {
+  const reports = await store.reports.getOpenReports()
+  const charIds = [...new Set(reports.map((r) => r.charId))]
+  const chars = await Promise.all(charIds.map((id) => store.characters.getCharacterById(id)))
+  const byId = new Map(chars.filter(Boolean).map((c) => [c!._id, c!]))
+
+  // Group reports per character with its current state.
+  const groups = charIds.map((id) => {
+    const char = byId.get(id)
+    const charReports = reports.filter((r) => r.charId === id)
+    return {
+      charId: id,
+      name: char?.name,
+      avatar: char?.avatar,
+      userId: char?.userId,
+      published: char?.published,
+      status: char?.moderation?.status,
+      reportCount: charReports.length,
+      reasons: charReports.map((r) => ({ reason: r.reason, note: r.note, createdAt: r.createdAt })),
+    }
   })
-  return { success: true }
+
+  return { reports: groups }
+})
+
+/** Admin action on a reported character. */
+const resolveReport = handle(async ({ params, body, userId }) => {
+  assertValid({ action: 'string' }, body)
+  const char = await store.characters.getCharacterById(params.id)
+  await store.reports.resolveReportsForChar(params.id, userId!)
+  if (!char) return { success: true }
+
+  switch (body.action) {
+    case 'dismiss':
+      // Reports unfounded — restore visibility and clear the count.
+      await store.characters.setCharacterModeration(char._id, {
+        published: true,
+        reportCount: 0,
+        moderation: {
+          ...(char.moderation || { status: 'approved' }),
+          status: 'approved',
+          moderated: true,
+          moderatedBy: userId!,
+          moderatedAt: Date.now(),
+        },
+      })
+      return { success: true }
+
+    case 'hide':
+      await store.characters.setCharacterModeration(char._id, {
+        published: false,
+        moderation: {
+          ...(char.moderation || { status: 'approved' }),
+          status: 'hidden',
+          moderated: true,
+          moderatedBy: userId!,
+          moderatedAt: Date.now(),
+        },
+      })
+      sendOne(char.userId, {
+        type: 'admin-notification',
+        message: `Your public character "${char.name}" has been taken down after reports.`,
+      })
+      return { success: true }
+
+    case 'delete':
+      await store.characters.adminDeleteCharacter(char._id)
+      sendOne(char.userId, {
+        type: 'admin-notification',
+        message: `Your public character "${char.name}" was removed after reports.`,
+      })
+      return { success: true }
+
+    default:
+      throw new StatusError('Unknown action', 400)
+  }
 })
 
 const notifyAll = handle(async ({ body }) => {
@@ -174,9 +276,10 @@ router.post('/impersonate/:userId', impersonateUser)
 router.post('/users', searchUsers)
 router.post('/users/:userId/tier', updateTier)
 router.get('/metrics', getMetrics)
-router.get('/submitted', getSubmitted)
-router.post('/submitted/declined', declineSubmitted)
-router.post('/submitted/accept', acceptSubmitted)
+router.get('/published', getPublished)
+router.post('/published/:id', moderatePublished)
+router.get('/reports', getReports)
+router.post('/reports/:id', resolveReport)
 router.get('/users/:id/info', getUserInfo)
 router.post('/user/password', setUserPassword)
 router.post('/notify', notifyAll)

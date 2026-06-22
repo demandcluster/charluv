@@ -1,174 +1,151 @@
-import { Save, X } from 'lucide-solid'
-import { Component, createEffect, createSignal, For, Show, onMount } from 'solid-js'
+import { Component, createSignal, For, Show, onMount } from 'solid-js'
 import Button from '../../shared/Button'
-import Modal from '../../shared/Modal'
 import PageHeader from '../../shared/PageHeader'
-import TextInput from '../../shared/TextInput'
-import { getAssetUrl, getStrictForm, setComponentPageTitle } from '../../shared/util'
+import Tabs, { useTabs } from '../../shared/Tabs'
+import { getAssetUrl, setComponentPageTitle } from '../../shared/util'
 import { adminStore } from '../../store'
-import { AppSchema } from '/common/types'
+import { FLAG_LABELS } from '/common/publish'
 
-const SharePage: Component = () => {
-  let ref: any
-  setComponentPageTitle('Shared Characters')
-  const [pw, setPw] = createSignal<AppSchema.User>()
-  const state = adminStore()
-  const [decline, setDecline] = createSignal<string>('')
-  const [accept, setAccept] = createSignal<string>('')
-  const [info, setInfo] = createSignal<{
-    name: string
-    persona: any
-    description: string
-    avatar: string
-    scenario: string
-    greeting: string
-  }>()
-
-  const loadInfo = (shared: any) => {
-    setInfo(shared)
-  }
-
-  const updateDecline = (declined: string) => {
-    setDecline(declined)
-  }
-  const updateAccept = (accept: string) => {
-    setAccept(accept)
-  }
-
-  const submitDecline = async () => {
-    await adminStore.declineShared({
-      characterId: info()?._id,
-      userId: info()?.userId,
-      reason: decline(),
-    })
-    adminStore.getShared()
-    setInfo()
-  }
-  const submitAccept = async () => {
-    await adminStore.acceptShared({
-      characterId: info()?._id,
-      userId: info()?.userId,
-      amount: accept(),
-    })
-    adminStore.getShared()
-    setInfo()
-  }
-
-  onMount(() => {
-    adminStore.getMetrics()
-    adminStore.getShared()
-  })
+/**
+ * Character moderation: the reports queue (user-flagged characters) and the
+ * stage-2 review of live published characters.
+ */
+const ModerationPage: Component = () => {
+  setComponentPageTitle('Moderation')
+  const tabs = useTabs(['Reports', 'Published'], 0)
 
   return (
     <div>
-      <PageHeader title="Shared Characters" />
-
-      <div class="flex flex-col gap-2 pb-4">
-        <For each={state.shared}>
-          {(shared) => (
-            <div class="bg-800 flex h-24 flex-row items-center gap-2 rounded-xl">
-              <div class="w-2/12 px-4 text-xs">{shared._id}</div>
-              <div class="w-2/12 px-4">{shared.name}</div>
-
-              <div class="flex w-2/12 justify-center">
-                <img src={getAssetUrl(shared?.avatar)} height="64px" />
-              </div>
-
-              <div class="flex w-4/12 justify-end gap-2 pr-2">
-                <Button size="sm" onClick={() => loadInfo(shared)}>
-                  Info {shared.name}
-                </Button>
-              </div>
-            </div>
-          )}
-        </For>
-
-        <InfoModel
-          show={!!info()}
-          updateDecline={updateDecline}
-          submitDecline={submitDecline}
-          updateAccept={updateAccept}
-          submitAccept={submitAccept}
-          close={() => setInfo()}
-          accept={accept() || ''}
-          decline={decline() || ''}
-          description={info()?.description}
-          scenario={info()?.scenario}
-          greeting={info()?.greeting}
-          persona={info()?.persona}
-          avatar={info()?.avatar}
-          name={info()?.name!}
-        />
+      <PageHeader title="Moderation" />
+      <Tabs tabs={tabs.tabs} select={tabs.select} selected={tabs.selected} />
+      <div class="pt-4">
+        <Show when={tabs.current() === 'Reports'}>
+          <ReportsTab />
+        </Show>
+        <Show when={tabs.current() === 'Published'}>
+          <PublishedTab />
+        </Show>
       </div>
     </div>
   )
 }
 
-export default SharePage
+export default ModerationPage
 
-const InfoModel: Component<{ show: boolean; close: () => void; shared: any }> = (props) => {
+const ReportsTab: Component = () => {
   const state = adminStore()
+  const load = () => adminStore.getReports()
+  onMount(load)
+
+  const act = async (charId: string, action: 'dismiss' | 'hide' | 'delete') => {
+    const ok = await adminStore.resolveReport(charId, action)
+    if (ok) load()
+  }
+
   return (
-    <Modal
-      show={props.show}
-      close={props.close}
-      title={`${props.name}: ${props?.description || '...'}`}
-      footer={<Button onClick={props.close}>Close</Button>}
-    >
-      <div class="flex flex-col gap-4 overflow-auto">
-        <TextInput
-          fieldName="greeting"
-          label="Greeting"
-          spellcheck
-          isMultiline
-          value={props?.greeting}
-          disabled
-        />
-        <TextInput
-          fieldName="scenario"
-          label="Scenario"
-          spellcheck
-          isMultiline
-          value={props?.scenario}
-          disabled
-        />
-
-        <TextInput
-          fieldName="type"
-          spellcheck
-          isMultiline
-          label={`Persona Kind: ${props?.persona?.kind}`}
-          value={JSON.stringify(props?.persona?.attributes)}
-          disabled
-        />
-
-        <Show when={props?.avatar}>
-          <div class="flex w-full justify-center">
-            <img src={getAssetUrl(props?.avatar!)} height="256px" />
+    <div class="flex flex-col gap-2 pb-4">
+      <Show when={!state.reports?.length}>
+        <div class="text-600 py-8 text-center">No open reports.</div>
+      </Show>
+      <For each={state.reports}>
+        {(r) => (
+          <div class="bg-800 flex flex-col gap-2 rounded-xl p-3">
+            <div class="flex items-center gap-3">
+              <Show when={r.avatar}>
+                <img class="h-16 w-16 rounded-md object-cover" src={getAssetUrl(r.avatar)} />
+              </Show>
+              <div class="flex flex-col">
+                <div class="font-bold">
+                  {r.name || r.charId}
+                  <span class="text-600 ml-2 text-sm">· {r.reportCount} reports</span>
+                  <Show when={r.status === 'hidden'}>
+                    <span class="ml-2 rounded bg-[var(--bg-700)] px-2 py-0.5 text-xs">hidden</span>
+                  </Show>
+                </div>
+                <div class="text-600 flex flex-wrap gap-1 text-xs">
+                  <For each={r.reasons}>
+                    {(reason: any) => (
+                      <span class="rounded bg-[var(--bg-700)] px-2 py-0.5" title={reason.note || ''}>
+                        {reason.reason}
+                      </span>
+                    )}
+                  </For>
+                </div>
+              </div>
+            </div>
+            <div class="flex justify-end gap-2">
+              <Button size="sm" schema="secondary" onClick={() => act(r.charId, 'dismiss')}>
+                Dismiss & relist
+              </Button>
+              <Button size="sm" schema="gray" onClick={() => act(r.charId, 'hide')}>
+                Keep hidden
+              </Button>
+              <Button size="sm" class="text-error" schema="red" onClick={() => act(r.charId, 'delete')}>
+                Delete
+              </Button>
+            </div>
           </div>
-        </Show>
+        )}
+      </For>
+    </div>
+  )
+}
 
-        <TextInput
-          fieldName="declined"
-          label="Decline"
-          onChange={(event) => props.updateDecline(event.target.value)}
-          value={props.decline}
-          spellcheck
-        />
-        <Button class="text-error" onClick={() => props.submitDecline()}>
-          ** Decline **
-        </Button>
-        <TextInput
-          fieldName="accept"
-          label="Reward amount"
-          onChange={(event) => props.updateAccept(event.target.value)}
-          value={props.accept}
-          spellcheck
-        />
-        <Button class="success" onClick={() => props.submitAccept()}>
-          Accept & Reward
-        </Button>
-      </div>
-    </Modal>
+const PublishedTab: Component = () => {
+  const [list, setList] = createSignal<any[]>([])
+  const load = async () => {
+    const res = await adminStore.getPublished()
+    if (res?.published) setList(res.published)
+  }
+  onMount(load)
+
+  const act = async (charId: string, action: 'reviewed' | 'unpublish' | 'delete') => {
+    const ok = await adminStore.moderatePublished(charId, action)
+    if (ok) load()
+  }
+
+  return (
+    <div class="flex flex-col gap-2 pb-4">
+      <Show when={!list().length}>
+        <div class="text-600 py-8 text-center">No published characters.</div>
+      </Show>
+      <For each={list()}>
+        {(char) => (
+          <div class="bg-800 flex items-center gap-3 rounded-xl p-3">
+            <Show when={char.avatar}>
+              <img class="h-16 w-16 rounded-md object-cover" src={getAssetUrl(char.avatar)} />
+            </Show>
+            <div class="flex flex-1 flex-col">
+              <div class="font-bold">
+                {char.name}
+                <Show when={!char.moderation?.moderated}>
+                  <span class="ml-2 rounded bg-[var(--hl-700)] px-2 py-0.5 text-xs">new</span>
+                </Show>
+              </div>
+              <div class="text-600 flex flex-wrap gap-1 text-xs">
+                <For each={char.moderation?.flags || []}>
+                  {(f: string) => (
+                    <span class="rounded bg-[var(--bg-700)] px-2 py-0.5">{FLAG_LABELS[f] || f}</span>
+                  )}
+                </For>
+              </div>
+            </div>
+            <div class="flex justify-end gap-2">
+              <Show when={!char.moderation?.moderated}>
+                <Button size="sm" schema="secondary" onClick={() => act(char._id, 'reviewed')}>
+                  Mark reviewed
+                </Button>
+              </Show>
+              <Button size="sm" schema="gray" onClick={() => act(char._id, 'unpublish')}>
+                Unpublish
+              </Button>
+              <Button size="sm" class="text-error" schema="red" onClick={() => act(char._id, 'delete')}>
+                Delete
+              </Button>
+            </div>
+          </div>
+        )}
+      </For>
+    </div>
   )
 }

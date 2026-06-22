@@ -134,6 +134,27 @@ export async function getPublicCharacter(name: string) {
   return char
 }
 
+/** Load a character by id regardless of owner (admin / moderation use). */
+export async function getCharacterById(id: string) {
+  const char = await db('character').findOne({ _id: id, kind: 'character' })
+  return char || undefined
+}
+
+/** Live published characters for the admin stage-2 review queue (unreviewed first). */
+export async function getPublishedForReview() {
+  const list = await db('character')
+    .find({ kind: 'character', published: true })
+    .sort({ 'moderation.moderated': 1, publishedAt: -1 })
+    .limit(500)
+    .toArray()
+  return list
+}
+
+/** Delete a character by id regardless of owner (admin moderation action). */
+export async function adminDeleteCharacter(charId: string) {
+  await db('character').deleteOne({ _id: charId, kind: 'character' })
+}
+
 /** Number of characters this user has published since the start of the UTC day. */
 export async function countPublishedToday(userId: string) {
   const start = new Date()
@@ -164,43 +185,6 @@ export async function setCharacterModeration(
   return db('character').findOne({ _id: characterId, kind: 'character' })
 }
 
-export async function getSubmitted() {
-  const list = await db('character').find({ kind: 'character', share: 'submitted' }).toArray()
-  return list || []
-}
-
-export async function declineSubmitted(characterId: string, userId: string, reason: string) {
-  const shareReason = `declined:${reason}`
-  console.log('char', characterId, userId, reason)
-  const update = { share: shareReason, updatedAt: now() }
-
-  await db('character').updateOne({ _id: characterId, userId }, { $set: update })
-  return { characterId, userId, reason }
-}
-
-function clearChar(char?: any) {
-  if (!char._id && !char.userId && !char.updatedAt && !char.createdAt) return char
-  delete char?._id
-  delete char?.userId
-  delete char?.updatedAt
-  delete char?.createdAt
-  return char
-}
-
-export async function acceptSubmitted(characterId: string, userId: string, amount: string) {
-  const update = { share: 'accepted', updatedAt: now() }
-  await db('character').updateOne({ _id: characterId, userId }, { $set: update })
-  const char = await db('character').findOne({ kind: 'character', _id: characterId })
-  const admin = await db('user').findOne({ kind: 'user', admin: true, username: 'admin' })
-  if (!admin || !char) return
-  char.share = 'private'
-  char.xp = 0
-
-  await createCharacter(admin?._id, clearChar(char))
-  await db('user').updateOne({ _id: userId }, { $inc: { credits: parseInt(amount) } })
-
-  return { characterId, userId, amount }
-}
 export async function bulkUpdate(
   userId: string,
   charIds: string[],

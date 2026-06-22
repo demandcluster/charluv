@@ -24,7 +24,8 @@ type UserInfo = {
 type AdminState = {
   users: AppSchema.User[]
   info?: UserInfo
-  shared?: number
+  published?: AppSchema.Character[]
+  reports?: any[]
   metrics?: {
     totalUsers: number
     connected: number
@@ -59,26 +60,27 @@ export const adminStore = createStore<AdminState>('admin', {
       setAltAuth(token)
     },
 
-    async getShared() {
-      const res = await api.get<{ shared: number }>('/admin/submitted')
-      if (res.error) toastStore.error(`Failed to get submitted characters: ${res.error}`)
-      if (res.result) return { shared: res.result }
+    async getPublished() {
+      const res = await api.get<{ characters: AppSchema.Character[] }>('/admin/published')
+      if (res.error) toastStore.error(`Failed to load published characters: ${res.error}`)
+      if (res.result) return { published: res.result.characters }
     },
-    async declineShared(_, body: string) {
-      const res = await api.post('/admin/submitted/declined', body)
-      if (res.result?.error) {
-        toastStore.error(`Failed to decline character: ${res.result.error}`)
-      }
-      if (res.result?.success) toastStore.success(`Update Decline Reason`)
-      onSucces?.()
+    async moderatePublished(_, charId: string, action: 'reviewed' | 'unpublish' | 'delete') {
+      const res = await api.post(`/admin/published/${charId}`, { action })
+      if (res.error) toastStore.error(`Action failed: ${res.error}`)
+      if (res.result?.success) toastStore.success(`Done`)
+      return res.result?.success
     },
-    async acceptShared(_, body: string) {
-      const res = await api.post('/admin/submitted/accept', body)
-      if (res.result?.error) {
-        toastStore.error(`Failed to accept character: ${res.result.error}`)
-      }
-      if (res.result?.success) toastStore.success(`Rewarded User`)
-      onSucces?.()
+    async getReports() {
+      const res = await api.get<{ reports: any[] }>('/admin/reports')
+      if (res.error) toastStore.error(`Failed to load reports: ${res.error}`)
+      if (res.result) return { reports: res.result.reports }
+    },
+    async resolveReport(_, charId: string, action: 'dismiss' | 'hide' | 'delete') {
+      const res = await api.post(`/admin/reports/${charId}`, { action })
+      if (res.error) toastStore.error(`Action failed: ${res.error}`)
+      if (res.result?.success) toastStore.success(`Done`)
+      return res.result?.success
     },
     unimpersonate(state) {
       if (!state.impersonating) return

@@ -134,12 +134,14 @@ const App: Component = () => {
           <Route path="/admin/users" component={lazy(() => import('./pages/Admin/UsersPage'))} />
           <Route path="/share" component={lazy(() => import('./pages/Home/Share'))} />
 
-          <Route path="/admin/shared" component={lazy(() => import('./pages/Admin/SharePage'))} />
+          <Route
+            path="/admin/moderation"
+            component={lazy(() => import('./pages/Admin/SharePage'))}
+          />
           <Route
             path="/admin/subscriptions"
             component={lazy(() => import('./pages/Admin/SubscriptionList'))}
           />
-          <Route path="/admin/shared" component={lazy(() => import('./pages/Admin/SharePage'))} />
           <Route
             path="/admin/subscriptions/:id"
             component={lazy(() => import('./pages/Admin/SubscriptionModel'))}
