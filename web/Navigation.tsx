@@ -185,7 +185,7 @@ const Navigation: Component = () => {
                 aria-label="Charluv main page"
               >
                 <div
-                  class="bg-[#1f4439] flex h-8 w-full items-center justify-center rounded-lg p-4 font-bold"
+                  class="bg-[#55b89c] flex h-8 w-full items-center justify-center rounded-lg p-4 font-bold"
                   aria-hidden="true"
                 >
                   <img width="180px" alt="Charluv" src={logoDark} />
@@ -194,28 +194,16 @@ const Navigation: Component = () => {
             </Show>
 
             <div class="flex justify-end">
-              <Switch>
-                <Match when={nav.body && subnav()}>
-                  <div
-                    class="icon-button flex items-center gap-1 whitespace-nowrap text-sm"
-                    onClick={() => setSubnav(false)}
-                    role="button"
-                    aria-label="Show the main menu"
-                  >
-                    <ChevronLeft size={18} aria-hidden="true" /> Menu
-                  </div>
-                </Match>
-                <Match when={nav.body && !subnav()}>
-                  <div
-                    class="icon-button flex items-center gap-1 whitespace-nowrap text-sm"
-                    onClick={() => setSubnav(true)}
-                    role="button"
-                    aria-label="Show chat options"
-                  >
-                    Chat <ChevronRight size={18} aria-hidden="true" />
-                  </div>
-                </Match>
-              </Switch>
+              <Show when={nav.body && subnav()}>
+                <div
+                  class="icon-button flex items-center gap-1 whitespace-nowrap text-sm"
+                  onClick={() => setSubnav(false)}
+                  role="button"
+                  aria-label="Show the main menu"
+                >
+                  <ChevronLeft size={18} aria-hidden="true" /> Menu
+                </div>
+              </Show>
             </div>
           </div>
 

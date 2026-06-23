@@ -19,7 +19,7 @@ const GuestTopBar: Component = () => {
       class="bg-900 flex h-[56px] shrink-0 items-center justify-between gap-4 border-b border-[var(--bg-800)] px-4 sm:px-8"
     >
       <A href="/" aria-label="Charluv home" class="flex items-center">
-        <span class="flex items-center rounded-md px-3 py-1.5" style={{ background: '#1f4439' }}>
+        <span class="flex items-center rounded-md px-3 py-1.5" style={{ background: '#55b89c' }}>
           <img src={logoDark} alt="Charluv" class="h-6 w-auto sm:h-7" />
         </span>
       </A>
