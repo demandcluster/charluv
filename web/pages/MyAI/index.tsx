@@ -14,7 +14,10 @@ const MyAI: Component = () => {
   const state = characterStore()
 
   onMount(() => {
-    if (!state.characters.loaded) characterStore.getCharacters()
+    // Always refresh so publish/edit state (e.g. the Public/Private tag) is
+    // current when returning to the list. `loaded` is a timestamp, so the old
+    // `!loaded` guard never refetched after the first visit.
+    characterStore.getCharacters(true)
   })
 
   // The user's companions, most-recently-updated first.
