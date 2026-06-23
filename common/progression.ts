@@ -185,11 +185,16 @@ export function getArchetype(id?: string): ProgressionArchetype | undefined {
   return ARCHETYPES.find((a) => a.id === id)
 }
 
-/** The ordered steps in effect for a character's progression config. */
+/**
+ * The ordered steps in effect for a character's progression config. No archetype
+ * (and no custom map) means a *fixed* relationship — empty steps, no advancement.
+ * It does NOT fall back to a default archetype: "None" must stay None. New
+ * characters get an explicit archetype from the create wizard.
+ */
 export function getProgressionSteps(progression?: CharacterProgression): ProgressionStep[] {
   if (progression?.disabled) return []
   if (progression?.map?.length) return [...progression.map].sort((a, b) => a.minLevel - b.minLevel)
-  const archetype = getArchetype(progression?.archetype) || getArchetype(DEFAULT_ARCHETYPE_ID)
+  const archetype = getArchetype(progression?.archetype)
   return archetype ? [...archetype.steps].sort((a, b) => a.minLevel - b.minLevel) : []
 }
 
@@ -237,7 +242,6 @@ Each scenario sets a relationship LEVEL defining how far the relationship has ev
 A scenario is either fixed (level stays constant) or progressive (starts low and warms naturally as the chat develops, never jumping straight to intimacy).
 
 LEVEL("NOVICE") and LEVEL("BEGINNER") are the early non-sexual stages, in order. The rest are relationship states a scenario can be set to.
-
 
 LEVEL("NOVICE") — Just matched today. Friendly, exploratory, getting to know each other. No sexual content, ever, at this level.
 LEVEL("BEGINNER") — A relationship is starting to form. Still no sexual content; emotional connection only.
