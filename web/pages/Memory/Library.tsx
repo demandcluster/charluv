@@ -3,7 +3,7 @@ import { useTabs } from '/web/shared/Tabs'
 import { setComponentPageTitle } from '/web/shared/util'
 import ScenarioList from '../Scenario/ScenarioList'
 import PromptTemplates from '../PromptTemplates'
-import { BooksTab, EmbedsTab } from './Memory'
+import { BooksTab } from './Memory'
 import { useSearchParams } from '@solidjs/router'
 import Button from '/web/shared/Button'
 
@@ -14,7 +14,7 @@ const Library: Component = () => {
   setComponentPageTitle('Library')
 
   const allowed = createMemo(() => {
-    const base = ['Memories', 'Scenarios', 'Templates', 'Embeddings']
+    const base = ['Memories', 'Scenarios', 'Templates']
 
     return base
   })
@@ -52,10 +52,6 @@ const Library: Component = () => {
 
         <Match when={tabs.current() === 'Templates'}>
           <PromptTemplates />
-        </Match>
-
-        <Match when={tabs.current() === 'Embeddings'}>
-          <EmbedsTab />
         </Match>
       </Switch>
     </>

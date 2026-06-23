@@ -1,6 +1,6 @@
 import { A } from '@solidjs/router'
 import { assertValid } from '/common/valid'
-import { Download, Plus, Trash, Upload, X, Edit, FileX, FileCheck } from '/web/icons'
+import { Download, Plus, Trash, Upload, X } from '/web/icons'
 import { Component, createSignal, For, onMount, Show } from 'solid-js'
 import { AppSchema } from '../../../common/types/schema'
 import Button from '../../shared/Button'
@@ -8,10 +8,6 @@ import FileInput, { FileInputResult, getFileAsString } from '../../shared/FileIn
 import Modal, { ConfirmModal } from '../../shared/Modal'
 import PageHeader from '../../shared/PageHeader'
 import { memoryStore, toastStore } from '../../store'
-import { SolidCard } from '/web/shared/Card'
-import EmbedContent from './EmbedContent'
-import { embedApi } from '/web/store/embeddings'
-import { EditEmbedModal } from '/web/shared/EditEmbedModal'
 import { Page } from '/web/Layout'
 
 type STEntry = {
@@ -108,52 +104,6 @@ type STExportedBook = {
       delay: number
     }
   >
-}
-
-export const EmbedsTab: Component = (props) => {
-  const state = memoryStore()
-  const [editing, setEditing] = createSignal<string>()
-  const [deleting, setDeleting] = createSignal<string>()
-
-  return (
-    <>
-      <PageHeader title="Memory - Embeddings" />
-      <EmbedContent />
-
-      <div class="flex flex-col gap-2">
-        <For each={state.embeds}>
-          {(each) => (
-            <div class="mt-2 flex w-full items-center gap-4">
-              <SolidCard size="md" class="flex w-full items-center gap-1" bg="bg-800">
-                <div
-                  class="flex cursor-pointer"
-                  title={each.state === 'loaded' ? 'Loaded' : 'Not loaded'}
-                >
-                  {each.state === 'loaded' ? <FileCheck /> : <FileX class="text-gray-500" />}
-                </div>
-                <div class="ellipsis font-bold">{each.id}</div>
-              </SolidCard>
-
-              <div class="icon-button" onClick={() => setEditing(each.id)}>
-                <Edit />
-              </div>
-
-              <div class="icon-button" onClick={() => setDeleting(each.id)}>
-                <Trash />
-              </div>
-            </div>
-          )}
-        </For>
-      </div>
-      <EditEmbedModal show={!!editing()} embedId={editing()} close={() => setEditing()} />
-      <ConfirmModal
-        confirm={() => embedApi.removeDocument(deleting()!)}
-        show={!!deleting()}
-        close={() => setDeleting()}
-        message={`Are you sure you wish to delete this embedding?\n\n${deleting()}`}
-      />
-    </>
-  )
 }
 
 export const BooksTab: Component = (props) => {

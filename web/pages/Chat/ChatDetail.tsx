@@ -27,7 +27,6 @@ import AvatarContainer from '/web/shared/Avatar/Container'
 import { eventStore } from '/web/store/event'
 import ChatPanes, { useValidChatPane } from './components/ChatPanes'
 import { useAppContext } from '/web/store/context'
-import { embedApi } from '/web/store/embeddings'
 import { ModeDetail } from '/web/shared/Mode/Detail'
 import { ChatMenu } from './ChatMenu'
 import { ChatFooter } from './ChatFooter'
@@ -159,10 +158,6 @@ const ChatDetail: Component = () => {
       eventStore.onGreeting(chats.chat)
     } else {
       eventStore.onChatOpened(chats.chat, new Date(messages[messages.length - 1].createdAt))
-    }
-
-    if (chats.chat.userEmbedId) {
-      embedApi.loadDocument(chats.chat.userEmbedId)
     }
   })
 

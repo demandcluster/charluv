@@ -25,7 +25,6 @@ import {
   toChatGraph,
   updateChatTreeNode,
 } from '/common/chat'
-import { embedApi } from './embeddings'
 import { JsonField, TickHandler } from '/common/prompt'
 import { HordeCheck } from '/common/horde-gen'
 import { botGen, GenerateOpts } from './data/bot-generate'
@@ -128,10 +127,6 @@ export const msgStore = createStore<MsgState>(
   'messages',
   initState
 )(() => {
-  embedApi.onCaptionReady(() => {
-    msgStore.setState({ canImageCaption: true })
-  })
-
   events.on('logged-out', () => {
     msgStore.setState(initState)
   })
@@ -176,8 +171,6 @@ export const msgStore = createStore<MsgState>(
         msgs: recent,
         graph,
       })
-
-      embedApi.embedChat(data.chatId, data.messages)
     }
   )
 
@@ -752,9 +745,6 @@ setInterval(() => {
   publish({ type: 'message-ready', messageId: id, updatedAt: retrying?.updatedAt })
 }, 4000)
 
-const [debouncedEmbed] = createDebounce((chatId: string, history: AppSchema.ChatMessage[]) => {
-  embedApi.embedChat(chatId, history)
-}, 250)
 
 /**
  * Auto-summarisation. With a 16K context window + long-term memory the manual
@@ -793,7 +783,6 @@ msgStore.subscribe((state) => {
   if (state.partial) return
   if (!state.activeChatId) return
   if (!state.msgs.length) return
-  debouncedEmbed(state.activeChatId, state.messageHistory.concat(state.msgs))
   debouncedAutoSummary()
 })
 

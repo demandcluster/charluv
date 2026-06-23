@@ -3,7 +3,6 @@ import { EVENTS, events } from '../emitter'
 import { createStore } from './create'
 import { memoryApi } from './data/memory'
 import { toastStore } from './toasts'
-import { embedApi } from './embeddings'
 
 export type MemoryState = {
   show: boolean
@@ -115,5 +114,3 @@ export const memoryStore = createStore<MemoryState>(
     },
   }
 })
-
-embedApi.setup(memoryStore.getState, memoryStore.setState)

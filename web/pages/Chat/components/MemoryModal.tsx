@@ -1,5 +1,5 @@
-import { Edit, Save } from '/web/icons'
-import { Component, createEffect, createMemo, createSignal, JSX, onMount, Show } from 'solid-js'
+import { Save } from '/web/icons'
+import { Component, createEffect, createSignal, JSX, onMount, Show } from 'solid-js'
 import { AppSchema } from '../../../../common/types/schema'
 import Button from '../../../shared/Button'
 import Divider from '../../../shared/Divider'
@@ -7,9 +7,6 @@ import Select, { Option } from '../../../shared/Select'
 import { chatStore } from '../../../store'
 import { memoryStore } from '../../../store'
 import EditMemoryForm, { EntrySort } from '../../Memory/EditMemory'
-import EmbedContent from '../../Memory/EmbedContent'
-import { EditEmbedModal } from '/web/shared/EditEmbedModal'
-import { Portal } from 'solid-js/web'
 
 const ChatMemoryModal: Component<{
   chat: AppSchema.Chat | undefined
@@ -19,12 +16,9 @@ const ChatMemoryModal: Component<{
   const state = memoryStore((s) => ({
     books: s.books,
     items: s.books.list.map((book) => ({ label: book.name, value: book._id })),
-    embeds: s.embeds,
   }))
 
   const [id, setId] = createSignal('')
-  const [embedId, setEmbedId] = createSignal(props.chat?.userEmbedId)
-  const [editingEmbed, setEditingEmbed] = createSignal<boolean>(false)
   const [book, setBook] = createSignal<AppSchema.MemoryBook>()
   const [entrySort, setEntrySort] = createSignal<EntrySort>('creationDate')
   const updateEntrySort = (item: Option<string>) => {
@@ -90,11 +84,6 @@ const ChatMemoryModal: Component<{
     )
   }
 
-  const useUserEmbed = () => {
-    if (!props.chat?._id) return
-    chatStore.editChat(props.chat._id, { userEmbedId: embedId() }, undefined)
-  }
-
   const Footer = (
     <>
       <Button schema="secondary" onClick={props.close}>
@@ -106,12 +95,6 @@ const ChatMemoryModal: Component<{
       </Button>
     </>
   )
-
-  const embeds = createMemo(() => {
-    return [{ label: 'None', value: '' }].concat(
-      state.embeds.map((em) => ({ label: `${em.id} [${em.state}]`, value: em.id }))
-    )
-  })
 
   onMount(() => {
     props.footer?.(Footer)
@@ -136,47 +119,6 @@ const ChatMemoryModal: Component<{
         </div>
 
         <Divider />
-        <Show when={state.embeds.length > 0}>
-          <Select
-            fieldName="embedId"
-            label="Embedding"
-            helperText="Which user-created embedding to use."
-            items={embeds()}
-            onChange={(item) => setEmbedId(item.value)}
-            value={embedId()}
-          />
-          <div class="flex items-center gap-1">
-            <Button
-              class="w-fit"
-              disabled={embedId() === props.chat?.userEmbedId}
-              onClick={useUserEmbed}
-            >
-              <Save />
-              Use Embedding
-            </Button>
-
-            <Show when={embedId() === props.chat?.userEmbedId}>
-              <Button
-                class="w-fit"
-                schema="secondary"
-                disabled={editingEmbed() || !props.chat?.userEmbedId}
-                onClick={() => setEditingEmbed(true)}
-              >
-                <Edit />
-                Edit
-              </Button>
-            </Show>
-          </div>
-          <Portal>
-            <EditEmbedModal
-              show={editingEmbed()}
-              embedId={embedId()}
-              close={() => setEditingEmbed(false)}
-            />
-          </Portal>
-          <Divider />
-        </Show>
-        <EmbedContent />
 
         <Show when={book()}>
           <div class="text-sm">
