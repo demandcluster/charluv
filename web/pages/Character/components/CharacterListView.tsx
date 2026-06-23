@@ -96,7 +96,7 @@ const CharacterListOptions: Component<{
   return (
     <div>
       <div class="hidden flex-row items-center justify-center gap-2 sm:flex">
-        <Show when={props.char.name !== 'Aiva' && props.char?.parent}>
+        <Show when={props.char.name !== 'Aiva'}>
           <Gauge showBar={false} currentXP={props.char.xp} />
         </Show>
         <Show when={props.char?.parent}>
@@ -166,7 +166,7 @@ const CharacterListOptions: Component<{
       </div>
 
       <div class="flex items-center gap-2 sm:hidden" onClick={() => setListOpts(true)}>
-        <Show when={props.char.name !== 'Aiva' && props.char?.parent}>
+        <Show when={props.char.name !== 'Aiva'}>
           <Gauge showBar={false} currentXP={props.char.xp} />
         </Show>
         <MoreHorizontal class="icon-button" />
