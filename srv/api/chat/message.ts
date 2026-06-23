@@ -472,6 +472,11 @@ export const generateMessageV2 = handle(async (req, res) => {
       // generation — spinner on the reply, then the image attached. Fire-and-forget;
       // it broadcasts a `message-retry` over WS and persists for refresh.
       if (imageTool?.prompt) {
+        // An auto-generated image costs the same 25 credits as an explicit one,
+        // on top of the message charge. Fire-and-forget like the generation.
+        if (userId && userId !== 'anon') {
+          store.credits.updateCredits(userId, -25).catch(() => {})
+        }
         generateImage(
           {
             user: body.user!,
