@@ -3,7 +3,7 @@ import { A } from '@solidjs/router'
 import { LogIn, Sparkles } from 'lucide-solid'
 import { settingStore } from '../store'
 import { soundEmitter } from './Audio/playable-events'
-import logo from '../asset/logo.png'
+import logoDark from '../asset/logoDark.png'
 
 /**
  * Full-width header for logged-out visitors. Replaces the left drawer on the
@@ -20,7 +20,7 @@ const GuestTopBar: Component = () => {
     >
       <A href="/" aria-label="Charluv home" class="flex items-center">
         <span class="flex items-center rounded-md px-3 py-1.5" style={{ background: '#1f4439' }}>
-          <img src={logo} alt="Charluv" class="h-6 w-auto sm:h-7" />
+          <img src={logoDark} alt="Charluv" class="h-6 w-auto sm:h-7" />
         </span>
       </A>
 

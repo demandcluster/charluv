@@ -5,7 +5,6 @@ import {
   Book,
   ChevronLeft,
   ChevronRight,
-  Coins,
   Compass,
   Heart,
   HeartHandshake,
@@ -52,7 +51,6 @@ import {
 } from './store'
 import Slot from './shared/Slot'
 
-import logo from './asset/logo.png'
 import logoDark from './asset/logoDark.png'
 import logoIcon from './charluv192.png'
 import {
@@ -188,18 +186,10 @@ const Navigation: Component = () => {
                 aria-label="Charluv main page"
               >
                 <div
-                  classList={{
-                    'flex p-4 h-8 w-full items-center justify-center rounded-lg font-bold': true,
-                    'bg-[#55b89c]': user.ui?.mode === 'light',
-                    'bg-[#1f4439]': user.ui?.mode !== 'light',
-                  }}
+                  class="bg-[#1f4439] flex h-8 w-full items-center justify-center rounded-lg p-4 font-bold"
                   aria-hidden="true"
                 >
-                  <img
-                    width="180px"
-                    alt="Charluv"
-                    src={user.ui?.mode === 'light' ? logoDark : logo}
-                  />
+                  <img width="180px" alt="Charluv" src={logoDark} />
                   {suffix()}
                 </div>
               </A>
@@ -280,25 +270,6 @@ const Navigation: Component = () => {
 const UserNavigation: Component = () => {
   const user = userStore()
   const menu = settingStore()
-  const [secLeft, setSecLeft] = createSignal(false)
-  const maxPremium = 1000
-  const maxRegular = 200
-
-  useEffect(() => {
-    const recharge = setInterval(() => {
-      const recharged = user.user?.recharged || 0
-      if (recharged) {
-        const now = new Date().getTime()
-        const diff = recharged + 120000 - now
-
-        if (diff > 0) {
-          setSecLeft(Math.floor(diff / 1000))
-        }
-      }
-    }, 425)
-
-    return () => clearInterval(recharge)
-  })
 
   const guidance = createMemo(() => {
     const usable = menu.config.subs.some((sub) => sub.guidance)
@@ -319,31 +290,6 @@ const UserNavigation: Component = () => {
       </div> */}
       <UserProfile />
       <Show when={user.loggedIn}>
-        <MultiItem>
-          <Item href="/premium">
-            <Coins />
-            <div class="min-w-32">{user.user?.credits || 0}</div>
-            <Show when={user.user?.premium ? user.user?.credits < 1000 : user.user?.credits < 200}>
-              <span
-                classList={{
-                  'text-sm text-gray-400': true,
-                  'text-yellow-600': secLeft() === 1 || secLeft() === 0,
-                }}
-              >
-                recharge in {secLeft() !== false ? secLeft() : '<120'}s
-              </span>
-            </Show>
-          </Item>
-          <Show when={user.user?.premium || false}>
-            <EndItem>
-              <span class="text-xs text-yellow-600">
-                {' '}
-                <Star />
-              </span>
-            </EndItem>
-          </Show>
-        </MultiItem>
-
         <Item href="/discover" ariaLabel="Discover companions">
           <Compass aria-hidden="true" /> Discover
         </Item>

@@ -8,6 +8,7 @@ import { Component, createMemo, Show, lazy, onMount, Switch, Match } from 'solid
 import { Route, Router, useLocation } from '@solidjs/router'
 import NavBar from './shared/NavBar'
 import GuestTopBar from './shared/GuestTopBar'
+import UserTopBar from './shared/UserTopBar'
 import Notifications from './Toasts'
 import CharacterRoutes from './pages/Character'
 import ScenarioRoutes from './pages/Scenario'
@@ -207,9 +208,14 @@ const Layout: Component<{ children?: any }> = (props) => {
       <style>{css}</style>
       <AgeGate />
       <div class="scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-[var(--hl-900)] app flex flex-col justify-between">
-        <Show when={guestLanding()} fallback={<NavBar />}>
-          <GuestTopBar />
-        </Show>
+        <Switch fallback={<NavBar />}>
+          <Match when={guestLanding()}>
+            <GuestTopBar />
+          </Match>
+          <Match when={state.loggedIn && !isChat()}>
+            <UserTopBar />
+          </Match>
+        </Switch>
         <div class="flex w-full grow flex-row overflow-y-hidden">
           <Show when={!guestLanding()}>
             <Navigation />
