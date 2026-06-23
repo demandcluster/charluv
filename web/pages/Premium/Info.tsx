@@ -13,7 +13,6 @@ Premium is available through our [Patreon](https://patreon.com/charluv) Premium 
 # Why go premium?
 
 - A larger, faster-refilling credit pool — chat and create more without running dry.
-- Priority generation: your messages skip the queue when there is one.
 - Longer responses and more conversation memory.
 - Access to premium characters, including ones with custom voices.
 
@@ -41,7 +40,7 @@ Credits top up automatically every 2 minutes:
 |              | Free | Premium |
 | ------------ | ---: | ------: |
 | Per top-up   |  +5  |   +20   |
-| Refills up to | 300 | much higher |
+| Refills up to | 500 | 5,000 |
 
 ## Managing your subscription
 
