@@ -13,7 +13,9 @@ export async function getMatch(userId: string, id: string) {
     $or: [{ match: true }, { published: true }],
   })
 
-  return char
+  // A shared character always presents as level 0 — the publisher's own XP is
+  // irrelevant to everyone else (and clones start fresh anyway).
+  return char ? { ...char, xp: 0 } : char
 }
 
 export async function getMatches(userId: string) {
@@ -29,7 +31,8 @@ export async function getMatches(userId: string) {
       ],
     })
     .toArray()
-  return list
+  // Shared templates always present as level 0 (publisher XP is irrelevant).
+  return list.map((c) => ({ ...c, xp: 0 }))
 }
 
 export async function getMatchList(charIds: string[]) {
@@ -93,7 +96,9 @@ export async function discover(userId: string, filter: DiscoverFilter = {}) {
   const skip = Math.max(filter.skip ?? 0, 0)
 
   const list = await db('character').find(query).sort(sort).skip(skip).limit(limit).toArray()
-  return list
+  // Shared characters always present as level 0 — the publisher's XP is theirs
+  // alone and shouldn't show in the gallery or carry into a clone.
+  return list.map((c) => ({ ...c, xp: 0 }))
 }
 
 /**
