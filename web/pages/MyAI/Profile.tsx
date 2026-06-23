@@ -100,7 +100,7 @@ const Profile: Component = () => {
     if (id === params.id) navigate('/mine')
   }
   events.on(EVENTS.charDeleted, onCharDeleted)
-  onCleanup(() => events.off(EVENTS.charDeleted, onCharDeleted))
+  onCleanup(() => events.removeListener(EVENTS.charDeleted, onCharDeleted))
 
   const onChat = () => {
     const c = char()
