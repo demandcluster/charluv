@@ -12,7 +12,7 @@ import { Memory } from './types'
 import { promptOrderToTemplate } from './prompt-order'
 import { ModelFormat, replaceTags } from './presets/templates'
 import { getCharacterLevel } from './xplevel'
-import { formatStageToken, resolveStage } from './progression'
+import { CHARLUV_LEVELS_PROMPT, formatStageToken, resolveStage } from './progression'
 
 export type TickHandler<T = any> = (response: string, state: InferenceState, json?: T) => void
 
@@ -503,7 +503,12 @@ export async function buildPromptParts(
 
   const supplementary = getSupplementaryParts(opts, replyAs)
   parts.ujb = supplementary.ujb
+  // Always-on Charluv level framing + 18+ safeguard, before the preset/character
+  // system prompt. Unconditional so it can't be dropped by a custom preset and
+  // is present in every chat.
   parts.systemPrompt = supplementary.system
+    ? `${CHARLUV_LEVELS_PROMPT}\n\n${supplementary.system}`
+    : CHARLUV_LEVELS_PROMPT
 
   parts.post = post.map(replace)
 
