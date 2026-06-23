@@ -27,11 +27,10 @@ You can also **publish your own characters**. Create a character, open it from *
 | Action | Credits |
 | ------ | ------: |
 | Send or regenerate a message | 10 |
+| Generate or regenerate an image | 25 |
 | Create a character | 50 |
 | Edit a character | 20 |
 | Publish a character *(one-time reward)* | **+500** |
-
-Images generated during a chat are part of the message — there is no separate charge.
 
 ## Recharge
 
