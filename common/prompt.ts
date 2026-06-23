@@ -141,6 +141,41 @@ const defaultFieldPrompt = neat`
 {{prop}}:
 {{value}}
 `
+
+/**
+ * Built-in moderation prompt + schema used when no custom ones are configured.
+ * Publishing runs this against the local vision LLM — no preset needed. A field
+ * set to `true` means the violation is present (reject + flag); all-false passes.
+ */
+export const DEFAULT_MOD_PROMPT = neat`
+You are a strict content-safety reviewer for Charluv, an adults-only (18+) AI companion platform. A user has submitted a public character. Review its text fields AND its avatar image, then flag any rule violations.
+
+Character:
+{{fields}}
+
+Set a field to true only when the character — in appearance, description, or intended behaviour — depicts or strongly implies it:
+- underage: appears or is described as under 18, a minor, or childlike.
+- violence: gratuitous violence, gore, or glorified non-consensual harm.
+- noncon: non-consent, coercion, or rape presented approvingly.
+- incest: sexual content involving family members.
+- illegal: any other clearly illegal content.
+
+Be strict about underage: if the character looks or reads as a minor, flag it.
+`
+
+const modBool = (name: string, description: string): JsonField => ({
+  name,
+  disabled: false,
+  type: { type: 'bool', valid: 'false', description },
+})
+
+export const DEFAULT_MOD_SCHEMA: JsonField[] = [
+  modBool('underage', 'The character appears or is described as under 18, a minor, or childlike.'),
+  modBool('violence', 'Gratuitous violence, gore, or glorified non-consensual harm.'),
+  modBool('noncon', 'Non-consent, coercion, or rape presented approvingly.'),
+  modBool('incest', 'Sexual content involving family members.'),
+  modBool('illegal', 'Other clearly illegal content.'),
+]
 export function buildModPrompt(opts: {
   prompt: string
   fields: string

@@ -1,6 +1,4 @@
-import { Component, Setter, createSignal } from 'solid-js'
-import { usePresetOptions } from '/web/shared/hooks'
-import { PresetSelect } from '/web/shared/PresetSelect'
+import { Component, Setter } from 'solid-js'
 import TextInput from '/web/shared/TextInput'
 import { adminStore } from '/web/store'
 import { JsonSchema } from '/web/shared/JsonSchema'
@@ -9,10 +7,7 @@ import Select from '/web/shared/Select'
 import { JsonField } from '/common/prompt'
 
 export const CharLibrary: Component<{ setSchema: Setter<JsonField[]> }> = (props) => {
-  const presets = usePresetOptions()
   const state = adminStore()
-
-  const [presetId, setPresetId] = createSignal(state.config?.modPresetId)
 
   return (
     <div class="flex flex-col gap-2">
@@ -81,19 +76,19 @@ export const CharLibrary: Component<{ setSchema: Setter<JsonField[]> }> = (props
           value={state.config?.publishMinPersonality ?? 400}
         />
       </div>
-      <PresetSelect
-        label="Preset"
-        fieldName="modPresetId"
-        options={presets()}
-        selected={presetId()}
-        setPresetId={setPresetId}
-      />
+      <div class="text-700 text-sm font-bold">Moderation (optional overrides)</div>
+      <div class="text-600 text-xs">
+        Publishing runs on the local vision model with a built-in prompt and
+        schema (underage / violence / non-consent / incest / illegal). Leave
+        these blank to use the defaults; fill them to override.
+      </div>
 
       <TextInput
         fieldName="modPrompt"
-        label="Prompt"
+        label="Moderation prompt override"
         value={state.config?.modPrompt}
         isMultiline
+        placeholder="Optional — leave blank for the built-in prompt."
         helperMarkdown={fieldHelp}
       />
 

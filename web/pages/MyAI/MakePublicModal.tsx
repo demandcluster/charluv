@@ -136,6 +136,16 @@ const MakePublicModal: Component<{
           <div>
             <div class="mb-1 font-semibold">Minimum requirements</div>
             <ul class="flex flex-col gap-1">
+              <For each={reqs().fields}>
+                {(f) => (
+                  <li class="flex items-center gap-2" classList={{ 'text-600': f.ok }}>
+                    <Show when={f.ok} fallback={<X size={15} class="text-[var(--red-500)]" />}>
+                      <Check size={15} class="text-[var(--green-600,#3aa)]" />
+                    </Show>
+                    {f.label}
+                  </li>
+                )}
+              </For>
               <For each={reqs().requirements}>
                 {(r) => (
                   <li class="flex items-center gap-2" classList={{ 'text-600': r.ok }}>

@@ -22,7 +22,7 @@ import { v4 } from 'uuid'
 import { validBook } from './memory'
 import { isObject, tryParse } from '/common/util'
 import { assertStrict } from '/common/valid/validate'
-import { buildModPrompt, fromJsonResponse } from '/common/prompt'
+import { buildModPrompt, fromJsonResponse, DEFAULT_MOD_PROMPT, DEFAULT_MOD_SCHEMA } from '/common/prompt'
 import { checkPublishRequirements, PUBLISH_DEFAULTS, PUBLISH_MIN } from '/common/publish'
 import { createInferenceStream } from '../adapter/generate'
 import { sendOne } from './ws'
@@ -293,20 +293,21 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
   if (!canPublish(config.charlibPublish, user)) {
     throw new StatusError('Publishing is not available for your account', 403)
   }
-  if (!config.modPresetId) throw new StatusError('Moderation is not configured', 400)
 
   const character = await store.characters.getCharacter(userId!, body.characterId)
   if (!character) throw new StatusError('Character not found', 404)
   if (character.draft) throw new StatusError('Finish creating the character before publishing', 400)
-  if (!character.avatar) throw new StatusError('Add an avatar before publishing', 400)
 
-  // Minimum-quality thresholds (admin-configured).
-  const { ok, requirements } = checkPublishRequirements(character, publishMins(config))
+  // Minimum-quality thresholds + the fields Discover/profile rely on (avatar,
+  // gender, art style, age range).
+  const { ok, requirements, fields } = checkPublishRequirements(character, publishMins(config))
   if (!ok) {
-    const missing = requirements
+    const missingFields = fields.filter((f) => !f.ok).map((f) => f.label)
+    const missingLen = requirements
       .filter((r) => !r.ok)
       .map((r) => `${r.label} (${r.actual}/${r.min})`)
-    throw new StatusError(`Below the minimum requirements — ${missing.join(', ')}`, 400)
+    const parts = [...missingFields, ...missingLen]
+    throw new StatusError(`Not ready to publish — missing: ${parts.join(', ')}`, 400)
   }
 
   // Daily cap applies only to a character's first publish; re-publishing after
@@ -317,8 +318,10 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
     if (used >= cap) throw new StatusError(`Daily publish limit reached (${cap} per day)`, 429)
   }
 
-  const settings = await store.presets.getUserPreset(config.modPresetId)
-  if (!settings) throw new StatusError('Moderation preset not found', 400)
+  // No preset to configure — moderation runs on the local vision LLM (the
+  // default subscription model, resolved inside createInferenceStream) using a
+  // built-in prompt + schema, with optional admin overrides.
+  const modSchema = config.modSchema?.length ? config.modSchema : DEFAULT_MOD_SCHEMA
 
   // Always moderate the avatar. Prefer the client-sent data URL; otherwise read
   // the saved avatar server-side so the image check can't be skipped.
@@ -331,7 +334,7 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
 
   const prompt = buildModPrompt({
     char: character,
-    prompt: config.modPrompt,
+    prompt: config.modPrompt || DEFAULT_MOD_PROMPT,
     fields: config.modFieldPrompt,
   })
 
@@ -339,11 +342,10 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
 
   const { stream, service } = await createInferenceStream({
     requestId,
-    jsonSchema: config.modSchema,
+    jsonSchema: modSchema,
     user,
     log,
     prompt,
-    settings,
     imageData,
   })
 
@@ -366,7 +368,7 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
       }
       if ('partial' in gen) {
         partial = gen.partial
-        fromJsonResponse(config.modSchema, gen.partial, output)
+        fromJsonResponse(modSchema, gen.partial, output)
         if (user.admin)
           sendOne(userId, { type: 'inference-partial', partial, service, requestId, output })
         continue
@@ -408,7 +410,7 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
   let acceptable = true
   const flags: string[] = []
   for (const [key, value] of Object.entries(output)) {
-    const def = config.modSchema.find((s) => s.name === key)
+    const def = modSchema.find((s) => s.name === key)
     if (!def || !def.type.valid) continue
 
     let fieldOk = true

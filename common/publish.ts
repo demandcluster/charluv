@@ -90,9 +90,24 @@ export function personaText(persona?: AppSchema.Persona): string {
 
 const len = (v?: string) => (typeof v === 'string' ? v.trim().length : 0)
 
+export type PublishField = { key: string; label: string; ok: boolean }
+
 /**
- * Evaluate a character against the minimum-quality thresholds. Pass `mins` to
- * use admin-configured thresholds; falls back to PUBLISH_MIN when omitted.
+ * Fields the Discover gallery + profile page rely on, so a public character
+ * must have them: an avatar (cover), gender + art style (filters), and an age
+ * range (shown, and required for the age gate). `category` stays optional.
+ */
+const REQUIRED_FIELDS: { key: keyof AppSchema.Character; label: string }[] = [
+  { key: 'avatar', label: 'Avatar' },
+  { key: 'gender', label: 'Gender' },
+  { key: 'artStyle', label: 'Art style' },
+  { key: 'ageRange', label: 'Age range' },
+]
+
+/**
+ * Evaluate a character against the minimum-quality thresholds and the required
+ * Discover/profile fields. Pass `mins` to use admin-configured thresholds;
+ * falls back to PUBLISH_MIN when omitted.
  */
 export function checkPublishRequirements(
   char: Partial<AppSchema.Character>,
@@ -100,6 +115,7 @@ export function checkPublishRequirements(
 ): {
   ok: boolean
   requirements: PublishRequirement[]
+  fields: PublishField[]
 } {
   const actuals: Record<keyof typeof PUBLISH_MIN, number> = {
     greeting: len(char.greeting),
@@ -116,5 +132,12 @@ export function checkPublishRequirements(
     ok: actuals[key] >= (mins[key] ?? PUBLISH_MIN[key]),
   }))
 
-  return { ok: requirements.every((r) => r.ok), requirements }
+  const fields: PublishField[] = REQUIRED_FIELDS.map(({ key, label }) => ({
+    key,
+    label,
+    ok: !!(char[key] && String(char[key]).trim()),
+  }))
+
+  const ok = requirements.every((r) => r.ok) && fields.every((f) => f.ok)
+  return { ok, requirements, fields }
 }
