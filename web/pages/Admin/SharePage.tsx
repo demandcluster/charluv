@@ -1,4 +1,4 @@
-import { Component, createSignal, For, Show, onMount } from 'solid-js'
+import { Component, For, Show, onMount } from 'solid-js'
 import Button from '../../shared/Button'
 import PageHeader from '../../shared/PageHeader'
 import Tabs, { useTabs } from '../../shared/Tabs'
@@ -12,18 +12,18 @@ import { FLAG_LABELS } from '/common/publish'
  */
 const ModerationPage: Component = () => {
   setComponentPageTitle('Moderation')
-  const tabs = useTabs(['Reports', 'Published'], 0)
+  const tabs = useTabs(['Published', 'Reports'], 0)
 
   return (
     <div>
       <PageHeader title="Moderation" />
       <Tabs tabs={tabs.tabs} select={tabs.select} selected={tabs.selected} />
       <div class="pt-4">
-        <Show when={tabs.current() === 'Reports'}>
-          <ReportsTab />
-        </Show>
         <Show when={tabs.current() === 'Published'}>
           <PublishedTab />
+        </Show>
+        <Show when={tabs.current() === 'Reports'}>
+          <ReportsTab />
         </Show>
       </div>
     </div>
@@ -92,11 +92,8 @@ const ReportsTab: Component = () => {
 }
 
 const PublishedTab: Component = () => {
-  const [list, setList] = createSignal<any[]>([])
-  const load = async () => {
-    const res = await adminStore.getPublished()
-    if (res?.published) setList(res.published)
-  }
+  const state = adminStore()
+  const load = () => adminStore.getPublished()
   onMount(load)
 
   const act = async (charId: string, action: 'reviewed' | 'unpublish' | 'delete') => {
@@ -106,10 +103,10 @@ const PublishedTab: Component = () => {
 
   return (
     <div class="flex flex-col gap-2 pb-4">
-      <Show when={!list().length}>
+      <Show when={!state.published?.length}>
         <div class="text-600 py-8 text-center">No published characters.</div>
       </Show>
-      <For each={list()}>
+      <For each={state.published}>
         {(char) => (
           <div class="bg-800 flex items-center gap-3 rounded-xl p-3">
             <Show when={char.avatar}>
