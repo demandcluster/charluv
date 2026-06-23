@@ -421,6 +421,10 @@ type PromptPartsOptions = Pick<
   | 'resolvedScenario'
 >
 
+/** Utility generations that are not in-character replies — the Charluv level
+ * preamble is skipped for these so it doesn't pollute the system task. */
+const NON_ROLEPLAY_KINDS = new Set(['summary', 'chat-query', 'plain'])
+
 export async function buildPromptParts(
   opts: PromptPartsOptions,
   lines: string[],
@@ -503,12 +507,17 @@ export async function buildPromptParts(
 
   const supplementary = getSupplementaryParts(opts, replyAs)
   parts.ujb = supplementary.ujb
-  // Always-on Charluv level framing + 18+ safeguard, before the preset/character
-  // system prompt. Unconditional so it can't be dropped by a custom preset and
-  // is present in every chat.
-  parts.systemPrompt = supplementary.system
-    ? `${CHARLUV_LEVELS_PROMPT}\n\n${supplementary.system}`
-    : CHARLUV_LEVELS_PROMPT
+  // Charluv level framing + 18+ safeguard, before the preset/character system
+  // prompt — present on every actual character reply so it can't be dropped by a
+  // custom preset. Skipped for utility generations (summary, chat-query, plain)
+  // where this roleplay framing would only confuse the system task.
+  const systemKind = NON_ROLEPLAY_KINDS.has(opts.kind as string)
+  parts.systemPrompt =
+    !systemKind && supplementary.system
+      ? `${CHARLUV_LEVELS_PROMPT}\n\n${supplementary.system}`
+      : !systemKind
+      ? CHARLUV_LEVELS_PROMPT
+      : supplementary.system
 
   parts.post = post.map(replace)
 
