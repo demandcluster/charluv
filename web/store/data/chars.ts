@@ -26,6 +26,7 @@ export const charsApi = {
   publishCharacter,
   getPublishStatus,
   reportCharacter,
+  migrateBook,
   addGalleryImage,
   removeGalleryImage,
   setCover,
@@ -124,6 +125,11 @@ async function getPublishStatus() {
 /** Report a published character. One report per user per character. */
 async function reportCharacter(charId: string, reason: string, note?: string) {
   return api.post(`/character/${charId}/report`, { reason, note })
+}
+
+/** Migrate a legacy embedded memory book into the character's long-term memory. */
+async function migrateBook(charId: string) {
+  return api.post<{ migrated: number }>(`/character/${charId}/migrate-book`)
 }
 
 // Fetch the user's unfinished wizard draft (or null) so Create can resume it.

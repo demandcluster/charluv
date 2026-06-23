@@ -515,6 +515,28 @@ const reportCharacter = handle(async ({ userId, params, body }) => {
   return { success: true }
 })
 
+// Migrate a legacy embedded memory book into the new long-term memory, then
+// drop the book from the character. Idempotent: no book → migrated 0.
+const migrateBook = handle(async ({ userId, params }) => {
+  const char = await store.characters.getCharacter(userId!, params.id)
+  if (!char) throw new StatusError('Character not found', 404)
+
+  const entries = (char.characterBook?.entries || []).filter((e) => e.entry?.trim())
+  if (!entries.length) return { migrated: 0 }
+
+  let migrated = 0
+  for (const entry of entries) {
+    const text = (entry.name ? `${entry.name}: ${entry.entry}` : entry.entry).trim()
+    // 'manual' so book facts are stored verbatim (no ephemeral filter / reconcile).
+    const doc = await rememberFact(userId!, char._id, text, 'manual')
+    if (doc) migrated++
+  }
+
+  // Drop the old book from the character.
+  await store.characters.updateCharacter(char._id, userId!, { characterBook: null as any })
+  return { migrated }
+})
+
 const editPartCharacter = handle(async ({ body, params, userId }) => {
   const id = params.id
   assertStrict({ type: characterPost }, body)
@@ -953,6 +975,7 @@ router.get('/draft', loggedIn, getDraft)
 router.get('/publish/status', getPublishStatus)
 router.post('/publish', publishCharacter)
 router.post('/:id/report', reportCharacter)
+router.post('/:id/migrate-book', migrateBook)
 router.post('/:id/update', editPartCharacter)
 router.post('/:id', editFullCharacter)
 router.get('/:id', getCharacter)

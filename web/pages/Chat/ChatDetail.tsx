@@ -13,8 +13,9 @@ import { useNavigate, useParams } from '@solidjs/router'
 import ChatExport from './ChatExport'
 import Button from '../../shared/Button'
 import { getAssetUrl, setComponentPageTitle, sticky } from '../../shared/util'
-import { characterStore, chatStore, settingStore, userStore } from '../../store'
+import { characterStore, chatStore, settingStore, toastStore, userStore } from '../../store'
 import { msgStore } from '../../store'
+import { charsApi } from '../../store/data/chars'
 import Message from './components/Message'
 import PromptModal from './components/PromptModal'
 import DeleteMsgModal from './DeleteMsgModal'
@@ -36,6 +37,9 @@ import { EVENTS, events } from '/web/emitter'
 import { AppSchema } from '/common/types'
 
 export { ChatDetail as default }
+
+// Characters whose legacy memory book we've already migrated this session.
+const migratedBooks = new Set<string>()
 
 const ChatDetail: Component = () => {
   const { updateTitle } = setComponentPageTitle('Chat')
@@ -159,6 +163,18 @@ const ChatDetail: Component = () => {
     } else {
       eventStore.onChatOpened(chats.chat, new Date(messages[messages.length - 1].createdAt))
     }
+  })
+
+  // One-time migration: fold a legacy embedded memory book into the character's
+  // long-term memory, then drop the old book. Only the owner can migrate.
+  createEffect(() => {
+    const c = chats.char
+    if (!c?._id || !isOwner() || migratedBooks.has(c._id)) return
+    migratedBooks.add(c._id)
+    charsApi.migrateBook(c._id).then((res) => {
+      const n = res.result?.migrated
+      if (n) toastStore.success(`Imported ${n} memor${n === 1 ? 'y' : 'ies'} from the old memory book`)
+    })
   })
 
   const descriptionText = createMemo(() => {
