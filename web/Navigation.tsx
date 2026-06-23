@@ -108,7 +108,6 @@ const Navigation: Component = () => {
     }
   })
 
-  const suffix = createMemo(() => (user.user?.premium ? '+' : ''))
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -190,7 +189,6 @@ const Navigation: Component = () => {
                   aria-hidden="true"
                 >
                   <img width="180px" alt="Charluv" src={logoDark} />
-                  {suffix()}
                 </div>
               </A>
             </Show>
