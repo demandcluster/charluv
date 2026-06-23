@@ -16,7 +16,7 @@ const GuestTopBar: Component = () => {
   return (
     <header
       data-header=""
-      class="bg-900 flex h-[56px] shrink-0 items-center justify-between gap-4 border-b border-[var(--bg-800)] px-4 sm:px-8"
+      class="bg-[var(--menu-bg)] flex h-[56px] shrink-0 items-center justify-between gap-4 border-b border-[var(--bg-800)] px-4 sm:px-8"
     >
       <A href="/" aria-label="Charluv home" class="flex items-center">
         <span class="flex items-center rounded-md px-3 py-1.5" style={{ background: '#55b89c' }}>
@@ -39,7 +39,7 @@ const GuestTopBar: Component = () => {
           href="/create"
           class="flex items-center gap-1.5 rounded-full bg-[var(--hl-500)] px-4 py-2 text-sm font-medium text-[var(--bg-900)] transition-colors hover:bg-[var(--hl-400)]"
         >
-          <Sparkles size={16} aria-hidden="true" /> Create your dream date
+          <Sparkles size={16} color="currentColor" aria-hidden="true" /> Create your dream date
         </A>
       </nav>
     </header>

@@ -207,7 +207,7 @@ const Layout: Component<{ children?: any }> = (props) => {
   return (
     <ContextProvider>
       <IconContext.Provider
-        value={{ weight: 'duotone', size: '1em', color: 'currentColor', mirrored: false }}
+        value={{ weight: 'duotone', size: '1em', color: 'var(--hl-500)', mirrored: false }}
       >
         <style>{css}</style>
         <AgeGate />

@@ -1,6 +1,17 @@
 import { Component, JSX, createMemo, createSignal } from 'solid-js'
+import { IconContext } from '/web/icons'
 
 export type ButtonSchema = keyof typeof kinds
+
+/** Icons inside a button inherit the button's text colour (not the global green
+ * accent) so they stay visible on coloured/primary backgrounds. */
+const ButtonIcons: Component<{ children: JSX.Element }> = (props) => (
+  <IconContext.Provider
+    value={{ color: 'currentColor', weight: 'duotone', size: '1em', mirrored: false }}
+  >
+    {props.children}
+  </IconContext.Provider>
+)
 
 const kinds = {
   primary: 'btn-primary',
@@ -59,7 +70,7 @@ const Button: Component<{
       onClick={props.onClick}
       aria-label={props.ariaLabel}
     >
-      {props.children}
+      <ButtonIcons>{props.children}</ButtonIcons>
     </button>
   )
 }
@@ -93,7 +104,7 @@ export const LabelButton: Component<{
     }}
     onClick={props.onClick}
   >
-    {props.children}
+    <ButtonIcons>{props.children}</ButtonIcons>
   </label>
 )
 
@@ -134,7 +145,7 @@ export const ToggleButton: Component<{
         disabled={props.disabled}
         onClick={onClick}
       >
-        {props.children}
+        <ButtonIcons>{props.children}</ButtonIcons>
       </button>
       <input
         ref={ref!}

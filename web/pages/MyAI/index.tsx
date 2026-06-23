@@ -41,7 +41,7 @@ const MyAI: Component = () => {
         </p>
         <div class="myai-actions">
           <A class="myai-new" href="/create">
-            <Plus size={16} aria-hidden="true" /> New companion
+            <Plus size={16} color="currentColor" aria-hidden="true" /> New companion
           </A>
         </div>
       </header>

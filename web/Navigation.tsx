@@ -152,7 +152,7 @@ const Navigation: Component = () => {
       </Show>
       <div
         ref={parent}
-        class={`drawer bg-800 flex flex-col gap-2 pt-2`}
+        class={`drawer bg-[var(--menu-bg)] flex flex-col gap-2 pt-2`}
         classList={{
           flex: !state.showMenu,
           'drawer--hide': dismissable() && !state.showMenu,

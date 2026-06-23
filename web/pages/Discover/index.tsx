@@ -69,7 +69,7 @@ const Discover: Component = () => {
         </div>
         <Show when={userStore().loggedIn}>
           <A class="dsc-create" href="/create">
-            <Sparkles size={17} /> Create your dream date
+            <Sparkles size={17} color="currentColor" /> Create your dream date
           </A>
         </Show>
       </header>
@@ -162,7 +162,7 @@ const Discover: Component = () => {
               <div class="dsc-empty">
                 <p>No companions match those filters yet. Try widening them — or make your own.</p>
                 <A class="dsc-create" href="/create">
-                  <Sparkles size={17} /> Create your dream date
+                  <Sparkles size={17} color="currentColor" /> Create your dream date
                 </A>
               </div>
             }

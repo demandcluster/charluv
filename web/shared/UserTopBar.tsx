@@ -26,7 +26,7 @@ const UserTopBar: Component = () => {
   return (
     <header
       data-header=""
-      class="bg-900 flex h-12 shrink-0 items-center justify-between gap-3 border-b border-[var(--bg-800)] px-3 sm:px-6"
+      class="bg-[var(--menu-bg)] flex h-12 shrink-0 items-center justify-between gap-3 border-b border-[var(--bg-800)] px-3 sm:px-6"
     >
       <div
         class="icon-button w-8 sm:hidden"
