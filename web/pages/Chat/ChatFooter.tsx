@@ -1,5 +1,5 @@
 import { Component, createMemo, createSignal, For, Show } from 'solid-js'
-import { CircleX, VenetianMask } from 'lucide-solid'
+import { CircleX, VenetianMask } from '/web/icons'
 import Button from '../../shared/Button'
 import { CharacterPill } from '../../shared/CharacterPill'
 import { characterStore, chatStore, settingStore, userStore } from '../../store'

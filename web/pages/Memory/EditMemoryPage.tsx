@@ -8,7 +8,7 @@ import EditMemoryForm, { EntrySort } from './EditMemory'
 import { Option } from '../../shared/Select'
 import Button from '../../shared/Button'
 import { FormLabel } from '../../shared/FormLabel'
-import { Save } from 'lucide-solid'
+import { Save } from '/web/icons'
 import { emptyBookWithEmptyEntry } from '/common/memory'
 import { Page } from '/web/Layout'
 

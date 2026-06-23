@@ -9,7 +9,7 @@ import {
   onCleanup,
   onMount,
 } from 'solid-js'
-import { Mic } from 'lucide-solid'
+import { Mic } from '/web/icons'
 import Button from '../../../shared/Button'
 import { defaultCulture } from '../../../shared/CultureCodes'
 import { msgStore, toastStore, userStore } from '../../../store'

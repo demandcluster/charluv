@@ -1,5 +1,5 @@
 import logoDark from '../asset/logoDark.png?url'
-import { Menu } from 'lucide-solid'
+import { Menu } from '/web/icons'
 import { Component, Show } from 'solid-js'
 import { A } from '@solidjs/router'
 import { chatStore, settingStore } from '../store'

@@ -1,5 +1,5 @@
 import { Component, For, Show, createSignal } from 'solid-js'
-import { Flag, X } from 'lucide-solid'
+import { Flag, X } from '/web/icons'
 import Modal from '../../shared/Modal'
 import Button from '../../shared/Button'
 import TextInput from '../../shared/TextInput'

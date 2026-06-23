@@ -1,4 +1,4 @@
-import { Check, X } from 'lucide-solid'
+import { Check, X } from '/web/icons'
 import { Component, createEffect, For, Show } from 'solid-js'
 import { setComponentPageTitle, toDuration } from '../../shared/util'
 import { inviteStore } from '../../store'

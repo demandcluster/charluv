@@ -2,7 +2,7 @@ import { Component, createEffect, createMemo, createSignal, For, Show } from 'so
 import Button from '../../shared/Button'
 import PageHeader from '../../shared/PageHeader'
 import { MatchLike } from './MatchLike'
-import { VenetianMask } from 'lucide-solid'
+import { VenetianMask } from '/web/icons'
 import { CharacterCardView } from '../Character/components/CharacterCardView'
 import {
   Check,
@@ -19,7 +19,7 @@ import {
   SortDesc,
   User,
   ThumbsUp,
-} from 'lucide-solid'
+} from '/web/icons'
 import { DropMenu } from '../../shared/DropMenu'
 import { AppSchema } from '../../../srv/db/schema'
 import { A, useNavigate } from '@solidjs/router'

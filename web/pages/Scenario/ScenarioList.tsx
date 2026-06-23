@@ -4,7 +4,7 @@ import { A, useNavigate } from '@solidjs/router'
 import PageHeader from '../../shared/PageHeader'
 import Loading from '/web/shared/Loading'
 import Button from '/web/shared/Button'
-import { Plus, Upload } from 'lucide-solid'
+import { Plus, Upload } from '/web/icons'
 import ImportScenarioModal from './components/ImportScenarioModal'
 import { Page } from '/web/Layout'
 

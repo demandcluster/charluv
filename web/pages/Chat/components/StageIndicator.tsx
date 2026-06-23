@@ -1,5 +1,5 @@
 import { Component, Show, createMemo } from 'solid-js'
-import { Heart } from 'lucide-solid'
+import { Heart } from '/web/icons'
 import { AppSchema } from '/common/types'
 import { getCharacterLevel } from '/common/xplevel'
 import { resolveStage, getProgressionSteps } from '/common/progression'

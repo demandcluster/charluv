@@ -1,6 +1,6 @@
 import { Component, Match, Switch, createEffect, createMemo, createSignal } from 'solid-js'
 import { RootModal } from '../Modal'
-import { RefreshCcw } from 'lucide-solid'
+import { RefreshCcw } from '/web/icons'
 import Button from '../Button'
 import { templates } from '../../../common/presets/templates'
 import Select from '../Select'

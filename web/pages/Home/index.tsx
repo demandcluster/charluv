@@ -13,7 +13,7 @@ import {
 } from '../../shared/util'
 import { announceStore, chatStore, settingStore, userStore } from '../../store'
 import { A, useNavigate } from '@solidjs/router'
-import { AlertTriangle, MoveRight, Plus, Settings, Heart, Users } from 'lucide-solid'
+import { AlertTriangle, MoveRight, Plus, Settings, Heart, Users } from '/web/icons'
 import { Card, Pill, SolidCard, TitleCard } from '/web/shared/Card'
 import Modal from '/web/shared/Modal'
 import AvatarIcon from '/web/shared/AvatarIcon'

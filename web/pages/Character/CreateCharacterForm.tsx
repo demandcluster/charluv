@@ -19,7 +19,7 @@ import {
   WandSparkles,
   Dices,
   BookPlus,
-} from 'lucide-solid'
+} from '/web/icons'
 import Button from '../../shared/Button'
 import PageHeader from '../../shared/PageHeader'
 import TextInput, { ButtonInput } from '../../shared/TextInput'

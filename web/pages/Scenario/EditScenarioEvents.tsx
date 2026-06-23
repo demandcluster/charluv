@@ -12,7 +12,7 @@ import {
 } from 'solid-js'
 import { scenarioStore } from '../../store'
 import Button from '../../shared/Button'
-import { ChevronDown, ChevronUp, Plus, Save, X } from 'lucide-solid'
+import { ChevronDown, ChevronUp, Plus, Save, X } from '/web/icons'
 import { useNavigate } from '@solidjs/router'
 import TextInput from '../../shared/TextInput'
 import { AppSchema, NewScenario } from '/common/types'

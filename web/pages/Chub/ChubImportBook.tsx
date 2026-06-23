@@ -1,4 +1,4 @@
-import { Check, X } from 'lucide-solid'
+import { Check, X } from '/web/icons'
 import { Component, Show, createEffect, createSignal } from 'solid-js'
 import Button from '../../shared/Button'
 import Modal from '../../shared/Modal'

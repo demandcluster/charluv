@@ -13,7 +13,7 @@ import {
   Star,
   Trash,
   User,
-} from 'lucide-solid'
+} from '/web/icons'
 import { DropMenu } from '/web/shared/DropMenu'
 import Button from '/web/shared/Button'
 import Gauge from '/web/shared/Gauge'

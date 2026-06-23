@@ -10,7 +10,7 @@ import {
   onMount,
 } from 'solid-js'
 import PageHeader from '/web/shared/PageHeader'
-import { Eye, EyeOff, Plus, Save } from 'lucide-solid'
+import { Eye, EyeOff, Plus, Save } from '/web/icons'
 import Button from '/web/shared/Button'
 import TextInput, { ButtonInput } from '/web/shared/TextInput'
 import { useNavigate, useParams } from '@solidjs/router'

@@ -1,6 +1,6 @@
 import { Component, For, Show, createMemo, createSignal, onMount } from 'solid-js'
 import { A, useNavigate } from '@solidjs/router'
-import { Sparkles } from 'lucide-solid'
+import { Sparkles } from '/web/icons'
 import './discover.css'
 import { matchStore, DiscoverFilters } from '../../store/match'
 import { userStore } from '../../store'

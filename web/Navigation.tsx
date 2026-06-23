@@ -26,7 +26,7 @@ import {
   Volume2,
   VolumeX,
   Wand2,
-} from 'lucide-solid'
+} from '/web/icons'
 import {
   Component,
   createEffect,

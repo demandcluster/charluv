@@ -2,7 +2,7 @@ import { Component, Show, onMount } from 'solid-js'
 import { chubStore } from '../../store/chub'
 import TextInput from '../../shared/TextInput'
 import Button from '../../shared/Button'
-import { ArrowLeft, ArrowRight } from 'lucide-solid'
+import { ArrowLeft, ArrowRight } from '/web/icons'
 import { toastStore } from '../../store'
 
 const ChubNavigation: Component<{ buttons: boolean }> = (props) => {

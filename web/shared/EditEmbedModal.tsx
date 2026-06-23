@@ -4,7 +4,7 @@ import { embedApi } from '/web/store/embeddings'
 import { toastStore } from '/web/store'
 import { getStrictForm } from '/web/shared/util'
 import Button from '/web/shared/Button'
-import { Edit, X } from 'lucide-solid'
+import { Edit, X } from '/web/icons'
 import Modal from '/web/shared/Modal'
 import TextInput from '/web/shared/TextInput'
 

@@ -1,5 +1,5 @@
 import { Component, Show } from 'solid-js'
-import { MessageCircle } from 'lucide-solid'
+import { MessageCircle } from '/web/icons'
 
 /** The header shown at the beginning of a conversation. */
 const Header: Component<{ participants: string[] }> = (props) => (

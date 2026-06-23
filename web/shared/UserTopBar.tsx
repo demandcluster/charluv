@@ -1,6 +1,6 @@
 import { Component, Show, createSignal, onCleanup } from 'solid-js'
 import { A } from '@solidjs/router'
-import { Coins, Menu, Star } from 'lucide-solid'
+import { Coins, Menu, Star } from '/web/icons'
 import { settingStore, userStore } from '../store'
 
 /**

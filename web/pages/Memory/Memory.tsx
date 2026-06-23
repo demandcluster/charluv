@@ -1,6 +1,6 @@
 import { A } from '@solidjs/router'
 import { assertValid } from '/common/valid'
-import { Download, Plus, Trash, Upload, X, Edit, FileX, FileCheck } from 'lucide-solid'
+import { Download, Plus, Trash, Upload, X, Edit, FileX, FileCheck } from '/web/icons'
 import { Component, createSignal, For, onMount, Show } from 'solid-js'
 import { AppSchema } from '../../../common/types/schema'
 import Button from '../../shared/Button'

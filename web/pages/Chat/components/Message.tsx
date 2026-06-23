@@ -15,7 +15,7 @@ import {
   X,
   Zap,
   MoreHorizontal,
-} from 'lucide-solid'
+} from '/web/icons'
 import {
   Accessor,
   Component,
@@ -56,7 +56,7 @@ import { DropMenu } from '/web/shared/DropMenu'
 import { ChatTree } from '/common/chat'
 import { Portal } from 'solid-js/web'
 import { UI } from '/common/types'
-import { LucideProps } from 'lucide-solid/dist/types/types'
+import type { LucideProps } from '/web/icons'
 import { createStore } from 'solid-js/store'
 import { Spinner } from '/web/shared/Loading'
 

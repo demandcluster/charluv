@@ -1,4 +1,4 @@
-import { Plus, Trash, WandSparkles } from 'lucide-solid'
+import { Plus, Trash, WandSparkles } from '/web/icons'
 import {
   Component,
   createEffect,

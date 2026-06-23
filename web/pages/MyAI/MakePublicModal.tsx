@@ -1,5 +1,5 @@
 import { Component, For, Show, createEffect, createMemo, createSignal } from 'solid-js'
-import { Check, X, Sparkles, Globe } from 'lucide-solid'
+import { Check, X, Sparkles, Globe } from '/web/icons'
 import Modal from '../../shared/Modal'
 import Button from '../../shared/Button'
 import { charsApi, PublishStatus } from '../../store/data/chars'

@@ -17,7 +17,7 @@ import {
   Trash,
   RotateCcw,
   Pencil,
-} from 'lucide-solid'
+} from '/web/icons'
 
 type NavProps = {
   ctx: ContextState

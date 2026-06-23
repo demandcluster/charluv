@@ -11,7 +11,7 @@ import ChubImportCharModal from './ChubImportChar'
 import ChubImportBookModal from './ChubImportBook'
 import { useNavigate, useParams } from '@solidjs/router'
 import { Page } from '/web/Layout'
-import { ListFilter } from 'lucide-solid'
+import { ListFilter } from '/web/icons'
 import Button from '/web/shared/Button'
 import Modal from '/web/shared/Modal'
 

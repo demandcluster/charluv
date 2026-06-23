@@ -2,7 +2,7 @@ import { Component, createMemo } from 'solid-js'
 import { AppSchema } from '/common/types'
 import Modal from '/web/shared/Modal'
 import Button from '/web/shared/Button'
-import { Save, X } from 'lucide-solid'
+import { Save, X } from '/web/icons'
 import { deepCloneAndRemoveFields } from '/web/shared/util'
 
 export const ExportScenarioModal: Component<{

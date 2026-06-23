@@ -18,7 +18,7 @@ import {
   MoreHorizontal,
   Star,
   Trash,
-} from 'lucide-solid'
+} from '/web/icons'
 import { CharacterAvatar } from '/web/shared/AvatarIcon'
 import { A, useNavigate, useSearchParams } from '@solidjs/router'
 import Button from '/web/shared/Button'

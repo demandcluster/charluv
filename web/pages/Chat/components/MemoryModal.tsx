@@ -1,4 +1,4 @@
-import { Edit, Save } from 'lucide-solid'
+import { Edit, Save } from '/web/icons'
 import { Component, createEffect, createMemo, createSignal, JSX, onMount, Show } from 'solid-js'
 import { AppSchema } from '../../../../common/types/schema'
 import Button from '../../../shared/Button'

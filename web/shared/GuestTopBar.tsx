@@ -1,6 +1,6 @@
 import { Component, Show } from 'solid-js'
 import { A } from '@solidjs/router'
-import { LogIn, Sparkles } from 'lucide-solid'
+import { LogIn, Sparkles } from '/web/icons'
 import { settingStore } from '../store'
 import { soundEmitter } from './Audio/playable-events'
 import logoDark from '../asset/logoDark.png'

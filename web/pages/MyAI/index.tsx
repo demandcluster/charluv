@@ -1,6 +1,6 @@
 import { Component, For, Show, createMemo, onMount } from 'solid-js'
 import { useNavigate, A } from '@solidjs/router'
-import { Plus } from 'lucide-solid'
+import { Plus } from '/web/icons'
 import '../Discover/discover.css'
 import './myai.css'
 import { characterStore } from '../../store/character'

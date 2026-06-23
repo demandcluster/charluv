@@ -159,6 +159,9 @@ importers:
       peggy:
         specifier: ^3.0.2
         version: 3.0.2
+      phosphor-solid:
+        specifier: ^1.1.5
+        version: 1.1.5(react@19.1.0)
       pino:
         specifier: ^8.10.0
         version: 8.21.0
@@ -298,9 +301,6 @@ importers:
       localforage:
         specifier: ^1.10.0
         version: 1.10.0
-      lucide-solid:
-        specifier: 0.356.0
-        version: 0.356.0(solid-js@1.9.6)
       mocha:
         specifier: ^10.2.0
         version: 10.8.2
@@ -3147,11 +3147,6 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
-  lucide-solid@0.356.0:
-    resolution: {integrity: sha512-s1sMreftM+Ha7PnSe/jJXu+FjIYQaklDkUfYFiUztlQZVY81XJl9ZQHS6kUge1sa8QYz/7Xd0hKn3M1njGfN/g==}
-    peerDependencies:
-      solid-js: ^1.4.7
-
   magic-bytes.js@1.12.1:
     resolution: {integrity: sha512-ThQLOhN86ZkJ7qemtVRGYM+gRgR8GEXNli9H/PMvpnZsE44Xfh3wx9kGJaldg314v85m+bFW6WBMaVHJc/c3zA==}
 
@@ -3520,6 +3515,12 @@ packages:
     resolution: {integrity: sha512-n7chtCbEoGYRwZZ0i/O3t1cPr6o+d9Xx4Zwy2LYfzv0vjchMBU0tO+qYYyvZloBPcgRgzYvALzGWHe609JjEpg==}
     engines: {node: '>=14'}
     hasBin: true
+
+  phosphor-solid@1.1.5:
+    resolution: {integrity: sha512-FNvvkJytLTYrsvzafgkv/jUhsWOuiXAUcJevX/BD+bs0vATVoO1JCpEToFkVnYY8gkIWrT8Mojwzqb1mFTFQgw==}
+    engines: {node: '>=10'}
+    peerDependencies:
+      react: '>=16'
 
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
@@ -7829,10 +7830,6 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
-  lucide-solid@0.356.0(solid-js@1.9.6):
-    dependencies:
-      solid-js: 1.9.6
-
   magic-bytes.js@1.12.1: {}
 
   magic-string@0.30.21:
@@ -8226,6 +8223,11 @@ snapshots:
     dependencies:
       commander: 10.0.1
       source-map-generator: 0.8.0
+
+  phosphor-solid@1.1.5(react@19.1.0):
+    dependencies:
+      react: 19.1.0
+      solid-js: 1.9.6
 
   picocolors@1.1.1: {}
 

@@ -1,4 +1,4 @@
-import { ArchiveRestore, ArrowBigLeft, Crown, Eye, EyeOff, Mail, Plus, Trash } from 'lucide-solid'
+import { ArchiveRestore, ArrowBigLeft, Crown, Eye, EyeOff, Mail, Plus, Trash } from '/web/icons'
 import { Component, createMemo, createSignal, For, Match, onMount, Show, Switch } from 'solid-js'
 import { AppSchema } from '../../../common/types/schema'
 import AvatarIcon, { CharacterAvatar } from '../../shared/AvatarIcon'

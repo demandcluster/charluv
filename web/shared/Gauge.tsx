@@ -1,5 +1,5 @@
 import { createSignal, Show } from 'solid-js'
-import { Heart } from 'lucide-solid'
+import { Heart } from '/web/icons'
 
 interface Props {
   currentXP: number

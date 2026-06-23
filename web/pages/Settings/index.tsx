@@ -1,5 +1,5 @@
 import { Component, Show } from 'solid-js'
-import { AlertTriangle } from 'lucide-solid'
+import { AlertTriangle } from '/web/icons'
 import Button from '../../shared/Button'
 import PageHeader from '../../shared/PageHeader'
 import { setComponentPageTitle } from '../../shared/util'

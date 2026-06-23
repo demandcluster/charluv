@@ -6,7 +6,7 @@ import { settingStore, userStore } from '../../store'
 import { getAssetUrl } from '../../shared/util'
 import Loading from '../../shared/Loading'
 import TextInput from '../../shared/TextInput'
-import { Flag } from 'lucide-solid'
+import { Flag } from '/web/icons'
 import ReportModal from './ReportModal'
 import { AppSchema } from '/common/types'
 

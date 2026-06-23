@@ -16,7 +16,7 @@ import {
   Sparkles,
   Upload,
   User,
-} from 'lucide-solid'
+} from '/web/icons'
 import './create.css'
 import { characterStore, chatStore, toastStore, userStore } from '../../store'
 import { charsApi } from '../../store/data/chars'

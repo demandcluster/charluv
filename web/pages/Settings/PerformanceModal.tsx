@@ -1,4 +1,4 @@
-import { X, Signal, RefreshCcw } from 'lucide-solid'
+import { X, Signal, RefreshCcw } from '/web/icons'
 import { Component, Show, onMount, createSignal, createEffect } from 'solid-js'
 import { Performance } from '../../../common/performance'
 import Button from '../../shared/Button'

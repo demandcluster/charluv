@@ -14,7 +14,7 @@ import {
   Star,
   Trash,
   VenetianMask,
-} from 'lucide-solid'
+} from '/web/icons'
 import { DropMenu } from '/web/shared/DropMenu'
 import Button from '/web/shared/Button'
 import { startChat } from '/web/store'

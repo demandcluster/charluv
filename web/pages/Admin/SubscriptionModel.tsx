@@ -1,5 +1,5 @@
 import { A, useNavigate, useParams, useSearchParams } from '@solidjs/router'
-import { Edit, Plus, Save, Trash, X } from 'lucide-solid'
+import { Edit, Plus, Save, Trash, X } from '/web/icons'
 import {
   Component,
   createEffect,

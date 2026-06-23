@@ -9,6 +9,7 @@ import { Route, Router, useLocation } from '@solidjs/router'
 import NavBar from './shared/NavBar'
 import GuestTopBar from './shared/GuestTopBar'
 import UserTopBar from './shared/UserTopBar'
+import { IconContext } from './icons'
 import Notifications from './Toasts'
 import CharacterRoutes from './pages/Character'
 import ScenarioRoutes from './pages/Scenario'
@@ -205,8 +206,11 @@ const Layout: Component<{ children?: any }> = (props) => {
 
   return (
     <ContextProvider>
-      <style>{css}</style>
-      <AgeGate />
+      <IconContext.Provider
+        value={{ weight: 'duotone', size: '1em', color: 'currentColor', mirrored: false }}
+      >
+        <style>{css}</style>
+        <AgeGate />
       <div class="scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-[var(--hl-900)] app flex flex-col justify-between">
         <Switch fallback={<NavBar />}>
           <Match when={guestLanding()}>
@@ -289,6 +293,7 @@ const Layout: Component<{ children?: any }> = (props) => {
         classList={{ hidden: !cfg.showMenu }}
         onClick={() => settingStore.closeMenu()}
       ></div>
+      </IconContext.Provider>
     </ContextProvider>
   )
 }

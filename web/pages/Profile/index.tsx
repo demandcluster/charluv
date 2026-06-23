@@ -1,4 +1,4 @@
-import { AlertTriangle, Save, VenetianMask, X } from 'lucide-solid'
+import { AlertTriangle, Save, VenetianMask, X } from '/web/icons'
 import {
   Component,
   Match,

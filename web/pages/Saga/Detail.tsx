@@ -30,7 +30,7 @@ import {
   RefreshCw,
   Sliders,
   Trash,
-} from 'lucide-solid'
+} from '/web/icons'
 import { useNavigate, useParams, useSearchParams } from '@solidjs/router'
 import { ImportTemplate } from './ImportModal'
 import Loading from '/web/shared/Loading'

@@ -8,7 +8,7 @@ import {
   Camera,
   VenetianMask,
   AlertTriangle,
-} from 'lucide-solid'
+} from '/web/icons'
 import { Component, Show, createMemo, JSX } from 'solid-js'
 import Button, { ButtonSchema } from '../../shared/Button'
 import { Toggle } from '../../shared/Toggle'

@@ -1,5 +1,5 @@
 import { Component, For, JSX, Show, createSignal, onMount } from 'solid-js'
-import { Trash } from 'lucide-solid'
+import { Trash } from '/web/icons'
 import { AppSchema } from '../../../../common/types/schema'
 import Button from '../../../shared/Button'
 import TextInput from '../../../shared/TextInput'

@@ -1,7 +1,7 @@
 import { Component, For, Index, JSX, Show, createMemo, createSignal, onMount } from 'solid-js'
 import Sort from 'sortablejs'
 import { FormLabel } from './FormLabel'
-import { Menu, Power } from 'lucide-solid'
+import { Menu, Power } from '/web/icons'
 import TextInput from './TextInput'
 
 export { Sortable as default }

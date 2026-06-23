@@ -2,7 +2,7 @@ import { Component, Show, createMemo, createSignal, onCleanup, onMount } from 's
 import { attributes, getRandomBody, manifest } from '/web/asset/sprite'
 import PageHeader from '../PageHeader'
 import Button from '../Button'
-import { ArrowLeft, ArrowRight, Dices } from 'lucide-solid'
+import { ArrowLeft, ArrowRight, Dices } from '/web/icons'
 import Select from '../Select'
 import { createDebounce } from '../util'
 import { ColorPickerV2 } from '../ColorPicker'

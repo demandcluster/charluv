@@ -1,4 +1,4 @@
-import { Save, X } from 'lucide-solid'
+import { Save, X } from '/web/icons'
 import { Component, createMemo, createSignal, For, onMount, Show } from 'solid-js'
 import Button, { ToggleButton } from '../../shared/Button'
 import Modal from '../../shared/Modal'

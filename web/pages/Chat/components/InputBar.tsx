@@ -6,7 +6,7 @@ import {
   PlusCircle,
   Send,
   Zap,
-} from 'lucide-solid'
+} from '/web/icons'
 import {
   Component,
   createMemo,

@@ -14,7 +14,7 @@ import {
   Hash,
   User,
   ChevronsLeft,
-} from 'lucide-solid'
+} from '/web/icons'
 import { getAssetUrl } from './util'
 
 const ProfileCard: Component<{ character: AppSchema.Character; href: string }> = (props) => (
