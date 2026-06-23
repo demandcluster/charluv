@@ -249,26 +249,12 @@ async function getRequestPreset(opts: InferenceRequest) {
 
   if (opts.settings) {
     const model = getCachedSubscriptionModels().find((m) => m._id === opts.settings?._id)
-    if (model) {
-      preset = model
-    } else {
-      preset = opts.settings
-    }
-  } else if (opts.user.defaultPreset) {
-    if (isDefaultPreset(opts.user.defaultPreset)) {
-      preset = deepClone(defaultPresets[opts.user.defaultPreset])
-    }
-
-    const user = await store.presets.getUserPreset(opts.user.defaultPreset)
-    if (user) {
-      preset = user
-    }
+    preset = model || opts.settings
   } else {
-    const models = getCachedSubscriptionModels()
-    const model = models.find((m) => m.isDefaultSub)
-    if (model) {
-      preset = model
-    }
+    // Custom user presets are retired — inference always runs on the platform's
+    // default subscription model (the self-hosted endpoint), never a user's
+    // saved preset.
+    preset = getCachedSubscriptionModels().find((m) => m.isDefaultSub)
   }
 
   if (!preset) {
