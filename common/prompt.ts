@@ -971,14 +971,19 @@ export async function trimTokens(opts: TrimOpts) {
 export function resolveScenario(
   chat: AppSchema.Chat,
   mainChar: AppSchema.Character,
-  books: AppSchema.ScenarioBook[]
+  books: AppSchema.ScenarioBook[],
+  replyAs?: AppSchema.Character
 ) {
   // Attached scenario books are disabled — relationship progression (the LEVEL
   // token) replaces the event/state-machine scenarios. Only the character's
   // initial scenario remains (or the chat's overridden scenario).
   const result = chat.overrides ? chat.scenario || '' : mainChar.scenario || ''
 
-  return prependCharluvMeta(prependProgressionStage(result.trim(), mainChar), mainChar)
+  // The stage token and Charluv meta describe whoever is *speaking*. In a
+  // multi-character event that's `replyAs`; in a 1:1 it equals the main char.
+  const speaker = replyAs || mainChar
+
+  return prependCharluvMeta(prependProgressionStage(result.trim(), speaker), speaker)
 }
 
 /**
