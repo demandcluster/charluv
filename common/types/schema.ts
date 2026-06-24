@@ -298,7 +298,12 @@ export namespace AppSchema {
   export interface Chat {
     _id: string
     kind: 'chat'
-    mode?: 'standard' | 'adventure' | 'companion'
+    mode?: 'standard' | 'adventure' | 'companion' | 'event'
+    /** Event scene metadata. Present only when `mode === 'event'`. */
+    event?: { location: string; description: string }
+    /** When true, this chat neither writes nor recalls long-term memory.
+     * Set on event creation; also user-toggleable in chat settings. */
+    memoryDisabled?: boolean
     userId: string
     memoryId?: string
     userEmbedId?: string
