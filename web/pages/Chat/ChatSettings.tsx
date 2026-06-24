@@ -1,6 +1,7 @@
 import { Component, createMemo } from 'solid-js'
 import Button from '../../shared/Button'
 import Select from '../../shared/Select'
+import { Toggle } from '../../shared/Toggle'
 import { chatStore } from '../../store'
 import { CHARLUV_TEMP_PRESETS, DEFAULT_CHARLUV_PRESET } from '/common/presets/charluv'
 import { Card } from '/web/shared/Card'
@@ -37,6 +38,17 @@ const ChatSettings: Component<{
           items={CHARLUV_TEMP_PRESETS.map((p) => ({ label: `${p.label} — ${p.hint}`, value: p.id }))}
           value={currentPreset()}
           onChange={(ev) => changePreset(ev.value)}
+        />
+      </Card>
+      <Card>
+        <Toggle
+          fieldName="memoryDisabled"
+          label="Disable long-term memory"
+          helperText="Nothing said here is remembered or recalled later. On by default for Events."
+          value={state.chat?.memoryDisabled ?? false}
+          onChange={(v) =>
+            state.chat && chatStore.editChat(state.chat._id, { memoryDisabled: v }, undefined)
+          }
         />
       </Card>
     </div>

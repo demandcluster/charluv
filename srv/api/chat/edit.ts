@@ -25,6 +25,7 @@ export const updateChat = handle(async ({ params, body, user, userId }) => {
       postHistoryInstructions: 'string?',
       imageSource: 'string?',
       imageSettings: 'any?',
+      memoryDisabled: 'boolean?',
     },
     body,
     true
@@ -53,6 +54,7 @@ export const updateChat = handle(async ({ params, body, user, userId }) => {
     scenarioStates: body.scenarioStates ?? prev.scenarioStates,
     imageSource: (body.imageSource as any) ?? prev.imageSource,
     imageSettings: body.imageSettings,
+    memoryDisabled: body.memoryDisabled ?? prev.memoryDisabled,
   }
 
   if (body.useOverrides === false) {
