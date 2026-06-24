@@ -335,7 +335,7 @@ const Create: Component = () => {
       `${labelOfImg(BREASTS, answers.breast)} bust`,
       `${labelOfImg(BUTTS, answers.butt)} butt`,
       `${vibe().label} vibe`,
-      answers.nsfw ? 'explicit/NSFW allowed' : 'tasteful/SFW',
+      answers.nsfw ? 'visually explicit/NSFW' : 'tasteful/SFW',
     ].join(', ')
 
   // Pull the first JSON object out of a (possibly chatty) LLM reply.
@@ -367,7 +367,7 @@ const Create: Component = () => {
       ethnicityLabel(),
       `${vibe().label} vibe (${vibe().personality})`,
       appearanceString(),
-      answers.nsfw ? 'adult companion' : 'tasteful companion',
+      answers.nsfw ? 'adult/nsfw companion' : 'tasteful companion',
     ].join(', ')
     const instruction =
       `Invent a believable, distinctive persona for an AI companion based on: ${brief}. ` +
@@ -401,8 +401,11 @@ const Create: Component = () => {
     const outfit = extra?.outfit ? `, wearing ${extra.outfit}` : ''
     const fallback = () => portraitPrompt() + (extra?.outfit ? `, wearing ${extra.outfit}` : '')
     const instruction =
-      `Write ONE concise Stable-Diffusion style image prompt for a character portrait. ` +
-      `Comma-separated keywords/phrases only — no full sentences, no names, no preamble. ` +
+      `Write ONE vivid, natural-language image prompt for a character portrait. ` +
+      `Use descriptive sentences, NOT comma-separated tags or keyword lists. ` +
+      `Lead with the subject and their appearance, then pose and expression, clothing, setting, and lighting. ` +
+      `Weave in concrete texture and realism cues (skin texture, fabric detail, soft natural light) to avoid a plastic, airbrushed look. ` +
+      `Keep it under 60 words. No names, no preamble. ` +
       `Base it on these traits: ${choicesBrief()}${job}${outfit}. Reply with only the prompt.`
     try {
       const res = await genApi.basicInference({
@@ -599,7 +602,9 @@ const Create: Component = () => {
     // exactly here after signing up, then send them to register.
     if (!userStore().loggedIn) {
       persistAnswers()
-      toastStore.normal('Create a free account to bring your date to life — your choices are saved.')
+      toastStore.normal(
+        'Create a free account to bring your date to life — your choices are saved.'
+      )
       navigate('/register?return=/create')
       return
     }
@@ -848,11 +853,7 @@ const Create: Component = () => {
         {/* Step 5 — Personality */}
         <Show when={step() === 4}>
           <Step title="What's their vibe?" sub="This shapes how your relationship grows.">
-            <div
-              class="cr-cards cr-wide"
-              role="radiogroup"
-              aria-label="Personality"
-            >
+            <div class="cr-cards cr-wide" role="radiogroup" aria-label="Personality">
               <For each={VIBES}>
                 {(v) => (
                   <ImageCard
@@ -1243,7 +1244,11 @@ const ImageCard: Component<{
       <span class="cr-card-media">
         <Show
           when={!failed()}
-          fallback={<span class="cr-card-ph" aria-hidden="true">{props.label}</span>}
+          fallback={
+            <span class="cr-card-ph" aria-hidden="true">
+              {props.label}
+            </span>
+          }
         >
           <img
             class="cr-card-img"
