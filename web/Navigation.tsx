@@ -23,6 +23,7 @@ import {
   Speaker,
   Volume2,
   VolumeX,
+  IconContext,
 } from '/web/icons'
 import {
   Component,
@@ -203,21 +204,29 @@ const Navigation: Component = () => {
             </div>
           </div>
 
-          <Switch>
-            <Match when={subnav() && !!nav.body}>
-              <Show when={nav.title}>
-                <div class="text-500 flex w-full justify-center text-xs">{nav.title}</div>
-              </Show>
-              {nav.body}
-              <Slots />
-            </Match>
-            <Match when={user.loggedIn}>
-              <UserNavigation />
-            </Match>
-            <Match when>
-              <GuestNavigation />
-            </Match>
-          </Switch>
+          {/* Menu rows lead with a Phosphor icon at the global 1em, but the
+              profile row leads with a 1.5rem avatar. Bump the row icons to
+              1.5rem here so every label aligns to the same column as the
+              username. */}
+          <IconContext.Provider
+            value={{ weight: 'duotone', size: '1.5rem', color: 'var(--hl-500)', mirrored: false }}
+          >
+            <Switch>
+              <Match when={subnav() && !!nav.body}>
+                <Show when={nav.title}>
+                  <div class="text-500 flex w-full justify-center text-xs">{nav.title}</div>
+                </Show>
+                {nav.body}
+                <Slots />
+              </Match>
+              <Match when={user.loggedIn}>
+                <UserNavigation />
+              </Match>
+              <Match when>
+                <GuestNavigation />
+              </Match>
+            </Switch>
+          </IconContext.Provider>
         </div>
 
         <div
