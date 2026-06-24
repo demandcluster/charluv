@@ -30,7 +30,7 @@ export const login = handle(async (req) => {
   if (!result) {
     throw new StatusError('Unauthorized', 401)
   }
-  const storeIp = await store.users.updateIp(result.user._id, req.ip)
+  await store.users.updateIp(result.user._id, req.ip)
 
   return result
 })

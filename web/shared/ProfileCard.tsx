@@ -1,20 +1,6 @@
 import { Component, For, Show } from 'solid-js'
-import { A, useNavigate } from '@solidjs/router'
 import { AppSchema } from '../../srv/db/schema'
-import { characterStore } from '../../store'
-import {
-  PersonStanding,
-  GraduationCap,
-  Heart,
-  Moon,
-  Dumbbell,
-  Briefcase,
-  Leaf,
-  Globe2,
-  Hash,
-  User,
-  ChevronsLeft,
-} from '/web/icons'
+import { Heart, Moon, Dumbbell, Briefcase, Leaf, Globe2, ChevronsLeft } from '/web/icons'
 import { getAssetUrl } from './util'
 
 const ProfileCard: Component<{ character: AppSchema.Character; href: string }> = (props) => (

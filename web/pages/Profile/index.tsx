@@ -52,7 +52,9 @@ export const ProfileModal: Component = () => {
   // Tabs are always shown now (Profile + Your Character); the Subscription tab
   // is only meaningful when tiers exist.
   const tabList = createMemo(() =>
-    config.tiers.length ? ['Profile', 'Your Character', 'Subscription'] : ['Profile', 'Your Character']
+    config.tiers.length
+      ? ['Profile', 'Your Character', 'Subscription']
+      : ['Profile', 'Your Character']
   )
 
   return (
@@ -86,26 +88,6 @@ export const ProfileModal: Component = () => {
       </Switch>
     </Modal>
   )
-}
-function timeStamp(timestamp: string) {
-  const date = new Date(timestamp) // Create a new Date object with the timestamp
-
-  // Get the month name (e.g. "April") using the toLocaleString() method
-  const monthName = date.toLocaleString('default', { month: 'long' })
-
-  const year = date.getFullYear() // Get the year (e.g. 2021)
-  const month = date.getMonth() + 1 // Get the month (0-11), add 1 to make it 1-12
-  const day = date.getDate() // Get the day of the month (1-31)
-  const hours = date.getHours() // Get the hours (0-23)
-  const minutes = date.getMinutes() // Get the minutes (0-59)
-  const seconds = date.getSeconds() // Get the seconds (0-59)
-
-  // Create a human-readable date string in the format "YYYY-MM-DD HH:MM:SS"
-  const dateString = `${monthName} ${day}, ${year} ${hours.toString().padStart(2, '0')}:${minutes
-    .toString()
-    .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-  if (dateString.includes('NaN')) return ''
-  return dateString
 }
 const ProfilePage: Component<{ footer?: (children: any) => void }> = (props) => {
   let formRef: HTMLFormElement

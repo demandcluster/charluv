@@ -20,6 +20,7 @@ import { generateField } from './generate-char'
 import { BaseImageSettings, baseImageValid } from '/common/types/image-schema'
 import { useImageCache } from '/web/shared/hooks'
 import { imageApi } from '/web/store/data/image'
+import { genApi } from '/web/store/data/inference'
 import { v4 } from 'uuid'
 import { forms } from '/web/emitter'
 import { ResponseSchema } from '/common/types/library'
@@ -367,7 +368,8 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
   }
 
   const createAvatar = async () => {
-    const avatar = await generateAvatar(buildImagePrompt(), state.imageSeed)
+    const prompt = await craftImagePrompt(buildImagePrompt())
+    const avatar = await generateAvatar(prompt, state.imageSeed)
     if (!avatar) return
 
     return receiveAvatar(avatar)
@@ -376,10 +378,39 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
   // Like createAvatar but returns the image as base64 WITHOUT setting it as the
   // character's avatar (used to populate the gallery).
   const createGalleryImage = async () => {
-    const desc = buildImagePrompt()
-    const file = await generateAvatar(desc, state.imageSeed)
+    const prompt = await craftImagePrompt(buildImagePrompt())
+    const file = await generateAvatar(prompt, state.imageSeed)
     if (!file) return
     return imageApi.getImageData(file)
+  }
+
+  // The raw appearance traits make a weak image prompt (bare comma-joined tags).
+  // Mirror the create wizard's craftPrompt: a quick LLM pass turns whatever the
+  // user typed into "appearance" into one vivid, natural-language portrait prompt
+  // before the actual image generation. Falls back to the raw traits if the model
+  // is unavailable or returns nothing.
+  const craftImagePrompt = async (traits: string): Promise<string> => {
+    if (!traits.trim()) return traits
+    const instruction =
+      `Write ONE vivid, natural-language image prompt for a character portrait. ` +
+      `Use descriptive sentences, NOT comma-separated tags or keyword lists. ` +
+      `Lead with the subject and their appearance, then pose and expression, clothing, setting, and lighting. ` +
+      `Weave in concrete texture and realism cues (skin texture, fabric detail, soft natural light) to avoid a plastic, airbrushed look. ` +
+      `Keep it under 60 words. No names, no preamble. ` +
+      `Base it on these traits: ${traits}. Reply with only the prompt.`
+    try {
+      const res = await genApi.basicInference({
+        prompt: instruction,
+        settings: defaultPresets['charluv-balanced'],
+        overrides: { maxTokens: 150, temp: 0.6, streamResponse: false },
+      })
+      const text =
+        res && 'result' in res ? ((res.result as any)?.response as string | undefined) : ''
+      const clean = (text || '').replace(/^["'\s]+|["'\s]+$/g, '').trim()
+      return clean || traits
+    } catch {
+      return traits
+    }
   }
 
   // Compose a real image-generation prompt from the assembled persona. W++

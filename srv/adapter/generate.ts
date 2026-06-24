@@ -23,7 +23,7 @@ import { HORDE_GUEST_KEY } from '../api/horde'
 import { getTokenCounter } from '../tokenize'
 import { getAppConfig } from '../api/settings'
 import { getHandlers, getSubscriptionPreset, handlers } from './charluv'
-import { deepClone, getSubscriptionModelLimits, parseStops, tryParse } from '/common/util'
+import { getSubscriptionModelLimits, parseStops, tryParse } from '/common/util'
 import { isDefaultTemplate, templates } from '/common/presets/templates'
 import {
   GuidanceParams,
@@ -360,9 +360,7 @@ export async function createChatStream(
           ? []
           : await recallMemories(ownerId, charId, query, { k: 5 })
         if (memories.length) {
-          const block = ['What you remember:']
-            .concat(memories.map((m) => `- ${m.text}`))
-            .join('\n')
+          const block = ['What you remember:'].concat(memories.map((m) => `- ${m.text}`)).join('\n')
           opts.parts.memory = opts.parts.memory ? `${opts.parts.memory}\n${block}` : block
         }
       }

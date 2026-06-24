@@ -1,6 +1,6 @@
 import { Component, onMount } from 'solid-js'
 import PageHeader from '/web/shared/PageHeader'
-import { Pill, SolidCard } from '/web/shared/Card'
+import { SolidCard } from '/web/shared/Card'
 import Button from '/web/shared/Button'
 import { useSearchParams } from '@solidjs/router'
 import { userStore } from '/web/store'

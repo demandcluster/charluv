@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { assertValid } from '/common/valid'
 import { store } from '../db'
 
-import { loggedIn, isAdmin } from './auth'
+import { loggedIn } from './auth'
 import { errors, handle, StatusError } from './wrap'
 import {
   entityUpload,

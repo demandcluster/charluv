@@ -191,18 +191,6 @@ export function setAuth(jwt: string) {
   Cookies.set('auth', jwt, { sameSite: 'strict', expires: 120 })
 }
 
-function isSessionExpired() {
-  const jwt = getAuth()
-
-  // No jwt = no session
-  if (!jwt) return false
-
-  const token = getTokenBody(jwt)
-  const expiry = new Date(token.exp * 1000)
-
-  return Date.now() > expiry.valueOf()
-}
-
 export function getAuth() {
   return Cookies.get('auth')
 }

@@ -869,6 +869,24 @@ const Create: Component = () => {
                 )}
               </For>
             </div>
+            {/* NSFW lives here as well as the finish step: the portrait is auto-generated
+                on entering the finish step, so the flag must be set beforehand for the
+                first generated image to be explicit. */}
+            <div class="cr-toggle">
+              <div class="cr-toggle-text">
+                <strong>NSFW (18+)</strong>
+                <span>Explicit profile pictures &amp; descriptions. Doesn't affect chat.</span>
+              </div>
+              <button
+                class="cr-switch"
+                type="button"
+                role="switch"
+                aria-checked={answers.nsfw}
+                aria-label="Toggle NSFW content"
+                data-on={answers.nsfw}
+                onClick={() => setAnswers('nsfw', !answers.nsfw)}
+              />
+            </div>
           </Step>
         </Show>
 

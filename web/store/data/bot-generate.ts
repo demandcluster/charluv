@@ -17,7 +17,7 @@ import { getEncoder } from '/common/tokenize'
 import { AppSchema } from '/common/types'
 import { UserEmbed } from '/common/types/memory'
 import { GenerateRequestV2 } from '/srv/adapter/type'
-import { GenerateEntities, getPromptEntities, PromptEntities } from './common'
+import { GenerateEntities, getPromptEntities } from './common'
 import { ChatState } from '../chat'
 import { replaceTags } from '/common/presets/templates'
 import { getServiceTempConfig } from '/web/shared/adapter'
@@ -249,14 +249,6 @@ async function createActiveChatPrompt(
 
   const chatEmbeds: UserEmbed<{ name: string }>[] = []
   const userEmbeds: UserEmbed[] = []
-
-  const text =
-    opts.kind === 'send' ||
-    opts.kind === 'send-event:world' ||
-    opts.kind === 'send-event:character' ||
-    opts.kind === 'send-event:hidden'
-      ? opts.text
-      : entities.lastMessage?.msg
 
   const encoder = await getEncoder()
   const prompt = await createPromptParts(

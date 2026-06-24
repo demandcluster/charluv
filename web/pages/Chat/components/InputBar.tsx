@@ -1,11 +1,4 @@
-import {
-  ImagePlus,
-  ImageUp,
-  Megaphone,
-  MoreHorizontal,
-  PlusCircle,
-  Send,
-} from '/web/icons'
+import { ImagePlus, ImageUp, Megaphone, MoreHorizontal, PlusCircle, Send } from '/web/icons'
 import {
   Component,
   createMemo,
@@ -21,14 +14,7 @@ import { AppSchema } from '../../../../common/types/schema'
 import Button, { LabelButton } from '../../../shared/Button'
 import { DropMenu } from '../../../shared/DropMenu'
 import TextInput from '../../../shared/TextInput'
-import {
-  chatStore,
-  toastStore,
-  userStore,
-  settingStore,
-  characterStore,
-  ChatMessageExt,
-} from '../../../store'
+import { chatStore, toastStore, userStore, characterStore, ChatMessageExt } from '../../../store'
 import { msgStore } from '../../../store'
 import { SpeechRecognitionRecorder } from './SpeechRecognitionRecorder'
 import { Toggle } from '/web/shared/Toggle'
@@ -41,7 +27,6 @@ import WizardIcon from '/web/icons/WizardIcon'
 import { EVENTS, events } from '/web/emitter'
 import { AutoComplete } from '/web/shared/AutoComplete'
 import FileInput, { FileInputResult, getFileAsDataURL } from '/web/shared/FileInput'
-import AvatarIcon from '/web/shared/AvatarIcon'
 import { ALLOWED_TYPES } from '/web/store/data/image'
 
 const InputBar: Component<{
@@ -73,7 +58,7 @@ const InputBar: Component<{
     canCaption: s.canImageCaption,
   }))
   const chats = chatStore((s) => ({ replyAs: s.active?.replyAs }))
-  const chars = characterStore()
+  characterStore()
 
   useEffect(() => {
     const listener = (text: string) => {
@@ -156,7 +141,6 @@ const InputBar: Component<{
       draft.clear()
     })
   }, 100)
-
 
   const createImage = () => {
     msgStore.createImage()
@@ -296,11 +280,7 @@ const InputBar: Component<{
           },
         }}
       />
-      <Button
-        schema="clear"
-        onClick={onButtonClick}
-        class="h-full bg-[var(--bg-800)] px-2 py-2"
-      >
+      <Button schema="clear" onClick={onButtonClick} class="h-full bg-[var(--bg-800)] px-2 py-2">
         <MoreHorizontal class="icon-button" />
       </Button>
 

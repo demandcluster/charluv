@@ -1,14 +1,12 @@
 import { AppSchema } from './types/schema'
 import { defaultPresets } from './default-preset'
 import { SD_SAMPLER } from './image'
-import { toArray } from './util'
 import type { AppLog } from '../srv/middleware'
 
 const HORDE_GUEST_KEY = '0000000000'
 //const imageUrl = 'https://horde.koboldai.net/api/v2'
 const imageUrl = 'https://horde.aivo.chat/api/v2'
 const hordeUrl = 'https://horde.aivo.chat/api/v2'
-const baseUrl = 'https://horde.aivo.chat/api/v2'
 
 export const defaults = {
   image: {
@@ -100,7 +98,6 @@ export async function generateImage(
   log: AppLog = logger
 ) {
   const base = user.images
-  const settings = user.images?.horde || defaults.image
 
   const payload = {
     prompt: `${prompt.slice(0, 500)} ### ${negative}`,

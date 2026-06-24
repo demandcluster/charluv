@@ -1,6 +1,5 @@
 import needle from 'needle'
 import { TextToSpeechAdapter, VoiceListResponse, VoiceModelListResponse } from './types'
-import { decryptText } from '../db/util'
 import { AppSchema } from '../../common/types/schema'
 import { errors } from '../api/wrap'
 import { Validator } from '/common/valid'
@@ -142,7 +141,7 @@ async function handleElevenLabsModelsList(
 
 function getKey(user: AppSchema.User, guestId: string | undefined) {
   let key: string | undefined
- 
+
   // else if (user.elevenLabsApiKey) key = decryptText(user.elevenLabsApiKey!)
   if (!user.premium && !user.admin) throw errors.Forbidden
   const { elevenLabsPremium } = config

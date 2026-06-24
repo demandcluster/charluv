@@ -1,5 +1,4 @@
 import { assertValid } from '/common/valid'
-import needle from 'needle'
 import { store } from '../../db'
 import { AppSchema } from '../../../common/types/schema'
 import { encryptText } from '../../db/util'

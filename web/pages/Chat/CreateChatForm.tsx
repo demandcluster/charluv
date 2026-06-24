@@ -15,13 +15,7 @@ import Select from '../../shared/Select'
 import PersonaAttributes, { getAttributeMap } from '../../shared/PersonaAttributes'
 import TextInput from '../../shared/TextInput'
 import { getStrictForm } from '../../shared/util'
-import {
-  characterStore,
-  chatStore,
-  presetStore,
-  settingStore,
-  userStore,
-} from '../../store'
+import { characterStore, chatStore, presetStore, settingStore, userStore } from '../../store'
 import CharacterSelect from '../../shared/CharacterSelect'
 import { AutoPreset, getPresetOptions } from '../../shared/adapter'
 import { defaultPresets, isDefaultPreset } from '/common/presets'
@@ -32,7 +26,6 @@ import { Toggle } from '/web/shared/Toggle'
 import Divider from '/web/shared/Divider'
 import PageHeader from '/web/shared/PageHeader'
 import { isLoggedIn } from '/web/store/api'
-import { isEligible } from './util'
 import { ADAPTER_LABELS } from '/common/adapters'
 import { Page } from '/web/Layout'
 

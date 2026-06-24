@@ -37,7 +37,7 @@ const Gauge = (props: Props) => {
   const levelXP = calculateTotalXPNeededForLevel(level)
   let percentFilled = Math.min((currentXP - levelXP) / xpNeeded, 1) * 100
 
-  const [color, setColor] = createSignal('bg-red-500')
+  const [, setColor] = createSignal('bg-red-500')
   const xpadjust = showBar ? -15 : 1
   const highbox = 25 - Math.round(percentFilled / 4)
   const highboxtop = xpadjust - Math.round(percentFilled / 4)

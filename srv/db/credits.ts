@@ -1,8 +1,6 @@
 import { errors, StatusError } from '../api/wrap'
-import { getChat } from './chats'
 import { db } from './client'
 import { sendOne } from '../api/ws'
-import { AppSchema } from '../../common/types/schema'
 
 export async function updateCredits(userId: string, amount: number, nextCredits: number = 0) {
   const user = await db('user').findOne({ kind: 'user', _id: userId })
@@ -48,7 +46,7 @@ export async function getFreeCredits() {
     const creditsToAdd = Math.max(Math.floor(diff / 120000), 1) * 5
     const updatedCredits = Math.min(usr.credits + creditsToAdd, 500)
     if (updatedCredits > usr.credits) {
-      const credits = await updateCredits(usr._id, updatedCredits - usr.credits, nextTime)
+      await updateCredits(usr._id, updatedCredits - usr.credits, nextTime)
       sendOne(usr._id, { type: 'recharged', amount: creditsToAdd })
       // sendOne(usr._id, { type: 'credits-updated', credits })
     }
@@ -61,7 +59,7 @@ export async function getFreeCredits() {
     const updatedCredits = Math.min(usr.credits + creditsToAdd, 5000)
 
     if (updatedCredits > usr.credits) {
-      const credits = await updateCredits(usr._id, updatedCredits - usr.credits, nextTime)
+      await updateCredits(usr._id, updatedCredits - usr.credits, nextTime)
       sendOne(usr._id, { type: 'recharged', amount: creditsToAdd })
       //  sendOne(usr._id, { type: 'credits-updated', credits })
     }

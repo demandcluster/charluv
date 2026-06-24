@@ -187,7 +187,7 @@ export const guidance = wrap(async ({ userId, log, body, socketId }) => {
   if (!userId || body.user.credits < 10) {
     throw errors.MissingCredits
   }
-  const credits = await store.credits.updateCredits(userId!, -10)
+  await store.credits.updateCredits(userId!, -10)
   const props: InferenceRequest = {
     user: body.user,
     log,

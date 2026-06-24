@@ -12,14 +12,8 @@ import {
   MailQuestion,
   Menu,
   MessageCircle,
-  ShoppingCart,
-  Bot,
   Sparkles,
-  Star,
-  Users,
-  Power,
   Settings,
-  Signal,
   ShoppingBag,
   Speaker,
   Volume2,
@@ -51,7 +45,6 @@ import {
 import Slot from './shared/Slot'
 
 import logoDark from './asset/logoDark.png'
-import logoIcon from './charluv192.png'
 import {
   isChatPage,
   useEffect,
@@ -60,14 +53,12 @@ import {
   useResizeObserver,
   useWindowSize,
 } from './shared/hooks'
-import WizardIcon from './icons/WizardIcon'
 import { soundEmitter } from './shared/Audio/playable-events'
 import Tooltip from './shared/Tooltip'
 import { Badge } from './shared/Card'
 import { navStore } from './subnav'
 import { getRgbaFromVar } from './shared/colors'
 import { CallToAction } from './shared/CallToAction'
-import Button from './shared/Button'
 import CreateEventModal from './pages/Chat/CreateEventModal'
 
 const Navigation: Component = () => {

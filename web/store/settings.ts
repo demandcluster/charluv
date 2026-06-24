@@ -369,20 +369,6 @@ function saveFlags(flags: {}) {
   } catch (ex) {}
 }
 
-function canUseStorage(noThrow?: boolean) {
-  const TEST_KEY = '___TEST'
-  localStorage.setItem(TEST_KEY, 'ok')
-  const value = localStorage.getItem(TEST_KEY)
-  localStorage.removeItem(TEST_KEY)
-
-  if (value !== 'ok') {
-    if (!noThrow) throw new Error('Failed to retreive set local storage item')
-    return false
-  }
-
-  return true
-}
-
 async function loadSlotConfig(serverSlots?: string) {
   const slots: any = { publisherId: '' }
   const server = serverSlots ? tryParse(serverSlots) || {} : {}

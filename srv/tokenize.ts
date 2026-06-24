@@ -3,7 +3,7 @@ import * as mlc from '@agnai/web-tokenizers'
 import fs, { readFileSync } from 'fs'
 import { init } from '@dqbd/tiktoken/lite/init'
 import { encoding_for_model } from '@dqbd/tiktoken'
-import { AIAdapter, NOVEL_MODELS, OPENAI_MODELS } from '../common/adapters'
+import { AIAdapter, OPENAI_MODELS } from '../common/adapters'
 import { resolve } from 'path'
 import * as nai from 'nai-js-tokenizer'
 import { logger } from './middleware'
@@ -35,7 +35,6 @@ let llama: Encoder
 let claude: Encoder
 let davinci: Encoder
 let turbo: Encoder
-let mistral: Encoder
 let yi: Encoder
 let cohere: Encoder
 let llama3: Encoder
@@ -85,7 +84,6 @@ export function getTokenCounter(
 
 export function getEncoderByName(type: EncoderType) {
   switch (type) {
-   
     case 'yi':
       return yi
 
@@ -122,12 +120,7 @@ export function getEncoderByName(type: EncoderType) {
 }
 
 export function getEncoder(adapter: AIAdapter | 'main', model?: string): Encoder {
-  if (
-    adapter === 'charluv' ||
-    adapter === 'ooba' ||
-    adapter === 'kobold' ||
-    adapter === 'horde'
-  ) {
+  if (adapter === 'charluv' || adapter === 'ooba' || adapter === 'kobold' || adapter === 'horde') {
     return llama
   }
 

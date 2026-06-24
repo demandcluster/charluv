@@ -1,8 +1,6 @@
-import { AppSchema } from '../../srv/db/schema'
 import { createStore } from './create'
 import { getSwipe, setSwipe } from './data/swipe'
 import { toastStore } from './toasts'
-import { userStore } from './user'
 
 type swipeState = {
   lastid: string

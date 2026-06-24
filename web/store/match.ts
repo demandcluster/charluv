@@ -1,9 +1,7 @@
 import { AppSchema } from '../../common/types/schema'
 import { api } from './api'
 import { createStore } from './create'
-import { userStore } from './user'
 import { toastStore } from './toasts'
-import { data } from './data'
 import { chatStore } from './chat'
 import { characterStore } from './character'
 
@@ -73,8 +71,6 @@ export const matchStore = createStore<Matchesstate>('Match', {
       }
     },
     getMatches: async (_, lastid) => {
-      const state = userStore()
-      const { ui } = state
       const res = await api.get('/match')
       if (res.error) toastStore.error('Failed to retrieve Matches')
       else {

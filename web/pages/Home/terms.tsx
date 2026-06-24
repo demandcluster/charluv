@@ -1,4 +1,3 @@
-import { A } from '@solidjs/router'
 import { Component } from 'solid-js'
 import PageHeader from '../../shared/PageHeader'
 import Divider from '../../shared/Divider'
@@ -30,17 +29,17 @@ const Terms: Component = () => {
         <div>
           AI reserves the right to modify or discontinue, temporarily or permanently, the Service
           (or any part thereof) with or without notice. Charluv shall not be liable to you or to any
-          third party for any modification, suspension, or discontinuance of the Service. Charluv also
-          reserves the right to terminate your use of the Service at any time, for any reason, with
-          or without notice.
+          third party for any modification, suspension, or discontinuance of the Service. Charluv
+          also reserves the right to terminate your use of the Service at any time, for any reason,
+          with or without notice.
         </div>
       </section>
       <Divider />
       <section class="flex flex-shrink flex-col  gap-4">
         <h3 class="text-2xl">Safety; Your Interactions with Other Members.?</h3>
         <div>
-          Charluv is committed to creating a safe and secure environment for its members. However, you
-          acknowledge that Charluv cannot guarantee the safety of its members. You are solely
+          Charluv is committed to creating a safe and secure environment for its members. However,
+          you acknowledge that Charluv cannot guarantee the safety of its members. You are solely
           responsible for your interactions with other members, both online and offline. You agree
           to take all necessary precautions when interacting with other members, especially if you
           decide to meet in person.
@@ -78,9 +77,9 @@ const Terms: Component = () => {
       <section class="flex flex-shrink flex-col  gap-4">
         <h3 class="text-2xl">Notice and Procedure for Making Claims of Copyright Infringement.</h3>
         <div>
-          Charluv respects the intellectual property rights of others and expects its users to do the
-          same. If you believe that any content on the Service infringes your copyrights, you may
-          request that such content be removed from the Service (or access to it be blocked) by
+          Charluv respects the intellectual property rights of others and expects its users to do
+          the same. If you believe that any content on the Service infringes your copyrights, you
+          may request that such content be removed from the Service (or access to it be blocked) by
           submitting a written notice to Charluv's designated copyright agent.
         </div>
         <div>The notice must include the following information:</div>
@@ -124,11 +123,11 @@ const Terms: Component = () => {
           EXPRESS OR IMPLIED, INCLUDING, WITHOUT LIMITATION, THE WARRANTIES OF MERCHANTABILITY,
           FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. Charluv MAKES NO WARRANTY THAT THE
           SERVICE WILL MEET YOUR REQUIREMENTS OR BE AVAILABLE ON AN UNINTERRUPTED, SECURE, OR
-          ERROR-FREE BASIS. Charluv MAKES NO WARRANTY REGARDING THE QUALITY OF ANY PRODUCTS, SERVICES,
-          OR CONTENT OBTAINED THROUGH THE SERVICE OR THE ACCURACY, TIMELINESS, TRUTHFULNESS,
-          COMPLETENESS, OR RELIABILITY OF ANY CONTENT OBTAINED THROUGH THE SERVICE. NO ADVICE OR
-          INFORMATION, WHETHER ORAL OR WRITTEN, OBTAINED FROM Charluv OR THROUGH THE SERVICE, WILL
-          CREATE ANY WARRANTY NOT EXPRESSLY MADE HEREIN.
+          ERROR-FREE BASIS. Charluv MAKES NO WARRANTY REGARDING THE QUALITY OF ANY PRODUCTS,
+          SERVICES, OR CONTENT OBTAINED THROUGH THE SERVICE OR THE ACCURACY, TIMELINESS,
+          TRUTHFULNESS, COMPLETENESS, OR RELIABILITY OF ANY CONTENT OBTAINED THROUGH THE SERVICE. NO
+          ADVICE OR INFORMATION, WHETHER ORAL OR WRITTEN, OBTAINED FROM Charluv OR THROUGH THE
+          SERVICE, WILL CREATE ANY WARRANTY NOT EXPRESSLY MADE HEREIN.
         </div>
       </section>
       <Divider />
@@ -136,24 +135,25 @@ const Terms: Component = () => {
         <h3 class="text-2xl">Third Party Services.</h3>
         <div>
           The Service may contain links to third-party websites, resources, products, or services
-          ("Third-Party Services") that are not owned or controlled by Charluv. Charluv does not endorse
-          or assume any responsibility for any Third-Party Services. If you access a Third-Party
-          Service from the Service, you do so at your own risk, and you understand that these terms
-          and Charluv's Privacy Policy do not apply to your use of those Third-Party Services. You
-          expressly relieve Charluv from any and all liability arising from your use of any Third-Party
-          Services.
+          ("Third-Party Services") that are not owned or controlled by Charluv. Charluv does not
+          endorse or assume any responsibility for any Third-Party Services. If you access a
+          Third-Party Service from the Service, you do so at your own risk, and you understand that
+          these terms and Charluv's Privacy Policy do not apply to your use of those Third-Party
+          Services. You expressly relieve Charluv from any and all liability arising from your use
+          of any Third-Party Services.
         </div>
       </section>
       <Divider />
       <section class="flex flex-shrink flex-col  gap-4">
         <h3 class="text-2xl">Limitation of Liability.</h3>
         <div>
-          IN NO EVENT WILL Charluv, ITS AFFILIATES, DIRECTORS, EMPLOYEES, AGENTS, LICENSORS, OR SERVICE
-          PROVIDERS BE LIABLE FOR ANY INDIRECT, CONSEQUENTIAL, INCIDENTAL, SPECIAL, PUNITIVE, OR
-          EXEMPLARY DAMAGES, INCLUDING, WITHOUT LIMITATION, LOSS OF PROFITS, WHETHER INCURRED
-          DIRECTLY OR INDIRECTLY, OR ANY LOSS OF DATA, USE, GOODWILL, OR OTHER INTANGIBLE LOSSES,
-          RESULTING FROM: (I) YOUR ACCESS TO OR USE OF OR INABILITY TO ACCESS OR USE THE SERVICE;
-          (II) ANY CONDUCT OR CONTENT OF ANY THIRD PARTY ON THE SERVICE; (III) ANY CONTENT O
+          IN NO EVENT WILL Charluv, ITS AFFILIATES, DIRECTORS, EMPLOYEES, AGENTS, LICENSORS, OR
+          SERVICE PROVIDERS BE LIABLE FOR ANY INDIRECT, CONSEQUENTIAL, INCIDENTAL, SPECIAL,
+          PUNITIVE, OR EXEMPLARY DAMAGES, INCLUDING, WITHOUT LIMITATION, LOSS OF PROFITS, WHETHER
+          INCURRED DIRECTLY OR INDIRECTLY, OR ANY LOSS OF DATA, USE, GOODWILL, OR OTHER INTANGIBLE
+          LOSSES, RESULTING FROM: (I) YOUR ACCESS TO OR USE OF OR INABILITY TO ACCESS OR USE THE
+          SERVICE; (II) ANY CONDUCT OR CONTENT OF ANY THIRD PARTY ON THE SERVICE; (III) ANY CONTENT
+          O
         </div>
       </section>
       <Divider />
@@ -208,8 +208,8 @@ const Terms: Component = () => {
           will remain in full force and effect.
         </div>
         <div>
-          c. Charluv's failure to enforce any right or provision in these Terms will not constitute a
-          waiver of such right or provision unless acknowledged and agreed to by us in writing.
+          c. Charluv's failure to enforce any right or provision in these Terms will not constitute
+          a waiver of such right or provision unless acknowledged and agreed to by us in writing.
         </div>
       </section>
     </div>

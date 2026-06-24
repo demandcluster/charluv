@@ -1,5 +1,4 @@
 import { store } from '../db'
-import { loggedIn } from './auth'
 
 import { isConnected } from '../db/client'
 

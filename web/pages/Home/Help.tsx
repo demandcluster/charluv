@@ -1,7 +1,5 @@
-import { A } from '@solidjs/router'
 import { Component } from 'solid-js'
 import PageHeader from '../../shared/PageHeader'
-import Divider from '../../shared/Divider'
 import { setComponentPageTitle } from '../../shared/util'
 
 const LHCScript = () => {

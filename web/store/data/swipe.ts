@@ -1,4 +1,3 @@
-import { v4 } from 'uuid'
 import { loadItem, localApi } from './storage'
 
 export async function getSwipe() {

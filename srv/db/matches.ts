@@ -1,7 +1,5 @@
-import { v4 } from 'uuid'
 import { db } from './client'
 import { AppSchema } from '../../common/types/schema'
-import { now } from './util'
 
 export async function getMatch(userId: string, id: string) {
   // A public template is either a legacy admin-curated char (match) or a

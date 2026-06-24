@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { loggedIn, isPremium } from '../auth'
+import { loggedIn } from '../auth'
 import {
   changePassword,
   createApiKey,

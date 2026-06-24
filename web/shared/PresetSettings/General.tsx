@@ -66,9 +66,9 @@ export const GeneralSettings: Component<
   })
 
   const [_, setSwipesPerGeneration] = createSignal(props.inherit?.swipesPerGeneration || 1)
-  const [tokens, setTokens] = createSignal(props.inherit?.maxTokens || 150)
+  const [, setTokens] = createSignal(props.inherit?.maxTokens || 150)
 
-  const [context, setContext] = createSignal(
+  const [, setContext] = createSignal(
     props.inherit?.maxContextLength || defaultPresets.basic.maxContextLength
   )
 

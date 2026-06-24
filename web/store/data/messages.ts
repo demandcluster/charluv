@@ -1,12 +1,5 @@
 import { v4 } from 'uuid'
-import {
-  InferenceState,
-  createPromptParts,
-  getChatPreset,
-  getLinesForPrompt,
-  buildPromptParts,
-  resolveScenario,
-} from '../../../common/prompt'
+import { InferenceState, getChatPreset } from '../../../common/prompt'
 import { AppSchema } from '../../../common/types/schema'
 import { api, isLoggedIn } from '../api'
 import { chatStore } from '../chat'
@@ -283,7 +276,7 @@ async function getChatSummary() {
     return { error: `Need at least ${needCount} more tokens to generate a summary.` }
   }
 
-  const { active, chatProfiles: members } = getStore('chat').getState()
+  const { active } = getStore('chat').getState()
   if (!active) return
 
   const { profile, user } = getStore('user').getState()

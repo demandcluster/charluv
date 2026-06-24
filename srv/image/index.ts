@@ -6,7 +6,7 @@ import { config } from '../config'
 import { v4 } from 'uuid'
 import { saveFile } from '../api/upload'
 import { handleSDImage } from './stable-diffusion'
-import { sendGuest, sendMany, sendOne } from '../api/ws'
+import { sendGuest, sendMany } from '../api/ws'
 import { handleHordeImage } from './horde'
 import { handleZImage, isZImageConfigured } from './zimage'
 

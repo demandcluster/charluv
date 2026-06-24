@@ -1,31 +1,12 @@
 import { Router } from 'express'
-import { assertValid } from 'frisker'
 import { store } from '../db'
 import { v4 } from 'uuid'
 import { loggedIn } from './auth'
-import { handle, StatusError, errors } from './wrap'
+import { handle, errors } from './wrap'
 //import { handleUpload } from './upload'
 import { now } from '../db/util'
-import { PERSONA_FORMATS } from '../../common/adapters'
 
 const router = Router()
-
-const valid = {
-  name: 'string',
-  avatar: 'string?',
-  scenario: 'string',
-  greeting: 'string',
-  sampleChat: 'string',
-  match: 'boolean',
-  xp: 'number',
-
-  premium: 'boolean',
-  description: 'string',
-  persona: {
-    kind: PERSONA_FORMATS,
-    attributes: 'any',
-  },
-} as const
 
 const getMatches = handle(async (req) => {
   //console.log(loggedIn())

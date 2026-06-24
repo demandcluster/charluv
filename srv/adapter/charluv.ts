@@ -1,23 +1,16 @@
-import { sendOne } from '../api/ws'
-import { config } from '../config'
 import { store } from '../db'
 import { isConnected } from '../db/client'
 import { getCachedSubscriptions } from '../db/subscriptions'
-import { decryptText } from '../db/util'
 import { handleClaude } from './claude'
 import { handleHorde } from './horde'
 import { handleThirdParty } from './kobold'
 import { handleOAI } from './openai'
-import { getThirdPartyPayload } from './payloads'
 import { registerAdapter } from './register'
-import { websocketStream } from './stream'
 import { ModelAdapter } from './type'
 import { AIAdapter, AdapterSetting } from '/common/adapters'
 import { AppSchema } from '/common/types'
 import { parseStops } from '/common/util'
-import { getTextgenCompletion } from './dispatch'
 import { handleVenus } from './venus'
-import { sanitise, sanitiseAndTrim, trimResponseV2 } from '/common/requests/util'
 import { obtainLock, releaseLock } from '../api/chat/lock'
 import { getServerConfiguration } from '../db/admin'
 import { validateGenerationGate } from './gate'
@@ -72,8 +65,6 @@ export async function getSubscriptionPreset(
 }
 
 export const handleCharluv: ModelAdapter = async function* (opts) {
-  const { char, members, prompt, log, gen } = opts
-
   if ('subscription' in opts === false) {
     opts.subscription = await getSubscriptionPreset(opts.user, !!opts.guest, opts.gen)
   }
@@ -101,7 +92,6 @@ export const handleCharluv: ModelAdapter = async function* (opts) {
     yield { warning: gate.warning }
   }
 
-  const level = opts.user.admin ? 99999 : opts.subscription.level ?? -1
   const subPreset = opts.subscription.preset
 
   const srv = await getServerConfiguration()
@@ -155,8 +145,6 @@ export const handleCharluv: ModelAdapter = async function* (opts) {
       stops.add(stop)
     }
   }
-
-  const allStops = Array.from(stops.values())
 
   // openai-endpoint-only: ignore the subscription model's stored service
   // (production subs are 'horde') and always run the self-hosted openai

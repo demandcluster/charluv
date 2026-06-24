@@ -1,5 +1,5 @@
 import { X, Signal, RefreshCcw } from '/web/icons'
-import { Component, Show, onMount, createSignal, createEffect } from 'solid-js'
+import { Component, Show, createSignal, createEffect } from 'solid-js'
 import { Performance } from '../../../common/performance'
 import Button from '../../shared/Button'
 import Modal from '../../shared/Modal'
