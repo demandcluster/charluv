@@ -13,8 +13,6 @@ import {
   Plus,
   Save,
   X,
-  Import,
-  Download,
   Trash,
   WandSparkles,
   Dices,
@@ -46,8 +44,6 @@ import { ToggleButtons } from '../../shared/Toggle'
 import { CharEditor, useCharEditor } from './editor'
 import { ARCHETYPES } from '/common/progression'
 import { downloadCharacterHub, jsonToCharacter } from './port'
-import { DownloadModal } from './DownloadModal'
-import ImportCharacterModal from './ImportCharacter'
 import { rootModalStore } from '/web/store/root-modal'
 import { getAssetUrl, random } from '/web/shared/util'
 import { ImageSettings } from '../Settings/Image/ImageSettings'
@@ -113,9 +109,6 @@ export const CreateCharacterForm: Component<{
     persona: 0,
     sample: 0,
   })
-
-  const [converted, setConverted] = createSignal<AppSchema.Character>()
-  const [showImport, setImport] = createSignal(false)
 
   const totalTokens = createMemo(() => {
     const t = tokens()
@@ -235,29 +228,6 @@ export const CreateCharacterForm: Component<{
 
   const footer = (
     <>
-      <Show when={user?.user?.admin}>
-        <ToggleButtons
-          label="Match"
-          fieldName="match"
-          items={[
-            { value: true, label: 'Public' },
-            { value: false, label: 'Private' },
-          ]}
-          onChange={(opt) => editor.update('match', opt.value)}
-          selected={editor.state.match}
-        />
-
-        <ToggleButtons
-          label="Premium"
-          fieldName="premium"
-          items={[
-            { value: false, label: 'FREE' },
-            { value: true, label: 'SUBS' },
-          ]}
-          onChange={(opt) => editor.update('premium', opt.value)}
-          selected={editor.state.premium}
-        />
-      </Show>
       <Button onClick={cancel} schema="secondary">
         <X />
         {props.close ? 'Close' : 'Cancel'}
@@ -332,28 +302,6 @@ export const CreateCharacterForm: Component<{
                 character exist within your current chat only.
               </TitleCard>
             </Show>
-
-            <div class="flex justify-end gap-2 text-[1em]">
-              <Button onClick={() => setImport(true)}>
-                <Import /> Import
-              </Button>
-
-              <Button onClick={() => setConverted(editor.convert())}>
-                <Download /> Export
-              </Button>
-
-              <Show when={state.edit}>
-                <Button
-                  onClick={() => {
-                    setForceNew(true)
-                    editor.clear()
-                  }}
-                >
-                  <Plus />
-                  New
-                </Button>
-              </Show>
-            </div>
 
             <div class="flex flex-col gap-2">
               <Card>
@@ -780,26 +728,6 @@ export const CreateCharacterForm: Component<{
           </div>
         </div>
       </form>
-      <Show when={converted()}>
-        <DownloadModal
-          show
-          close={() => setConverted(undefined)}
-          char={converted()!}
-          charId={converted()!._id}
-        />
-      </Show>
-      <ImportCharacterModal
-        show={showImport()}
-        close={() => setImport(false)}
-        onSave={(char, imgs) => {
-          editor.load(char[0])
-          editor.receiveAvatar(imgs[0]!)
-          setImage(imgs[0] as any)
-          setImport(false)
-        }}
-        single
-      />
-
       <AvatarModal url={imgUrl()} close={() => setImageUrl('')} />
     </Page>
   )
