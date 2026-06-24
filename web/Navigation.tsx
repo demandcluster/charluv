@@ -2,7 +2,6 @@ import { A, useLocation, useSearchParams } from '@solidjs/router'
 import {
   Activity,
   Bell,
-  Book,
   ChevronLeft,
   ChevronRight,
   Compass,
@@ -307,7 +306,6 @@ const UserNavigation: Component = () => {
         </MultiItem>
       </Show>
 
-      <Library />
       <Show when={menu.flags.sounds}>
         <Sounds />
       </Show>
@@ -383,8 +381,6 @@ const GuestNavigation: Component = () => {
         </Show>
 
         <ChatLink />
-
-        <Library />
 
         <Show when={menu.flags.sounds}>
           <Sounds />
@@ -594,20 +590,6 @@ const ExternalLink: Component<{
   </a>
 )
 
-const Library: Component<{}> = (props) => {
-  return (
-    <div class="grid w-full gap-2" style={{ 'grid-template-columns': '1fr 30px' }}>
-      <Item
-        href="/memory"
-        ariaLabel="Library"
-        onClick={() => soundEmitter.emit('menu-item-clicked', 'library')}
-      >
-        <Book aria-hidden="true" />
-        <span aria-hidden="true"> Library </span>
-      </Item>
-    </div>
-  )
-}
 
 const Sounds: Component<{}> = (props) => {
   const audioSettings = audioStore()
