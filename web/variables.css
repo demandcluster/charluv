@@ -9,8 +9,9 @@
   --tooltip-x: 0;
   --tooltip-y: 0;
 
-  /* Chrome (drawer + top bars) tinted to match the Discover "dusk" background. */
-  --menu-bg: oklch(0.18 0.03 350);
+  /* Chrome (drawer + top bars): a deeper plum than the Discover "dusk" content
+     so the nav rail anchors the page and cards visually float above it. */
+  --menu-bg: oklch(0.14 0.04 350);
 
   /* Charluv green accent (logo: #55b89c) */
   --hl-100: #e6f7f1;
