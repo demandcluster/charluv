@@ -159,9 +159,9 @@ Set a field to true only when the character — in appearance, description, or i
 - noncon: non-consent, coercion, or rape presented approvingly.
 - incest: sexual content involving family members.
 - illegal: any other clearly illegal content.
-- nudity: explicit nudity or overtly sexual imagery/content. This is PERMITTED on this adult platform — report it honestly; it only marks the character as 18+ and is NOT a violation on its own.
+- nudity: explicit nudity or overtly sexual imagery/content. This is PERMITTED on this adult platform — report it honestly; it only marks the character as NSFW and is NOT a violation on its own.
 
-Be strict about underage: if the character looks or reads as a minor, flag it. Underage is never acceptable — flag it even when nudity is present.
+Be strict about underage: if the character looks or reads as a minor (and when in doubt), flag it. Underage is never acceptable, to be safe, flag anyone under age of 21.
 `
 
 const modBool = (name: string, description: string): JsonField => ({
@@ -171,7 +171,10 @@ const modBool = (name: string, description: string): JsonField => ({
 })
 
 export const DEFAULT_MOD_SCHEMA: JsonField[] = [
-  modBool('underage', 'The character appears or is described as under 18, a minor, or childlike.'),
+  modBool(
+    'underage',
+    'The character appears or is described as possibly under 18, a minor, or childlike.'
+  ),
   modBool('violence', 'Gratuitous violence, gore, or glorified non-consensual harm.'),
   modBool('noncon', 'Non-consent, coercion, or rape presented approvingly.'),
   modBool('incest', 'Sexual content involving family members.'),
@@ -897,7 +900,6 @@ export function getContextLimit(
   const genAmount = gen?.maxTokens || getFallbackPreset(adapter)?.maxTokens || 120
   const configuredMax =
     gen?.maxContextLength || getFallbackPreset(adapter)?.maxContextLength || 4096
-
 
   if (gen?.service === 'kobold' || gen?.service === 'ooba') return configuredMax - genAmount
 
