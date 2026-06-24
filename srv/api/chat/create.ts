@@ -1,5 +1,6 @@
 import { assertValid } from '/common/valid'
 import { PERSONA_FORMATS } from '../../../common/adapters'
+import { buildEventScenario } from '../../../common/event'
 import { store } from '../../db'
 import { NewMessage } from '../../db/messages'
 import { handle, StatusError } from '../wrap'
@@ -109,6 +110,48 @@ export const importChat = handle(async ({ body, userId }) => {
   }))
 
   await store.msgs.importMessages(userId, messages)
+
+  return chat
+})
+
+export const createEventChat = handle(async ({ body, user, userId }) => {
+  assertValid({ location: 'string', description: 'string', characterIds: ['string'] }, body)
+
+  const chars = (
+    await Promise.all(body.characterIds.map((id: string) => store.characters.getCharacter(userId, id)))
+  ).filter(Boolean)
+
+  if (chars.length === 0) throw new StatusError('Invite at least one character', 400)
+
+  const profile = await store.users.getProfile(userId)
+
+  const scenario = buildEventScenario({
+    location: body.location,
+    description: body.description,
+    names: chars.map((c) => c!.name),
+  })
+
+  const characters: Record<string, boolean> = {}
+  for (const c of chars) characters[c!._id] = true
+
+  const chat = await store.chats.create(
+    chars[0]!._id,
+    {
+      name: `${body.location} — ${body.description}`.slice(0, 80),
+      userId: userId!,
+      mode: 'event',
+      event: { location: body.location, description: body.description },
+      memoryDisabled: true,
+      scenario,
+      overrides: chars[0]!.persona,
+      greeting: `You arrive at ${body.location}. ${body.description}.`,
+      characters,
+      memberIds: [],
+      scenarioIds: [],
+      scenarioStates: [],
+    },
+    profile!
+  )
 
   return chat
 })

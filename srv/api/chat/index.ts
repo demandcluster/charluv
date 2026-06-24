@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { apiKeyUsage, loggedIn } from '../auth'
-import { createChat, importChat } from './create'
+import { createChat, createEventChat, importChat } from './create'
 import {
   restartChat,
   updateChat,
@@ -43,6 +43,7 @@ router.put('/:id', updateChat)
 router.put('/:id/preset', updateChatGenPreset)
 
 router.post('/', createChat)
+router.post('/event', createEventChat)
 router.post('/import', importChat)
 router.post('/:id/invite', createInvite)
 router.post('/:id/uninvite', uninviteMember)

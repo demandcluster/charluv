@@ -61,7 +61,8 @@ export async function create(
     | 'genPreset'
     | 'mode'
     | 'imageSource'
-  >,
+  > &
+    Partial<Pick<AppSchema.Chat, 'characters' | 'event' | 'memoryDisabled' | 'memberIds'>>,
   profile: AppSchema.Profile,
   impersonating?: AppSchema.Character
 ) {
@@ -77,7 +78,7 @@ export async function create(
     mode: props.mode,
     characterId,
     userId: props.userId,
-    memberIds: [],
+    memberIds: props.memberIds || [],
     name: props.name,
     greeting: props.greeting,
     sampleChat: props.sampleChat,
@@ -91,6 +92,9 @@ export async function create(
     messageCount: props.greeting ? 1 : 0,
     tempCharacters: {},
     imageSource: props.imageSource,
+    characters: props.characters,
+    event: props.event,
+    memoryDisabled: props.memoryDisabled,
   }
 
   await db('chat').insertOne(doc)
