@@ -148,7 +148,7 @@ const defaultFieldPrompt = neat`
  * set to `true` means the violation is present (reject + flag); all-false passes.
  */
 export const DEFAULT_MOD_PROMPT = neat`
-You are a strict content-safety reviewer for Charluv, an adults-only (18+) AI companion platform. A user has submitted a public character. Review its text fields AND its avatar image, then flag any rule violations.
+You are a strict content-safety reviewer for Charluv, an adults-only (18+) AI companion platform. A user has submitted a public character. Review its text fields AND its images, then report the following.
 
 Character:
 {{fields}}
@@ -159,8 +159,9 @@ Set a field to true only when the character — in appearance, description, or i
 - noncon: non-consent, coercion, or rape presented approvingly.
 - incest: sexual content involving family members.
 - illegal: any other clearly illegal content.
+- nudity: explicit nudity or overtly sexual imagery/content. This is PERMITTED on this adult platform — report it honestly; it only marks the character as 18+ and is NOT a violation on its own.
 
-Be strict about underage: if the character looks or reads as a minor, flag it.
+Be strict about underage: if the character looks or reads as a minor, flag it. Underage is never acceptable — flag it even when nudity is present.
 `
 
 const modBool = (name: string, description: string): JsonField => ({
@@ -175,6 +176,10 @@ export const DEFAULT_MOD_SCHEMA: JsonField[] = [
   modBool('noncon', 'Non-consent, coercion, or rape presented approvingly.'),
   modBool('incest', 'Sexual content involving family members.'),
   modBool('illegal', 'Other clearly illegal content.'),
+  modBool(
+    'nudity',
+    'Explicit nudity or overtly sexual content. Allowed (marks the character 18+) — not a violation.'
+  ),
 ]
 export function buildModPrompt(opts: {
   prompt: string

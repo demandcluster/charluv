@@ -207,16 +207,22 @@ export const handleOAI: ModelAdapter = async function* (opts) {
           body.max_tokens
         )
 
-    // Vision requests (e.g. publish moderation reviewing the avatar) carry an
-    // image. vLLM's OpenAI endpoint only sees it as an `image_url` content part,
-    // so fold it into the last user message — otherwise the check is text-only.
-    if (opts.imageData && messages.length) {
+    // Vision requests (e.g. publish moderation reviewing the avatar + gallery)
+    // carry one or more images. vLLM's OpenAI endpoint only sees them as
+    // `image_url` content parts, so fold them into the last user message —
+    // otherwise the check is text-only.
+    const visionImages = opts.images?.length
+      ? opts.images
+      : opts.imageData
+      ? [opts.imageData]
+      : []
+    if (visionImages.length && messages.length) {
       const target =
         [...messages].reverse().find((m) => m.role === 'user') ?? messages[messages.length - 1]
       const text = typeof target.content === 'string' ? target.content : ''
       ;(target as any).content = [
         { type: 'text', text },
-        { type: 'image_url', image_url: { url: opts.imageData } },
+        ...visionImages.map((url) => ({ type: 'image_url', image_url: { url } })),
       ]
     }
 

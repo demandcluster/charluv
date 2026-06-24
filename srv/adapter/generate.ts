@@ -82,6 +82,7 @@ export type InferenceRequest = {
   reguidance?: string[]
 
   imageData?: string
+  images?: string[]
 
   jsonSchema?: any
   jsonValues?: Record<string, any>
@@ -238,6 +239,7 @@ export async function createInferenceStream(opts: InferenceRequest) {
     lists: opts.lists,
     jsonSchema: opts.jsonSchema,
     imageData: opts.imageData,
+    images: opts.images,
     jsonValues: opts.jsonValues,
   })
 

@@ -131,6 +131,8 @@ export type AdapterProps = {
   jsonValues: Record<string, any> | undefined
 
   imageData?: string
+  /** Multiple base64 data URLs (e.g. avatar + gallery for moderation). */
+  images?: string[]
   guidance?: boolean
   placeholders?: Record<string, string>
   lists?: Record<string, string[]>

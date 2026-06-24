@@ -60,6 +60,7 @@ export const FLAG_LABELS: Record<string, string> = {
   incest: 'Incest',
   copyright: 'Copyright',
   illegal: 'Illegal',
+  nudity: 'Nudity (NSFW)',
   other: 'Other',
 }
 

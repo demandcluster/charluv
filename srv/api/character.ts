@@ -323,13 +323,22 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
   // built-in prompt + schema, with optional admin overrides.
   const modSchema = config.modSchema?.length ? config.modSchema : DEFAULT_MOD_SCHEMA
 
-  // Always moderate the avatar. Prefer the client-sent data URL; otherwise read
-  // the saved avatar server-side so the image check can't be skipped.
-  let imageData = body.imageData
-  if (!imageData && character.avatar) {
-    const ref = character.avatar.startsWith('/assets') ? character.avatar : `/assets/${character.avatar}`
-    const b64 = await readAssetBase64(ref)
-    if (b64) imageData = `data:image/png;base64,${b64}`
+  // Moderate every image on the character — avatar + gallery — up to the
+  // model's 10-images-per-request limit. Prefer the client-sent avatar data
+  // URL; read the rest server-side so the image check can't be skipped.
+  const imageRefs = Array.from(
+    new Set([character.avatar, ...(character.gallery || [])].filter(Boolean) as string[])
+  ).slice(0, 10)
+  const images: string[] = []
+  for (const ref of imageRefs) {
+    if (ref === character.avatar && body.imageData) {
+      images.push(body.imageData)
+      continue
+    }
+    const clean = ref.split('?')[0]
+    const path = clean.startsWith('/assets') ? clean : `/assets/${clean}`
+    const b64 = await readAssetBase64(path)
+    if (b64) images.push(`data:image/png;base64,${b64}`)
   }
 
   const prompt = buildModPrompt({
@@ -346,7 +355,7 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
     user,
     log,
     prompt,
-    imageData,
+    images,
   })
 
   res.json({ success: true, generating: true, requestId })
@@ -408,10 +417,21 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
   // A field is a violation when its moderation-schema rule isn't satisfied; the
   // field name doubles as the moderation flag (e.g. 'underage', 'violence').
   let acceptable = true
+  let nsfwDetected = false
   const flags: string[] = []
   for (const [key, value] of Object.entries(output)) {
     const def = modSchema.find((s) => s.name === key)
     if (!def || !def.type.valid) continue
+
+    // Nudity is allowed on this adults-only platform: it never blocks publishing,
+    // it just flips the character's NSFW flag. (Minors remain a hard deny below.)
+    if (key === 'nudity') {
+      if (value === true) {
+        nsfwDetected = true
+        flags.push('nudity')
+      }
+      continue
+    }
 
     let fieldOk = true
     switch (def.type.type) {
@@ -468,6 +488,8 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
     publishedAt: checkedAt,
     publishRewarded: character.publishRewarded || shouldReward,
     moderation,
+    // Nudity in the text/images auto-marks the character 18+ rather than blocking.
+    ...(nsfwDetected ? { nsfw: true } : {}),
   })
 
   if (shouldReward) await store.credits.updateCredits(userId!, reward)
