@@ -127,5 +127,5 @@ export {
 } from 'phosphor-solid'
 
 // Phosphor's prop/context types under the names the app used from lucide.
-export { IconContext } from 'phosphor-solid'
+export { IconContext, DiscordLogo } from 'phosphor-solid'
 export type { IconProps, IconProps as LucideProps } from 'phosphor-solid'

@@ -24,6 +24,7 @@ import {
   Volume2,
   VolumeX,
   IconContext,
+  DiscordLogo,
 } from '/web/icons'
 import {
   Component,
@@ -61,7 +62,6 @@ import {
 import WizardIcon from './icons/WizardIcon'
 import { soundEmitter } from './shared/Audio/playable-events'
 import Tooltip from './shared/Tooltip'
-import { DiscordDarkIcon, DiscordLightIcon } from './icons/DiscordIcon'
 import { Badge } from './shared/Card'
 import { navStore } from './subnav'
 import { getRgbaFromVar } from './shared/colors'
@@ -321,7 +321,6 @@ const UserNavigation: Component = () => {
         patreon={menu.config.patreon}
         user={user}
         showMenu={menu.showMenu}
-        mode={user.ui.mode}
       />
 
       <Slots />
@@ -372,7 +371,6 @@ const GuestNavigation: Component = () => {
         patreon={menu.config.patreon}
         user={user}
         showMenu={menu.showMenu}
-        mode={user.ui.mode}
       />
 
       <Slots />
@@ -385,7 +383,6 @@ const NavIcons: Component<{
   supportEmail?: string
   user: UserState
   showMenu: boolean
-  mode: 'light' | 'dark'
 }> = (props) => {
   const invites = inviteStore()
   const toasts = toastStore()
@@ -401,7 +398,12 @@ const NavIcons: Component<{
   })
 
   return (
-    <>
+    // The bottom utility icons are icon-only buttons, not labelled rows, so keep
+    // them at the global 1em (the menu list bumps row icons to 1.5rem). All green
+    // for a consistent footer.
+    <IconContext.Provider
+      value={{ weight: 'duotone', size: '1em', color: 'var(--hl-500)', mirrored: false }}
+    >
       <div class="flex flex-wrap justify-center gap-[2px] text-sm">
         <Show when={!!props.supportEmail}>
           <ExternalLink href={`mailto:${props.supportEmail}`} newtab ariaLabel="Email Support">
@@ -433,7 +435,7 @@ const NavIcons: Component<{
                 role="status"
                 aria-label={`Status: You have ${count()} new notifications`}
               >
-                <Bell fill="var(--bg-100)" aria-hidden="true" />
+                <Bell aria-hidden="true" />
                 <span class="absolute bottom-[-0.5rem] right-[-0.5rem]" aria-hidden="true">
                   <Badge type="rose">{count() > 9 ? '9+' : count()}</Badge>
                 </span>
@@ -441,7 +443,7 @@ const NavIcons: Component<{
             </Match>
 
             <Match when={!count()}>
-              <Bell color="var(--bg-500)" role="status" aria-label="Status: No new notifications" />
+              <Bell role="status" aria-label="Status: No new notifications" />
             </Match>
           </Switch>
         </Item>
@@ -454,16 +456,10 @@ const NavIcons: Component<{
         </Show>
 
         <ExternalLink href="https://charluv.com/discord" newtab ariaLabel="Discord">
-          <Show when={props.mode === 'dark'}>
-            <DiscordLightIcon />
-          </Show>
-          <Show when={props.mode === 'light'}>
-            <DiscordDarkIcon />
-          </Show>
+          <DiscordLogo aria-hidden="true" />
         </ExternalLink>
-
       </div>
-    </>
+    </IconContext.Provider>
   )
 }
 
