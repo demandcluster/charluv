@@ -300,7 +300,7 @@ export const generateMessageV2 = handle(async (req, res) => {
             text: m.msg,
           }))
 
-        const speakerId = await electSpeaker({
+        let speakerId = await electSpeaker({
           user: body.user!,
           log,
           event: chat.event!,
@@ -308,13 +308,25 @@ export const generateMessageV2 = handle(async (req, res) => {
           recent,
           repliedThisTurn,
         })
-        if (speakerId === 'none') break
+
+        // The opening/user turn MUST produce a reply: a user 'send' always
+        // deserves a response and the 'request' auto-open has to open the scene.
+        // electSpeaker returns 'none' both when the director genuinely declines
+        // AND on any model/parse failure (it swallows errors → 'none'), so on the
+        // first election fall back to the main character instead of breaking with
+        // zero replies — otherwise the client hangs forever on `waiting`.
+        // Subsequent declines (someone already spoke) are legitimate: stop there.
+        if (speakerId === 'none') {
+          if (repliedThisTurn.length > 0) break
+          speakerId = replyAs._id
+        }
 
         const picked = roster.find((r) => r.id === speakerId)
         if (!picked) break
         // The roster contains {id, name, hook} only; load the full character to
-        // generate as. Skip if it can't be loaded.
-        const eventReplyAs = await store.characters.getCharacterById(speakerId)
+        // generate as. Reuse the already-loaded main char on the fallback path.
+        const eventReplyAs =
+          speakerId === replyAs._id ? replyAs : await store.characters.getCharacterById(speakerId)
         if (!eventReplyAs) break
 
         // History the model sees, with this speaker's identity resolved. Same call
@@ -360,6 +372,19 @@ export const generateMessageV2 = handle(async (req, res) => {
         })
         if (!result.ok) break
         repliedThisTurn.push(eventReplyAs._id)
+      }
+
+      // Safety net: a turn that produced no reply at all (e.g. the fallback char
+      // failed to load, or generateOneReply bailed before emitting its own
+      // message-error) must still tell the client to stop waiting — the
+      // `generating: true` ack already put it into the waiting state.
+      if (repliedThisTurn.length === 0) {
+        sendMany(members, {
+          type: 'message-error',
+          requestId,
+          error: 'The scene director could not continue the scene. Please try again.',
+          chatId,
+        })
       }
     } finally {
       await releaseLock(chatId)
