@@ -930,9 +930,21 @@ const editCharacterFavorite = handle(async (req) => {
   const id = req.params.id
   const favorite = req.body.favorite === true
 
+  const prev = await store.characters.getCharacter(req.userId!, id)
   const char = await store.characters.updateCharacter(id, req.userId!, {
     favorite: favorite,
   })
+
+  // Roll the favourite up to the public template (the clone's parent, or itself)
+  // only when the flag actually flips, so re-toggling can't double-count.
+  if (prev && !!prev.favorite !== favorite) {
+    await store.matches.incrementEngagement(
+      id,
+      'favorites',
+      favorite ? 1 : -1,
+      prev.parent || id
+    )
+  }
 
   return char
 })

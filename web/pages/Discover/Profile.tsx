@@ -125,6 +125,10 @@ const Profile: Component = () => {
               </Show>
             </h1>
 
+            <Show when={char()!.creatorName}>
+              <p class="dpf-creator">Created by {char()!.creatorName}</p>
+            </Show>
+
             <div class="dpf-field">
               <TextInput
                 fieldName="matchName"

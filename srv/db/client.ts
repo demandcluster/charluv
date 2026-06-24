@@ -80,6 +80,11 @@ export async function createIndexes() {
     { name: 'text', tags: 'text', category: 'text' },
     { name: 'characters_discover_text' }
   )
+  // Trending = recent clones: count child copies of a template within the window.
+  await db('character').createIndex(
+    { parent: 1, createdAt: -1 },
+    { name: 'characters_parent_createdAt' }
+  )
   // User-published characters: facet/sort discovery + per-user daily publish cap.
   await db('character').createIndex(
     { published: 1, premium: 1, gender: 1, artStyle: 1 },

@@ -122,6 +122,12 @@ export interface Character extends BaseCharacter {
   imageSeed?: number
   /** Multi-image gallery (saved image URLs/filenames). `avatar` is the cover. */
   gallery?: string[]
+
+  /**
+   * Public display name (profile handle) of the creator. Transient: joined onto
+   * Discover responses from the creator's profile, never stored on the char doc.
+   */
+  creatorName?: string
 }
 
 export interface LibraryCharacter extends Omit<Character, 'kind' | 'tags'> {

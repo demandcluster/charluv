@@ -88,6 +88,13 @@ const createCharacter = handle(async (req) => {
     newChar.userId = userId
     newChar.createdAt = now()
     newChar.updatedAt = now()
+    // Start the personal copy's own popularity counters fresh — the template's
+    // clone/engagement totals are not this copy's (and would mislead if the user
+    // later publishes it). The clone itself rolls up to `parent` via the +1 in
+    // createCharacter.
+    newChar.children = 0
+    delete (newChar as any).engagement
+    delete (newChar as any).creatorName
   }
   if (newChar && req.body?.name) {
     newChar.name = String(req.body.name)

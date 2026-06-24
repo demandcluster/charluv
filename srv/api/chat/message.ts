@@ -201,6 +201,18 @@ export const generateMessageV2 = handle(async (req, res) => {
       name: impersonate?.name,
     })
 
+    // Measure sustained engagement: a real user message rolls up to the public
+    // template (the clone's parent, or the template itself). OOC chatter and
+    // retries/swipes are excluded. `replyAs` is already loaded, so no extra read.
+    if (body.kind === 'send' && !replyAs._id.startsWith('temp-')) {
+      await store.matches.incrementEngagement(
+        replyAs._id,
+        'messages',
+        1,
+        replyAs.parent || replyAs._id
+      )
+    }
+
     sendMany(members, { type: 'message-created', msg: userMsg, chatId })
   } else if (body.kind.startsWith('send-event:')) {
     userMsg = await store.msgs.createChatMessage({

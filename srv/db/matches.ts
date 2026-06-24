@@ -13,9 +13,26 @@ export async function getMatch(userId: string, id: string) {
     $or: [{ match: true }, { published: true }],
   })
 
+  if (!char) return char
+
   // A shared character always presents as level 0 — the publisher's own XP is
   // irrelevant to everyone else (and clones start fresh anyway).
-  return char ? { ...char, xp: 0 } : char
+  const [creatorName] = await creatorNames([char.userId])
+  return { ...char, xp: 0, creatorName }
+}
+
+/**
+ * Resolve the public display name (profile handle) for each creator userId, in
+ * the same order. A transient, response-only join — never stored on the char.
+ */
+async function creatorNames(userIds: string[]) {
+  const unique = Array.from(new Set(userIds.filter(Boolean)))
+  if (!unique.length) return userIds.map(() => undefined)
+  const profiles = await db('profile')
+    .find({ kind: 'profile', userId: { $in: unique } })
+    .toArray()
+  const byUser = new Map(profiles.map((p) => [p.userId, p.handle]))
+  return userIds.map((id) => byUser.get(id))
 }
 
 export async function getMatches(userId: string) {
@@ -41,6 +58,13 @@ export async function getMatchList(charIds: string[]) {
     .toArray()
   return list
 }
+
+/** Relative weights for the blended Discover popularity score. A clone (full
+ * adoption) outweighs a favourite, a started chat, then raw message volume. */
+const POP_WEIGHTS = { clone: 10, favorite: 4, chat: 2, message: 0.2 }
+
+/** Trailing window (days) that defines "recent" for the trending sort. */
+const TRENDING_WINDOW_DAYS = 30
 
 export type DiscoverSort = 'trending' | 'popular' | 'new'
 
@@ -85,20 +109,69 @@ export async function discover(userId: string, filter: DiscoverFilter = {}) {
   if (filter.nsfw === false) query.nsfw = { $ne: true }
   if (typeof filter.search === 'string') query.$text = { $search: filter.search }
 
-  const sort: any =
-    filter.sort === 'new'
-      ? { createdAt: -1 }
-      : filter.sort === 'popular'
-      ? { 'engagement.chats': -1, createdAt: -1 }
-      : { 'engagement.trending': -1, 'engagement.chats': -1, createdAt: -1 }
-
   const limit = Math.min(filter.limit ?? 60, 200)
   const skip = Math.max(filter.skip ?? 0, 0)
 
-  const list = await db('character').find(query).sort(sort).skip(skip).limit(limit).toArray()
+  // All-time popularity blends both signals. `children` (clone count) carries
+  // real historical data from the original Charluv; `engagement.*` is new and
+  // accrues going forward. A clone is the strongest adoption signal, then
+  // favourites, then chats started, then raw message volume (noisiest, lowest).
+  const popularity = {
+    $add: [
+      { $multiply: [{ $ifNull: ['$children', 0] }, POP_WEIGHTS.clone] },
+      { $multiply: [{ $ifNull: ['$engagement.favorites', 0] }, POP_WEIGHTS.favorite] },
+      { $multiply: [{ $ifNull: ['$engagement.chats', 0] }, POP_WEIGHTS.chat] },
+      { $multiply: [{ $ifNull: ['$engagement.messages', 0] }, POP_WEIGHTS.message] },
+    ],
+  }
+
+  const pipeline: any[] = [{ $match: query }, { $addFields: { _pop: popularity } }]
+
+  if (filter.sort === 'new') {
+    // Freshest first.
+    pipeline.push({ $sort: { createdAt: -1 } })
+  } else if (filter.sort === 'popular') {
+    // All-time blended score.
+    pipeline.push({ $sort: { _pop: -1, createdAt: -1 } })
+  } else {
+    // Trending = recent only: every clone is a child character doc, so count the
+    // copies made within the trailing window. Falls back to all-time popularity
+    // then recency for templates with no recent clones.
+    const cutoff = new Date(Date.now() - TRENDING_WINDOW_DAYS * 86_400_000).toISOString()
+    pipeline.push(
+      {
+        $lookup: {
+          from: 'character',
+          let: { tid: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [{ $eq: ['$parent', '$$tid'] }, { $gte: ['$createdAt', cutoff] }],
+                },
+              },
+            },
+            { $count: 'n' },
+          ],
+          as: '_recent',
+        },
+      },
+      { $addFields: { _trend: { $ifNull: [{ $arrayElemAt: ['$_recent.n', 0] }, 0] } } },
+      { $sort: { _trend: -1, _pop: -1, createdAt: -1 } }
+    )
+  }
+
+  pipeline.push(
+    { $skip: skip },
+    { $limit: limit },
+    { $project: { _pop: 0, _trend: 0, _recent: 0 } }
+  )
+
+  const list = await db('character').aggregate(pipeline).toArray()
+  const names = await creatorNames(list.map((c) => c.userId))
   // Shared characters always present as level 0 — the publisher's XP is theirs
   // alone and shouldn't show in the gallery or carry into a clone.
-  return list.map((c) => ({ ...c, xp: 0 }))
+  return list.map((c, i) => ({ ...c, xp: 0, creatorName: names[i] }))
 }
 
 /**

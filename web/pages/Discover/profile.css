@@ -140,6 +140,12 @@
   color: var(--dsc-green);
   font-weight: 500;
 }
+.dpf-creator {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  color: var(--dpf-muted);
+}
 .dpf-age {
   font-size: 0.85rem;
   letter-spacing: 0.06em;
