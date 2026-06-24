@@ -435,7 +435,7 @@ const NavIcons: Component<{
                 role="status"
                 aria-label={`Status: You have ${count()} new notifications`}
               >
-                <Bell aria-hidden="true" />
+                <Bell weight="fill" color="var(--rose-600)" aria-hidden="true" />
                 <span class="absolute bottom-[-0.5rem] right-[-0.5rem]" aria-hidden="true">
                   <Badge type="rose">{count() > 9 ? '9+' : count()}</Badge>
                 </span>
