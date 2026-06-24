@@ -272,8 +272,16 @@ const ChatDetail: Component = () => {
       }
     }
 
-    // If the number of active bots is 1 or fewer then always request a response
-    const kind = ooc ? 'ooc' : chats.replyAs || ctx.activeBots.length <= 1 ? 'send' : 'send-noreply'
+    // Event chats are director-driven: always 'send' so the server elects the
+    // speaker(s). Otherwise, if the number of active bots is 1 or fewer (or a
+    // reply-as is pinned) always request a response; else create the user
+    // message without a reply (group chat, user picks who speaks).
+    const isEvent = chats.chat?.mode === 'event'
+    const kind = ooc
+      ? 'ooc'
+      : isEvent || chats.replyAs || ctx.activeBots.length <= 1
+      ? 'send'
+      : 'send-noreply'
     if (!ooc) setSwipe(0)
     msgStore.send(chats.chat?._id!, message, kind, onSuccess)
     return
@@ -402,6 +410,16 @@ const ChatDetail: Component = () => {
     <>
       <ChatMenu ctx={ctx} isOwner={isOwner()} />
       <ModeDetail
+        header={
+          <Show when={chats.chat?.mode === 'event' && chats.chat?.event}>
+            <div class="rounded-md border border-[var(--bg-700)] bg-[var(--bg-800)] px-4 py-2 text-center">
+              <div class="text-xs font-bold uppercase tracking-wide text-[var(--text-500)]">
+                Event · {chats.chat?.event?.location}
+              </div>
+              <div class="text-sm text-[var(--text-700)]">{chats.chat?.event?.description}</div>
+            </div>
+          </Show>
+        }
         footer={
           <ChatFooter
             ctx={ctx}

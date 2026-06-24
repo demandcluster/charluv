@@ -310,7 +310,7 @@ const InputBar: Component<{
               <MessageCircle size={18} />
               Respond as Me
             </Button> */}
-          <Show when={ctx.activeBots.length > 1}>
+          <Show when={ctx.activeBots.length > 1 && props.chat.mode !== 'event'}>
             <div>Auto-reply</div>
             <Button
               schema="secondary"
