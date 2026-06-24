@@ -400,6 +400,19 @@ export const chatStore = createStore<ChatState>('chat', {
       }
     },
 
+    async *createEvent(
+      { allChats },
+      input: { location: string; description: string; characterIds: string[] },
+      onSuccess?: (id: string) => void
+    ) {
+      const res = await chatsApi.createEventChat(input)
+      if (res.error) toastStore.error(`Failed to create event: ${res.error}`)
+      if (res.result) {
+        yield { allChats: [res.result, ...allChats] }
+        onSuccess?.(res.result._id)
+      }
+    },
+
     async inviteUser(_, chatId: string, userId: string, onSuccess?: () => void) {
       const res = await api.post(`/chat/${chatId}/invite`, { userId })
       if (res.error) return toastStore.error(`Failed to invite user: ${res.error}`)

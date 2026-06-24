@@ -11,6 +11,7 @@ export type AllChat = AppSchema.Chat & { character?: { name: string } }
 
 export const chatsApi = {
   createChat,
+  createEventChat,
   createNewChat,
   editChat,
   getAllChats,
@@ -166,6 +167,14 @@ export async function createChat(characterId: string, props: NewChat) {
 
   if (msg) await localApi.saveMessages(chat._id, [msg])
   return localApi.result(chat)
+}
+
+export async function createEventChat(input: {
+  location: string
+  description: string
+  characterIds: string[]
+}) {
+  return api.post<AppSchema.Chat>('/chat/event', input)
 }
 
 export async function importChat(characterId: string, props: ImportChat) {
