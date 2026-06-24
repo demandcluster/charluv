@@ -12,7 +12,6 @@ import UserTopBar from './shared/UserTopBar'
 import { IconContext } from './icons'
 import Notifications from './Toasts'
 import CharacterRoutes from './pages/Character'
-import ScenarioRoutes from './pages/Scenario'
 import { settingStore } from './store/settings'
 import { userStore } from './store/user'
 import LoginPage from './pages/Login'
@@ -62,7 +61,6 @@ const App: Component = () => {
   return (
     <Router root={Layout}>
       <CharacterRoutes />
-      <ScenarioRoutes />
       {/* Legacy swipe/Match UI retired — redirect to the Discover gallery. */}
       <Route path="/likes" component={() => <Redirect internal="/discover" />} />
       <Route path="/likes/list" component={() => <Redirect internal="/discover" />} />

@@ -480,10 +480,9 @@ export async function getResponseEntities(
   const genSettings = await getGenerationSettings(user, chat, adapter)
   const settings = mapPresetsToAdapter(genSettings, adapter)
 
-  const chatScenarios = chat.scenarioIds
-    ? await store.scenario.getScenariosById(chat.scenarioIds)
-    : []
-  const resolvedScenario = resolveScenario(chat, char, chatScenarios)
+  // Scenario books (the retired event state-machine) no longer feed the prompt —
+  // resolveScenario only uses the character's/chat's plain-text scenario now.
+  const resolvedScenario = resolveScenario(chat, char, [])
 
   if (genSettings.promptTemplateId) {
     if (isDefaultTemplate(genSettings.promptTemplateId)) {

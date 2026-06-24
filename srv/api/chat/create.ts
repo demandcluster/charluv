@@ -3,7 +3,6 @@ import { PERSONA_FORMATS } from '../../../common/adapters'
 import { store } from '../../db'
 import { NewMessage } from '../../db/messages'
 import { handle, StatusError } from '../wrap'
-import XPLevel from '../../../common/xplevel'
 
 export const createChat = handle(async ({ body, user, userId }) => {
   assertValid(
@@ -17,37 +16,17 @@ export const createChat = handle(async ({ body, user, userId }) => {
       sampleChat: 'string?',
       overrides: { '?': 'any?', kind: PERSONA_FORMATS, attributes: 'any' },
       useOverrides: 'boolean?',
-      scenarioId: 'string?',
-      scenarioStates: 'string?',
       impersonating: 'string?',
       imageSource: 'string?',
     },
     body
   )
 
-  if (body.scenarioId) {
-    const scenario = await store.scenario.getScenario(body.scenarioId)
-    // if (scenario?.userId !== userId)
-    //   throw new StatusError('You do not have access to this scenario', 403)
-  }
-
   const character = await store.characters.getCharacter(userId, body.characterId)
   const profile = await store.users.getProfile(userId)
   const impersonating = body.impersonating
     ? await store.characters.getCharacter(userId, body.impersonating)
     : undefined
-
-  let scenarios: string[] = []
-  let lvl: string[] = []
-  if (character?.scenarioIds) {
-    scenarios = character.scenarioIds
-    lvl.push(`LEVEL${XPLevel(character?.xp as number)}`)
-    if (user?.premium) {
-      lvl.push(`PREMIUM`)
-    }
-  } else {
-    scenarios = body.scenarioId !== undefined ? [body.scenarioId] : []
-  }
 
   const chat = await store.chats.create(
     body.characterId,
@@ -56,8 +35,8 @@ export const createChat = handle(async ({ body, user, userId }) => {
       imageSource: body.imageSource as any,
       greeting: body.greeting ?? character?.greeting,
       userId: user?.userId!,
-      scenarioIds: scenarios,
-      scenarioStates: lvl,
+      scenarioIds: [],
+      scenarioStates: [],
     },
     profile!,
     impersonating

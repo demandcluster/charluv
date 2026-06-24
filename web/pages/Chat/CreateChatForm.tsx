@@ -19,7 +19,6 @@ import {
   characterStore,
   chatStore,
   presetStore,
-  scenarioStore,
   settingStore,
   userStore,
 } from '../../store'
@@ -33,7 +32,6 @@ import { Toggle } from '/web/shared/Toggle'
 import Divider from '/web/shared/Divider'
 import PageHeader from '/web/shared/PageHeader'
 import { isLoggedIn } from '/web/store/api'
-import { AppSchema } from '/common/types'
 import { isEligible } from './util'
 import { ADAPTER_LABELS } from '/common/adapters'
 import { Page } from '/web/Layout'
@@ -53,7 +51,6 @@ const CreateChatForm: Component<{
   let ref: any
 
   const nav = useNavigate()
-  const scenarios = scenarioStore((s) => s.scenarios)
   const cfg = settingStore()
   const user = userStore((s) => ({
     ...s.user,
@@ -68,15 +65,6 @@ const CreateChatForm: Component<{
 
   const [selectedId, setSelected] = createSignal<string | undefined>(params.id)
   const [useOverrides, setUseOverrides] = createSignal(false)
-  const [scenario, setScenario] = createSignal<AppSchema.ScenarioBook>()
-
-  const currScenarios = createMemo(() => {
-    if (!scenarios.length) return [{ value: '', label: 'You have no scenarios' }]
-    return [
-      { value: '', label: 'None' },
-      ...scenarios.map((s) => ({ label: s.name, value: s._id })),
-    ]
-  })
 
   createEffect(() => {
     if (props.charId) return
@@ -95,10 +83,6 @@ const CreateChatForm: Component<{
 
     characterStore.getCharacter(id)
   })
-
-  const setScenarioById = (scenarioId: string) => {
-    setScenario(scenarios.find((s) => s._id === scenarioId))
-  }
 
   const [presetId, setPresetId] = createSignal(user.defaultPreset ? '' : 'charluv')
   const presets = presetStore((s) => s.presets)
@@ -179,7 +163,6 @@ const CreateChatForm: Component<{
       ...overrides,
       useOverrides: useOverrides(),
       genPreset: presetId(),
-      scenarioId: scenario()?._id,
     }
     chatStore.createChat(characterId, payload, (id) => nav(`/chat/${id}`))
   }
@@ -292,22 +275,6 @@ const CreateChatForm: Component<{
 
           <Divider />
 
-          <Show when={!state.char?.name !== 'Aiva'}>
-            <Select
-              fieldName="scenarioId"
-              label="Scenario"
-              helperText="The scenario to use for this conversation"
-              items={currScenarios()}
-              value={state.char?.scenarioIds ? state.char?.scenarioIds[0] : ''}
-              onChange={(option) => setScenarioById(option.value)}
-              disabled={scenarios.length === 0 || state.char?.scenarioIds}
-            />
-          </Show>
-          <Show when={state.char?.scenarioIds}>
-            <Card class="text-md text-yellow-100">
-              {state.char?.name} comes with a built-in progressive multi-step Charluv scenario!
-            </Card>
-          </Show>
           <Card>
             <TextInput
               isMultiline

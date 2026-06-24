@@ -5,7 +5,6 @@ import {
   MoreHorizontal,
   PlusCircle,
   Send,
-  Zap,
 } from '/web/icons'
 import {
   Component,
@@ -36,7 +35,6 @@ import { Toggle } from '/web/shared/Toggle'
 import { defaultCulture } from '/web/shared/CultureCodes'
 import { createDebounce } from '/web/shared/util'
 import { useDraft, useEffect } from '/web/shared/hooks'
-import { eventStore } from '/web/store/event'
 import { useAppContext } from '/web/store/context'
 import NoCharacterIcon from '/web/icons/NoCharacterIcon'
 import WizardIcon from '/web/icons/WizardIcon'
@@ -196,14 +194,6 @@ const InputBar: Component<{
       char.voice,
       props.char?.culture || defaultCulture
     )
-    setMenu(false)
-  }
-
-  const triggerEvent = () => {
-    const char =
-      chats.replyAs && chats.replyAs in props.botMap ? props.botMap[chats.replyAs] : undefined
-
-    eventStore.triggerEvent(props.chat, char)
     setMenu(false)
   }
 
@@ -383,11 +373,6 @@ const InputBar: Component<{
             <Show when={!!props.char?.voice?.service}>
               <Button schema="secondary" class="w-full" onClick={playVoice} alignLeft>
                 <Megaphone size={18} /> Play Voice
-              </Button>
-            </Show>
-            <Show when={!!ctx.chat?.scenarioIds?.length && isOwner()}>
-              <Button schema="secondary" class="w-full" onClick={triggerEvent} alignLeft>
-                <Zap /> Trigger Event
               </Button>
             </Show>
           </Show>

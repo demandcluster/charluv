@@ -25,7 +25,6 @@ import { useEffect, usePaneManager } from '/web/shared/hooks'
 import { emptyMsg, LoadMore, insertImageMessages, SwipeMessage } from './helpers'
 import { useAutoExpression } from '/web/shared/Avatar/hooks'
 import AvatarContainer from '/web/shared/Avatar/Container'
-import { eventStore } from '/web/store/event'
 import ChatPanes, { useValidChatPane } from './components/ChatPanes'
 import { useAppContext } from '/web/store/context'
 import { ModeDetail } from '/web/shared/Mode/Detail'
@@ -99,7 +98,6 @@ const ChatDetail: Component = () => {
 
   const isGreetingOnlyMsg = createMemo(() => msgs.msgs.length === 1)
 
-  let [evented, setEvented] = createSignal(false)
   const retries = createMemo(() => {
     const last = msgs.msgs.slice(-1)[0]
     if (!last && !isGreetingOnlyMsg()) return
@@ -149,20 +147,6 @@ const ChatDetail: Component = () => {
   onCleanup(() => {
     sticky.clear()
     events.emit('chat-closed')
-  })
-
-  createEffect(() => {
-    // On Connect Events
-    if (evented() || !chats.chat || !chats.char || !chars.ready || !chats.ready) return
-    setEvented(true)
-
-    const messages = msgs.msgs
-    const isNonEvent = !msgs.msgs[0]?.event
-    if (isNonEvent && messages.length <= 1) {
-      eventStore.onGreeting(chats.chat)
-    } else {
-      eventStore.onChatOpened(chats.chat, new Date(messages[messages.length - 1].createdAt))
-    }
   })
 
   // One-time migration: fold a legacy embedded memory book into the character's

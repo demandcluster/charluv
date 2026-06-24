@@ -15,7 +15,6 @@ import { voiceApi } from './data/voice'
 import { VoiceSettings, VoiceWebSynthesisSettings } from '../../common/types/texttospeech-schema'
 import { defaultCulture } from '../shared/CultureCodes'
 import { createSpeech, isNativeSpeechSupported, stopSpeech } from '../shared/Audio/speech'
-import { eventStore } from './event'
 import { exclude, findOne, replace } from '/common/util'
 import {
   ChatTree,
@@ -38,10 +37,6 @@ export type VoiceState = 'generating' | 'playing'
 type SendModes =
   | 'send'
   | 'ooc'
-  | 'send-event:world'
-  | 'send-event:character'
-  | 'send-event:hidden'
-  | 'send-event:ooc'
   | 'retry'
   | 'self'
   | 'send-noreply'
@@ -553,11 +548,7 @@ export const msgStore = createStore<MsgState>(
 
         case 'send':
         case 'ooc':
-        case 'send-event:world':
-        case 'send-event:character':
-        case 'send-event:hidden':
         case 'send-noreply':
-        case 'send-event:ooc':
           res = await botGen
             .generate({ kind: mode, text: message })
             .catch((err) => ({ error: err.message, result: undefined }))
@@ -1083,25 +1074,6 @@ async function onMessageReceived(body: {
   if (speech && !isUserMsg) {
     msgStore.textToSpeech(msg._id, msg.msg, speech.voice, speech?.culture)
   }
-
-  onCharacterMessageReceived(msg)
-}
-
-function onCharacterMessageReceived(msg: AppSchema.ChatMessage) {
-  if (!msg.characterId || msg.event || msg.ooc) return
-  const { msgs } = msgStore.getState()
-  // TODO: Not that expensive, but it would be nice not to loop every time
-  let messagesSinceLastEvent = 0
-  for (let i = msgs.length - 1; i >= 0; i--) {
-    const msg = msgs[i]
-    if (msg.event) break
-
-    if (!msg.event && !msg.userId) {
-      messagesSinceLastEvent++
-    }
-  }
-
-  eventStore.onCharacterMessageReceived(chatStore.getState().active?.chat!, messagesSinceLastEvent)
 }
 
 function getMessageSpeechInfo(msg: AppSchema.ChatMessage, user: AppSchema.User | undefined) {
@@ -1385,8 +1357,6 @@ subscribe(
     })
 
     if (speech) msgStore.textToSpeech(msg._id, msg.msg, speech.voice, speech?.culture)
-
-    onCharacterMessageReceived(msg)
   }
 )
 
