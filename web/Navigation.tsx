@@ -14,6 +14,7 @@ import {
   MessageCircle,
   ShoppingCart,
   Bot,
+  Sparkles,
   Star,
   Users,
   Power,
@@ -67,6 +68,7 @@ import { navStore } from './subnav'
 import { getRgbaFromVar } from './shared/colors'
 import { CallToAction } from './shared/CallToAction'
 import Button from './shared/Button'
+import CreateEventModal from './pages/Chat/CreateEventModal'
 
 const Navigation: Component = () => {
   let parent: any
@@ -261,6 +263,7 @@ const Navigation: Component = () => {
 const UserNavigation: Component = () => {
   const user = userStore()
   const menu = settingStore()
+  const [showEvent, setShowEvent] = createSignal(false)
 
   return (
     <>
@@ -279,7 +282,11 @@ const UserNavigation: Component = () => {
         <Item href="/mine" ariaLabel="My AI companions">
           <Heart aria-hidden="true" /> My AI
         </Item>
+        <Item onClick={() => setShowEvent(true)} ariaLabel="Start an event">
+          <Sparkles aria-hidden="true" /> Event
+        </Item>
       </Show>
+      <CreateEventModal show={showEvent()} close={() => setShowEvent(false)} />
       <Show when={menu.flags.chub}>
         <Item href="/chub" ariaLabel="Character hub">
           <ShoppingBag aria-hidden="true" />
