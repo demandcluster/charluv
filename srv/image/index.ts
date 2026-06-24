@@ -10,7 +10,28 @@ import { sendGuest, sendMany, sendOne } from '../api/ws'
 import { handleHordeImage } from './horde'
 import { handleZImage, isZImageConfigured } from './zimage'
 
-const DEFAULT_NEGATIVE = ``
+/**
+ * Merge negative-prompt sources into a single comma-separated string, deduping
+ * tokens case-insensitively (first occurrence wins, preserving order). Used to
+ * apply the server-wide negative (config.inference.imageNegative) ahead of any
+ * legacy per-character/chat/user negative.
+ */
+function mergeNegative(...parts: Array<string | undefined>) {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const part of parts) {
+    if (!part) continue
+    for (const token of part.split(',')) {
+      const trimmed = token.trim()
+      if (!trimmed) continue
+      const key = trimmed.toLowerCase()
+      if (seen.has(key)) continue
+      seen.add(key)
+      out.push(trimmed)
+    }
+  }
+  return out.join(', ')
+}
 
 export async function generateImage(
   { user, chatId, messageId, ...opts }: ImageGenerateRequest,
@@ -87,7 +108,9 @@ export async function generateImage(
   }
 
   log.debug({ prompt, type: imageSettings?.type, source: chat?.imageSource }, 'Image prompt')
-  const negative = imageSettings?.negative || DEFAULT_NEGATIVE
+  // Server-wide negative overrules: it's always applied first, with any legacy
+  // stored negative appended (deduped) so nothing previously configured is lost.
+  const negative = mergeNegative(config.inference.imageNegative, imageSettings?.negative)
 
   if (!guestId) {
     // Broadcast to all chat members (not just sendOne) so the reply message can
@@ -138,33 +161,33 @@ export async function generateImage(
         guestId
       )
     } else
-    switch (imageSettings?.type || 'horde') {
-      case 'novel':
-        image = await handleNovelImage(
-          { user, prompt, negative, settings: imageSettings },
-          log,
-          guestId
-        )
-        break
+      switch (imageSettings?.type || 'horde') {
+        case 'novel':
+          image = await handleNovelImage(
+            { user, prompt, negative, settings: imageSettings },
+            log,
+            guestId
+          )
+          break
 
-      case 'sd':
-      case 'agnai':
-        image = await handleSDImage(
-          { user, prompt, negative, settings: imageSettings },
-          log,
-          guestId
-        )
-        break
+        case 'sd':
+        case 'agnai':
+          image = await handleSDImage(
+            { user, prompt, negative, settings: imageSettings },
+            log,
+            guestId
+          )
+          break
 
-      case 'horde':
-      default:
-        image = await handleHordeImage(
-          { user, prompt, negative, settings: imageSettings },
-          log,
-          guestId
-        )
-        break
-    }
+        case 'horde':
+        default:
+          image = await handleHordeImage(
+            { user, prompt, negative, settings: imageSettings },
+            log,
+            guestId
+          )
+          break
+      }
   } catch (ex: any) {
     error = ex.message || ex
   }

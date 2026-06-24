@@ -175,6 +175,13 @@ export const config = {
     imageSize: +env('INFERENCE_IMAGE_SIZE', '640'), // gallery / avatar
     imageChatSteps: +env('INFERENCE_IMAGE_CHAT_STEPS', '20'), // in-chat images
     imageChatSize: +env('INFERENCE_IMAGE_CHAT_SIZE', '512'), // in-chat images
+    /**
+     * Server-wide negative prompt applied to EVERY image generation. The per-user
+     * negative field is no longer editable (legacy), so this env-configured value
+     * is the authoritative negative; any legacy stored negative is appended after
+     * it (deduped). Comma-separated tokens.
+     */
+    imageNegative: env('INFERENCE_IMAGE_NEGATIVE', ''),
   },
   keys: {
     REPLICATE: env('REPLICATE_KEY', ''),

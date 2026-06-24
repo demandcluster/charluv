@@ -37,9 +37,22 @@ export function buildDirectorPrompt(opts: {
 }): string {
   const roster = opts.roster.map((r) => `- ${r.name} (id: ${r.id}): ${r.hook}`).join('\n')
   const history = opts.recent.map((m) => `${m.name}: ${m.text}`).join('\n')
-  const already = opts.repliedThisTurn.length
-    ? `Already replied this turn: ${opts.repliedThisTurn.join(', ')}.`
-    : 'No one has replied yet this turn.'
+  const hasReplied = opts.repliedThisTurn.length > 0
+
+  // Two distinct decisions. First election: someone MUST answer the user, so pick
+  // the addressed character. Continuation: the default is to STOP ("none") — a
+  // second/third speaker is the rare exception, not a quota to fill. Reaching the
+  // reply cap is a ceiling, never a goal.
+  const instructions = hasReplied
+    ? [
+        `Someone has already replied this turn. Usually that is enough — most turns have just one speaker.`,
+        `Answer "none" UNLESS another present character has a strong, specific, immediate reason to interject right now.`,
+        `Do not add a speaker merely to keep the scene busy. When in doubt, answer "none".`,
+      ]
+    : [
+        `Decide who speaks NEXT. Prefer the character the user is directly addressing.`,
+        `A bystander should be chosen ONLY if they have a strong, specific reason to interject.`,
+      ]
 
   return [
     `Setting: ${opts.event.location}. Event: ${opts.event.description}.`,
@@ -49,11 +62,7 @@ export function buildDirectorPrompt(opts: {
     `Recent conversation:`,
     history,
     ``,
-    already,
-    ``,
-    `Decide who speaks NEXT. Prefer the character the user is directly addressing.`,
-    `A bystander should be chosen ONLY if they have a strong, specific reason to interject.`,
-    `If no one (else) has a reason to speak, answer "none".`,
+    ...instructions,
     `Reply with the speaker's id, or "none".`,
   ].join('\n')
 }

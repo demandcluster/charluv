@@ -18,12 +18,18 @@ type ElectOpts = {
  * can never crash on the director.
  */
 export async function electSpeaker(opts: ElectOpts): Promise<string> {
-  const ids = opts.roster.map((r) => r.id)
+  // A character speaks at most once per turn: drop anyone who already replied
+  // from BOTH the roster the director sees and the schema enum, so the model
+  // physically cannot re-elect them (the prompt hint alone doesn't hold a small
+  // model at low temp — it would otherwise pick the same char every iteration).
+  const replied = new Set(opts.repliedThisTurn)
+  const roster = opts.roster.filter((r) => !replied.has(r.id))
+  const ids = roster.map((r) => r.id)
   if (!ids.length) return 'none'
 
   const prompt = buildDirectorPrompt({
     event: opts.event,
-    roster: opts.roster,
+    roster,
     recent: opts.recent,
     repliedThisTurn: opts.repliedThisTurn,
   })
