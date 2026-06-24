@@ -103,7 +103,7 @@ export function useRef<T = HTMLElement>() {
 export function isChatPage() {
   const location = useLocation()
   const isChat = createMemo(() => {
-    return location.pathname.startsWith('/chat/') || location.pathname.startsWith('/saga/')
+    return location.pathname.startsWith('/chat/')
   })
 
   return isChat

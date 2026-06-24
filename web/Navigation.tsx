@@ -23,7 +23,6 @@ import {
   Speaker,
   Volume2,
   VolumeX,
-  Wand2,
 } from '/web/icons'
 import {
   Component,
@@ -255,14 +254,6 @@ const UserNavigation: Component = () => {
   const user = userStore()
   const menu = settingStore()
 
-  const guidance = createMemo(() => {
-    const usable = menu.config.subs.some((sub) => sub.guidance)
-    if (!usable) return false
-
-    const access = !!menu.config.guidanceAccess || !!user.user?.admin
-    return access
-  })
-
   return (
     <>
       {/* <div class="flex justify-center gap-2">
@@ -289,21 +280,6 @@ const UserNavigation: Component = () => {
         </Item>
       </Show>
       <ChatLink />
-
-      <Show when={guidance() && user.user?.premium}>
-        <MultiItem>
-          <Item href="/saga" ariaLabel="Sagas Preview">
-            <Wand2 aria-hidden="true" />
-            Sagas Preview
-          </Item>
-          <EndItem>
-            <span class="text-xs text-yellow-600">
-              {' '}
-              <Star />
-            </span>
-          </EndItem>
-        </MultiItem>
-      </Show>
 
       <Show when={menu.flags.sounds}>
         <Sounds />

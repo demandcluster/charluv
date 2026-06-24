@@ -51,8 +51,6 @@ import { CheckoutCancel, CheckoutSuccess } from './pages/Profile/Checkout'
 import { markdown } from './shared/markdown'
 import SoundsPage from './pages/Sounds'
 import PatreonOauth from './pages/Settings/PatreonOauth'
-import { SagaDetail } from './pages/Saga/Detail'
-import { SagaList } from './pages/Saga/List'
 
 const App: Component = () => {
   const state = userStore()
@@ -77,10 +75,6 @@ const App: Component = () => {
       <Route path="/chats/create/:id?" component={() => <CreateChatForm />} />
       <Route path="/chats" component={CharacterChats} />
       <Route path="/chat" component={ChatDetail} />
-      <Show when={cfg.config.guidanceAccess || state.user?.admin}>
-        <Route path="/saga" component={SagaList} />
-        <Route path="/saga/:id" component={SagaDetail} />
-      </Show>
       <Route path="/chat/:id" component={ChatDetail} />
       <Route path="/discover" component={lazy(() => import('./pages/Discover'))} />
       <Route path="/discover/:id" component={lazy(() => import('./pages/Discover/Profile'))} />
@@ -186,7 +180,7 @@ const Layout: Component<{ children?: any }> = (props) => {
   })
 
   const isChat = createMemo(() => {
-    return location.pathname.startsWith('/chat/') || location.pathname.startsWith('/saga/')
+    return location.pathname.startsWith('/chat/')
   })
 
   // Logged-out visitors browsing the landing/gallery get a full-width top bar
