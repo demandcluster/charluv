@@ -348,11 +348,6 @@ const ChatDetail: Component = () => {
         }
       }
 
-      if (ev.key === 'i') {
-        ev.preventDefault()
-        settingStore.toggleImpersonate(true)
-      }
-
       if (ev.key === 'a') {
         ev.preventDefault()
         const last = indexOfLastRPMessage()

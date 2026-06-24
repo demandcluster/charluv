@@ -383,7 +383,11 @@ export const removeProfileAvatar = handle(async (req) => {
 })
 
 export const updateProfile = handle(async (req) => {
-  const form = handleForm(req, { handle: 'string' } as const)
+  const form = handleForm(req, {
+    handle: 'string',
+    persona: 'string?',
+    description: 'string?',
+  } as const)
   const filename = await entityUpload(
     'profile',
     v4(),
@@ -398,6 +402,11 @@ export const updateProfile = handle(async (req) => {
   const update: Partial<AppSchema.Profile> = {
     handle: form.handle,
   }
+
+  // Only touch the self-persona fields when the Your Character tab submits them,
+  // so saving the plain Profile tab doesn't wipe them.
+  if (form.persona !== undefined) update.persona = form.persona.slice(0, 4000)
+  if (form.description !== undefined) update.description = form.description.slice(0, 1000)
 
   if (filename) {
     update.avatar = filename

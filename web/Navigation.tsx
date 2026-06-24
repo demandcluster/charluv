@@ -35,12 +35,11 @@ import {
   Show,
   Switch,
 } from 'solid-js'
-import AvatarIcon, { CharacterAvatar } from './shared/AvatarIcon'
+import AvatarIcon from './shared/AvatarIcon'
 import {
   UserState,
   announceStore,
   audioStore,
-  characterStore,
   inviteStore,
   settingStore,
   toastStore,
@@ -599,60 +598,24 @@ const ChatLink = () => {
 }
 
 export const UserProfile = () => {
-  const chars = characterStore()
   const user = userStore()
   const menu = settingStore()
 
   return (
-    <>
-      <div
-        class="grid w-full items-center justify-between gap-2"
-        style={{
-          'grid-template-columns': '1fr max-content',
-        }}
-      >
-        <Item
-          ariaLabel="Edit user profile"
-          onClick={() => {
-            if (menu.showMenu) settingStore.closeMenu()
-            soundEmitter.emit('menu-item-clicked', 'profile')
-            userStore.modal(true)
-          }}
-        >
-          <Switch>
-            <Match when={chars?.impersonating}>
-              <CharacterAvatar
-                char={chars.impersonating!}
-                format={{ corners: 'circle', size: 'xs' }}
-              />
-            </Match>
-
-            <Match when>
-              <AvatarIcon
-                avatarUrl={chars.impersonating?.avatar || user.profile?.avatar}
-                format={{ corners: 'circle', size: 'xs' }}
-              />
-            </Match>
-          </Switch>
-          <span aria-hidden="true">{chars.impersonating?.name || user.profile?.handle}</span>
-        </Item>
-        <div class="flex items-center">
-          <Button
-            class="text-600 text-xs"
-            schema="secondary"
-            size="sm"
-            aria-label="Open impersonation menu"
-            onClick={() => {
-              settingStore.toggleImpersonate(true)
-              if (menu.showMenu) settingStore.closeMenu()
-            }}
-          >
-            Persona
-            {/* <VenetianMask aria-hidden="true" /> */}
-          </Button>
-        </div>
-      </div>
-    </>
+    <Item
+      ariaLabel="Edit user profile"
+      onClick={() => {
+        if (menu.showMenu) settingStore.closeMenu()
+        soundEmitter.emit('menu-item-clicked', 'profile')
+        userStore.modal(true)
+      }}
+    >
+      <AvatarIcon
+        avatarUrl={user.profile?.avatar}
+        format={{ corners: 'circle', size: 'xs' }}
+      />
+      <span aria-hidden="true">{user.profile?.handle}</span>
+    </Item>
   )
 }
 

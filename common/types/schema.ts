@@ -137,6 +137,10 @@ export namespace AppSchema {
     userId: string
     handle: string
     avatar?: string
+    /** How the user describes themselves as a character — injected as {{user}}'s
+     * persona in chats (replaces the old per-chat character impersonation). */
+    description?: string
+    persona?: string
   }
 
   export interface User {

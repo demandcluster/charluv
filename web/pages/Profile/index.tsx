@@ -1,4 +1,4 @@
-import { AlertTriangle, Save, VenetianMask, X } from '/web/icons'
+import { AlertTriangle, Save, X } from '/web/icons'
 import {
   Component,
   Match,
@@ -28,7 +28,7 @@ import { useGoogleReady } from '/web/shared/hooks'
 export const ProfileModal: Component = () => {
   const state = userStore()
   const config = userStore((s) => ({ tiers: s.tiers.filter((t) => t.enabled) }))
-  const tabs = useTabs(['Profile', 'Subscription'], 0)
+  const tabs = useTabs(['Profile', 'Your Character', 'Subscription'], 0)
   const [search, setSearch] = useSearchParams()
 
   createEffect(() => {
@@ -49,10 +49,11 @@ export const ProfileModal: Component = () => {
     userStore.getTiers()
   })
 
-  const displayTabs = createMemo(() => {
-    if (!config.tiers.length) return false
-    return true
-  })
+  // Tabs are always shown now (Profile + Your Character); the Subscription tab
+  // is only meaningful when tiers exist.
+  const tabList = createMemo(() =>
+    config.tiers.length ? ['Profile', 'Your Character', 'Subscription'] : ['Profile', 'Your Character']
+  )
 
   return (
     <Modal
@@ -68,16 +69,16 @@ export const ProfileModal: Component = () => {
       }
       fixedHeight
       maxWidth="half"
-      tabs={displayTabs() ? tabs : undefined}
+      tabs={{ ...tabs, tabs: tabList() }}
       ariaLabel="Your profile"
       ariaDescription="Update your profile information."
     >
       <Switch>
-        <Match when={!displayTabs()}>
-          <ProfilePage footer={setFooter} />
-        </Match>
         <Match when={tabs.current() === 'Profile'}>
           <ProfilePage footer={setFooter} />
+        </Match>
+        <Match when={tabs.current() === 'Your Character'}>
+          <ProfileCharacter footer={setFooter} />
         </Match>
         <Match when={tabs.current() === 'Subscription'}>
           <SubscriptionPage />
@@ -202,18 +203,6 @@ const ProfilePage: Component<{ footer?: (children: any) => void }> = (props) => 
             </div>
           </div>
 
-          <TitleCard type="orange" ariaRole="note" ariaLabel="Impersonate">
-            <div class="flex flex-wrap items-center justify-center">
-              You can{' '}
-              <div class="inline">
-                <Button class="mx-1" size="sm" onClick={() => settingStore.toggleImpersonate(true)}>
-                  Impersonate
-                </Button>{' '}
-              </div>
-              characters by clicking the <VenetianMask size={16} class="mx-1" aria-hidden="true" />{' '}
-              icon at the top of the main menu.
-            </div>
-          </TitleCard>
           <Show when={state.user?.premium}>
             <TextInput label="Premium" helperText="You are a premium user" value="" disabled />
           </Show>
@@ -340,6 +329,69 @@ const ProfilePage: Component<{ footer?: (children: any) => void }> = (props) => 
 }
 
 export default ProfilePage
+
+/**
+ * "Your Character" tab: a fixed self-persona describing the user as a character.
+ * It replaces the old per-chat character impersonation and is injected as
+ * {{user}}'s persona in every chat.
+ */
+const ProfileCharacter: Component<{ footer?: (children: any) => void }> = (props) => {
+  let formRef: HTMLFormElement
+  const state = userStore()
+
+  createEffect(() => {
+    userStore.getProfile()
+  })
+
+  const save = () => {
+    const body = getStrictForm(formRef, { description: 'string', persona: 'string' })
+    userStore.updateProfile({
+      handle: state.profile?.handle || '',
+      description: body.description,
+      persona: body.persona,
+    })
+  }
+
+  const footer = (
+    <Button onClick={save} ariaLabel="Save your character">
+      <Save aria-hidden="true" />
+      <span aria-hidden="true">Save Character</span>
+    </Button>
+  )
+
+  onMount(() => props.footer?.(footer))
+
+  return (
+    <Page>
+      <form ref={formRef!} class="flex flex-col gap-4" aria-label="Your character">
+        <TitleCard type="hl" ariaRole="note">
+          This is how <b>you</b> show up to your companions. Describe yourself as a character — it's
+          sent to the AI as who you are in every chat. Leave it blank to stay an anonymous "You".
+        </TitleCard>
+
+        <TextInput
+          label="Short description"
+          helperText="A one-line summary of who you are (e.g. “A laid-back traveler in his 30s”)."
+          fieldName="description"
+          value={state.profile?.description}
+        />
+
+        <TextInput
+          isMultiline
+          label="Persona"
+          helperText="Describe yourself in detail — personality, appearance, background, how you act."
+          fieldName="persona"
+          class="min-h-[180px]"
+          value={state.profile?.persona}
+        />
+
+        <Show when={!props.footer}>
+          <div class="mt-2 flex w-full justify-end">{footer}</div>
+        </Show>
+      </form>
+    </Page>
+  )
+}
 
 const PasswordModal: Component<{ show: boolean; close: () => void }> = (props) => {
   let ref: any

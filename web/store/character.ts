@@ -1,18 +1,37 @@
 import { createAppearancePrompt } from '../../common/image-prompt'
 import { AppSchema } from '../../common/types/schema'
 import { EVENTS, events } from '../emitter'
-import { createStore } from './create'
+import { createStore, getStore } from './create'
 import { subscribe } from './socket'
 import { toastStore } from './toasts'
 import { charsApi } from './data/chars'
 import { imageApi } from './data/image'
-import { getAssetUrl, storage, toMap } from '../shared/util'
+import { getAssetUrl, toMap } from '../shared/util'
 import { toCharacterMap } from '../pages/Character/util'
 import { getUserId } from './api'
-import { getStoredValue, setStoredValue } from '../shared/hooks'
 import { HordeCheck } from '/common/horde-gen'
 
-const IMPERSONATE_KEY = 'agnai-impersonate'
+/** Build the throwaway self-persona used to represent {{user}} in chats from
+ * the profile's Your Character fields. A temp- id keeps it out of the DB and
+ * membership lists (the server/prompt pipeline special-cases temp- ids). */
+function buildSelfImpersonate(
+  profile?: AppSchema.Profile
+): AppSchema.Character | undefined {
+  if (!profile) return undefined
+  const text = [profile.description, profile.persona]
+    .map((s) => (s || '').trim())
+    .filter(Boolean)
+    .join('\n\n')
+  if (!text) return undefined
+  return {
+    _id: 'temp-self',
+    kind: 'character',
+    userId: profile.userId,
+    name: profile.handle || 'You',
+    avatar: profile.avatar,
+    persona: { kind: 'text', attributes: { text: [text] } },
+  } as AppSchema.Character
+}
 
 type CharacterState = {
   loading?: boolean
@@ -193,28 +212,13 @@ export const characterStore = createStore<CharacterState>(
       }
     },
 
-    async impersonate({ activeChatId }, char?: AppSchema.Character) {
-      if (!activeChatId) {
-        storage.localSetItem(IMPERSONATE_KEY, char?._id || '')
-      } else {
-        setStoredValue(`${activeChatId}-impersonate`, char?._id || '')
-      }
-      return { impersonating: char || undefined }
-    },
-
-    async loadImpersonate({
-      activeChatId,
-      chatChars: { list },
-      characters: { list: allList },
-      impersonating: current,
-    }) {
-      const fallback = storage.localGetItem(IMPERSONATE_KEY) || ''
-      let id = activeChatId ? getStoredValue(`${activeChatId}-impersonate`, fallback) : fallback
-
-      if (!id) return
-
-      const impersonating = id ? allList.concat(list).find((ch) => ch._id === id) : current
-      return { impersonating }
+    // The user's "self as a character" is now fixed on their profile (the
+    // Your Character tab) rather than a per-chat character pick. Derive a
+    // throwaway temp- impersonation from it so the chat/prompt pipeline (which
+    // already special-cases temp- ids) injects it as {{user}}'s persona.
+    loadImpersonate(_, profile?: AppSchema.Profile) {
+      const p = profile || getStore('user').getState().profile
+      return { impersonating: buildSelfImpersonate(p) }
     },
 
     async *createCharacter(

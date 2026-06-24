@@ -25,7 +25,6 @@ import ThankYou from './pages/Premium/ThankYou'
 import PremiumInfo from './pages/Premium/Info'
 
 
-import ImpersonateModal from './pages/Character/ImpersonateModal'
 import ChubRoutes from './pages/Chub'
 import Redirect from './shared/Redirect'
 import Maintenance from './shared/Maintenance'
@@ -269,10 +268,6 @@ const Layout: Component<{ children?: any }> = (props) => {
         </div>
       </div>
       <Notifications />
-      <ImpersonateModal
-        show={cfg.showImpersonate}
-        close={() => settingStore.toggleImpersonate(false)}
-      />
       <PerformanceModal
         show={cfg.showPerformance}
         close={() => settingStore.togglePerformance(false)}

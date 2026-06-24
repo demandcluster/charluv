@@ -4,7 +4,7 @@ import { EVENTS, events } from '../emitter'
 import { FileInputResult } from '../shared/FileInput'
 import { createDebounce, storage } from '../shared/util'
 import { api, clearAuth, getAuth, getUserId, isLoggedIn, setAuth } from './api'
-import { createStore } from './create'
+import { createStore, getStore } from './create'
 import { localApi } from './data/storage'
 import { usersApi } from './data/user'
 import { publish, subscribe } from './socket'
@@ -140,6 +140,8 @@ export const userStore = createStore<UserState>(
       const res = await usersApi.getProfile()
       if (res.error) return toastStore.error(`Failed to get profile`)
       if (res.result) {
+        // Build the self-persona (Your Character) used in chats from the profile.
+        getStore('character').loadImpersonate(res.result)
         return { profile: res.result }
       }
     },
@@ -378,11 +380,19 @@ export const userStore = createStore<UserState>(
       return res === true ? true : false
     },
 
-    async updateProfile(_, profile: { handle: string; avatar?: File }) {
-      const res = await usersApi.updateProfile(profile.handle, profile.avatar)
+    async updateProfile(
+      _,
+      profile: { handle: string; avatar?: File; persona?: string; description?: string }
+    ) {
+      const res = await usersApi.updateProfile(profile.handle, profile.avatar, {
+        persona: profile.persona,
+        description: profile.description,
+      })
       if (res.error) toastStore.error(`Failed to update profile: ${res.error}`)
       if (res.result) {
         toastStore.success(`Updated profile`)
+        // Rebuild the self-persona used in chats from the saved profile.
+        getStore('character').loadImpersonate(res.result)
         return { profile: res.result }
       }
     },

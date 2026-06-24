@@ -248,21 +248,6 @@ const InputBar: Component<{
         </div>
       </Show>
 
-      <div class="flex h-[40px] items-center sm:hidden">
-        <a
-          href="#"
-          role="button"
-          aria-label="Open impersonation menu"
-          class="icon-button"
-          onClick={() => settingStore.toggleImpersonate(true)}
-        >
-          <AvatarIcon
-            avatarUrl={chars.impersonating?.avatar || user.profile?.avatar}
-            format={{ corners: 'circle', size: 'sm' }}
-            class="ml-1 mr-2"
-          />
-        </a>
-      </div>
       <Show when={complete()}>
         <AutoComplete
           options={completeOpts()}
