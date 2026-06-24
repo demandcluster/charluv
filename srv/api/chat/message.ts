@@ -12,6 +12,10 @@ import { v4 } from 'uuid'
 import { Response } from 'express'
 import { getScenarioEventType } from '/common/scenario'
 import { HydratedJson, jsonHydrator, parsePartialJson } from '/common/util'
+import { EVENT_TURN_COST, EVENT_MAX_REPLIES } from '../../../common/event'
+import { electSpeaker } from '../../adapter/director'
+import { resolveScenario, getLinesForPrompt, getAdapter } from '../../../common/prompt'
+import { getTokenCounter } from '../../tokenize'
 
 type GenRequest = UnwrapBody<typeof genValidator>
 
@@ -259,6 +263,103 @@ export const generateMessageV2 = handle(async (req, res) => {
 
   res.json({ requestId, success: true, generating: true, message: 'Generating message', messageId })
 
+  if (chat.mode === 'event' && body.kind === 'send') {
+    // Flat fee covers the whole turn (director calls + every reply).
+    if (body.user && body.user.credits < EVENT_TURN_COST) {
+      await releaseLock(chatId)
+      throw errors.MissingCredits
+    }
+    await store.credits.updateCredits(userId!, -EVENT_TURN_COST)
+
+    const roster = await getEventRoster(chat)
+
+    // Server-side prompt deps (mirror the client's createActiveChatPrompt).
+    const entities = await getResponseEntities(chat, body.sender.userId, body.settings)
+    const { adapter, model } = getAdapter(chat, entities.user, entities.gen)
+    const encoder = getTokenCounter(adapter, model)
+    const memberIds = Array.from(new Set([chat.userId, ...chat.memberIds]))
+    const profiles = await store.users.getProfiles(chat.userId, memberIds)
+    const senderProfile = await store.users.getProfile(userId!)
+
+    const repliedThisTurn: string[] = []
+
+    for (let i = 0; i < EVENT_MAX_REPLIES; i++) {
+      const msgs = await store.msgs.getMessages(chatId)
+      const recent = msgs
+        .slice()
+        .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
+        .slice(-8)
+        .map((m) => ({
+          name: m.name || (m.userId ? senderProfile?.handle || 'You' : 'Unknown'),
+          text: m.msg,
+        }))
+
+      const speakerId = await electSpeaker({
+        user: body.user!,
+        log,
+        event: chat.event!,
+        roster: roster.map((r) => ({ id: r.id, name: r.name, hook: r.hook })),
+        recent,
+        repliedThisTurn,
+      })
+      if (speakerId === 'none') break
+
+      const picked = roster.find((r) => r.id === speakerId)
+      if (!picked) break
+      // The roster `char` is a lightweight projection (no progression/json/scenario);
+      // load the full character to generate as. Skip if it can't be loaded.
+      const eventReplyAs = await store.characters.getCharacterById(speakerId)
+      if (!eventReplyAs) break
+
+      // History the model sees, with this speaker's identity resolved. Same call
+      // and ordering the client uses for request.lines (createChatStream reverses
+      // internally) — DO NOT reverse it here.
+      const lines = await getLinesForPrompt(
+        {
+          kind: body.kind,
+          settings: entities.gen,
+          members: profiles,
+          messages: msgs,
+          char: entities.char,
+          characters: body.characters,
+          sender: senderProfile!,
+          replyAs: eventReplyAs,
+          impersonate,
+          chat,
+          user: entities.user,
+          book: entities.book,
+          lastMessage: '',
+          chatEmbeds: [],
+          userEmbeds: [],
+          resolvedScenario: '',
+          jsonValues: undefined,
+        },
+        encoder
+      )
+
+      const result = await generateOneReply({
+        req,
+        body,
+        chat,
+        replyAs: eventReplyAs,
+        impersonate,
+        members,
+        userMsg,
+        requestId: i === 0 ? requestId : v4(),
+        eventTurn: true,
+        lines,
+        // chat.overrides is set on event chats, so scenario text = chat.scenario
+        // (the event block); the 4th arg makes the stage token + meta the speaker's.
+        resolvedScenario: resolveScenario(chat, eventReplyAs, [], eventReplyAs),
+      })
+      if (!result.ok) break
+      repliedThisTurn.push(eventReplyAs._id)
+    }
+
+    await releaseLock(chatId)
+    return
+  }
+
   await generateOneReply({
     req,
     body,
@@ -274,6 +375,19 @@ export const generateMessageV2 = handle(async (req, res) => {
   await releaseLock(chatId)
   return
 })
+
+// Present characters in the event, with a one-line persona hook for the director.
+async function getEventRoster(chat: AppSchema.Chat) {
+  const ids = Object.entries(chat.characters || {})
+    .filter(([, on]) => on)
+    .map(([id]) => id)
+  const chars = await store.characters.getCharacterList(ids)
+  return chars.map((char) => ({
+    id: char._id as string,
+    name: char.name as string,
+    hook: ((char.description as string) || '').slice(0, 120),
+  }))
+}
 
 /**
  * Generate ONE bot reply as `ctx.replyAs` and persist it. Streams partials over
@@ -295,6 +409,10 @@ async function generateOneReply(ctx: {
   // True when this reply is part of an already-paid event turn (Task 5b): the
   // per-reply −10 credit is then skipped (the flat fee was charged at turn start).
   eventTurn: boolean
+  // Event mode: per-speaker overrides. When omitted, the existing body-derived
+  // values are used (non-event path is unchanged).
+  lines?: string[]
+  resolvedScenario?: string
 }): Promise<{ ok: boolean; text: string; speakerId: string }> {
   const { req, body, chat, replyAs, impersonate, members, userMsg, requestId } = ctx
   const { userId, log } = req
@@ -318,6 +436,11 @@ async function generateOneReply(ctx: {
   }
 
   const entities = await getResponseEntities(chat, body.sender.userId, body.settings)
+  // Event mode: use this speaker's resolved scenario (stage token + meta) so the
+  // prompt createChatStream rebuilds reflects the elected character, not the main char.
+  if (ctx.resolvedScenario !== undefined) {
+    entities.resolvedScenario = ctx.resolvedScenario
+  }
   const schema = entities.gen.jsonSource === 'character' ? replyAs.json : entities.gen.json
   const hydrator = entities.gen.jsonEnabled && schema ? jsonHydrator(schema) : undefined
 
@@ -334,6 +457,10 @@ async function generateOneReply(ctx: {
     const { stream, ...metadata } = await createChatStream(
       {
         ...body,
+        // Event mode passes a per-speaker history (built via getLinesForPrompt with
+        // this speaker's identity resolved); it overrides body.lines. Non-event
+        // callers omit ctx.lines, so body.lines is used unchanged.
+        lines: ctx.lines ?? body.lines,
         chat,
         replyAs,
         impersonate,
