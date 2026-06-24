@@ -356,7 +356,9 @@ export async function createChatStream(
       const ownerId = opts.chat?.userId
       if (charId && ownerId && opts.lines?.length) {
         const query = [...opts.lines].slice(-3).join('\n')
-        const memories = await recallMemories(ownerId, charId, query, { k: 5 })
+        const memories = opts.chat?.memoryDisabled
+          ? []
+          : await recallMemories(ownerId, charId, query, { k: 5 })
         if (memories.length) {
           const block = ['What you remember:']
             .concat(memories.map((m) => `- ${m.text}`))

@@ -586,7 +586,7 @@ async function generateOneReply(ctx: {
   // character so they're recalled (via RAG) in future chats.
   const rememberFacts: string[] | undefined = (meta as any).rememberFacts
   delete (meta as any).rememberFacts
-  if (rememberFacts?.length && chat.characterId) {
+  if (rememberFacts?.length && chat.characterId && !chat.memoryDisabled) {
     for (const fact of rememberFacts) {
       rememberFact(userId!, chat.characterId, fact, 'tool').catch((err) =>
         log.error({ err }, 'Failed to store long-term memory')
