@@ -11,7 +11,6 @@ import * as matches from './matches'
 import * as reports from './reports'
 import * as credits from './credits'
 import * as scenario from './scenario'
-import * as invitecode from './invitecode'
 import * as oauth from './oauth'
 import * as subs from './subscriptions'
 import * as announce from './announcements'
@@ -28,7 +27,6 @@ export const store = {
   msgs,
   memory,
   shop,
-  invitecode,
   matches,
   reports,
   credits,

@@ -26,7 +26,6 @@ const LoginPage: Component = () => {
   const cfg = settingStore()
 
   const [register, setRegister] = createSignal(false)
-  const [inviteCode, setInviteCode] = createSignal('')
   const location = useLocation()
 
   const pathname = createMemo(() => location.pathname)
@@ -39,24 +38,8 @@ const LoginPage: Component = () => {
 
     return 'Something went wrong.'
   })
-  const utmSource = createMemo(() => new URLSearchParams(window.location.search).get('source'))
 
   createEffect(() => {
-    console.log('Path:', pathname())
-    console.log('UTM Source:', utmSource())
-
-    if (pathname() === '/register') {
-      setRegister(true)
-      setComponentPageTitle('Register')
-    }
-
-    if (utmSource() && utmSource().toLowerCase() === 'viewgrabber') {
-      console.log('Setting invite code to viewgrabber24')
-      setInviteCode('VIEWGRABBER24')
-    }
-  })
-
-  createEffect(async () => {
     if (pathname() === '/register') {
       setRegister(true)
       setComponentPageTitle('Register')
@@ -83,7 +66,7 @@ const LoginPage: Component = () => {
       />
       <div class="w-full max-w-sm">
         <Show when={register()}>
-          <RegisterForm isLoading={store.loading} setInviteCode inviteCode={inviteCode()} />
+          <RegisterForm isLoading={store.loading} />
         </Show>
         <Show when={!register()}>
           <LoginForm isLoading={store.loading} />
@@ -125,18 +108,6 @@ const LoginPage: Component = () => {
         </Show>
         <Show when={register()}>
           <p class="flex justify-center text-xl text-[var(--hl-400)]">
-            Why do I need an access code?
-          </p>
-
-          <div class="mx-4 flex flex-col items-center text-center ">
-            <p>
-              We need to have some sort of control on the amount of people joining since we do not
-              require an email for registration (we find privacy more important). You can join our
-              Discord, check our Twitter or try <b>AIVO8592094</b>{' '}
-              <span class="text-sm">(this code could run out)</span>
-            </p>
-          </div>
-          <p class="flex justify-center text-xl text-[var(--hl-400)]">
             Do not register more than one account!
           </p>
 
@@ -156,25 +127,21 @@ export default LoginPage
 
 type FormProps = {
   isLoading: boolean
-  inviteCode: string
-  setInviteCode: (code: string) => void
 }
 
 const RegisterForm: Component<FormProps> = (props) => {
   const navigate = useNavigate()
   const [query] = useSearchParams()
 
-  const ecu = userStore.getECU()
   const register = (evt: Event) => {
-    const { username, password, confirm, handle, invitecode } = getStrictForm(evt, {
+    const { username, password, confirm, handle } = getStrictForm(evt, {
       handle: 'string',
       username: 'string',
       password: 'string',
       confirm: 'string',
-      invitecode: 'string',
     })
 
-    if (!handle || !username || !password || !invitecode) return
+    if (!handle || !username || !password) return
     if (password !== confirm) {
       toastStore.warn('Passwords do not match', 2)
       return
@@ -183,7 +150,7 @@ const RegisterForm: Component<FormProps> = (props) => {
     // Return the user to where they came from (e.g. the create wizard) when a
     // safe internal `?return=` path was supplied; otherwise land on the profile.
     const dest = internalReturn(query.return) || '/profile'
-    userStore.register({ handle, username, password, invitecode }, () => navigate(dest))
+    userStore.register({ handle, username, password }, () => navigate(dest))
   }
 
   return (
@@ -212,22 +179,6 @@ const RegisterForm: Component<FormProps> = (props) => {
           autocomplete="new-password"
           required
         />
-        <TextInput
-          label="Invite code"
-          fieldName="invitecode"
-          value={props.inviteCode}
-          onInput={(e) => props.setInviteCode(e.currentTarget.value)}
-          placeholder="Check below for a code!"
-          required
-        />
-        <Show when={props.inviteCode === 'VIEWGRABBER24'}>
-          <blockquote class="text-gray-500 dark:text-gray-400">
-            Coming from ViewGrabber you get a free bonus. <br />
-            Some even get a huge bonus!
-            <br />
-            <p>"Have fun, the free tier is very generous."</p>
-          </blockquote>
-        </Show>
 
         <div></div>
       </div>
@@ -289,7 +240,7 @@ const LoginForm: Component<FormProps> = (props) => {
   )
 
   const handleLogin = () => {
-    userStore.remoteLogin((token) => {
+    userStore.remoteLogin((token: string) => {
       location.href = `${query.callback}?access_token=${token}`
     })
   }
