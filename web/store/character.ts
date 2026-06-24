@@ -311,26 +311,30 @@ export const characterStore = createStore<CharacterState>(
       }
     },
     setFavorite: async (
-      { characters: { list, map, loaded } },
+      { characters: { list, map, loaded }, editing },
       characterId: string,
       favorite: boolean
     ) => {
       const res = await charsApi.setFavorite(characterId, favorite)
       if (res.error) return toastStore.error(`Failed to set favorite character`)
       if (res.result) {
+        // The profile page renders `editing` (the fetched detail), so update it
+        // too — otherwise the star/label won't change until a reload.
         const prev = list.find((ch) => ch._id === characterId)
-        if (!prev) return
+        const base = prev || (editing?._id === characterId ? editing : undefined)
+        if (!base) return
 
-        const nextChar = { ...prev }
-        nextChar.favorite = favorite
+        const nextChar = { ...base, favorite }
         events.emit('character-updated', nextChar, 'updated')
-        return {
+        const result: Partial<CharacterState> = {
           characters: {
-            list: list.map((ch) => (ch._id === characterId ? nextChar : ch)),
+            list: list.map((ch) => (ch._id === characterId ? { ...ch, favorite } : ch)),
             map: replace(map, characterId, { favorite }),
             loaded,
           },
         }
+        if (editing?._id === characterId) result.editing = { ...editing, favorite }
+        return result
       }
     },
     async *editAvatar({ characters: { list, map, loaded } }, characterId: string, file: File) {

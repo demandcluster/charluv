@@ -15,7 +15,7 @@ import { settingStore } from '../../store/settings'
 import { startChat } from '../../store/chat'
 import { getAssetUrl } from '../../shared/util'
 import Loading from '../../shared/Loading'
-import { Globe, Star, Copy, Download, Trash } from '/web/icons'
+import { Globe, Star, Copy, Download, Trash, Plus } from '/web/icons'
 import MakePublicModal from './MakePublicModal'
 import DeleteCharacterModal from '../Character/DeleteCharacter'
 import { DownloadModal } from '../Character/DownloadModal'
@@ -108,6 +108,12 @@ const Profile: Component = () => {
     startChat(c, navigate)
   }
 
+  const onNewChat = () => {
+    const c = char()
+    if (!c) return
+    startChat(c, navigate, { forceNew: true })
+  }
+
   const toggleFavorite = () => {
     const c = char()
     if (!c) return
@@ -186,6 +192,9 @@ const Profile: Component = () => {
             <div class="dpf-actions">
               <button class="dpf-btn primary" onClick={onChat}>
                 Chat
+              </button>
+              <button class="dpf-btn ghost" onClick={onNewChat}>
+                <Plus size={15} /> New chat
               </button>
               <Show
                 when={!isPublic()}

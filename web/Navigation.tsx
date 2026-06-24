@@ -15,7 +15,6 @@ import {
   ShoppingCart,
   Bot,
   Star,
-  Plus,
   Users,
   Power,
   Settings,
@@ -630,21 +629,14 @@ const CharacterLink = () => {
 
 const ChatLink = () => {
   return (
-    <MultiItem>
-      <Item
-        href="/chats"
-        ariaLabel="Chats"
-        onClick={() => soundEmitter.emit('menu-item-clicked', 'chats')}
-      >
-        <MessageCircle fill="var(--bg-100)" aria-hidden="true" />
-        <span aria-hidden="true"> Chats </span>
-      </Item>
-      <EndItem>
-        <A class="icon-button" href="/chats/create" role="button" aria-label="Create a new chat">
-          <Plus aria-hidden="true" />
-        </A>
-      </EndItem>
-    </MultiItem>
+    <Item
+      href="/chats"
+      ariaLabel="Chats"
+      onClick={() => soundEmitter.emit('menu-item-clicked', 'chats')}
+    >
+      <MessageCircle fill="var(--bg-100)" aria-hidden="true" />
+      <span aria-hidden="true"> Chats </span>
+    </Item>
   )
 }
 
