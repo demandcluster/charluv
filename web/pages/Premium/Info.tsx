@@ -28,8 +28,8 @@ You can also **publish your own characters**. Create a character, open it from *
 | ------ | ------: |
 | Send or regenerate a message | 10 |
 | Generate or regenerate an image | 25 |
-| Create a character | 50 |
-| Edit a character | 20 |
+| Create a character | 100 |
+| Edit a character | 30 |
 | Publish a character *(one-time reward)* | **+500** |
 
 ## Recharge

@@ -147,10 +147,10 @@ const createCharacterFor = (charge: boolean) =>
   // created via the separate, charge-free /import route. The create route bills.
   if (charge) {
     const user = await store.users.getUser(req.userId!)
-    if (user?.credits && user?.credits < 50) {
+    if (user?.credits && user?.credits < 100) {
       throw new StatusError('Not enough credits', 400)
     }
-    await store.credits.updateCredits(req.userId!, -50)
+    await store.credits.updateCredits(req.userId!, -100)
   }
 
   const imageSettings = body.imageSettings ? JSON.parse(body.imageSettings) : undefined
@@ -732,15 +732,15 @@ const editFullCharacter = handle(async (req) => {
     }
   }
 
-  // Finalizing a draft is free: the 50-credit creation fee was already taken
+  // Finalizing a draft is free: the 100-credit creation fee was already taken
   // when the draft was created (on entering the final step). Only charge the
-  // 20-credit edit fee for edits to already-finished characters.
+  // 30-credit edit fee for edits to already-finished characters.
   if (!existing?.draft) {
     const user = await store.users.getUser(req.userId!)
-    if (user?.credits && user?.credits < 20) {
+    if (user?.credits && user?.credits < 30) {
       throw new StatusError('Not enough credits', 400)
     }
-    await store.credits.updateCredits(req.userId!, -20)
+    await store.credits.updateCredits(req.userId!, -30)
   }
 
   const char = await store.characters.updateCharacter(id, req.userId!, update)
