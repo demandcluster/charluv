@@ -57,9 +57,13 @@ const getPublished = handle(async () => {
 
 /** Stage-2 actions on a live published character. */
 const moderatePublished = handle(async ({ params, body, userId }) => {
-  assertValid({ action: 'string' }, body)
+  assertValid({ action: 'string', reason: 'string?' }, body)
   const char = await store.characters.getCharacterById(params.id)
   if (!char) throw new StatusError('Character not found', 404)
+
+  // Optional moderator note, relayed to the character's owner.
+  const reason = body.reason?.trim()
+  const suffix = reason ? ` Reason: ${reason}` : ''
 
   switch (body.action) {
     case 'reviewed':
@@ -87,7 +91,7 @@ const moderatePublished = handle(async ({ params, body, userId }) => {
       })
       sendOne(char.userId, {
         type: 'admin-notification',
-        message: `Your public character "${char.name}" has been unpublished by a moderator.`,
+        message: `Your public character "${char.name}" has been unpublished by a moderator.${suffix}`,
       })
       return { success: true }
 
@@ -96,7 +100,7 @@ const moderatePublished = handle(async ({ params, body, userId }) => {
       await store.characters.adminDeleteCharacter(char._id)
       sendOne(char.userId, {
         type: 'admin-notification',
-        message: `Your public character "${char.name}" was removed by a moderator.`,
+        message: `Your public character "${char.name}" was removed by a moderator.${suffix}`,
       })
       return { success: true }
 
@@ -134,10 +138,14 @@ const getReports = handle(async () => {
 
 /** Admin action on a reported character. */
 const resolveReport = handle(async ({ params, body, userId }) => {
-  assertValid({ action: 'string' }, body)
+  assertValid({ action: 'string', reason: 'string?' }, body)
   const char = await store.characters.getCharacterById(params.id)
   await store.reports.resolveReportsForChar(params.id, userId!)
   if (!char) return { success: true }
+
+  // Optional moderator note, relayed to the character's owner.
+  const reason = body.reason?.trim()
+  const suffix = reason ? ` Reason: ${reason}` : ''
 
   switch (body.action) {
     case 'dismiss':
@@ -168,7 +176,7 @@ const resolveReport = handle(async ({ params, body, userId }) => {
       })
       sendOne(char.userId, {
         type: 'admin-notification',
-        message: `Your public character "${char.name}" has been taken down after reports.`,
+        message: `Your public character "${char.name}" has been taken down after reports.${suffix}`,
       })
       return { success: true }
 
@@ -176,7 +184,7 @@ const resolveReport = handle(async ({ params, body, userId }) => {
       await store.characters.adminDeleteCharacter(char._id)
       sendOne(char.userId, {
         type: 'admin-notification',
-        message: `Your public character "${char.name}" was removed after reports.`,
+        message: `Your public character "${char.name}" was removed after reports.${suffix}`,
       })
       return { success: true }
 

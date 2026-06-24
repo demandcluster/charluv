@@ -65,8 +65,13 @@ export const adminStore = createStore<AdminState>('admin', {
       if (res.error) toastStore.error(`Failed to load published characters: ${res.error}`)
       if (res.result) return { published: res.result.characters }
     },
-    async moderatePublished(_, charId: string, action: 'reviewed' | 'unpublish' | 'delete') {
-      const res = await api.post(`/admin/published/${charId}`, { action })
+    async moderatePublished(
+      _,
+      charId: string,
+      action: 'reviewed' | 'unpublish' | 'delete',
+      reason?: string
+    ) {
+      const res = await api.post(`/admin/published/${charId}`, { action, reason })
       if (res.error) toastStore.error(`Action failed: ${res.error}`)
       if (res.result?.success) toastStore.success(`Done`)
       return res.result?.success
@@ -76,8 +81,13 @@ export const adminStore = createStore<AdminState>('admin', {
       if (res.error) toastStore.error(`Failed to load reports: ${res.error}`)
       if (res.result) return { reports: res.result.reports }
     },
-    async resolveReport(_, charId: string, action: 'dismiss' | 'hide' | 'delete') {
-      const res = await api.post(`/admin/reports/${charId}`, { action })
+    async resolveReport(
+      _,
+      charId: string,
+      action: 'dismiss' | 'hide' | 'delete',
+      reason?: string
+    ) {
+      const res = await api.post(`/admin/reports/${charId}`, { action, reason })
       if (res.error) toastStore.error(`Action failed: ${res.error}`)
       if (res.result?.success) toastStore.success(`Done`)
       return res.result?.success

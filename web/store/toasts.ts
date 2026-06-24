@@ -86,8 +86,7 @@ export const toastStore = createStore<ToastState>('toasts', {
     error: addToast('error'),
     admin: (_, message: string, level?: number) => {
       if (level === undefined) {
-        adminToast(_, message)
-        return
+        return adminToast(_, message)
       }
       const user = getStore('user').getState()
       const userLevel = user.user?.admin ? Infinity : user.premium ? 10 : user.userLevel

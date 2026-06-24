@@ -38,7 +38,14 @@ const ReportsTab: Component = () => {
   onMount(load)
 
   const act = async (charId: string, action: 'dismiss' | 'hide' | 'delete') => {
-    const ok = await adminStore.resolveReport(charId, action)
+    let reason: string | undefined
+    if (action === 'hide' || action === 'delete') {
+      const verb = action === 'delete' ? 'removing' : 'taking down'
+      const input = window.prompt(`Reason for ${verb} this character (sent to the owner):`)
+      if (input === null) return // cancelled
+      reason = input.trim() || undefined
+    }
+    const ok = await adminStore.resolveReport(charId, action, reason)
     if (ok) load()
   }
 
@@ -97,7 +104,14 @@ const PublishedTab: Component = () => {
   onMount(load)
 
   const act = async (charId: string, action: 'reviewed' | 'unpublish' | 'delete') => {
-    const ok = await adminStore.moderatePublished(charId, action)
+    let reason: string | undefined
+    if (action === 'unpublish' || action === 'delete') {
+      const verb = action === 'delete' ? 'removing' : 'unpublishing'
+      const input = window.prompt(`Reason for ${verb} this character (sent to the owner):`)
+      if (input === null) return // cancelled
+      reason = input.trim() || undefined
+    }
+    const ok = await adminStore.moderatePublished(charId, action, reason)
     if (ok) load()
   }
 
