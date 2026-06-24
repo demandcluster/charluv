@@ -115,7 +115,10 @@ export const importChat = handle(async ({ body, userId }) => {
 })
 
 export const createEventChat = handle(async ({ body, user, userId }) => {
-  assertValid({ location: 'string', description: 'string', characterIds: ['string'] }, body)
+  assertValid(
+    { location: 'string', description: 'string', characterIds: ['string'], memoryDisabled: 'boolean?' },
+    body
+  )
 
   const chars = (
     await Promise.all(
@@ -143,7 +146,9 @@ export const createEventChat = handle(async ({ body, user, userId }) => {
       userId: userId!,
       mode: 'event',
       event: { location: body.location, description: body.description },
-      memoryDisabled: true,
+      // Defaults on for events (no long-term residue), but the creator can opt in
+      // to remembering the party from the start screen.
+      memoryDisabled: body.memoryDisabled ?? true,
       scenario,
       overrides: chars[0]!.persona,
       // No char-attributed greeting: the opening is a neutral scene line (below)

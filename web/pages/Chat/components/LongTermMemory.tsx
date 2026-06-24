@@ -3,8 +3,9 @@ import { Trash } from '/web/icons'
 import { AppSchema } from '../../../../common/types/schema'
 import Button from '../../../shared/Button'
 import TextInput from '../../../shared/TextInput'
+import { Toggle } from '../../../shared/Toggle'
 import Loading from '../../../shared/Loading'
-import { toastStore } from '../../../store'
+import { chatStore, toastStore } from '../../../store'
 import { charsApi, CharacterMemory } from '../../../store/data/chars'
 
 /**
@@ -71,6 +72,16 @@ const LongTermMemory: Component<{
         with them and are recalled when relevant. The character adds these on its own; you can also
         add or remove them here.
       </div>
+
+      <Toggle
+        fieldName="memoryDisabled"
+        label="Disable long-term memory"
+        helperText="Nothing said in this chat is remembered or recalled later. On by default for Events."
+        value={props.chat?.memoryDisabled ?? false}
+        onChange={(v) =>
+          props.chat && chatStore.editChat(props.chat._id, { memoryDisabled: v }, undefined)
+        }
+      />
 
       <div class="flex items-end gap-2">
         <TextInput

@@ -3,6 +3,7 @@ import { useNavigate } from '@solidjs/router'
 import Modal from '../../shared/Modal'
 import TextInput from '../../shared/TextInput'
 import Button from '../../shared/Button'
+import { Toggle } from '../../shared/Toggle'
 import { characterStore, chatStore } from '../../store'
 
 const CreateEventModal: Component<{ show: boolean; close: () => void }> = (props) => {
@@ -11,6 +12,7 @@ const CreateEventModal: Component<{ show: boolean; close: () => void }> = (props
   const [location, setLocation] = createSignal('')
   const [description, setDescription] = createSignal('')
   const [selected, setSelected] = createSignal<Record<string, boolean>>({})
+  const [memoryDisabled, setMemoryDisabled] = createSignal(true)
 
   const chars = createMemo(() => state.characters.list)
   const ids = createMemo(() =>
@@ -26,7 +28,12 @@ const CreateEventModal: Component<{ show: boolean; close: () => void }> = (props
   const start = () => {
     if (!canStart()) return
     chatStore.createEvent(
-      { location: location().trim(), description: description().trim(), characterIds: ids() },
+      {
+        location: location().trim(),
+        description: description().trim(),
+        characterIds: ids(),
+        memoryDisabled: memoryDisabled(),
+      },
       (id: string) => {
         props.close()
         navigate(`/chat/${id}`)
@@ -86,6 +93,13 @@ const CreateEventModal: Component<{ show: boolean; close: () => void }> = (props
             </Show>
           </div>
         </div>
+        <Toggle
+          fieldName="eventMemoryDisabled"
+          label="Disable long-term memory"
+          helperText="Nothing said in this event is remembered or recalled later. On by default."
+          value={memoryDisabled()}
+          onChange={setMemoryDisabled}
+        />
       </div>
     </Modal>
   )

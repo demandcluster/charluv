@@ -397,7 +397,12 @@ export const chatStore = createStore<ChatState>('chat', {
 
     async *createEvent(
       { allChats },
-      input: { location: string; description: string; characterIds: string[] },
+      input: {
+        location: string
+        description: string
+        characterIds: string[]
+        memoryDisabled?: boolean
+      },
       onSuccess?: (id: string) => void
     ) {
       const res = await chatsApi.createEventChat(input)
