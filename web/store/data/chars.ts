@@ -17,6 +17,7 @@ export const charsApi = {
   removeAvatar,
   editAvatar,
   deleteCharacter,
+  resetCharacter,
   editCharacter,
   editPartialCharacter,
   createCharacter,
@@ -223,6 +224,35 @@ export async function deleteCharacter(charId: string) {
   await localApi.saveChats(next.chats)
 
   return { result: true, error: undefined }
+}
+
+/**
+ * Reset a character to a clean slate: delete its chats, zero XP, wipe memories.
+ * The character (persona, gallery, progression config) is kept.
+ */
+export async function resetCharacter(charId: string) {
+  if (isLoggedIn()) {
+    return api.post(`/character/${charId}/reset`)
+  }
+
+  // Guests have no server-side memories; clear local chats and reset XP.
+  const chats = await loadItem('chats')
+  const nextChats = chats.filter((ch) => {
+    if (ch.characterId !== charId) return true
+    localApi.deleteChatMessages(ch._id)
+    return false
+  })
+  await localApi.saveChats(nextChats)
+
+  const chars = await loadItem('characters')
+  const prev = chars.find((ch) => ch._id === charId)
+  if (!prev) {
+    return localApi.error(`Character not found`)
+  }
+  const next = chars.map((ch) => (ch._id === charId ? { ...ch, xp: 0 } : ch))
+  await localApi.saveChars(next)
+
+  return localApi.result({ success: true })
 }
 
 export async function editPartialCharacter(charId: string, update: Partial<AppSchema.Character>) {

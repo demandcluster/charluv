@@ -146,7 +146,8 @@ export const createEventChat = handle(async ({ body, user, userId }) => {
       memoryDisabled: true,
       scenario,
       overrides: chars[0]!.persona,
-      greeting: `You arrive at ${body.location}. ${body.description}.`,
+      // No char-attributed greeting: the opening is a neutral scene line (below)
+      // so no single character "owns" the intro. The director then opens the scene.
       characters,
       memberIds: [],
       scenarioIds: [],
@@ -155,5 +156,16 @@ export const createEventChat = handle(async ({ body, user, userId }) => {
     profile!
   )
 
-  return chat
+  // Scene-setting narration shown as a world event (no characterId → not owned by
+  // any character). The director elects who speaks first when the chat is opened.
+  await store.msgs.createChatMessage({
+    chatId: chat._id,
+    message: `You arrive at ${body.location}. ${body.description}.`,
+    ooc: false,
+    event: 'world',
+    name: undefined,
+  })
+
+  const updated = await store.chats.update(chat._id, { messageCount: 1 })
+  return updated || chat
 })

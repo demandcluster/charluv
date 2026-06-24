@@ -151,6 +151,21 @@ export async function deleteAllChats(characterId?: string) {
   await db('chat-message').deleteMany({ chatId: { $in: chatIds } })
 }
 
+/** Delete every chat (and its messages) a user has with a single character. */
+export async function deleteChatsByCharacter(userId: string, characterId: string) {
+  const chatIds = await db('chat')
+    .find({ characterId, userId })
+    .toArray()
+    .then((chats) => chats.map((ch) => ch._id))
+
+  if (!chatIds.length) return
+
+  await db('chat').deleteMany({ _id: { $in: chatIds } })
+  await db('chat-message').deleteMany({ chatId: { $in: chatIds } })
+  await db('chat-invite').deleteMany({ chatId: { $in: chatIds } })
+  await db('chat-member').deleteMany({ chatId: { $in: chatIds } })
+}
+
 export async function canViewChat(senderId: string, chat: AppSchema.Chat) {
   if (chat.userId === senderId) return true
   const membership = await db('chat-member').findOne({ chatId: chat._id, userId: senderId })

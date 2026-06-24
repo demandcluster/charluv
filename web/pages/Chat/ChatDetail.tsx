@@ -157,7 +157,8 @@ const ChatDetail: Component = () => {
     migratedBooks.add(c._id)
     charsApi.migrateBook(c._id).then((res) => {
       const n = res.result?.migrated
-      if (n) toastStore.success(`Imported ${n} memor${n === 1 ? 'y' : 'ies'} from the old memory book`)
+      if (n)
+        toastStore.success(`Imported ${n} memor${n === 1 ? 'y' : 'ies'} from the old memory book`)
     })
   })
 
@@ -319,6 +320,22 @@ const ChatDetail: Component = () => {
     msgStore.retry(chats.chat?._id!)
   }
 
+  // Event chats open with a neutral scene line and no character has spoken yet.
+  // Auto-trigger the director once so it elects who opens the scene. Guarded so it
+  // fires a single time per mount and never after a character has already replied.
+  const [eventOpened, setEventOpened] = createSignal(false)
+  createEffect(() => {
+    if (chats.chat?.mode !== 'event') return
+    if (!chats.loaded || eventOpened()) return
+    if (msgs.waiting) return
+    const loaded = chatMsgs()
+    // Wait for the scene narration to load; bail once any bot has spoken.
+    if (!loaded.length) return
+    if (loaded.some((m) => m.characterId && !m.userId)) return
+    setEventOpened(true)
+    msgStore.request(chats.chat._id, chats.char!._id)
+  })
+
   const characterPills = createMemo(() => {
     const bots = ctx.activeBots.filter((bot) => {
       if (ctx.tempMap[bot._id]?.favorite === false) return false
@@ -442,7 +459,14 @@ const ChatDetail: Component = () => {
           ref={sticky.monitor}
         >
           <div id="chat-messages" class="flex w-full flex-col gap-2">
-            <Show when={chats.loaded && chatMsgs().length < 2 && chats.char?.description}>
+            <Show
+              when={
+                chats.chat?.mode !== 'event' &&
+                chats.loaded &&
+                chatMsgs().length < 2 &&
+                chats.char?.description
+              }
+            >
               <div class="mb-4 flex flex-col items-center text-[var(--text-500)]">
                 <div class="font-bold">Notes from the creator of {chats.char?.name}</div>
                 {descriptionText()}

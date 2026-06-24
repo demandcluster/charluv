@@ -14,9 +14,7 @@ import { HordeCheck } from '/common/horde-gen'
 /** Build the throwaway self-persona used to represent {{user}} in chats from
  * the profile's Your Character fields. A temp- id keeps it out of the DB and
  * membership lists (the server/prompt pipeline special-cases temp- ids). */
-function buildSelfImpersonate(
-  profile?: AppSchema.Profile
-): AppSchema.Character | undefined {
+function buildSelfImpersonate(profile?: AppSchema.Profile): AppSchema.Character | undefined {
   if (!profile) return undefined
   const text = [profile.description, profile.persona]
     .map((s) => (s || '').trim())
@@ -232,7 +230,9 @@ export const characterStore = createStore<CharacterState>(
       if (creating) return
 
       yield { creating: true }
-      const res = imported ? await charsApi.importCharacter(char) : await charsApi.createCharacter(char)
+      const res = imported
+        ? await charsApi.importCharacter(char)
+        : await charsApi.createCharacter(char)
       yield { creating: false }
       if (res.error) toastStore.error(`Failed to create character: ${res.error}`)
       if (res.result) {
@@ -389,6 +389,27 @@ export const characterStore = createStore<CharacterState>(
         return {
           characters: { loaded, list: next, map },
         }
+      }
+    },
+    resetCharacter: async (
+      { characters: { list, map, loaded }, editing },
+      charId: string,
+      onSuccess?: () => void
+    ) => {
+      const res = await charsApi.resetCharacter(charId)
+      if (res.error) return toastStore.error(`Failed to reset character: ${res.error}`)
+      if (res.result) {
+        toastStore.success('Character reset: chats, XP and memories cleared')
+        const result: Partial<CharacterState> = {
+          characters: {
+            list: list.map((ch) => (ch._id === charId ? { ...ch, xp: 0 } : ch)),
+            map: replace(map, charId, { xp: 0 }),
+            loaded,
+          },
+        }
+        if (editing?._id === charId) result.editing = { ...editing, xp: 0 }
+        onSuccess?.()
+        return result
       }
     },
     clearGeneratedAvatar() {

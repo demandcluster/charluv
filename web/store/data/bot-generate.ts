@@ -430,7 +430,11 @@ async function getGenerateProps(
       // If the chat is a single-user chat, it is always in 'auto-reply' mode
       // Ensure the autoReplyAs parameter is set for single-bot chats
       const isMulti = getActiveBots(entities.chat, entities.characters).length > 1
-      if (!isMulti) entities.autoReplyAs = entities.char._id
+      // Event chats are director-driven on the server: it elects the speaker(s)
+      // and ignores the passed replyAs. A replyAs is still structurally required
+      // to build the request, so default it to the main char.
+      const isEvent = entities.chat.mode === 'event'
+      if (!isMulti || isEvent) entities.autoReplyAs = entities.char._id
 
       if (!entities.autoReplyAs) throw new Error(`No character selected to reply with`)
       props.impersonate = entities.impersonating

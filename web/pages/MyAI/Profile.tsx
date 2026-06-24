@@ -15,9 +15,10 @@ import { settingStore } from '../../store/settings'
 import { startChat } from '../../store/chat'
 import { getAssetUrl } from '../../shared/util'
 import Loading from '../../shared/Loading'
-import { Globe, Star, Copy, Download, Trash, Plus } from '/web/icons'
+import { Globe, Star, Copy, Download, Trash, Plus, RotateCcw } from '/web/icons'
 import MakePublicModal from './MakePublicModal'
 import DeleteCharacterModal from '../Character/DeleteCharacter'
+import ResetCharacterModal from '../Character/ResetCharacter'
 import { DownloadModal } from '../Character/DownloadModal'
 import { EVENTS, events } from '../../emitter'
 import { AppSchema } from '/common/types'
@@ -89,6 +90,7 @@ const Profile: Component = () => {
   const [showPublish, setShowPublish] = createSignal(false)
   const [showDownload, setShowDownload] = createSignal(false)
   const [showDelete, setShowDelete] = createSignal(false)
+  const [showReset, setShowReset] = createSignal(false)
   const isPublic = createMemo(() => char()?.published && char()?.moderation?.status !== 'hidden')
   // Was public, then edited — needs re-publishing to go live again.
   const needsRepublish = createMemo(
@@ -122,12 +124,23 @@ const Profile: Component = () => {
 
   return (
     <div class="dpf-root">
-      <Show when={char()} fallback={<div class="dpf-loading"><Loading /></div>}>
+      <Show
+        when={char()}
+        fallback={
+          <div class="dpf-loading">
+            <Loading />
+          </div>
+        }
+      >
         <div class="dpf-layout">
           {/* Main image */}
           <Show
             when={main()}
-            fallback={<div class="dpf-ph" aria-hidden="true">{initial()}</div>}
+            fallback={
+              <div class="dpf-ph" aria-hidden="true">
+                {initial()}
+              </div>
+            }
           >
             <button
               type="button"
@@ -225,6 +238,9 @@ const Profile: Component = () => {
               <button class="dpf-btn ghost" onClick={() => setShowDownload(true)}>
                 <Download size={15} /> Export
               </button>
+              <button class="dpf-btn danger" onClick={() => setShowReset(true)}>
+                <RotateCcw size={15} /> Reset
+              </button>
               <button class="dpf-btn danger" onClick={() => setShowDelete(true)}>
                 <Trash size={15} /> Delete
               </button>
@@ -235,11 +251,7 @@ const Profile: Component = () => {
           </div>
         </div>
 
-        <MakePublicModal
-          show={showPublish()}
-          close={() => setShowPublish(false)}
-          char={char()!}
-        />
+        <MakePublicModal show={showPublish()} close={() => setShowPublish(false)} char={char()!} />
         <DownloadModal
           show={showDownload()}
           close={() => setShowDownload(false)}
@@ -250,6 +262,7 @@ const Profile: Component = () => {
           close={() => setShowDelete(false)}
           char={char()}
         />
+        <ResetCharacterModal show={showReset()} close={() => setShowReset(false)} char={char()} />
       </Show>
     </div>
   )

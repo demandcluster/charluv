@@ -70,7 +70,6 @@ const ChatNav: Component<NavProps> = (props) => {
     () => props.ctx.chat?.userId === props.ctx.user?._id && props.ctx.chat?.mode !== 'companion'
   )
 
-
   const size = 20
 
   return (
@@ -122,7 +121,11 @@ const ChatMenuTitle: Component<NavProps> = (props) => {
       class="bg-700 hover:bg-600 flex h-8 max-w-[80%] cursor-pointer items-center gap-2 rounded-md px-2"
     >
       <Pencil size={16} color="var(--bg-500)" class="min-h-[12px] min-w-[12px]" />
-      <span class="ellipsis text-md">{props.ctx.char?.name}</span>
+      <span class="ellipsis text-md">
+        {props.ctx.chat?.mode === 'event'
+          ? props.ctx.chat?.event?.location || 'Event'
+          : props.ctx.char?.name}
+      </span>
     </div>
   )
 }

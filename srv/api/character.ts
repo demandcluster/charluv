@@ -17,12 +17,17 @@ import { CharacterUpdate } from '../db/characters'
 import { getVoiceService } from '../voice'
 import { generateImage } from '../image'
 import { makeLoraName, zimageEncode } from '../image/zimage'
-import { listMemories, rememberFact, deleteMemory } from '../memory/store'
+import { listMemories, rememberFact, deleteMemory, deleteAllMemories } from '../memory/store'
 import { v4 } from 'uuid'
 import { validBook } from './memory'
 import { isObject, tryParse } from '/common/util'
 import { assertStrict } from '/common/valid/validate'
-import { buildModPrompt, fromJsonResponse, DEFAULT_MOD_PROMPT, DEFAULT_MOD_SCHEMA } from '/common/prompt'
+import {
+  buildModPrompt,
+  fromJsonResponse,
+  DEFAULT_MOD_PROMPT,
+  DEFAULT_MOD_SCHEMA,
+} from '/common/prompt'
 import { checkPublishRequirements, PUBLISH_DEFAULTS, PUBLISH_MIN } from '/common/publish'
 import { createInferenceStream } from '../adapter/generate'
 import { sendOne } from './ws'
@@ -121,102 +126,104 @@ const createCharacterFor = (charge: boolean) =>
     const persona = JSON.parse(body.persona) as AppSchema.Persona
     assertValid(personaValidator, persona)
 
-  const sprite = body.sprite ? JSON.parse(body.sprite) : undefined
-  const voice = parseAndValidateVoice(body.voice)
-  const tags = toArray(body.tags)
-  const alternateGreetings = body.alternateGreetings ? toArray(body.alternateGreetings) : undefined
-  const insert = body.insert
-    ? (JSON.parse(body.insert) as { prompt: string; depth: number })
-    : undefined
+    const sprite = body.sprite ? JSON.parse(body.sprite) : undefined
+    const voice = parseAndValidateVoice(body.voice)
+    const tags = toArray(body.tags)
+    const alternateGreetings = body.alternateGreetings
+      ? toArray(body.alternateGreetings)
+      : undefined
+    const insert = body.insert
+      ? (JSON.parse(body.insert) as { prompt: string; depth: number })
+      : undefined
 
-  const characterBook = body.characterBook
-    ? typeof body.characterBook === 'string'
-      ? JSON.parse(body.characterBook)
-      : body.characterBook
-    : undefined
+    const characterBook = body.characterBook
+      ? typeof body.characterBook === 'string'
+        ? JSON.parse(body.characterBook)
+        : body.characterBook
+      : undefined
 
-  if (!!characterBook) {
-    assertValid(validBook, characterBook)
-  }
-
-  const extensions = body.extensions ? JSON.parse(body.extensions) : undefined
-  if (!isObject(extensions) && extensions !== undefined) {
-    throw new StatusError('Character `extensions` field must be an object or undefined.', 400)
-  }
-  // Imports bring a ready-made character (nothing is generated for them) and are
-  // created via the separate, charge-free /import route. The create route bills.
-  if (charge) {
-    const user = await store.users.getUser(req.userId!)
-    if (user?.credits && user?.credits < 100) {
-      throw new StatusError('Not enough credits', 400)
+    if (!!characterBook) {
+      assertValid(validBook, characterBook)
     }
-    await store.credits.updateCredits(req.userId!, -100)
-  }
 
-  const imageSettings = body.imageSettings ? JSON.parse(body.imageSettings) : undefined
-  const json = body.json ? JSON.parse(body.json) : undefined
-  const progression = body.progression ? JSON.parse(body.progression) : undefined
-  const category = body.category ? JSON.parse(body.category) : undefined
+    const extensions = body.extensions ? JSON.parse(body.extensions) : undefined
+    if (!isObject(extensions) && extensions !== undefined) {
+      throw new StatusError('Character `extensions` field must be an object or undefined.', 400)
+    }
+    // Imports bring a ready-made character (nothing is generated for them) and are
+    // created via the separate, charge-free /import route. The create route bills.
+    if (charge) {
+      const user = await store.users.getUser(req.userId!)
+      if (user?.credits && user?.credits < 100) {
+        throw new StatusError('Not enough credits', 400)
+      }
+      await store.credits.updateCredits(req.userId!, -100)
+    }
 
-  // creator / characterVersion are set automatically (server-side). The user no
-  // longer edits these in the form, so any body values are ignored.
-  const profile = await store.users.getProfile(req.userId!)
-  const autoCreator = profile?.handle || ''
-  const autoVersion = '1'
+    const imageSettings = body.imageSettings ? JSON.parse(body.imageSettings) : undefined
+    const json = body.json ? JSON.parse(body.json) : undefined
+    const progression = body.progression ? JSON.parse(body.progression) : undefined
+    const category = body.category ? JSON.parse(body.category) : undefined
 
-  const char = await store.characters.createCharacter(req.user?.userId!, {
-    name: body.name,
-    persona,
-    premium: !!body.premium,
-    xp: 0,
-    match: body.match?.toString() === 'true' || false,
-    draft: body.draft?.toString() === 'true' || undefined,
-    progression,
-    gender: (body.gender as AppSchema.Character['gender']) || undefined,
-    artStyle: (body.artStyle as AppSchema.Character['artStyle']) || undefined,
-    ageRange: body.ageRange || undefined,
-    category,
-    nsfw: body.nsfw?.toString() === 'true' || undefined,
-    loraName: body.loraName || undefined,
-    imageSeed: body.imageSeed ? Number(body.imageSeed) : undefined,
-    share: body.share,
-    sampleChat: body.sampleChat,
-    description: body.description,
-    appearance: body.appearance,
-    culture: body.culture,
-    scenario: body.scenario,
-    greeting: body.greeting,
-    visualType: body.visualType,
-    sprite,
-    avatar: body.originalAvatar,
-    favorite: false,
-    voiceDisabled: body.voiceDisabled === 'true',
-    voice,
-    tags,
-    alternateGreetings,
-    characterBook,
-    systemPrompt: body.systemPrompt,
-    postHistoryInstructions: body.postHistoryInstructions,
-    creator: autoCreator,
-    characterVersion: autoVersion,
-    insert: insert,
-    imageSettings,
-    json,
+    // creator / characterVersion are set automatically (server-side). The user no
+    // longer edits these in the form, so any body values are ignored.
+    const profile = await store.users.getProfile(req.userId!)
+    const autoCreator = profile?.handle || ''
+    const autoVersion = '1'
+
+    const char = await store.characters.createCharacter(req.user?.userId!, {
+      name: body.name,
+      persona,
+      premium: !!body.premium,
+      xp: 0,
+      match: body.match?.toString() === 'true' || false,
+      draft: body.draft?.toString() === 'true' || undefined,
+      progression,
+      gender: (body.gender as AppSchema.Character['gender']) || undefined,
+      artStyle: (body.artStyle as AppSchema.Character['artStyle']) || undefined,
+      ageRange: body.ageRange || undefined,
+      category,
+      nsfw: body.nsfw?.toString() === 'true' || undefined,
+      loraName: body.loraName || undefined,
+      imageSeed: body.imageSeed ? Number(body.imageSeed) : undefined,
+      share: body.share,
+      sampleChat: body.sampleChat,
+      description: body.description,
+      appearance: body.appearance,
+      culture: body.culture,
+      scenario: body.scenario,
+      greeting: body.greeting,
+      visualType: body.visualType,
+      sprite,
+      avatar: body.originalAvatar,
+      favorite: false,
+      voiceDisabled: body.voiceDisabled === 'true',
+      voice,
+      tags,
+      alternateGreetings,
+      characterBook,
+      systemPrompt: body.systemPrompt,
+      postHistoryInstructions: body.postHistoryInstructions,
+      creator: autoCreator,
+      characterVersion: autoVersion,
+      insert: insert,
+      imageSettings,
+      json,
+    })
+
+    const filename = await entityUpload(
+      'char',
+      char._id,
+      body.attachments.find((a) => a.field === 'avatar')
+    )
+
+    if (filename) {
+      await store.characters.updateCharacter(char._id, req.userId, { avatar: filename })
+      char.avatar = filename
+    }
+
+    return char
   })
-
-  const filename = await entityUpload(
-    'char',
-    char._id,
-    body.attachments.find((a) => a.field === 'avatar')
-  )
-
-  if (filename) {
-    await store.characters.updateCharacter(char._id, req.userId, { avatar: filename })
-    char.avatar = filename
-  }
-
-  return char
-})
 
 const createCharacter = createCharacterFor(true)
 const importCharacter = createCharacterFor(false)
@@ -926,6 +933,23 @@ const deleteCharacter = handle(async ({ userId, params }) => {
   return { success: true }
 })
 
+/**
+ * Reset a character the user owns back to a clean slate: delete all of their
+ * chats with it, zero the relationship XP, and wipe its long-term memories. The
+ * character itself (persona, gallery, progression config) is kept.
+ */
+const resetCharacter = handle(async ({ userId, params }) => {
+  const id = params.id
+  const char = await store.characters.getCharacter(userId!, id)
+  if (!char) throw errors.NotFound
+
+  await store.chats.deleteChatsByCharacter(userId!, id)
+  await deleteAllMemories(userId!, id)
+  await store.characters.updateCharacter(id, userId!, { xp: 0 })
+
+  return { success: true }
+})
+
 const editCharacterFavorite = handle(async (req) => {
   const id = req.params.id
   const favorite = req.body.favorite === true
@@ -938,12 +962,7 @@ const editCharacterFavorite = handle(async (req) => {
   // Roll the favourite up to the public template (the clone's parent, or itself)
   // only when the flag actually flips, so re-toggling can't double-count.
   if (prev && !!prev.favorite !== favorite) {
-    await store.matches.incrementEngagement(
-      id,
-      'favorites',
-      favorite ? 1 : -1,
-      prev.parent || id
-    )
+    await store.matches.incrementEngagement(id, 'favorites', favorite ? 1 : -1, prev.parent || id)
   }
 
   return char
@@ -1014,6 +1033,7 @@ router.post('/:id/update', editPartCharacter)
 router.post('/:id', editFullCharacter)
 router.get('/:id', getCharacter)
 router.delete('/:id', loggedIn, deleteCharacter)
+router.post('/:id/reset', resetCharacter)
 router.post('/:id/favorite', editCharacterFavorite)
 router.delete('/:id/avatar', removeAvatar)
 router.post('/:id/gallery', addGalleryImage)

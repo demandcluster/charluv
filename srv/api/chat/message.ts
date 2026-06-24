@@ -167,12 +167,9 @@ export const generateMessageV2 = handle(async (req, res) => {
 
   // Event turns cost a flat EVENT_TURN_COST; reject early (before the ack) so the
   // client gets a clean MissingCredits instead of a silently-swallowed throw.
-  if (
-    chat.mode === 'event' &&
-    body.kind === 'send' &&
-    body.user &&
-    body.user.credits < EVENT_TURN_COST
-  ) {
+  // 'request' is the director auto-open trigger (no user message); it costs a turn too.
+  const isEventTurn = chat.mode === 'event' && (body.kind === 'send' || body.kind === 'request')
+  if (isEventTurn && body.user && body.user.credits < EVENT_TURN_COST) {
     throw errors.MissingCredits
   }
 
@@ -274,9 +271,10 @@ export const generateMessageV2 = handle(async (req, res) => {
 
   res.json({ requestId, success: true, generating: true, message: 'Generating message', messageId })
 
-  if (chat.mode === 'event' && body.kind === 'send') {
+  if (isEventTurn) {
     try {
-      // Flat fee covers the whole turn (director calls + every reply).
+      // Flat fee covers the whole turn (director calls + every reply). Applies to
+      // both a user 'send' and the 'request' auto-open (director opens the scene).
       await store.credits.updateCredits(userId!, -EVENT_TURN_COST)
 
       const roster = await getEventRoster(chat)

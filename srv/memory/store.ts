@@ -264,6 +264,12 @@ export async function deleteMemory(userId: string, id: string) {
   await collection().deleteOne({ _id: id, userId })
 }
 
+/** Wipe every stored memory for a user+character (used by the character reset). */
+export async function deleteAllMemories(userId: string, characterId: string) {
+  if (!characterId) return
+  await collection().deleteMany({ userId, characterId })
+}
+
 /** Cosine similarity. Embeddings are L2-normalized, but compute fully for safety. */
 function cosine(a: number[], b: number[]): number {
   if (a.length !== b.length) return 0
