@@ -165,6 +165,12 @@ export const generateMessageV2 = handle(async (req, res) => {
   const chat = await store.chats.getChatOnly(chatId)
   if (!chat) throw errors.NotFound
 
+  // Event turns cost a flat EVENT_TURN_COST; reject early (before the ack) so the
+  // client gets a clean MissingCredits instead of a silently-swallowed throw.
+  if (chat.mode === 'event' && body.kind === 'send' && body.user && body.user.credits < EVENT_TURN_COST) {
+    throw errors.MissingCredits
+  }
+
   if (body.kind === 'request' && chat.userId !== userId) {
     throw errors.Forbidden
   }
@@ -266,9 +272,6 @@ export const generateMessageV2 = handle(async (req, res) => {
   if (chat.mode === 'event' && body.kind === 'send') {
     try {
       // Flat fee covers the whole turn (director calls + every reply).
-      if (body.user && body.user.credits < EVENT_TURN_COST) {
-        throw errors.MissingCredits
-      }
       await store.credits.updateCredits(userId!, -EVENT_TURN_COST)
 
       const roster = await getEventRoster(chat)
