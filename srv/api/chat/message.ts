@@ -257,6 +257,56 @@ export const generateMessageV2 = handle(async (req, res) => {
     })
   }
 
+  res.json({ requestId, success: true, generating: true, message: 'Generating message', messageId })
+
+  await generateOneReply({
+    req,
+    body,
+    chat,
+    replyAs,
+    impersonate,
+    members,
+    userMsg,
+    requestId,
+    eventTurn: false,
+  })
+
+  await releaseLock(chatId)
+  return
+})
+
+/**
+ * Generate ONE bot reply as `ctx.replyAs` and persist it. Streams partials over
+ * WS, assembles the response, pulls native image/memory tool output, persists the
+ * message, and charges credits + advances XP. Returns `ok: false` on a stream
+ * error (the caller is responsible for releasing the lock).
+ *
+ * The lock, the single `res.json` ack, and `releaseLock` are owned by the caller.
+ */
+async function generateOneReply(ctx: {
+  req: AppRequest
+  body: GenRequest
+  chat: AppSchema.Chat
+  replyAs: AppSchema.Character
+  impersonate: AppSchema.Character | undefined
+  members: string[]
+  userMsg: AppSchema.ChatMessage | undefined
+  requestId: string
+  // True when this reply is part of an already-paid event turn (Task 5b): the
+  // per-reply −10 credit is then skipped (the flat fee was charged at turn start).
+  eventTurn: boolean
+}): Promise<{ ok: boolean; text: string; speakerId: string }> {
+  const { req, body, chat, replyAs, impersonate, members, userMsg, requestId } = ctx
+  const { userId, log } = req
+  const chatId = chat._id
+
+  const messageId =
+    body.kind === 'retry'
+      ? body.replacing?._id ?? requestId
+      : body.kind === 'continue'
+      ? body.continuing?._id
+      : requestId
+
   if (body.kind !== 'chat-query') {
     sendMany(members, {
       type: 'message-creating',
@@ -266,8 +316,6 @@ export const generateMessageV2 = handle(async (req, res) => {
       characterId: replyAs._id,
     })
   }
-
-  res.json({ requestId, success: true, generating: true, message: 'Generating message', messageId })
 
   const entities = await getResponseEntities(chat, body.sender.userId, body.settings)
   const schema = entities.gen.jsonSource === 'character' ? replyAs.json : entities.gen.json
@@ -384,9 +432,8 @@ export const generateMessageV2 = handle(async (req, res) => {
       }
     }
 
-    await releaseLock(chatId)
     if (error) {
-      return
+      return { ok: false, text: '', speakerId: replyAs._id }
     }
   }
 
@@ -422,11 +469,16 @@ export const generateMessageV2 = handle(async (req, res) => {
   // Summaries are a cheap utility generation (no user-facing message); don't
   // charge credits or advance relationship XP for them.
   if (body.kind !== 'summary') {
-    const credits = await store.credits.updateCredits(userId!, -10)
-    // XP per message is driven by the character's progression speed (slow/normal/fast).
+    // Event replies are paid once per turn at turn start (Task 5b); don't
+    // re-charge per reply. Normal replies still cost 10 each.
+    if (!ctx.eventTurn) {
+      await store.credits.updateCredits(userId!, -10)
+    }
+    // XP advances the character that REPLIED (replyAs), not the chat's main char.
+    // (Correct for multi-character chats generally; identical to before in 1:1
+    // chats where replyAs === the main char.)
     const xpGain = getXpPerMessage(replyAs.progression)
-    if (xpGain > 0) await store.scenario.updateCharXp(chat.characterId!, xpGain)
-    //sendOne(userId!, { type: 'credits-updated', credits })
+    if (xpGain > 0) await store.scenario.updateCharXp(replyAs._id, xpGain)
   }
 
   switch (body.kind) {
@@ -594,7 +646,9 @@ export const generateMessageV2 = handle(async (req, res) => {
   } else {
     await store.chats.update(chatId, { updatedAt })
   }
-})
+
+  return { ok: true, text: responseText, speakerId: replyAs._id }
+}
 
 async function handleGuestGenerate(body: GenRequest, req: AppRequest, res: Response) {
   const chatId = req.params.id
