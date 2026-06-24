@@ -200,7 +200,12 @@ const Layout: Component<{ children?: any }> = (props) => {
 
   // Pages that paint their own full-bleed chrome opt out of the centered,
   // boxed content wrapper so their background runs edge-to-edge.
-  const fullBleed = createMemo(() => location.pathname.startsWith('/discover'))
+  const fullBleed = createMemo(
+    () =>
+      location.pathname.startsWith('/discover') ||
+      location.pathname === '/mine' ||
+      location.pathname.startsWith('/mine/')
+  )
 
   const bgStyles = useCharacterBg('layout')
 
