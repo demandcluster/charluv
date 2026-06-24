@@ -301,6 +301,11 @@ const Create: Component = () => {
     if (data) setAvatarUrl(data)
   }
 
+  // AI-imagined persona details (job, likes, outfit, …) generated once on the
+  // finish step. They flesh out the character AND ground the image prompt — a
+  // character with a job and an outfit is far less likely to render nude.
+  const [details, setDetails] = createSignal<Record<string, string>>({})
+
   // The editable image prompt shown under the portrait. Seeded by the LLM from
   // the wizard choices, then the user can tweak it and regenerate.
   const [imagePrompt, setImagePrompt] = createSignal('')
@@ -333,13 +338,72 @@ const Create: Component = () => {
       answers.nsfw ? 'explicit/NSFW allowed' : 'tasteful/SFW',
     ].join(', ')
 
+  // Pull the first JSON object out of a (possibly chatty) LLM reply.
+  const parseJsonLoose = (text: string): Record<string, string> | null => {
+    const match = text.match(/\{[\s\S]*\}/)
+    if (!match) return null
+    try {
+      const obj = JSON.parse(match[0])
+      if (!obj || typeof obj !== 'object') return null
+      const out: Record<string, string> = {}
+      for (const [k, v] of Object.entries(obj)) {
+        const val = Array.isArray(v) ? v.join(', ') : v
+        if (typeof val === 'string' && val.trim()) out[k] = val.trim()
+      }
+      return out
+    } catch {
+      return null
+    }
+  }
+
+  // Let the AI imagine the parts the wizard never asked for — a job, a backstory,
+  // likes/hates, and an outfit — at a high temperature. Grounding the portrait in
+  // an occupation + clothing makes a nude result far less likely.
+  const enrichDetails = async (): Promise<Record<string, string>> => {
+    const brief = [
+      `name ${answers.name.trim() || 'unnamed'}`,
+      labelOfImg(GENDERS, answers.gender),
+      `age ${answers.age}`,
+      ethnicityLabel(),
+      `${vibe().label} vibe (${vibe().personality})`,
+      appearanceString(),
+      answers.nsfw ? 'adult companion' : 'tasteful companion',
+    ].join(', ')
+    const instruction =
+      `Invent a believable, distinctive persona for an AI companion based on: ${brief}. ` +
+      `Imagine every missing detail yourself. Respond with ONLY minified JSON and these keys: ` +
+      `"description" (two vivid sentences, third person, do not state the name), ` +
+      `"job" (their occupation), ` +
+      `"personality" (4-6 comma-separated traits), ` +
+      `"likes" (4-6 comma-separated things), ` +
+      `"hates" (3-4 comma-separated things), ` +
+      `"outfit" (one specific, fully-clothed outfit that suits their job and vibe). ` +
+      `No commentary before or after the JSON.`
+    try {
+      const res = await genApi.basicInference({
+        prompt: instruction,
+        settings: defaultPresets['charluv-balanced'],
+        overrides: { maxTokens: 320, temp: 0.95, streamResponse: false },
+      })
+      const text =
+        res && 'result' in res ? ((res.result as any)?.response as string | undefined) : ''
+      return parseJsonLoose(text || '') || {}
+    } catch {
+      return {}
+    }
+  }
+
   // Ask the LLM for a strong text-to-image prompt from the choices. Falls back to
-  // the locally-composed prompt if the model is unavailable.
-  const craftPrompt = async (): Promise<string> => {
+  // the locally-composed prompt if the model is unavailable. The imagined job and
+  // outfit are folded in so the portrait is clothed and in-context.
+  const craftPrompt = async (extra?: Record<string, string>): Promise<string> => {
+    const job = extra?.job ? `, ${extra.job}` : ''
+    const outfit = extra?.outfit ? `, wearing ${extra.outfit}` : ''
+    const fallback = () => portraitPrompt() + (extra?.outfit ? `, wearing ${extra.outfit}` : '')
     const instruction =
       `Write ONE concise Stable-Diffusion style image prompt for a character portrait. ` +
       `Comma-separated keywords/phrases only — no full sentences, no names, no preamble. ` +
-      `Base it on these traits: ${choicesBrief()}. Reply with only the prompt.`
+      `Base it on these traits: ${choicesBrief()}${job}${outfit}. Reply with only the prompt.`
     try {
       const res = await genApi.basicInference({
         prompt: instruction,
@@ -349,9 +413,9 @@ const Create: Component = () => {
       const text =
         res && 'result' in res ? ((res.result as any)?.response as string | undefined) : ''
       const clean = (text || '').replace(/^["'\s]+|["'\s]+$/g, '').trim()
-      return clean || portraitPrompt()
+      return clean || fallback()
     } catch {
-      return portraitPrompt()
+      return fallback()
     }
   }
 
@@ -374,11 +438,14 @@ const Create: Component = () => {
     setFinishInit(true)
     nameRef?.focus()
     setPromptLoading(true)
-    void craftPrompt().then((prompt) => {
+    void (async () => {
+      const d = await enrichDetails()
+      setDetails(d)
+      const prompt = await craftPrompt(d)
       setImagePrompt(prompt)
       setPromptLoading(false)
       generatePortrait()
-    })
+    })()
   })
 
   const uploadPortrait = (files: FileInputResult[]) => setPortrait(files[0]?.file)
@@ -459,16 +526,21 @@ const Create: Component = () => {
 
     const species = isNonHuman() ? [answers.ethnicity] : ['human']
 
+    const d = details()
     const attributes: NonNullable<AppSchema.Persona['attributes']> = {
       species,
       age: [answers.age],
       body: [labelOfImg(BODIES, answers.body)],
       appearance: [appearance],
-      personality: [v.personality],
+      personality: [d.personality || v.personality],
       sexuality: ['heterosexual'],
     }
     // Country only makes sense for humans.
     if (!isNonHuman()) attributes.country = [ethnicity]
+    // Fold in the AI-imagined details so the character has a real backstory.
+    if (d.job) attributes.job = [d.job]
+    if (d.likes) attributes.likes = [d.likes]
+    if (d.hates) attributes.hates = [d.hates]
 
     const persona: AppSchema.Persona = {
       kind: 'wpp',
@@ -482,6 +554,7 @@ const Create: Component = () => {
     return {
       name,
       avatar: avatarFile(),
+      description: d.description || undefined,
       appearance,
       greeting,
       scenario,

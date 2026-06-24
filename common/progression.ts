@@ -118,8 +118,8 @@ export const DEFAULT_ARCHETYPE_ID = 'romantic'
 export const ARCHETYPES: ProgressionArchetype[] = [
   {
     id: 'romantic',
-    label: 'Romantic',
-    description: 'Shy first meeting that grows into love and eventually marriage.',
+    label: 'Sweetheart',
+    description: 'Warm and affectionate — grows into deep love.',
     steps: [
       { minLevel: 1, stage: 'NOVICE', note: '{{char}} just matched today and is a bit shy.' },
       { minLevel: 6, stage: 'BEGINNER', note: '{{char}} wants {{user}} as more than a friend.' },
@@ -133,7 +133,7 @@ export const ARCHETYPES: ProgressionArchetype[] = [
   {
     id: 'girlfriend',
     label: 'Girlfriend',
-    description: 'Sweet romance that settles into a devoted girlfriend relationship.',
+    description: 'Sweet romance that settles into devotion.',
     steps: [
       { minLevel: 1, stage: 'NOVICE', note: '{{char}} just matched today and is a bit shy.' },
       { minLevel: 5, stage: 'BEGINNER' },
@@ -143,8 +143,8 @@ export const ARCHETYPES: ProgressionArchetype[] = [
   },
   {
     id: 'casual',
-    label: 'Casual',
-    description: 'Skips romance — a flirty fling that turns purely physical. Never marries.',
+    label: 'Flirty',
+    description: 'A flirty, easygoing fling — no strings.',
     steps: [
       { minLevel: 1, stage: 'NOVICE' },
       { minLevel: 4, stage: 'BEGINNER' },
@@ -155,7 +155,7 @@ export const ARCHETYPES: ProgressionArchetype[] = [
   {
     id: 'submissive',
     label: 'Submissive',
-    description: 'Develops into a devoted submissive who obeys {{user}}.',
+    description: 'Eager to please and follow your lead.',
     steps: [
       { minLevel: 1, stage: 'NOVICE' },
       { minLevel: 5, stage: 'BEGINNER' },
@@ -168,7 +168,7 @@ export const ARCHETYPES: ProgressionArchetype[] = [
   {
     id: 'dominant',
     label: 'Dominant',
-    description: 'Develops into a dominatrix who takes control of {{user}}.',
+    description: 'Takes control and sets the pace.',
     steps: [
       { minLevel: 1, stage: 'NOVICE' },
       { minLevel: 5, stage: 'BEGINNER' },

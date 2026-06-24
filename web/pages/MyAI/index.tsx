@@ -6,7 +6,7 @@ import './myai.css'
 import { characterStore } from '../../store/character'
 import { getAssetUrl } from '../../shared/util'
 import { getCharacterLevel } from '/common/xplevel'
-import { resolveStage } from '/common/progression'
+import { resolveStage, getArchetype } from '/common/progression'
 import { AppSchema } from '/common/types'
 
 const MyAI: Component = () => {
@@ -99,7 +99,10 @@ const Companion: Component<{ char: AppSchema.Character; onOpen: (c: AppSchema.Ch
         <div class="dsc-name">{props.char.name}</div>
         <Show when={props.char.progression?.archetype}>
           <div class="dsc-tags">
-            <span class="dsc-pill">{props.char.progression!.archetype}</span>
+            <span class="dsc-pill">
+              {getArchetype(props.char.progression!.archetype)?.label ||
+                props.char.progression!.archetype}
+            </span>
           </div>
         </Show>
       </div>
