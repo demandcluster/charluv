@@ -271,7 +271,6 @@ const UserNavigation: Component = () => {
         <Item href="/mine" ariaLabel="My AI companions">
           <Heart aria-hidden="true" /> My AI
         </Item>
-        <CharacterLink />
       </Show>
       <Show when={menu.flags.chub}>
         <Item href="/chub" ariaLabel="Character hub">
@@ -345,8 +344,6 @@ const GuestNavigation: Component = () => {
 
       <Show when={menu.guest}>
         <UserProfile />
-
-        <CharacterLink />
 
         <Show when={menu.flags.chub}>
           <Item href="/chub" ariaLabel="Character hub">
@@ -584,21 +581,6 @@ const Sounds: Component<{}> = (props) => {
           </Show>
         </a>
       </EndItem>
-    </MultiItem>
-  )
-}
-
-const CharacterLink = () => {
-  return (
-    <MultiItem>
-      <Item
-        href="/character/list"
-        ariaLabel="Matches"
-        onClick={() => soundEmitter.emit('menu-item-clicked', 'characters')}
-      >
-        <Heart aria-hidden="true" />
-        <span aria-hidden="true"> Matches </span>
-      </Item>
     </MultiItem>
   )
 }

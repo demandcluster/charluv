@@ -50,11 +50,11 @@ We need to use these codes in order to be able to limit registrations. For your 
 
 ### How to use this website?
 
-In order to get matches you have to register for a (free) account. Goto [Likes](/likes/list) to see all available characters.
+Browse the [Discover](/discover) gallery to find characters. Register for a (free) account to start chatting and to build your own collection.
 
-When you find someone you like, click the checkmark and you have a match. You can send your match a message and start a conversation. Remember you are not talking to real people but your are talking to AI. The AI does not realize this (apart from Aiva).
+When you find someone you like, open their profile and start a chat — they're added to your [My AI](/mine). Remember you are not talking to a real person, you are talking to an AI. The AI does not realize this (apart from Aiva).
 
-Every character has scenarios that progress the story. Scenarios will progress the more you chat with a character. You can see the progress on the heart symbol next to the character on the [Matches](/character/list) page.
+Your relationship with each character grows the more you chat: they level up through new relationship stages. You can see the current level on the heart badge next to each character in [My AI](/mine).
 
 ### Chat features
 

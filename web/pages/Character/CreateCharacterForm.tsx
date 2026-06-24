@@ -77,7 +77,7 @@ export const CreateCharacterForm: Component<{
   const paneOrPopup = usePane()
   const cancel = () => {
     if (isPage) {
-      nav('/character/list')
+      nav('/mine')
     } else {
       props.close?.()
     }

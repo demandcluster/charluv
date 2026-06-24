@@ -246,7 +246,7 @@ const ChatDetail: Component = () => {
     updateTitle(charName ? `Chat with ${charName}` : 'Chat')
 
     if (!params.id) {
-      if (!chats.lastId) return nav('/character/list')
+      if (!chats.lastId) return nav('/mine')
       return nav(`/chat/${chats.lastId}`)
     }
 

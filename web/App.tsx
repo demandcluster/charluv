@@ -20,7 +20,6 @@ import Navigation from './Navigation'
 import Loading from './shared/Loading'
 import Button from './shared/Button'
 
-import CharacterList from './pages/Character/CharacterList'
 
 import ThankYou from './pages/Premium/ThankYou'
 import PremiumInfo from './pages/Premium/Info'
