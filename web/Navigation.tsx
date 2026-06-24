@@ -107,7 +107,6 @@ const Navigation: Component = () => {
     }
   })
 
-
   useEffect(() => {
     const interval = setInterval(() => {
       if (!parent || !content) return
@@ -151,7 +150,7 @@ const Navigation: Component = () => {
       </Show>
       <div
         ref={parent}
-        class={`drawer bg-[var(--menu-bg)] flex flex-col gap-2 pt-2`}
+        class={`drawer flex flex-col gap-2 bg-[var(--menu-bg)] pt-2`}
         classList={{
           flex: !state.showMenu,
           'drawer--hide': dismissable() && !state.showMenu,
@@ -184,7 +183,7 @@ const Navigation: Component = () => {
                 aria-label="Charluv main page"
               >
                 <div
-                  class="bg-[#55b89c] flex h-8 w-full items-center justify-center rounded-lg p-4 font-bold"
+                  class="flex h-8 w-full items-center justify-center rounded-lg bg-[#55b89c] p-4 font-bold"
                   aria-hidden="true"
                 >
                   <img width="180px" alt="Charluv" src={logoDark} />
@@ -573,7 +572,6 @@ const ExternalLink: Component<{
   </a>
 )
 
-
 const Sounds: Component<{}> = (props) => {
   const audioSettings = audioStore()
 
@@ -622,10 +620,7 @@ export const UserProfile = () => {
         userStore.modal(true)
       }}
     >
-      <AvatarIcon
-        avatarUrl={user.profile?.avatar}
-        format={{ corners: 'circle', size: 'xs' }}
-      />
+      <AvatarIcon avatarUrl={user.profile?.avatar} format={{ corners: 'circle', size: 'xs' }} />
       <span aria-hidden="true">{user.profile?.handle}</span>
     </Item>
   )

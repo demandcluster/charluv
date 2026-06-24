@@ -167,7 +167,12 @@ export const generateMessageV2 = handle(async (req, res) => {
 
   // Event turns cost a flat EVENT_TURN_COST; reject early (before the ack) so the
   // client gets a clean MissingCredits instead of a silently-swallowed throw.
-  if (chat.mode === 'event' && body.kind === 'send' && body.user && body.user.credits < EVENT_TURN_COST) {
+  if (
+    chat.mode === 'event' &&
+    body.kind === 'send' &&
+    body.user &&
+    body.user.credits < EVENT_TURN_COST
+  ) {
     throw errors.MissingCredits
   }
 

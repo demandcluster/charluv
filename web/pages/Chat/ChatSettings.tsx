@@ -35,7 +35,10 @@ const ChatSettings: Component<{
           fieldName="genPreset"
           label="Reply style"
           helperText="How varied the replies are. Higher = more creative and unpredictable."
-          items={CHARLUV_TEMP_PRESETS.map((p) => ({ label: `${p.label} — ${p.hint}`, value: p.id }))}
+          items={CHARLUV_TEMP_PRESETS.map((p) => ({
+            label: `${p.label} — ${p.hint}`,
+            value: p.id,
+          }))}
           value={currentPreset()}
           onChange={(ev) => changePreset(ev.value)}
         />

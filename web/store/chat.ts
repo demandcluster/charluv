@@ -54,12 +54,7 @@ export type ChatState = {
   promptHistory: Record<string, any>
 }
 
-export type ChatRightPane =
-  | 'character'
-  | 'participants'
-  | 'chat-settings'
-  | 'memory'
-  | 'other'
+export type ChatRightPane = 'character' | 'participants' | 'chat-settings' | 'memory' | 'other'
 
 export type ImportChat = {
   name: string

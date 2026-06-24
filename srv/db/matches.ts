@@ -187,10 +187,7 @@ export async function incrementEngagement(
 ) {
   let targetId = parentId
   if (targetId === undefined) {
-    const char = await db('character').findOne(
-      { _id: characterId },
-      { projection: { parent: 1 } }
-    )
+    const char = await db('character').findOne({ _id: characterId }, { projection: { parent: 1 } })
     targetId = char?.parent || characterId
   }
   await db('character').updateOne({ _id: targetId }, { $inc: { [`engagement.${field}`]: by } })

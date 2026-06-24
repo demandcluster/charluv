@@ -118,7 +118,9 @@ export const createEventChat = handle(async ({ body, user, userId }) => {
   assertValid({ location: 'string', description: 'string', characterIds: ['string'] }, body)
 
   const chars = (
-    await Promise.all(body.characterIds.map((id: string) => store.characters.getCharacter(userId, id)))
+    await Promise.all(
+      body.characterIds.map((id: string) => store.characters.getCharacter(userId, id))
+    )
   ).filter(Boolean)
 
   if (chars.length === 0) throw new StatusError('Invite at least one character', 400)

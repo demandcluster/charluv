@@ -35,9 +35,7 @@ export function buildDirectorPrompt(opts: {
   recent: Array<{ name: string; text: string }>
   repliedThisTurn: string[]
 }): string {
-  const roster = opts.roster
-    .map((r) => `- ${r.name} (id: ${r.id}): ${r.hook}`)
-    .join('\n')
+  const roster = opts.roster.map((r) => `- ${r.name} (id: ${r.id}): ${r.hook}`).join('\n')
   const history = opts.recent.map((m) => `${m.name}: ${m.text}`).join('\n')
   const already = opts.repliedThisTurn.length
     ? `Already replied this turn: ${opts.repliedThisTurn.join(', ')}.`

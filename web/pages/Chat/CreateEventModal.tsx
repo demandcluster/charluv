@@ -13,15 +13,24 @@ const CreateEventModal: Component<{ show: boolean; close: () => void }> = (props
   const [selected, setSelected] = createSignal<Record<string, boolean>>({})
 
   const chars = createMemo(() => state.characters.list)
-  const ids = createMemo(() => Object.entries(selected()).filter(([, v]) => v).map(([k]) => k))
-  const canStart = createMemo(() => !!location().trim() && !!description().trim() && ids().length > 0)
+  const ids = createMemo(() =>
+    Object.entries(selected())
+      .filter(([, v]) => v)
+      .map(([k]) => k)
+  )
+  const canStart = createMemo(
+    () => !!location().trim() && !!description().trim() && ids().length > 0
+  )
   const toggle = (id: string) => setSelected((s) => ({ ...s, [id]: !s[id] }))
 
   const start = () => {
     if (!canStart()) return
     chatStore.createEvent(
       { location: location().trim(), description: description().trim(), characterIds: ids() },
-      (id: string) => { props.close(); navigate(`/chat/${id}`) }
+      (id: string) => {
+        props.close()
+        navigate(`/chat/${id}`)
+      }
     )
   }
 
@@ -32,21 +41,42 @@ const CreateEventModal: Component<{ show: boolean; close: () => void }> = (props
       title="Start an Event"
       footer={
         <>
-          <Button schema="secondary" onClick={props.close}>Cancel</Button>
-          <Button onClick={start} disabled={!canStart()}>Start Event</Button>
+          <Button schema="secondary" onClick={props.close}>
+            Cancel
+          </Button>
+          <Button onClick={start} disabled={!canStart()}>
+            Start Event
+          </Button>
         </>
       }
     >
       <div class="flex flex-col gap-3">
-        <TextInput fieldName="eventLocation" label="Where" placeholder="nightclub" value={location()} onInputText={setLocation} />
-        <TextInput fieldName="eventDescription" label="What's happening" placeholder="Saturday DJ night" isMultiline value={description()} onInputText={setDescription} />
+        <TextInput
+          fieldName="eventLocation"
+          label="Where"
+          placeholder="nightclub"
+          value={location()}
+          onInputText={setLocation}
+        />
+        <TextInput
+          fieldName="eventDescription"
+          label="What's happening"
+          placeholder="Saturday DJ night"
+          isMultiline
+          value={description()}
+          onInputText={setDescription}
+        />
         <div>
           <div class="text-sm">Who's invited</div>
           <div class="flex max-h-64 flex-col gap-1 overflow-auto">
             <For each={chars()}>
               {(c) => (
                 <label class="bg-700 flex cursor-pointer items-center gap-2 rounded-md px-2 py-1">
-                  <input type="checkbox" checked={!!selected()[c._id]} onChange={() => toggle(c._id)} />
+                  <input
+                    type="checkbox"
+                    checked={!!selected()[c._id]}
+                    onChange={() => toggle(c._id)}
+                  />
                   <span>{c.name}</span>
                 </label>
               )}
