@@ -264,99 +264,100 @@ export const generateMessageV2 = handle(async (req, res) => {
   res.json({ requestId, success: true, generating: true, message: 'Generating message', messageId })
 
   if (chat.mode === 'event' && body.kind === 'send') {
-    // Flat fee covers the whole turn (director calls + every reply).
-    if (body.user && body.user.credits < EVENT_TURN_COST) {
-      await releaseLock(chatId)
-      throw errors.MissingCredits
-    }
-    await store.credits.updateCredits(userId!, -EVENT_TURN_COST)
+    try {
+      // Flat fee covers the whole turn (director calls + every reply).
+      if (body.user && body.user.credits < EVENT_TURN_COST) {
+        throw errors.MissingCredits
+      }
+      await store.credits.updateCredits(userId!, -EVENT_TURN_COST)
 
-    const roster = await getEventRoster(chat)
+      const roster = await getEventRoster(chat)
 
-    // Server-side prompt deps (mirror the client's createActiveChatPrompt).
-    const entities = await getResponseEntities(chat, body.sender.userId, body.settings)
-    const { adapter, model } = getAdapter(chat, entities.user, entities.gen)
-    const encoder = getTokenCounter(adapter, model)
-    const memberIds = Array.from(new Set([chat.userId, ...chat.memberIds]))
-    const profiles = await store.users.getProfiles(chat.userId, memberIds)
-    const senderProfile = await store.users.getProfile(userId!)
+      // Server-side prompt deps (mirror the client's createActiveChatPrompt).
+      const entities = await getResponseEntities(chat, body.sender.userId, body.settings)
+      const { adapter, model } = getAdapter(chat, entities.user, entities.gen)
+      const encoder = getTokenCounter(adapter, model)
+      const memberIds = Array.from(new Set([chat.userId, ...chat.memberIds]))
+      const profiles = await store.users.getProfiles(chat.userId, memberIds)
+      const senderProfile = await store.users.getProfile(userId!)
 
-    const repliedThisTurn: string[] = []
+      const repliedThisTurn: string[] = []
 
-    for (let i = 0; i < EVENT_MAX_REPLIES; i++) {
-      const msgs = await store.msgs.getMessages(chatId)
-      const recent = msgs
-        .slice()
-        .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
-        .slice(-8)
-        .map((m) => ({
-          name: m.name || (m.userId ? senderProfile?.handle || 'You' : 'Unknown'),
-          text: m.msg,
-        }))
+      for (let i = 0; i < EVENT_MAX_REPLIES; i++) {
+        const msgs = await store.msgs.getMessages(chatId)
+        const recent = msgs
+          .slice()
+          .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
+          .slice(-8)
+          .map((m) => ({
+            name: m.name || (m.userId ? senderProfile?.handle || 'You' : 'Unknown'),
+            text: m.msg,
+          }))
 
-      const speakerId = await electSpeaker({
-        user: body.user!,
-        log,
-        event: chat.event!,
-        roster: roster.map((r) => ({ id: r.id, name: r.name, hook: r.hook })),
-        recent,
-        repliedThisTurn,
-      })
-      if (speakerId === 'none') break
+        const speakerId = await electSpeaker({
+          user: body.user!,
+          log,
+          event: chat.event!,
+          roster: roster.map((r) => ({ id: r.id, name: r.name, hook: r.hook })),
+          recent,
+          repliedThisTurn,
+        })
+        if (speakerId === 'none') break
 
-      const picked = roster.find((r) => r.id === speakerId)
-      if (!picked) break
-      // The roster `char` is a lightweight projection (no progression/json/scenario);
-      // load the full character to generate as. Skip if it can't be loaded.
-      const eventReplyAs = await store.characters.getCharacterById(speakerId)
-      if (!eventReplyAs) break
+        const picked = roster.find((r) => r.id === speakerId)
+        if (!picked) break
+        // The roster contains {id, name, hook} only; load the full character to
+        // generate as. Skip if it can't be loaded.
+        const eventReplyAs = await store.characters.getCharacterById(speakerId)
+        if (!eventReplyAs) break
 
-      // History the model sees, with this speaker's identity resolved. Same call
-      // and ordering the client uses for request.lines (createChatStream reverses
-      // internally) — DO NOT reverse it here.
-      const lines = await getLinesForPrompt(
-        {
-          kind: body.kind,
-          settings: entities.gen,
-          members: profiles,
-          messages: msgs,
-          char: entities.char,
-          characters: body.characters,
-          sender: senderProfile!,
+        // History the model sees, with this speaker's identity resolved. Same call
+        // and ordering the client uses for request.lines (createChatStream reverses
+        // internally) — DO NOT reverse it here.
+        const lines = await getLinesForPrompt(
+          {
+            kind: body.kind,
+            settings: entities.gen,
+            members: profiles,
+            messages: msgs,
+            char: entities.char,
+            characters: body.characters,
+            sender: senderProfile!,
+            replyAs: eventReplyAs,
+            impersonate,
+            chat,
+            user: entities.user,
+            book: entities.book,
+            lastMessage: '',
+            chatEmbeds: [],
+            userEmbeds: [],
+            resolvedScenario: '',
+            jsonValues: undefined,
+          },
+          encoder
+        )
+
+        const result = await generateOneReply({
+          req,
+          body,
+          chat,
           replyAs: eventReplyAs,
           impersonate,
-          chat,
-          user: entities.user,
-          book: entities.book,
-          lastMessage: '',
-          chatEmbeds: [],
-          userEmbeds: [],
-          resolvedScenario: '',
-          jsonValues: undefined,
-        },
-        encoder
-      )
-
-      const result = await generateOneReply({
-        req,
-        body,
-        chat,
-        replyAs: eventReplyAs,
-        impersonate,
-        members,
-        userMsg,
-        requestId: i === 0 ? requestId : v4(),
-        eventTurn: true,
-        lines,
-        // chat.overrides is set on event chats, so scenario text = chat.scenario
-        // (the event block); the 4th arg makes the stage token + meta the speaker's.
-        resolvedScenario: resolveScenario(chat, eventReplyAs, [], eventReplyAs),
-      })
-      if (!result.ok) break
-      repliedThisTurn.push(eventReplyAs._id)
+          members,
+          userMsg,
+          requestId: i === 0 ? requestId : v4(),
+          eventTurn: true,
+          lines,
+          // chat.overrides is set on event chats, so scenario text = chat.scenario
+          // (the event block); the 4th arg makes the stage token + meta the speaker's.
+          resolvedScenario: resolveScenario(chat, eventReplyAs, [], eventReplyAs),
+        })
+        if (!result.ok) break
+        repliedThisTurn.push(eventReplyAs._id)
+      }
+    } finally {
+      await releaseLock(chatId)
     }
-
-    await releaseLock(chatId)
     return
   }
 
