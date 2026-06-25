@@ -1,6 +1,7 @@
 import { assertValid } from '/common/valid'
 import { store } from '../../db'
 import { errors, handle, StatusError } from '../wrap'
+import { classifyRegistration } from '/common/abuse'
 import { OAuthScope, oauthScopes } from '/common/types'
 import { patreon } from './patreon'
 import { getSafeUserConfig } from './settings'
@@ -10,16 +11,43 @@ import { createAccessToken, toSafeUser } from '/srv/db/user'
 const GOOGLE = new OAuth2Client()
 
 export const register = handle(async (req) => {
-  assertValid({ handle: 'string', username: 'string', password: 'string' }, req.body)
+  assertValid(
+    {
+      handle: 'string',
+      username: 'string',
+      password: 'string',
+      fingerprint: 'string?',
+      consent: 'boolean?',
+    },
+    req.body
+  )
 
-  const alreadyRegisterd = await store.users.checkIp(req.ip)
-  if (alreadyRegisterd) {
-    throw new StatusError('Only 1 account per IP, goto our Discord if you lost your password.', 403)
+  if (req.body.consent !== true) {
+    throw new StatusError('You must accept the identifier policy to register', 400)
   }
 
-  const { profile, token, user } = await store.users.createUser(req.body)
+  const fpMatch = await store.users.checkFingerprint(req.body.fingerprint)
+  const ipMatch = await store.users.checkIp(req.ip)
+  const verdict = classifyRegistration({ fpMatch, ipMatch })
 
-  req.log.info({ user: user.username, id: user._id }, 'User registered')
+  if (verdict === 'block') {
+    throw new StatusError(
+      'Only 1 account per device/IP. Go to our Discord if you lost your password.',
+      403
+    )
+  }
+
+  const restrictedReason = fpMatch && ipMatch ? 'both' : fpMatch ? 'fingerprint' : ipMatch ? 'ip' : undefined
+
+  const { profile, token, user } = await store.users.createUser(req.body, false, {
+    restricted: verdict === 'restrict',
+    restrictedReason,
+    fingerprint: req.body.fingerprint,
+    ip: req.ip,
+    consentAt: new Date().toISOString(),
+  })
+
+  req.log.info({ user: user.username, id: user._id, verdict }, 'User registered')
   return { profile, token, user }
 })
 
