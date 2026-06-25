@@ -47,6 +47,8 @@ import { markdown } from './shared/markdown'
 import SoundsPage from './pages/Sounds'
 import PatreonOauth from './pages/Settings/PatreonOauth'
 
+const DiscoverPage = lazy(() => import('./pages/Discover'))
+
 const App: Component = () => {
   const state = userStore()
   const cfg = settingStore()
@@ -70,20 +72,14 @@ const App: Component = () => {
       <Route path="/chats" component={CharacterChats} />
       <Route path="/chat" component={ChatDetail} />
       <Route path="/chat/:id" component={ChatDetail} />
-      <Route path="/discover" component={lazy(() => import('./pages/Discover'))} />
+      <Route path="/discover" component={DiscoverPage} />
       <Route path="/discover/:id" component={lazy(() => import('./pages/Discover/Profile'))} />
       <Route path="/create" component={lazy(() => import('./pages/Create'))} />
       <Route path="/mine" component={lazy(() => import('./pages/MyAI'))} />
       <Route path="/mine/:id" component={lazy(() => import('./pages/MyAI/Profile'))} />
+      <Route path="/" component={DiscoverPage} />
+      <Route path="/blog" component={HomePage} />
       <Route path="/info" component={HomePage} />
-      <Route
-        path="/"
-        component={() => (
-          <Show when={state.loggedIn} fallback={<HomePage />}>
-            <Redirect internal="/discover" />
-          </Show>
-        )}
-      />
       <Show when={cfg.flags.sounds}>
         <Route path="/sounds" component={SoundsPage} />
       </Show>
@@ -187,6 +183,9 @@ const Layout: Component<{ children?: any }> = (props) => {
   // boxed content wrapper so their background runs edge-to-edge.
   const fullBleed = createMemo(
     () =>
+      location.pathname === '/' ||
+      location.pathname === '/blog' ||
+      location.pathname === '/info' ||
       location.pathname.startsWith('/discover') ||
       location.pathname === '/mine' ||
       location.pathname.startsWith('/mine/')
