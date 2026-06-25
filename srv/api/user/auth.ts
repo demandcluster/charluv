@@ -37,7 +37,8 @@ export const register = handle(async (req) => {
     )
   }
 
-  const restrictedReason = fpMatch && ipMatch ? 'both' : fpMatch ? 'fingerprint' : ipMatch ? 'ip' : undefined
+  const restrictedReason =
+    fpMatch && ipMatch ? 'both' : fpMatch ? 'fingerprint' : ipMatch ? 'ip' : undefined
 
   const { profile, token, user } = await store.users.createUser(req.body, false, {
     restricted: verdict === 'restrict',

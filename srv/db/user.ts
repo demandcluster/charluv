@@ -75,7 +75,10 @@ export async function clearRestriction(userId: string) {
   const credits = (user.credits || 0) < 200 ? 200 : user.credits
   await db('user').updateOne(
     { kind: 'user', _id: userId },
-    { $set: { creditsRestricted: false, restrictedReason: undefined as any, credits }, $unset: { restrictedReason: '' } }
+    {
+      $set: { creditsRestricted: false, restrictedReason: undefined as any, credits },
+      $unset: { restrictedReason: '' },
+    }
   )
 }
 
