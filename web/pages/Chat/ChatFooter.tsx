@@ -88,7 +88,9 @@ export const ChatFooter: Component<{
             </div>
           </div>
         </Show>
-        <StageIndicator char={chats.char} />
+        <Show when={chats.chat?.mode !== 'event'}>
+          <StageIndicator char={chats.char} />
+        </Show>
         <InputBar
           chat={chats.chat!}
           swiped={props.swipe !== 0}

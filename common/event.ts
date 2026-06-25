@@ -150,6 +150,22 @@ export function buildDirectorEventPrompt(opts: {
   ].join('\n')
 }
 
+/**
+ * Per-speaker directive injected into the system prompt on every event reply.
+ * In a 1:1 chat a character naturally stays in their own voice, but an event's
+ * scene-setting context (third-person "Setting: … Present: …", the world/director
+ * narration, other characters' lines) frames everything as prose, so characters
+ * start narrating the whole scene. This pulls each speaker back to their own
+ * dialogue and actions — scene narration is the (separate) director's job.
+ */
+export function buildEventCharacterPrompt(name: string): string {
+  return [
+    `You are ${name} in a group scene with other people present.`,
+    `Respond ONLY as ${name}: write ${name}'s own spoken words and immediate actions, in character, exactly as you would in a one-on-one chat.`,
+    `Do NOT narrate the setting, the atmosphere, the passage of time, world events, or what anyone else says, thinks, or does — a separate narrator handles all scene description.`,
+  ].join(' ')
+}
+
 /** JSON Schema for the director-beat response. */
 export function buildDirectorEventSchema(): object {
   return {

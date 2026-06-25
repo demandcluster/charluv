@@ -12,6 +12,7 @@ import { promptOrderToTemplate } from './prompt-order'
 import { ModelFormat, replaceTags } from './presets/templates'
 import { getCharacterLevel } from './xplevel'
 import { CHARLUV_LEVELS_PROMPT, formatStageToken, resolveStage } from './progression'
+import { buildEventCharacterPrompt } from './event'
 
 export type TickHandler<T = any> = (response: string, state: InferenceState, json?: T) => void
 
@@ -560,6 +561,15 @@ export async function buildPromptParts(
       : !systemKind
       ? CHARLUV_LEVELS_PROMPT
       : supplementary.system
+
+  // Event chats: keep each elected speaker in their own voice instead of narrating
+  // the whole scene (the scene context otherwise frames every reply as prose).
+  if (!systemKind && opts.chat.mode === 'event') {
+    const directive = buildEventCharacterPrompt(replyAs.name)
+    parts.systemPrompt = parts.systemPrompt
+      ? `${parts.systemPrompt}\n\n${directive}`
+      : directive
+  }
 
   parts.post = post.map(replace)
 

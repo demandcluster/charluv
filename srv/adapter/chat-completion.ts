@@ -296,7 +296,15 @@ async function getPostInstruction(
 
     case 'retry':
     case 'send':
-    case 'request': {
+    case 'request':
+    // Event character replies (the director elected this speaker) are normal
+    // character turns: they MUST get the trailing "<Name>:" assistant cue + UJB,
+    // exactly like a 'send'. Without these cases they fell through the switch to
+    // no cue at all, so the model picked its own speaker ("Narrator:") and
+    // narrated the whole scene instead of replying as the elected character.
+    case 'send-event:world':
+    case 'send-event:character':
+    case 'send-event:hidden': {
       const appendName = opts.gen.prefixNameAppend ?? true
       const messages: CompletionItem[] = [
         {
