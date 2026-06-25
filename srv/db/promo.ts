@@ -102,8 +102,8 @@ export async function redeemPromo(userId: string, rawCode: string) {
   const filter: any = { kind: 'promo-code', _id: promo._id, enabled: true }
   if (promo.maxUses > 0) filter.$expr = { $lt: ['$uses', '$maxUses'] }
   const claimed = await db('promo-code').findOneAndUpdate(filter, { $inc: { uses: 1 } })
-  // mongodb driver: returns the pre-update doc in `.value` (or null when no match)
-  const claimedDoc = (claimed as any)?.value ?? claimed
+  // mongodb driver v5: findOneAndUpdate always returns ModifyResult { value: doc | null }
+  const claimedDoc = claimed?.value
   if (!claimedDoc) throw new StatusError('This code has been fully used', 400)
 
   // Per-account lock via the unique (codeId,userId) index.
