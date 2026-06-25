@@ -6,7 +6,7 @@ import {
   Trash,
   Users,
   Camera,
-  VenetianMask,
+  MaskHappy,
   AlertTriangle,
 } from '/web/icons'
 import { Component, Show, createMemo, JSX } from 'solid-js'
@@ -130,7 +130,7 @@ const ChatOptions: Component<{
 
         <Row>
           <Item schema={cfg.anonymize ? 'primary' : 'grey'} onClick={settingStore.toggleAnonymize}>
-            <VenetianMask /> Anonymize
+            <MaskHappy /> Anonymize
           </Item>
         </Row>
 

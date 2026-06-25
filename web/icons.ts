@@ -116,7 +116,6 @@ export {
   UploadSimple as Upload,
   User,
   Users,
-  FaceMask as VenetianMask,
   SpeakerHigh as Volume2,
   SpeakerSlash as VolumeX,
   MagicWand as Wand2,

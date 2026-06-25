@@ -14,7 +14,7 @@ import {
   Star,
   Trash,
   User,
-  VenetianMask,
+  MaskHappy,
 } from '/web/icons'
 import { DropMenu } from '/web/shared/DropMenu'
 import Button from '/web/shared/Button'
@@ -97,7 +97,7 @@ const Character: Component<CardProps> = (props) => {
               href={`/character/${props.char._id}/chats`}
               class="bg-700 flex h-32 w-full items-center justify-center rounded-lg rounded-b-none"
             >
-              <VenetianMask size={24} />
+              <MaskHappy size={24} />
             </A>
           </Match>
         </Switch>

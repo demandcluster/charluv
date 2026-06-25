@@ -13,7 +13,7 @@ import {
   SlidersHorizontal,
   Users,
   Download,
-  VenetianMask,
+  MaskHappy,
   Trash,
   RotateCcw,
   Pencil,
@@ -99,7 +99,7 @@ const ChatNav: Component<NavProps> = (props) => {
           <Settings size={size} aria-hidden="true" />
         </Nav.Item>
         <Nav.Item onClick={() => settingStore.toggleAnonymize()} tooltip="Anonymize">
-          <VenetianMask size={size} />
+          <MaskHappy size={size} />
         </Nav.Item>
         <Nav.Item onClick={() => props.setModal('export')} tooltip="Download Chat">
           <Download size={size} />
