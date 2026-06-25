@@ -107,6 +107,28 @@ const ChatPanes: Component<{}> = (props) => {
     return editableCharcters().find((ch) => ch._id === editId())
   })
 
+  // Characters whose memories the owner can view in the memory pane. Like the
+  // editor list but excludes the impersonated self (the owner has no memories).
+  const memoryChars = createMemo(() => {
+    const ids = new Map<string, AppSchema.Character>()
+
+    if (chats.char) {
+      ids.set(chats.char._id, chats.char)
+    }
+
+    for (const bot of chats.activeBots) {
+      if (bot.deletedAt) continue
+      if (bot._id.startsWith('temp-') && bot.favorite === false) continue
+      ids.set(bot._id, bot)
+    }
+
+    for (const bot of Object.values(chats.chat?.tempCharacters || {})) {
+      ids.set(bot._id, bot)
+    }
+
+    return Array.from(ids.values())
+  })
+
   const changeEditingChar = async (char: AppSchema.Character | undefined) => {
     const prev = editId()
     if (prev === char?._id) return
@@ -164,7 +186,12 @@ const ChatPanes: Component<{}> = (props) => {
 
         <Match when={pane.pane() === 'memory'}>
           <Convertible close={closePane} footer={paneFooter()} title="Memory">
-            <LongTermMemory chat={chats.chat!} close={closePane} footer={setPaneFooter} />
+            <LongTermMemory
+              chat={chats.chat!}
+              chars={memoryChars()}
+              close={closePane}
+              footer={setPaneFooter}
+            />
           </Convertible>
         </Match>
 

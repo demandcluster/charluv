@@ -205,6 +205,15 @@ export function getMessageAuthor(opts: {
 }) {
   const { chat, msg, chars, members, sender, impersonate } = opts
 
+  // Event/world narration (the opening scene line and director beats) has no
+  // author character and no userId — it's the unseen director narrating the
+  // world. Label it as its own speaker; without this it falls through to the
+  // user's handle below, so every character sees the narration as if the user
+  // said it (no director separation, and characters start narrating too).
+  if (msg.event === 'world' && !msg.characterId && !msg.userId) {
+    return msg.name || 'Narrator'
+  }
+
   if (msg.characterId) {
     const char =
       msg.characterId === impersonate?._id

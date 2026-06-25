@@ -1,10 +1,11 @@
-import { Component, For, JSX, Show, createSignal, onMount } from 'solid-js'
+import { Component, For, JSX, Show, createMemo, createSignal, onMount } from 'solid-js'
 import { Trash } from '/web/icons'
 import { AppSchema } from '../../../../common/types/schema'
 import Button from '../../../shared/Button'
 import TextInput from '../../../shared/TextInput'
 import { Toggle } from '../../../shared/Toggle'
 import Loading from '../../../shared/Loading'
+import CharacterSelect from '../../../shared/CharacterSelect'
 import { chatStore, toastStore } from '../../../store'
 import { charsApi, CharacterMemory } from '../../../store/data/chars'
 
@@ -13,13 +14,29 @@ import { charsApi, CharacterMemory } from '../../../store/data/chars'
  * Memories are scoped to the owner + character and persist across every chat
  * with that companion. The model writes them via the `remember` tool; here the
  * owner can review, add, and delete them.
+ *
+ * In an event/multi-character chat each companion keeps its own memories (the
+ * `remember` tool stores against whoever spoke), so the pane lets the owner pick
+ * which character's memories to view — defaulting to the chat's main character.
  */
 const LongTermMemory: Component<{
   chat: AppSchema.Chat | undefined
+  chars?: AppSchema.Character[]
   close: () => void
   footer?: (children: JSX.Element) => void
 }> = (props) => {
-  const charId = () => props.chat?.characterId
+  // Participants to choose between, with the chat's main character first.
+  const chars = createMemo(() => {
+    const list = props.chars ?? []
+    if (!list.length && props.chat?.characterId) return []
+    const mainId = props.chat?.characterId
+    return [...list].sort((a, b) => (a._id === mainId ? -1 : b._id === mainId ? 1 : 0))
+  })
+
+  const [selectedId, setSelectedId] = createSignal(props.chat?.characterId)
+  const charId = () => selectedId() ?? props.chat?.characterId
+  const selectedChar = createMemo(() => chars().find((c) => c._id === charId()))
+
   const [memories, setMemories] = createSignal<CharacterMemory[]>([])
   const [loading, setLoading] = createSignal(true)
   const [text, setText] = createSignal('')
@@ -33,6 +50,13 @@ const LongTermMemory: Component<{
     setLoading(false)
     if (res.result && 'memories' in res.result) setMemories(res.result.memories)
     else if (res.error) toastStore.error(`Could not load memories: ${res.error}`)
+  }
+
+  const selectChar = (char: AppSchema.Character | undefined) => {
+    if (!char || char._id === charId()) return
+    setSelectedId(char._id)
+    setText('')
+    load()
   }
 
   onMount(load)
@@ -73,6 +97,18 @@ const LongTermMemory: Component<{
         add or remove them here.
       </div>
 
+      <Show when={chars().length > 1}>
+        <CharacterSelect
+          class="w-full"
+          fieldName="memoryChar"
+          label="Character"
+          helperText="Each character in this chat keeps its own memories."
+          items={chars()}
+          value={selectedChar()}
+          onChange={selectChar}
+        />
+      </Show>
+
       <Toggle
         fieldName="memoryDisabled"
         label="Disable long-term memory"
@@ -100,7 +136,11 @@ const LongTermMemory: Component<{
       <Show when={!loading()} fallback={<Loading />}>
         <Show
           when={memories().length}
-          fallback={<div class="text-600 text-sm italic">No memories yet.</div>}
+          fallback={
+            <div class="text-600 text-sm italic">
+              No memories yet{selectedChar() ? ` for ${selectedChar()!.name}` : ''}.
+            </div>
+          }
         >
           <div class="flex flex-col gap-2">
             <For each={memories()}>
