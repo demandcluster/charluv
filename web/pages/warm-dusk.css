@@ -18,8 +18,7 @@
   --dsc-wine: oklch(0.55 0.16 5);
 
   min-height: 100%;
-  background:
-    radial-gradient(120% 80% at 85% -10%, oklch(0.3 0.08 350 / 0.6), transparent 60%),
+  background: radial-gradient(120% 80% at 85% -10%, oklch(0.3 0.08 350 / 0.6), transparent 60%),
     radial-gradient(90% 60% at -10% 110%, oklch(0.28 0.06 165 / 0.35), transparent 55%),
     var(--dsc-bg);
   color: var(--dsc-cream);

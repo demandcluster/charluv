@@ -301,7 +301,12 @@
 .dsc-skel {
   border-radius: 18px;
   aspect-ratio: 3 / 4;
-  background: linear-gradient(100deg, var(--dsc-bg-2) 30%, var(--dsc-surface) 50%, var(--dsc-bg-2) 70%);
+  background: linear-gradient(
+    100deg,
+    var(--dsc-bg-2) 30%,
+    var(--dsc-surface) 50%,
+    var(--dsc-bg-2) 70%
+  );
   background-size: 200% 100%;
   animation: dsc-shimmer 1.3s linear infinite;
 }

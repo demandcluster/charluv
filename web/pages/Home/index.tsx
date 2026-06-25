@@ -166,7 +166,7 @@ const RecentChats: Component<{ emitter: ComponentEmitter<'loaded'> }> = (props) 
                 aria-label={`Chat with ${char?.name}, ${elapsedSince(chat.updatedAt)} ago ${
                   chat.name
                 }`}
-                class="hover:bg-[var(--dsc-bg-2)] hidden h-24 w-full cursor-pointer overflow-hidden rounded-xl border border-[var(--dsc-line)] bg-[var(--dsc-surface)] transition duration-300 hover:border-[var(--dsc-green)] sm:flex"
+                class="hidden h-24 w-full cursor-pointer overflow-hidden rounded-xl border border-[var(--dsc-line)] bg-[var(--dsc-surface)] transition duration-300 hover:border-[var(--dsc-green)] hover:bg-[var(--dsc-bg-2)] sm:flex"
                 onClick={() => nav(`/chat/${chat._id}`)}
               >
                 <Show when={char?.avatar}>
@@ -191,7 +191,7 @@ const RecentChats: Component<{ emitter: ComponentEmitter<'loaded'> }> = (props) 
                 <div class="flex w-full flex-col justify-between text-sm" aria-hidden="true">
                   <div class="flex flex-col px-1">
                     <div class="text-sm font-bold">{char?.name}</div>
-                    <div class="text-[var(--dsc-muted)] text-xs">
+                    <div class="text-xs text-[var(--dsc-muted)]">
                       {elapsedSince(chat.updatedAt)} ago
                     </div>
                     <Show when={chat.name}>
@@ -209,7 +209,7 @@ const RecentChats: Component<{ emitter: ComponentEmitter<'loaded'> }> = (props) 
                 aria-label={`Chat with ${char?.name}, ${elapsedSince(chat.updatedAt)} ago ${
                   chat.name
                 }`}
-                class="hover:bg-[var(--dsc-bg-2)] flex w-full cursor-pointer flex-col overflow-hidden rounded-xl border border-[var(--dsc-line)] bg-[var(--dsc-surface)] transition duration-300 hover:border-[var(--dsc-green)] sm:hidden"
+                class="flex w-full cursor-pointer flex-col overflow-hidden rounded-xl border border-[var(--dsc-line)] bg-[var(--dsc-surface)] transition duration-300 hover:border-[var(--dsc-green)] hover:bg-[var(--dsc-bg-2)] sm:hidden"
                 onClick={() => nav(`/chat/${chat._id}`)}
               >
                 <div class="flex" aria-hidden="true">
@@ -222,7 +222,7 @@ const RecentChats: Component<{ emitter: ComponentEmitter<'loaded'> }> = (props) 
                   </div>
                   <div class="flex flex-col overflow-hidden text-ellipsis whitespace-nowrap px-1">
                     <div class="overflow-hidden text-ellipsis text-sm font-bold">{char?.name}</div>
-                    <div class="text-[var(--dsc-muted)] text-xs">
+                    <div class="text-xs text-[var(--dsc-muted)]">
                       {elapsedSince(chat.updatedAt)} ago
                     </div>
                   </div>
@@ -265,7 +265,9 @@ const RecentChats: Component<{ emitter: ComponentEmitter<'loaded'> }> = (props) 
 
         <Show when={state.last.length < 2 && user.loggedIn}>
           <BorderCard href="/create">
-            <div class="flex w-full items-center justify-center text-center">Create a Character</div>
+            <div class="flex w-full items-center justify-center text-center">
+              Create a Character
+            </div>
             <Heart size={20} />
           </BorderCard>
         </Show>
@@ -280,7 +282,7 @@ const BorderCard: Component<{ children: any; href: string; ariaLabel?: string }>
     <div
       role="button"
       aria-label={props.ariaLabel}
-      class="hover:bg-[var(--dsc-surface)] flex h-24 w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-[var(--dsc-line)] text-center text-[var(--dsc-muted)] transition duration-300 hover:border-[var(--dsc-green)] hover:text-[var(--dsc-cream)]"
+      class="flex h-24 w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-[var(--dsc-line)] text-center text-[var(--dsc-muted)] transition duration-300 hover:border-[var(--dsc-green)] hover:bg-[var(--dsc-surface)] hover:text-[var(--dsc-cream)]"
       onClick={() => nav(props.href)}
     >
       {props.children}
