@@ -135,6 +135,8 @@ export async function getUserInfo(userId: string) {
           patreon: 1,
           stripeSessions: 1,
           google: 1,
+          creditsRestricted: 1,
+          restrictedReason: 1,
         },
       }
     ),

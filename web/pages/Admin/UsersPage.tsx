@@ -159,6 +159,23 @@ const InfoModel: Component<{ show: boolean; close: () => void; userId: string; n
           </div>
         </Show>
         <Button onClick={() => adminStore.impersonate(state.info?.userId!)}>Impersonate</Button>
+        <Show when={state.info?.creditsRestricted}>
+          <div class="flex items-center gap-2">
+            <span class="rounded bg-orange-700 px-2 py-1 text-sm text-white">
+              Credit-restricted ({state.info?.restrictedReason})
+            </span>
+            <Button
+              size="sm"
+              onClick={() =>
+                adminStore.clearRestriction(state.info!.userId, () =>
+                  adminStore.getInfo(state.info!.userId)
+                )
+              }
+            >
+              Clear restriction
+            </Button>
+          </div>
+        </Show>
         <table class="w-full table-auto">
           <tbody>
             <tr>

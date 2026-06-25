@@ -19,6 +19,8 @@ type UserInfo = {
   billing: AppSchema.User['billing']
   patreon: AppSchema.User['patreon']
   stripeSessions?: string[]
+  creditsRestricted?: boolean
+  restrictedReason?: 'ip' | 'fingerprint' | 'both'
 }
 
 type AdminState = {
@@ -133,6 +135,14 @@ export const adminStore = createStore<AdminState>('admin', {
       const res = await api.get<UserInfo>(`/admin/users/${userId}/info`)
       if (res.error) toastStore.error(`Failed to get user info: ${res.error}`)
       if (res.result) return { info: res.result }
+    },
+    async clearRestriction(_, userId: string, onSuccess?: () => void) {
+      const res = await api.post(`/admin/users/${userId}/clear-restriction`)
+      if (res.error) return toastStore.error(`Failed to clear restriction: ${res.error}`)
+      if (res.result) {
+        toastStore.success('Restriction cleared')
+        onSuccess?.()
+      }
     },
     async getMetrics() {
       const res = await api.get('/admin/metrics')

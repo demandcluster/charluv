@@ -280,9 +280,17 @@ const updateTier = handle(async (req) => {
   return { success: true }
 })
 
+const clearRestriction = handle(async (req) => {
+  const userId = req.params.userId
+  if (!userId) throw new StatusError('Missing userId', 400)
+  await store.users.clearRestriction(userId)
+  return { success: true }
+})
+
 router.post('/impersonate/:userId', impersonateUser)
 router.post('/users', searchUsers)
 router.post('/users/:userId/tier', updateTier)
+router.post('/users/:userId/clear-restriction', clearRestriction)
 router.get('/metrics', getMetrics)
 router.get('/published', getPublished)
 router.post('/published/:id', moderatePublished)
