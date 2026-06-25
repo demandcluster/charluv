@@ -8,7 +8,7 @@ import { CharacterAvatar } from '../../shared/AvatarIcon'
 import { characterStore, chatStore } from '../../store'
 
 const WHENS = ['Morning', 'Afternoon', 'Evening', 'Late night']
-const VIBES = ['Chill', 'Flirty', 'Tense', 'Chaotic', 'Formal']
+const VIBES = ['Chill', 'Flirty', 'Tense', 'Chaotic', 'Formal', 'Erotic/NSFW']
 // Label → stored value. Controls how often the director injects a world beat.
 const DIRECTOR_EVENTS: Array<{ label: string; value: string }> = [
   { label: 'None', value: 'none' },
