@@ -140,9 +140,7 @@ const RecentChats: Component<{ emitter: ComponentEmitter<'loaded'> }> = (props) 
   const user = userStore()
   const state = chatStore((s) => {
     // We want this to occur after the state has propogated
-    setTimeout(() => {
-      props.emitter.emit.loaded(), 200
-    })
+    setTimeout(() => props.emitter.emit.loaded(), 200)
 
     return {
       chars: s.allChars.list,
