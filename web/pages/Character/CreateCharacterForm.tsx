@@ -8,16 +8,7 @@ import {
   Show,
   Switch,
 } from 'solid-js'
-import {
-  MinusCircle,
-  Plus,
-  Save,
-  X,
-  Trash,
-  WandSparkles,
-  Dices,
-  BookPlus,
-} from '/web/icons'
+import { MinusCircle, Plus, Save, X, Trash, WandSparkles, Dices, BookPlus } from '/web/icons'
 import Button from '../../shared/Button'
 import PageHeader from '../../shared/PageHeader'
 import TextInput, { ButtonInput } from '../../shared/TextInput'
@@ -189,7 +180,7 @@ export const CreateCharacterForm: Component<{
   })
 
   const onSubmit = async (ev: Event) => {
-    const payload = editor.payload(true)
+    const payload = editor.payload(true) as any
 
     if (props.temp && props.chat) {
       if (editor.state.avatar) {
@@ -410,11 +401,7 @@ export const CreateCharacterForm: Component<{
                   fieldName="scenario"
                   label={
                     <>
-                      <Regenerate
-                        field={'scenario'}
-                        editor={editor}
-                        allowed={editor.canGuidance}
-                      />
+                      <Regenerate field={'scenario'} editor={editor} allowed={editor.canGuidance} />
                       Scenario{' '}
                     </>
                   }
@@ -436,7 +423,10 @@ export const CreateCharacterForm: Component<{
                   label="Progression archetype"
                   items={[
                     { label: 'None (fixed)', value: '' },
-                    ...ARCHETYPES.map((a) => ({ label: `${a.label} — ${a.description}`, value: a.id })),
+                    ...ARCHETYPES.map((a) => ({
+                      label: `${a.label} — ${a.description}`,
+                      value: a.id,
+                    })),
                   ]}
                   value={editor.state.archetype ?? ''}
                   onChange={(opt) => editor.update('archetype', opt.value)}
@@ -507,14 +497,12 @@ export const CreateCharacterForm: Component<{
                   />
                 </div>
                 <ToggleButtons
-                  label="Content"
-                  fieldName="nsfw"
                   items={[
-                    { value: false, label: 'SFW' },
-                    { value: true, label: 'NSFW (18+)' },
+                    { value: 'false', label: 'SFW' },
+                    { value: 'true', label: 'NSFW (18+)' },
                   ]}
-                  onChange={(opt) => editor.update('nsfw', !!opt.value)}
-                  selected={editor.state.nsfw}
+                  onChange={(opt) => editor.update('nsfw', opt.value === 'true')}
+                  selected={String(editor.state.nsfw ?? false)}
                 />
                 <TextInput
                   fieldName="loraName"
@@ -640,17 +628,14 @@ export const CreateCharacterForm: Component<{
                 </div>
 
                 <Show when={Object.keys(editor.state.personaExtras ?? {}).length > 0}>
-                  <SolidCard
-                    type="bg"
-                    class="border-[1px] border-[var(--orange-600)] text-sm"
-                  >
+                  <SolidCard type="bg" class="border-[1px] border-[var(--orange-600)] text-sm">
                     <div class="font-bold text-[var(--orange-500)]">
                       Extra attributes (will be removed on save)
                     </div>
                     <div class="text-600 mb-2">
                       This character has non-standard W++ attributes that aren't part of the trait
-                      set. They're shown here for reference only and will be dropped the next time you
-                      save.
+                      set. They're shown here for reference only and will be dropped the next time
+                      you save.
                     </div>
                     <div class="flex flex-col gap-1">
                       <For each={Object.entries(editor.state.personaExtras ?? {})}>
@@ -961,8 +946,7 @@ const CharacterGallery: Component<{
     }
   }
 
-  const tileClass = (url: string) =>
-    `relative h-24 w-24 shrink-0 cursor-pointer rounded-md`
+  const tileClass = (url: string) => `relative h-24 w-24 shrink-0 cursor-pointer rounded-md`
 
   const selectionBadge = (url: string) => (
     <Show when={isSelected(url)}>
@@ -981,7 +965,8 @@ const CharacterGallery: Component<{
 
       <Show when={!props.charId}>
         <div class="text-600 text-sm italic">
-          You can set a cover below. Save the character first to add gallery images and build a LoRA.
+          You can set a cover below. Save the character first to add gallery images and build a
+          LoRA.
         </div>
       </Show>
 

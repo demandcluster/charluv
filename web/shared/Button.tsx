@@ -118,7 +118,7 @@ export const ToggleButton: Component<{
   class?: string
   alignLeft?: boolean
 }> = (props) => {
-  let ref: HTMLInputElement
+  let ref!: HTMLInputElement
 
   const [val, setVal] = createSignal(props.value ?? false)
 

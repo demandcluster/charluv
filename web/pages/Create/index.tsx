@@ -349,7 +349,10 @@ const Create: Component = () => {
       `${labelOfImg(BODIES, answers.body)} body`,
       ...(isMale()
         ? []
-        : [`${labelOfImg(BREASTS, answers.breast)} bust`, `${labelOfImg(BUTTS, answers.butt)} butt`]),
+        : [
+            `${labelOfImg(BREASTS, answers.breast)} bust`,
+            `${labelOfImg(BUTTS, answers.butt)} butt`,
+          ]),
       `${vibe().label} vibe`,
       answers.nsfw ? 'visually explicit/NSFW' : 'tasteful/SFW',
     ].join(', ')
@@ -596,7 +599,7 @@ const Create: Component = () => {
       progression: { archetype: v.archetype || DEFAULT_ARCHETYPE_ID, speed: 'normal' },
       premium: false,
       match: false,
-      shared: undefined,
+      share: undefined,
       originalAvatar: undefined,
     }
   }

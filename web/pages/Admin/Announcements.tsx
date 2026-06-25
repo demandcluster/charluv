@@ -128,7 +128,7 @@ function Label(item: AppSchema.Announcement) {
 }
 
 const Announcement: Component<{}> = (props) => {
-  let ref: HTMLFormElement
+  let ref: HTMLFormElement = undefined!
   let showAtRef: HTMLInputElement
 
   const nav = useNavigate()

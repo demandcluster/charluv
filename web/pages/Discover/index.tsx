@@ -36,7 +36,7 @@ const Discover: Component = () => {
   const [search, setSearch] = createSignal('')
 
   const load = () =>
-    matchStore.discover({
+    matchStore.loadDiscover({
       gender: gender() || undefined,
       artStyle: style() || undefined,
       sort: sort(),
@@ -201,10 +201,7 @@ const Card: Component<{ char: AppSchema.Character; onPick: (c: AppSchema.Charact
         </span>
       </Show>
 
-      <Show
-        when={props.char.avatar && !broken()}
-        fallback={<div class="dsc-ph">{initial()}</div>}
-      >
+      <Show when={props.char.avatar && !broken()} fallback={<div class="dsc-ph">{initial()}</div>}>
         <img
           class="dsc-photo"
           src={getAssetUrl(props.char.avatar!)}
@@ -217,11 +214,16 @@ const Card: Component<{ char: AppSchema.Character; onPick: (c: AppSchema.Charact
 
       <div class="dsc-meta">
         <div class="dsc-name">
-          {props.char.name} <Show when={props.char.ageRange}><span>· {props.char.ageRange}</span></Show>
+          {props.char.name}{' '}
+          <Show when={props.char.ageRange}>
+            <span>· {props.char.ageRange}</span>
+          </Show>
         </div>
         <Show when={props.char.category?.length}>
           <div class="dsc-tags">
-            <For each={props.char.category!.slice(0, 3)}>{(c) => <span class="dsc-pill">{c}</span>}</For>
+            <For each={props.char.category!.slice(0, 3)}>
+              {(c) => <span class="dsc-pill">{c}</span>}
+            </For>
           </div>
         </Show>
         <Show when={eng()}>

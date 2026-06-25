@@ -2,6 +2,7 @@ import { Component, Show, createSignal, onCleanup } from 'solid-js'
 import { A } from '@solidjs/router'
 import { Coins, Menu, Star } from '/web/icons'
 import { settingStore, userStore } from '../store'
+import type { AppSchema } from '/common/types/schema'
 
 /**
  * Slim header for logged-in visitors: the credits balance + premium status,
@@ -13,7 +14,8 @@ const UserTopBar: Component = () => {
   const [secLeft, setSecLeft] = createSignal<number | false>(false)
 
   const interval = setInterval(() => {
-    const recharged = user.user?.recharged || 0
+    const recharged =
+      (user.user as (AppSchema.User & { recharged?: number }) | undefined)?.recharged || 0
     if (!recharged) return
     const diff = recharged + 120000 - new Date().getTime()
     setSecLeft(diff > 0 ? Math.floor(diff / 1000) : false)
@@ -26,7 +28,7 @@ const UserTopBar: Component = () => {
   return (
     <header
       data-header=""
-      class="bg-[var(--menu-bg)] flex h-12 shrink-0 items-center justify-between gap-3 border-b border-[var(--bg-800)] px-3 sm:px-6"
+      class="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-[var(--bg-800)] bg-[var(--menu-bg)] px-3 sm:px-6"
     >
       <div
         class="icon-button w-8 sm:hidden"

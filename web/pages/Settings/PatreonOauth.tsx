@@ -22,7 +22,7 @@ const PatreonOauth: Component = () => {
         { url: `${location.origin}/oauth/patreon` }
       )
 
-    userStore.verifyPatreon(result, (error) => {
+    userStore.verifyPatreon(result, (error?: any) => {
       if (error) {
         setMessage(error)
         setState('error')

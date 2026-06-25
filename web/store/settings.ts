@@ -270,9 +270,9 @@ setContextLimitStrategy((user, gen) => {
     config: { subs },
   } = settingStore.getState()
   const { sub } = getStore('user').getState()
-  if (!gen || gen.service !== 'agnaistic') return
+  if (!gen || gen.service !== 'charluv') return
 
-  const tier = subs.find((sub) => sub._id === gen.registered?.agnaistic?.subscriptionId || '')
+  const tier = subs.find((sub) => sub._id === gen.registered?.charluv?.subscriptionId || '')
   if (!tier) return
 
   const level = sub?.level ?? -1
@@ -428,7 +428,7 @@ subscribe('submodel-updated', { model: 'any' }, (body) => {
   const opts = next.map((sub) => ({ label: sub.name, value: sub._id }))
 
   const registered = config.registered.map((reg) => {
-    if (reg.name !== 'agnaistic') return reg
+    if (reg.name !== 'charluv') return reg
     const settings = reg.settings.map((s) =>
       s.field === 'subscriptionId' ? { ...s, setting: { ...s.setting, options: opts } } : s
     )

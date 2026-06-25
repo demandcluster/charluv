@@ -65,7 +65,7 @@ export function jsonToCharacter(json: any): NewCharacter {
       sampleChat: json.example_dialogue,
       scenario: json.world_scenario,
       originalAvatar: undefined,
-    }
+    } as NewCharacter
   }
 
   if (format === 'tavern') {
@@ -83,7 +83,7 @@ export function jsonToCharacter(json: any): NewCharacter {
       sampleChat: json.mes_example,
       scenario: json.scenario,
       originalAvatar: undefined,
-    }
+    } as NewCharacter
   }
 
   /**
@@ -133,7 +133,7 @@ export function jsonToCharacter(json: any): NewCharacter {
     ageRange: json.data.extensions.charluv?.ageRange,
     category: json.data.extensions.charluv?.category,
     nsfw: json.data.extensions.charluv?.nsfw,
-  }
+  } as NewCharacter
 }
 
 /**
@@ -149,13 +149,13 @@ export async function downloadCharacterHub(path: string) {
   //   headers: { 'Content-Type': 'application/json' },
   //   body: JSON.stringify({ path: path }),
   // }).then((res) => res.blob())
-  const card = await api.post('/charimport', { path: path }, { responseType: 'blob' })
+  const card = await api.post<Blob>('/charimport', { path: path }, { responseType: 'blob' })
   console.log(card)
   if (card.error) {
     toastStore.error(card.error)
     throw new Error(`Failed to download image`)
   }
-  const file = new File([card.result], `${imgPath}.png`, { type: 'image/png' })
+  const file = new File([card.result!], `${imgPath}.png`, { type: 'image/png' })
   const data = await extractCardData(file)
   const json = jsonToCharacter(data)
   json.avatar = file

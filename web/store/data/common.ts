@@ -218,17 +218,8 @@ export function getActivePreset(
 }
 
 function applySubscriptionAdjustment(preset: Partial<AppSchema.UserGenPreset>) {
-  if (preset.service !== 'agnaistic') return preset
-
-  const subs = getStore('settings').getState().config.subs
-  const match = subs.find((sub) => sub._id === preset.registered?.agnaistic?.subscriptionId)
-  if (!match) return preset
-
-  return {
-    ...preset,
-    maxContextLength: Math.min(preset.maxContextLength!, match.preset.maxContextLength!),
-    maxTokens: Math.min(preset.maxTokens!, match.preset.maxTokens!),
-  }
+  // 'agnaistic' service was removed; subscription adjustment is a no-op.
+  return preset
 }
 
 async function getGuestPreset(user: AppSchema.User, chat: AppSchema.Chat) {

@@ -5,13 +5,10 @@ import { init } from '@dqbd/tiktoken/lite/init'
 import { encoding_for_model } from '@dqbd/tiktoken'
 import { AIAdapter, OPENAI_MODELS } from '../common/adapters'
 import { resolve } from 'path'
-import * as nai from 'nai-js-tokenizer'
 import { logger } from './middleware'
 import { AppSchema, Encoder, TokenCounter, Tokenizer } from '/common/types'
 
 const claudeJson = readFileSync(resolve(__dirname, 'sp-models', 'claude.json'))
-const pileJson = readFileSync(resolve(__dirname, 'sp-models', 'pile_tokenizer.json'))
-const gpt2Json = readFileSync(resolve(__dirname, 'sp-models', 'gpt2_tokenizer.json'))
 const cohereJson = readFileSync(resolve(__dirname, 'sp-models', 'cohere.json'))
 const qwen2Json = readFileSync(resolve(__dirname, 'sp-models', 'qwen2.json'))
 const llama3Json = readFileSync(resolve(__dirname, 'sp-models', 'llama3.json'))
@@ -20,8 +17,6 @@ let claudeEncoder: Tokenizer
 let cohereEncoder: Tokenizer
 let qwen2Encoder: Tokenizer
 let llama3Encoder: Tokenizer
-let krake: Encoder
-let euterpe: Encoder
 let gemma: Encoder
 
 const davinciEncoder = encoding_for_model('text-davinci-003')
@@ -137,35 +132,7 @@ export function getEncoder(adapter: AIAdapter | 'main', model?: string): Encoder
   return main
 }
 
-{
-  const json = JSON.parse(gpt2Json.toString())
-  const tokenizer = new nai.Encoder(json.vocab, json.merges, json.specialTokens, json.config)
-  euterpe = {
-    encode: (value) => {
-      const tokens = tokenizer.encode(value)
-      return tokens
-    },
-    decode: (tokens) => {
-      return tokenizer.decode(tokens)
-    },
-    count: (value) => tokenizer.encode(value).length,
-  }
-}
-
-{
-  const json = JSON.parse(pileJson.toString())
-  const tokenizer = new nai.Encoder(json.vocab, json.merges, json.specialTokens, json.config)
-  krake = {
-    encode: (value) => {
-      const tokens = tokenizer.encode(value)
-      return tokens
-    },
-    decode: (tokens) => {
-      return tokenizer.decode(tokens)
-    },
-    count: (value) => tokenizer.encode(value).length,
-  }
-}
+// gpt2 (euterpe) and pile (krake) NAI tokenizers removed — unused in Charluv
 
 export async function prepareTokenizers() {
   try {
@@ -204,7 +171,12 @@ export async function prepareTokenizers() {
       }
     }
     {
-      claudeEncoder = await mlc.Tokenizer.fromJSON(claudeJson)
+      claudeEncoder = await mlc.Tokenizer.fromJSON(
+        claudeJson.buffer.slice(
+          claudeJson.byteOffset,
+          claudeJson.byteOffset + claudeJson.byteLength
+        ) as ArrayBuffer
+      )
       claude = {
         decode: (tokens) => claudeEncoder.decode(Int32Array.from(tokens)),
         encode: (value) => {
@@ -218,7 +190,12 @@ export async function prepareTokenizers() {
       }
     }
     {
-      cohereEncoder = await mlc.Tokenizer.fromJSON(cohereJson)
+      cohereEncoder = await mlc.Tokenizer.fromJSON(
+        cohereJson.buffer.slice(
+          cohereJson.byteOffset,
+          cohereJson.byteOffset + cohereJson.byteLength
+        ) as ArrayBuffer
+      )
       cohere = {
         decode: (tokens) => cohereEncoder.decode(Int32Array.from(tokens)),
         encode: (value) => {
@@ -232,7 +209,12 @@ export async function prepareTokenizers() {
       }
     }
     {
-      llama3Encoder = await mlc.Tokenizer.fromJSON(llama3Json)
+      llama3Encoder = await mlc.Tokenizer.fromJSON(
+        llama3Json.buffer.slice(
+          llama3Json.byteOffset,
+          llama3Json.byteOffset + llama3Json.byteLength
+        ) as ArrayBuffer
+      )
       llama3 = {
         decode: (tokens) => llama3Encoder.decode(Int32Array.from(tokens)),
         encode: (value) => {
@@ -246,7 +228,12 @@ export async function prepareTokenizers() {
       }
     }
     {
-      qwen2Encoder = await mlc.Tokenizer.fromJSON(qwen2Json)
+      qwen2Encoder = await mlc.Tokenizer.fromJSON(
+        qwen2Json.buffer.slice(
+          qwen2Json.byteOffset,
+          qwen2Json.byteOffset + qwen2Json.byteLength
+        ) as ArrayBuffer
+      )
       qwen2 = {
         decode: (tokens) => qwen2Encoder.decode(Int32Array.from(tokens)),
         encode: (value) => {

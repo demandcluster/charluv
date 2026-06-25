@@ -1,6 +1,5 @@
 import { X, Signal, RefreshCcw } from '/web/icons'
-import { Component, Show, createSignal, createEffect } from 'solid-js'
-import { Performance } from '../../../common/performance'
+import { Component, Show } from 'solid-js'
 import Button from '../../shared/Button'
 import Modal from '../../shared/Modal'
 import { Card } from '../../shared/Card'
@@ -12,21 +11,10 @@ const PerformanceModal: Component<{
   show: boolean
   close: () => void
 }> = (props) => {
-  const [cfg, setCfg] = createSignal<Performance | null>(null)
-
-  createEffect(() => {
-    const cfd = settingStore((s) => ({
-      performance: s.performance,
-    }))
-    setCfg(cfd)
-  })
+  const perf = settingStore((s) => s.performance)
 
   const refresh = () => {
     settingStore.getHordePerformance()
-    const cfd = settingStore((s) => ({
-      performance: s.performance,
-    }))
-    setCfg(cfd)
   }
 
   rootModalStore.addModal({
@@ -52,21 +40,21 @@ const PerformanceModal: Component<{
             <PageHeader title="Text" />
             <div class="flex w-full flex-row">
               <div>
-                <Show when={cfg()?.performance?.text_worker_count > 0}>
+                <Show when={perf.text_worker_count > 0}>
                   <Signal class="align-left" color="green" />
                 </Show>
-                <Show when={cfg()?.performance?.text_worker_count === 0}>
+                <Show when={perf.text_worker_count === 0}>
                   <Signal class="align-left" color="red" />
                 </Show>
               </div>
               <div class="px-4">
                 <div class="flex flex-row">
                   <div class="w-11/12">Queued Tokens</div>
-                  <div class="w-1/12">{cfg()?.performance?.queued_tokens}</div>
+                  <div class="w-1/12">{perf.queued_tokens}</div>
                 </div>
                 <div class="flex flex-row">
                   <div class="w-11/12">Tokens last minute</div>
-                  <div class="w-1/12">{cfg()?.performance?.past_minute_tokens}</div>
+                  <div class="w-1/12">{perf.past_minute_tokens}</div>
                 </div>
               </div>
             </div>
@@ -75,21 +63,21 @@ const PerformanceModal: Component<{
             <PageHeader title="Image" />
             <div class="flex w-full flex-row">
               <div>
-                <Show when={cfg()?.performance?.worker_count > 0}>
+                <Show when={perf.worker_count > 0}>
                   <Signal class="align-left" color="green" />
                 </Show>
-                <Show when={cfg()?.performance?.worker_count === 0}>
+                <Show when={perf.worker_count === 0}>
                   <Signal class="align-left" color="red" />
                 </Show>
               </div>
               <div class="px-4">
                 <div class="flex flex-row">
                   <div class="w-11/12">Queued Megapixels</div>
-                  <div class="w-1/12">{cfg()?.performance?.queued_megapixelsteps}</div>
+                  <div class="w-1/12">{perf.queued_megapixelsteps}</div>
                 </div>
                 <div class="flex flex-row">
                   <div class="w-11/12">Megapixels last minute</div>
-                  <div class="w-1/12">{cfg()?.performance?.past_minute_megapixelsteps}</div>
+                  <div class="w-1/12">{perf.past_minute_megapixelsteps}</div>
                 </div>
               </div>
             </div>

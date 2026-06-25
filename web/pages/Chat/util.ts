@@ -73,7 +73,7 @@ function tempSort(a: AppSchema.Character, b: AppSchema.Character) {
 export function isEligible() {
   const cfg = getStore('settings').getState()
   const user = getStore('user').getState()
-  const premiumFallback = user.premium ? 10 : -1
+  const premiumFallback = user.user?.premium ? 10 : -1
 
   const userLevel = premiumFallback //Math.max(user.sub?.level, premiumFallback)
 

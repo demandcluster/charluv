@@ -9,7 +9,7 @@ const schemaToClasses: Record<AlertSchema, string> = {
 }
 
 const schemaToIcon: Record<AlertSchema, (props: LucideProps) => JSX.Element> = {
-  error: AlertTriangle,
+  error: AlertTriangle as (props: LucideProps) => JSX.Element,
 }
 
 const Alert: Component<{

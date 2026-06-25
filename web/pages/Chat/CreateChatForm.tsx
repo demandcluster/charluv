@@ -48,7 +48,7 @@ const CreateChatForm: Component<{
   const user = userStore((s) => ({
     ...s.user,
     sub: s.sub,
-    userLevel: s.premium ? 10 : s.userLevel,
+    userLevel: s.user?.premium ? 10 : s.userLevel,
   }))
   const state = characterStore((s) => ({
     char: s.editing,
@@ -106,7 +106,7 @@ const CreateChatForm: Component<{
       const eligible = cfg.config.subs.some((sub) => userLevel >= sub.level)
 
       if (eligible) {
-        return defaultPresets.agnai
+        return defaultPresets['charluv-balanced']
       }
 
       return defaultPresets.horde

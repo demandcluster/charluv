@@ -136,9 +136,9 @@ export const userStore = createStore<UserState>(
         toastStore.error(`Could get retrieve key: ${res.error}`)
       }
     },
-    async getProfile() {
+    async getProfile(_: UserState) {
       const res = await usersApi.getProfile()
-      if (res.error) return toastStore.error(`Failed to get profile`)
+      if (res.error) return void toastStore.error(`Failed to get profile`)
       if (res.result) {
         // Build the self-persona (Your Character) used in chats from the profile.
         getStore('character').loadImpersonate(res.result)
@@ -146,9 +146,9 @@ export const userStore = createStore<UserState>(
       }
     },
 
-    async removeProfileAvatar() {
+    async removeProfileAvatar(_: UserState) {
       const res = await usersApi.removeProfileAvatar()
-      if (res.error) return toastStore.error(`Could not update profile: ${res.error}`)
+      if (res.error) return void toastStore.error(`Could not update profile: ${res.error}`)
       if (res.result) {
         return { profile: res.result }
       }
@@ -377,7 +377,7 @@ export const userStore = createStore<UserState>(
       }
     },
 
-    async subscriptionStatus() {
+    async subscriptionStatus(_: UserState) {
       if (!isLoggedIn()) return
       const res = await api.get('/admin/billing/subscribe/status')
       if (res.result) {
@@ -385,10 +385,10 @@ export const userStore = createStore<UserState>(
       }
     },
 
-    async getConfig() {
+    async getConfig(_: UserState) {
       const res = await usersApi.getConfig()
 
-      if (res.error) return toastStore.error(`Failed to get user config`)
+      if (res.error) return void toastStore.error(`Failed to get user config`)
       if (res.result) {
         if (res.result.username) {
           storage.localSetItem(ACCOUNT_KEY, res.result.username)
@@ -396,11 +396,6 @@ export const userStore = createStore<UserState>(
         window.usePipeline = res.result.useLocalPipeline
         return { user: res.result }
       }
-    },
-
-    async getECU() {
-      const res = await localStorage.getItem('ecu')
-      return res === true ? true : false
     },
 
     async updateProfile(
@@ -459,7 +454,7 @@ export const userStore = createStore<UserState>(
 
     async changePassword(_, password: string, onSuccess?: Function) {
       const res = await api.post('/user/password', { password })
-      if (res.error) return toastStore.error('Failed to change password')
+      if (res.error) return void toastStore.error('Failed to change password')
       if (res.result) {
         toastStore.success(`Successfully changed password`)
         onSuccess?.()
@@ -490,7 +485,7 @@ export const userStore = createStore<UserState>(
       }
     },
 
-    async unverifyPatreon() {
+    async unverifyPatreon(_: UserState) {
       const res = await api.post('/user/unverify/patreon')
       if (res.result) {
         toastStore.success('Unlinked Patreon account')
@@ -533,7 +528,7 @@ export const userStore = createStore<UserState>(
       const res = await api.post('/user/login', { username, password })
       yield { loading: false }
       if (res.error) {
-        return toastStore.error(`Authentication failed`)
+        return void toastStore.error(`Authentication failed`)
       }
 
       setAuth(res.result.token)
@@ -566,7 +561,7 @@ export const userStore = createStore<UserState>(
       const res = await api.post('/user/register', newUser)
       yield { loading: false }
       if (res.error) {
-        return toastStore.error(`Failed to register: ${res.error}`)
+        return void toastStore.error(`Failed to register: ${res.error}`)
       }
 
       setAuth(res.result.token)
@@ -583,7 +578,7 @@ export const userStore = createStore<UserState>(
       publish({ type: 'login', token: res.result.token })
       events.emit(EVENTS.loggedIn)
     },
-    async *logout() {
+    async *logout(_: UserState) {
       clearAuth()
       publish({ type: 'logout' })
       const ui = await getUIsettings(true)
@@ -598,7 +593,7 @@ export const userStore = createStore<UserState>(
       events.emit(EVENTS.loggedOut)
     },
 
-    async *deleteAccount() {
+    async *deleteAccount(_: UserState) {
       const res = await api.method('delete', '/user/my-account')
       if (res.result) {
         toastStore.error('Account deleted')
@@ -624,7 +619,7 @@ export const userStore = createStore<UserState>(
         toastStore.error(`Failed to save UI settings: ${e.message}`)
       }
 
-      return { ui: next, current, [mode]: current }
+      return { ui: next, current }
     },
 
     async saveCustomUI({ ui }, update: Partial<UI.CustomUI>) {
@@ -645,9 +640,9 @@ export const userStore = createStore<UserState>(
     async tryCustomUI({ ui }, update: Partial<UI.CustomUI>) {
       const prop = ui.mode === 'light' ? 'light' : 'dark'
       const current = { ...ui[prop], ...update }
-      const next = { ...ui, current, [prop]: current }
+      const next: UI.UISettings = { ...ui, [prop]: current }
       await updateTheme(next)
-      return next
+      return { ui: next, current }
     },
 
     tryUI({ ui }, update: Partial<UI.UISettings>) {
@@ -711,7 +706,7 @@ export const userStore = createStore<UserState>(
         | 'mistral'
     ) {
       const res = await usersApi.deleteApiKey(kind)
-      if (res.error) return toastStore.error(`Failed to update settings: ${res.error}`)
+      if (res.error) return void toastStore.error(`Failed to update settings: ${res.error}`)
 
       if (!user) return
       toastStore.success('Key removed')
@@ -744,7 +739,7 @@ export const userStore = createStore<UserState>(
       }
     },
 
-    async clearGuestState() {
+    async clearGuestState(_: UserState) {
       try {
         const chats = await localApi.loadItem('chats')
         for (const chat of chats) {
@@ -845,7 +840,7 @@ function init(): UserState {
       subLoading: false,
     }
   }
-  localStorage.setItem('ecu', true)
+  localStorage.setItem('ecu', 'true')
   return {
     userType: undefined,
     userLevel: 0,
@@ -891,7 +886,7 @@ async function updateTheme(ui: UI.UISettings) {
 
   for (let shade = 100; shade <= 1000; shade += 100) {
     const index = shade / 100 - 1
-    const num = ui.mode === 'light' ? 1000 - shade : shade
+    const num = shade // light mode is retired; always dark
 
     if (shade <= 900) {
       const color = getRootVariable(`--${ui.theme}-${num}`)
@@ -957,14 +952,17 @@ function getUIsettings(guest = false) {
 }
 
 subscribe('credits-updated', { credits: 'any' }, (body) => {
-  userStore.setState({
-    user: { ...userStore.getState().user, credits: body.credits },
-  })
+  const cur = userStore.getState().user
+  if (cur) {
+    userStore.setState({ user: { ...cur, credits: body.credits } })
+  }
 })
-subscribe('recharged', { amount: 'any' }, (body) => {
-  userStore.setState({
-    user: { ...userStore.getState().user, recharged: new Date().getTime() },
-  })
+subscribe('recharged', { amount: 'any' }, (_body) => {
+  const cur = userStore.getState().user
+  if (cur) {
+    // nextCredits is used as a refresh-trigger timestamp
+    userStore.setState({ user: { ...cur, nextCredits: new Date().getTime() } })
+  }
 })
 
 async function setBackground(content: any) {

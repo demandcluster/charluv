@@ -167,7 +167,7 @@ const TiersPage: Component = (props) => {
             label="Guidance (V2) Access Capable"
             helperText="If enabled, this tier can use GuidanceV2 if the server/preset allows it"
             value={editing()?.guidanceAccess ?? false}
-            classList={{ hidden: !settings.config.adapters.includes('agnaistic') }}
+            classList={{ hidden: !settings.config.adapters.includes('charluv') }}
           />
 
           <Toggle
@@ -175,7 +175,7 @@ const TiersPage: Component = (props) => {
             label="Image Generation Access"
             helperText="If enabled, this tier can use Agnaistic Image Generation"
             value={editing()?.imagesAccess ?? false}
-            classList={{ hidden: !settings.config.adapters.includes('agnaistic') }}
+            classList={{ hidden: !settings.config.adapters.includes('charluv') }}
           />
 
           <Select

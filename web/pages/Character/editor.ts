@@ -293,12 +293,12 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
 
     const opts: Option[] = []
 
-    if (preset?.service && preset.service !== 'agnaistic') {
-      opts.push({ label: `Default (${ADAPTER_LABELS[preset.service!]})`, value: 'default' })
+    if (preset?.service) {
+      opts.push({ label: `Default (${ADAPTER_LABELS[preset.service]})`, value: 'default' })
     }
 
     {
-      const premiumLevel = user.premium ? 10 : -1
+      const premiumLevel = user.sub?.level ? 10 : -1
       const subs = settings.config.subs.filter(
         (s) => user.user?.admin || s.level <= premiumLevel || s.level <= user.userLevel
       )
@@ -510,7 +510,7 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
 
       // We set fields that aren't properly managed by form elements
       setState({
-        ...char,
+        ...(char as unknown as Partial<EditState>),
         personaKind,
         alternateGreetings: char?.alternateGreetings || [],
         book: char?.characterBook,
@@ -538,14 +538,14 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
 
   const clear = () => {
     setImageData()
-    load({ ...initState, originalAvatar: undefined })
+    load({ ...initState, originalAvatar: undefined } as unknown as NewCharacter)
   }
 
   const load = (char: NewCharacter | AppSchema.Character) => {
     batch(() => {
       if ('_id' in char) {
         const { avatar, ...incoming } = char
-        setOriginal({ ...incoming, originalAvatar: avatar })
+        setOriginal({ ...incoming, originalAvatar: avatar } as NewCharacter & { _id?: string })
         reset()
         return
       }
@@ -580,9 +580,9 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
       userId: '',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      ...payload,
+      ...(payload as any),
       avatar: imageData(),
-    }
+    } as AppSchema.Character
   }
 
   const updateKind = (kind: EditState['personaKind']) => {

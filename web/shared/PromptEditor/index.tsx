@@ -161,7 +161,7 @@ const PromptEditor: Component<
     noDummyPreview?: boolean
   } & Optionals
 > = (props) => {
-  let ref: HTMLTextAreaElement //= null as any
+  let ref!: HTMLTextAreaElement
 
   const adapters = createMemo(() => getAISettingServices(props.aiSetting || 'gaslight'))
   const presets = presetStore()
@@ -428,7 +428,7 @@ export const BasicPromptTemplate: Component<{
   inherit?: Partial<AppSchema.GenSettings>
   hide?: boolean
 }> = (props) => {
-  let ref: HTMLInputElement
+  let ref!: HTMLInputElement
   const items = Object.keys(formatHolders).map((label) => ({
     label: `Format: ${label}`,
     value: label,

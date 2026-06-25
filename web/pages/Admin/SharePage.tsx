@@ -45,8 +45,8 @@ const ReportsTab: Component = () => {
       if (input === null) return // cancelled
       reason = input.trim() || undefined
     }
-    const ok = await adminStore.resolveReport(charId, action, reason)
-    if (ok) load()
+    await adminStore.resolveReport(charId, action, reason)
+    load()
   }
 
   return (
@@ -72,7 +72,10 @@ const ReportsTab: Component = () => {
                 <div class="text-600 flex flex-wrap gap-1 text-xs">
                   <For each={r.reasons}>
                     {(reason: any) => (
-                      <span class="rounded bg-[var(--bg-700)] px-2 py-0.5" title={reason.note || ''}>
+                      <span
+                        class="rounded bg-[var(--bg-700)] px-2 py-0.5"
+                        title={reason.note || ''}
+                      >
                         {reason.reason}
                       </span>
                     )}
@@ -87,7 +90,12 @@ const ReportsTab: Component = () => {
               <Button size="sm" schema="gray" onClick={() => act(r.charId, 'hide')}>
                 Keep hidden
               </Button>
-              <Button size="sm" class="text-error" schema="red" onClick={() => act(r.charId, 'delete')}>
+              <Button
+                size="sm"
+                class="text-error"
+                schema="red"
+                onClick={() => act(r.charId, 'delete')}
+              >
                 Delete
               </Button>
             </div>
@@ -111,8 +119,8 @@ const PublishedTab: Component = () => {
       if (input === null) return // cancelled
       reason = input.trim() || undefined
     }
-    const ok = await adminStore.moderatePublished(charId, action, reason)
-    if (ok) load()
+    await adminStore.moderatePublished(charId, action, reason)
+    load()
   }
 
   return (
@@ -124,7 +132,7 @@ const PublishedTab: Component = () => {
         {(char) => (
           <div class="bg-800 flex items-center gap-3 rounded-xl p-3">
             <Show when={char.avatar}>
-              <img class="h-16 w-16 rounded-md object-cover" src={getAssetUrl(char.avatar)} />
+              <img class="h-16 w-16 rounded-md object-cover" src={getAssetUrl(char.avatar!)} />
             </Show>
             <div class="flex flex-1 flex-col">
               <div class="font-bold">
@@ -136,7 +144,9 @@ const PublishedTab: Component = () => {
               <div class="text-600 flex flex-wrap gap-1 text-xs">
                 <For each={char.moderation?.flags || []}>
                   {(f: string) => (
-                    <span class="rounded bg-[var(--bg-700)] px-2 py-0.5">{FLAG_LABELS[f] || f}</span>
+                    <span class="rounded bg-[var(--bg-700)] px-2 py-0.5">
+                      {FLAG_LABELS[f] || f}
+                    </span>
                   )}
                 </For>
               </div>
@@ -150,7 +160,12 @@ const PublishedTab: Component = () => {
               <Button size="sm" schema="gray" onClick={() => act(char._id, 'unpublish')}>
                 Unpublish
               </Button>
-              <Button size="sm" class="text-error" schema="red" onClick={() => act(char._id, 'delete')}>
+              <Button
+                size="sm"
+                class="text-error"
+                schema="red"
+                onClick={() => act(char._id, 'delete')}
+              >
                 Delete
               </Button>
             </div>

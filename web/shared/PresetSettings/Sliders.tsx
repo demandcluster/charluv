@@ -337,9 +337,7 @@ export const SliderSettings: Component<
           min={0.8}
           max={1.5}
           step={0.01}
-          value={
-            props.inherit?.encoderRepitionPenalty ?? defaultPresets.basic.encoderRepitionPenalty
-          }
+          value={props.inherit?.encoderRepitionPenalty ?? 1}
           disabled={props.disabled}
           service={props.service}
           aiSetting={'encoderRepitionPenalty'}
@@ -354,7 +352,7 @@ export const SliderSettings: Component<
           min={0}
           max={5}
           step={0.01}
-          value={props.inherit?.penaltyAlpha ?? defaultPresets.basic.penaltyAlpha}
+          value={props.inherit?.penaltyAlpha ?? 0}
           disabled={props.disabled}
           service={props.service}
           aiSetting={'penaltyAlpha'}

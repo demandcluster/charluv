@@ -117,7 +117,7 @@ const TemplateModal: Component<{
   initial?: string
   close: () => void
 }> = (props) => {
-  let form: HTMLFormElement
+  let form!: HTMLFormElement
 
   const submit = () => {
     const { name, template } = getStrictForm(form, { name: 'string', template: 'string' })

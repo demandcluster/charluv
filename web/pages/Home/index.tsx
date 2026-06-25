@@ -55,7 +55,7 @@ const HomePage: Component = () => {
       if (ann.location && ann.location !== 'home') return false
 
       const level = ann.userLevel ?? -1
-      const userPremium = user.premium ? 10 : -1
+      const userPremium = user.user?.premium ? 10 : -1
       const premiumLevel = Math.max(user.userLevel, userPremium)
       return premiumLevel >= level
     })
@@ -85,7 +85,7 @@ const HomePage: Component = () => {
           </div>
         </Card>
 
-        <RecentChats emitter={emitter} class="mb-2" />
+        <RecentChats emitter={emitter} />
 
         <Show when={announcements().length > 0}>
           <Announcements list={announcements().slice(0, 1)} />

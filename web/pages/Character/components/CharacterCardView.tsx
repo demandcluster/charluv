@@ -13,6 +13,7 @@ import {
   Pencil,
   Star,
   Trash,
+  User,
   VenetianMask,
 } from '/web/icons'
 import { DropMenu } from '/web/shared/DropMenu'
@@ -139,10 +140,7 @@ const Character: Component<CardProps> = (props) => {
             </Match>
 
             <Match when={!props.char.chat}>
-              <button
-                onClick={() => startChat(props.char, nav)}
-                aria-label="Open Character Chats"
-              >
+              <button onClick={() => startChat(props.char, nav)} aria-label="Open Character Chats">
                 <ArrowRight size={size} />
               </button>
             </Match>
@@ -173,7 +171,11 @@ const Character: Component<CardProps> = (props) => {
             customPosition="right-[9px] top-[6px]"
           >
             <div class="flex flex-col gap-2 p-2">
-              <Button alignLeft onClick={() => startChat(props.char, nav, { forceNew: true })} size="sm">
+              <Button
+                alignLeft
+                onClick={() => startChat(props.char, nav, { forceNew: true })}
+                size="sm"
+              >
                 <MessageCirclePlus size={size} /> New Chat
               </Button>
 

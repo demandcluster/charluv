@@ -31,9 +31,7 @@ export const announceStore = createStore<AnnounceState>(
     const list = get().list
     set({
       userLevel: level,
-      filtered: list.filter((l) =>
-        l.userLevel !== undefined ? level >= l.userLevel || l.premium : true
-      ),
+      filtered: list.filter((l) => (l.userLevel !== undefined ? level >= l.userLevel : true)),
     })
   })
 

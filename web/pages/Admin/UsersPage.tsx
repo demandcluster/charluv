@@ -242,7 +242,7 @@ const InfoModel: Component<{ show: boolean; close: () => void; userId: string; n
               <td>
                 Native:{state.info?.sub?.level ?? '-1'} / Patreon:
                 {state.info?.patreon?.sub?.level ?? '-1'} / PayPal:
-                {(state.info?.premium &&
+                {((state.info as any)?.premium &&
                   !state.info?.patreon?.sub?.level &&
                   !state.info?.sub?.level) ??
                   '-1'}

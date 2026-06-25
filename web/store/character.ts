@@ -74,7 +74,6 @@ export type NewCharacter = UpdateCharacter &
     | 'premium'
     | 'xp'
     | 'parent'
-    | 'shared'
     | 'insert'
   > & {
     originalAvatar: any

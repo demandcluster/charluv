@@ -223,14 +223,11 @@ subscribe('image-failed', { requestId: 'string', error: 'string' }, (body) => {
 const SUMMARY_BACKENDS: { [key in AIAdapter]?: (opts: PromptEntities) => boolean } = {
   charluv: () => true,
   openai: () => true,
-  novel: () => true,
   horde: () => true,
   ooba: () => true,
   kobold: () => true,
-  openrouter: () => true,
   claude: () => true,
-  mancer: () => true,
-  agnaistic: () => true,
+  venus: () => true,
 }
 
 async function createSummarizedImagePrompt(opts: PromptEntities) {
@@ -276,32 +273,19 @@ async function getChatSummary(settings: Partial<AppSchema.GenSettings>, summaryP
 
 function getSummaryTemplate(service: AIAdapter, summaryPrompt?: string) {
   switch (service) {
-    case 'novel': {
-      const prompt =
-        summaryPrompt ||
-        `Write a detailed image caption of the current scene with a description of each character's appearance`
-      return neat`
-      {{char}}'s personality: {{personality}}
-      [ Style: chat ]
-      ***
-      {{history}}
-      { ${prompt} }`
-    }
-
     case 'charluv':
     case 'openai':
-    case 'openrouter':
     case 'claude':
-    case 'scale': {
+    case 'venus': {
       const prompt =
         summaryPrompt ||
         `Write an image caption of the current scene including the character's appearance`
       return neat`
       {{personality}}
-      
+
       (System note: Start of conversation)
       {{history}}
-      
+
       {{ujb}}
       (System: ${prompt})
       Image caption:`
@@ -309,8 +293,7 @@ function getSummaryTemplate(service: AIAdapter, summaryPrompt?: string) {
 
     case 'ooba':
     case 'kobold':
-    case 'horde':
-    case 'agnaistic': {
+    case 'horde': {
       const prompt =
         summaryPrompt ||
         `Write an image caption of the current scene using physical descriptions without names.`

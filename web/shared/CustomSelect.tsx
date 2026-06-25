@@ -31,7 +31,7 @@ export const CustomSelect: Component<{
   value: any
   emitter?: ComponentSubscriber<'close'>
 }> = (props) => {
-  let ref: HTMLInputElement
+  let ref!: HTMLInputElement
   const [open, setOpen] = createSignal(false)
 
   const hide = createMemo(() => {

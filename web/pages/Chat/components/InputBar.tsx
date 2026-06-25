@@ -42,7 +42,7 @@ const InputBar: Component<{
   more: (msg: string) => void
   request: (charId: string) => void
 }> = (props) => {
-  let ref: HTMLTextAreaElement
+  let ref: HTMLTextAreaElement = undefined!
 
   const [ctx] = useAppContext()
 

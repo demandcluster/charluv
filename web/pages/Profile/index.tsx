@@ -90,7 +90,7 @@ export const ProfileModal: Component = () => {
   )
 }
 const ProfilePage: Component<{ footer?: (children: any) => void }> = (props) => {
-  let formRef: HTMLFormElement
+  let formRef: HTMLFormElement = undefined!
   let googleRef: any
 
   setComponentPageTitle('My profile')
@@ -186,7 +186,13 @@ const ProfilePage: Component<{ footer?: (children: any) => void }> = (props) => 
           </div>
 
           <Show when={state.user?.premium}>
-            <TextInput label="Premium" helperText="You are a premium user" value="" disabled />
+            <TextInput
+              fieldName="premium"
+              label="Premium"
+              helperText="You are a premium user"
+              value=""
+              disabled
+            />
           </Show>
 
           <Show when={state.user?._id !== 'anon' && canuseGoogle() && !admin.impersonating}>
@@ -318,7 +324,7 @@ export default ProfilePage
  * {{user}}'s persona in every chat.
  */
 const ProfileCharacter: Component<{ footer?: (children: any) => void }> = (props) => {
-  let formRef: HTMLFormElement
+  let formRef: HTMLFormElement = undefined!
   const state = userStore()
 
   createEffect(() => {

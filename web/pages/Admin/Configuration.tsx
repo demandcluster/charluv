@@ -1,4 +1,5 @@
 import { Component, Match, Switch, createEffect, createSignal, on, onMount } from 'solid-js'
+import { AppSchema } from '/common/types'
 import { adminStore, userStore } from '/web/store'
 import { useNavigate } from '@solidjs/router'
 import PageHeader from '/web/shared/PageHeader'
@@ -16,7 +17,7 @@ import { Images } from './Config/Images'
 export { ServerConfiguration as default }
 
 const ServerConfiguration: Component = () => {
-  let form: HTMLFormElement
+  let form: HTMLFormElement = undefined!
   const user = userStore()
   const nav = useNavigate()
 
@@ -86,11 +87,12 @@ const ServerConfiguration: Component = () => {
 
     adminStore.updateServerConfig({
       ...body,
-      actionCalls: [],
+      actionCalls: [] as AppSchema.ActionCall[],
       slots: slots(),
       imagesModels: models[0](),
-      enabledAdapters: [],
+      enabledAdapters: [] as string[],
       modSchema: modschema(),
+      modPresetId: state.config?.modPresetId || '',
     })
   }
 

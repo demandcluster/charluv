@@ -87,7 +87,7 @@ const novelLogin = async (opts: {
     )
     .slice(0, 64)
 
-  userStore.novelLogin(key, (err) => {
+  userStore.novelLogin(key, (err?: boolean) => {
     opts.setLoading(false)
     if (!err) {
       opts.setPass('')

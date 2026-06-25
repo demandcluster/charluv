@@ -26,8 +26,8 @@ const Sortable: Component<{
   itemClass?: string
   parentClass?: string
 }> = (props) => {
-  let ref: HTMLUListElement
-  let field: HTMLInputElement
+  let ref!: HTMLUListElement
+  let field!: HTMLInputElement
 
   const [_sort, setSort] = createSignal<Sort>()
   const [items, setItems] = createSignal(props.items)

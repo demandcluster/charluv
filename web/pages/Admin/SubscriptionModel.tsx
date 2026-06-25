@@ -34,7 +34,7 @@ import { FormLabel } from '/web/shared/FormLabel'
 
 const emptyPreset: AppSchema.GenSettings = {
   ...defaultPresets.basic,
-  ...defaultPresets.agnai,
+  ...defaultPresets.charluv,
   name: '',
   temp: 0.85,
   topK: 0,

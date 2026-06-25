@@ -100,6 +100,7 @@ const fallbacks: { [key in StorageKey]: LocalStorage[key] } = {
     defaultAdapter: 'horde',
     koboldUrl: '',
     premium: false,
+    credits: 0,
     thirdPartyFormat: 'kobold',
     thirdPartyPassword: '',
     useLocalPipeline: false,
@@ -111,6 +112,7 @@ const fallbacks: { [key in StorageKey]: LocalStorage[key] } = {
   cartItems: [],
   scenario: [],
   templates: [],
+  swipe: '',
 }
 
 export async function handleGuestInit() {
@@ -200,7 +202,7 @@ async function getGuestInitEntities(config?: AppSchema.AppConfig) {
         kind: 'gen-setting',
         userId: 'anon',
         registered: {
-          agnaistic: {
+          charluv: {
             subscriptionId: model._id,
           },
         },
@@ -341,18 +343,16 @@ export async function deleteChatMessages(chatId: string) {
   await storage.removeItem(`messages-${chatId}`)
 }
 
-export function loadCartItems<TKey extends keyof typeof KEYS>(key: TKey): LocalStorage[TKey] {
-  const item = loadItem(KEYS[key])
-  if (item) return JSON.parse(item)
-  return []
+export async function loadCartItems(): Promise<AppSchema.ShopItem[]> {
+  return loadItem('cartItems')
 }
 export function saveCartItem(state: AppSchema.ShopItem[]) {
   console.log('saving...')
-  saveItem(KEYS.cartItems, state)
+  saveItem('cartItems', state)
 }
-export function saveSwipe(state) {
+export function saveSwipe(state: string) {
   console.log('saving saveSwipe...', KEYS.swipe, state)
-  saveItem(KEYS.agnaiswipe, state)
+  saveItem('swipe', state)
 }
 
 async function saveItem<TKey extends keyof typeof KEYS>(key: TKey, value: LocalStorage[TKey]) {

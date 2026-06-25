@@ -23,7 +23,6 @@ import {
   createMemo,
   createSignal,
   For,
-  JSX,
   Match,
   onCleanup,
   onMount,
@@ -57,7 +56,6 @@ import { DropMenu } from '/web/shared/DropMenu'
 import { ChatTree } from '/common/chat'
 import { Portal } from 'solid-js/web'
 import { UI } from '/common/types'
-import type { LucideProps } from '/web/icons'
 import { createStore } from 'solid-js/store'
 import { Spinner } from '/web/shared/Loading'
 
@@ -97,7 +95,7 @@ function getAnonName(entityId: string) {
 }
 
 const Message: Component<MessageProps> = (props) => {
-  let editRef: HTMLDivElement
+  let editRef: HTMLDivElement = undefined!
   let avatarRef: any
 
   const [ctx] = useAppContext()
@@ -220,13 +218,13 @@ const Message: Component<MessageProps> = (props) => {
 
                 <Match when={props.voice === 'generating'}>
                   <div class="animate-pulse cursor-pointer" onClick={msgStore.stopSpeech}>
-                    <AvatarIcon format={format()} Icon={DownloadCloud} />
+                    <AvatarIcon format={format()} Icon={DownloadCloud as any} />
                   </div>
                 </Match>
 
                 <Match when={props.voice === 'playing'}>
                   <div class="animate-pulse cursor-pointer" onClick={msgStore.stopSpeech}>
-                    <AvatarIcon format={format()} Icon={PauseCircle} />
+                    <AvatarIcon format={format()} Icon={PauseCircle as any} />
                   </div>
                 </Match>
 
@@ -243,7 +241,7 @@ const Message: Component<MessageProps> = (props) => {
                 <Match when={!props.msg.characterId}>
                   <AvatarIcon
                     format={format()}
-                    Icon={DownloadCloud}
+                    Icon={DownloadCloud as any}
                     avatarUrl={state.memberIds[props.msg.userId!]?.avatar}
                     anonymize={ctx.anonymize}
                   />
@@ -599,7 +597,7 @@ const MessageOptions: Component<{
           onClick: () => void
           show: boolean
           schema?: ButtonSchema
-          icon: (props: LucideProps) => JSX.Element
+          icon: any
         }
       >
     > = {

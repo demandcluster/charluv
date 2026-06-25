@@ -9,7 +9,7 @@ import { characterStore } from './character'
 type Matchesstate = {
   Matches: {
     loaded: boolean
-    list: AppSchema.Match[]
+    list: AppSchema.Character[]
   }
   discover: {
     loading: boolean
@@ -39,7 +39,7 @@ export type NewMatch = {
   premium: boolean
   description: string
   match: boolean
-  persona: AppSchema.CharacterPersona
+  persona: AppSchema.Persona
 }
 
 export const matchStore = createStore<Matchesstate>('Match', {
@@ -47,13 +47,13 @@ export const matchStore = createStore<Matchesstate>('Match', {
   discover: { loading: false, loaded: false, list: [] },
 })((get, set) => {
   return {
-    logout() {
+    logout(_: Matchesstate) {
       return {
         Matches: { loaded: false, list: [] },
         discover: { loading: false, loaded: false, list: [] },
       }
     },
-    discover: async (_, filters: DiscoverFilters = {}) => {
+    loadDiscover: async (_: Matchesstate, filters: DiscoverFilters = {}) => {
       set({ discover: { ...get().discover, loading: true } })
       const query: Record<string, any> = { sort: filters.sort || 'trending' }
       if (filters.gender) query.gender = filters.gender
@@ -70,12 +70,12 @@ export const matchStore = createStore<Matchesstate>('Match', {
         set({ discover: { loading: false, loaded: true, list: res.result.characters } })
       }
     },
-    getMatches: async (_, lastid) => {
+    getMatches: async (_: Matchesstate, lastid?: string) => {
       const res = await api.get('/match')
       if (res.error) toastStore.error('Failed to retrieve Matches')
       else {
         if (lastid) {
-          const ss = res.result.characters.findIndex((i) => i._id === lastid)
+          const ss = res.result.characters.findIndex((i: AppSchema.Character) => i._id === lastid)
           if (ss) {
             res.result.characters = [
               ...res.result.characters.splice(ss),
@@ -85,9 +85,7 @@ export const matchStore = createStore<Matchesstate>('Match', {
         }
 
         return {
-          characters: {
-            // ids: res.result.characters.map((i) => i._id),
-            // ids: res.result.characters,
+          Matches: {
             list: res.result.characters,
             loaded: true,
           },
@@ -101,9 +99,9 @@ export const matchStore = createStore<Matchesstate>('Match', {
 
       if (res.error) toastStore.error('Failed to retrieve Match')
       else {
-        const chx = res.result.characters.filter((i) => i._id === id)
+        const chx = res.result.characters.filter((i: AppSchema.Character) => i._id === id)
 
-        return { characters: { list: chx, loaded: true } }
+        return { Matches: { list: chx, loaded: true } }
       }
     },
     createMatch: async (
@@ -138,7 +136,7 @@ export const matchStore = createStore<Matchesstate>('Match', {
           (chatId) => navi(`/chat/${chatId}`)
         )
 
-        return true
+        return
       }
     },
 
@@ -151,7 +149,6 @@ export const matchStore = createStore<Matchesstate>('Match', {
       }
 
       set({ discover: { ...get().discover, selected: res.result } })
-      return res.result as AppSchema.Character
     },
   }
 })

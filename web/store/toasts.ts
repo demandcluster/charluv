@@ -89,7 +89,7 @@ export const toastStore = createStore<ToastState>('toasts', {
         return adminToast(_, message)
       }
       const user = getStore('user').getState()
-      const userLevel = user.user?.admin ? Infinity : user.premium ? 10 : user.userLevel
+      const userLevel = user.user?.admin ? Infinity : user.user?.premium ? 10 : user.userLevel
 
       if (userLevel >= level) {
         return adminToast(_, message)

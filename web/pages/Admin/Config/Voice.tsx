@@ -27,14 +27,14 @@ export const Voice: Component = (props) => {
         label="Voice Host"
         helperText="Full URL with Path - Include any query parameters"
         value={state.config?.ttsHost}
-        classList={{ hidden: !settings.adapters.includes('agnaistic') }}
+        classList={{ hidden: !settings.adapters.includes('charluv') }}
       />
 
       <TextInput
         fieldName="ttsApiKey"
         label="Voice API Key"
         value={''}
-        classList={{ hidden: !settings.adapters.includes('agnaistic') }}
+        classList={{ hidden: !settings.adapters.includes('charluv') }}
       />
     </Card>
   )

@@ -14,7 +14,9 @@ export const AgnaisticSettings: Component<{
   onSave: () => void
   inherit?: Partial<AppSchema.UserGenPreset>
 }> = (props) => {
-  const [selected, setSelected] = createSignal(props.inherit?.registered?.agnaistic?.subscriptionId)
+  const [selected, setSelected] = createSignal(
+    (props.inherit?.registered as any)?.agnaistic?.subscriptionId
+  )
   const opts = useModelOptions()
 
   forms.useSub((field, value) => {
@@ -24,7 +26,7 @@ export const AgnaisticSettings: Component<{
 
   createEffect(
     on(
-      () => props.inherit?.registered?.agnaistic?.subscriptionId,
+      () => (props.inherit?.registered as any)?.agnaistic?.subscriptionId,
       (id) => {
         setSelected(id)
       }
@@ -48,7 +50,7 @@ export const AgnaisticSettings: Component<{
   })
 
   return (
-    <Show when={props.service === 'agnaistic'}>
+    <Show when={(props.service as string) === 'agnaistic'}>
       <CustomSelect
         size="sm"
         buttonLabel={label()}
@@ -64,7 +66,7 @@ export const AgnaisticSettings: Component<{
         helperText={<span class="text-500">Available: {opts().length}</span>}
         options={opts()}
         onSelect={props.onSave}
-        value={props.inherit?.registered?.agnaistic?.subscriptionId}
+        value={(props.inherit?.registered as any)?.agnaistic?.subscriptionId}
         fieldName="registered.agnaistic.subscriptionId"
         selected={selected()}
         emitter={emitter.on}
@@ -78,7 +80,7 @@ function useModelOptions() {
     user: s.user,
     tiers: s.tiers,
     sub: s.sub,
-    userLevel: s.premium ? 10 : s.userLevel,
+    userLevel: s.userLevel,
   }))
   const settings = settingStore()
 
