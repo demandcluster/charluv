@@ -39,6 +39,7 @@ type AdminState = {
   patreonTiers: Patreon.Tier[]
   impersonating: boolean
   config?: AppSchema.Configuration
+  promos: AppSchema.PromoCode[]
 }
 
 export const adminStore = createStore<AdminState>('admin', {
@@ -47,6 +48,7 @@ export const adminStore = createStore<AdminState>('admin', {
   prices: [],
   patreonTiers: [],
   impersonating: isImpersonating(),
+  promos: [],
 })((_) => {
   return {
     async impersonate(_, userId: string) {
@@ -220,6 +222,38 @@ export const adminStore = createStore<AdminState>('admin', {
       const res = await api.get('/settings')
       if (res.result) {
         return { config: res.result.serverConfig }
+      }
+    },
+    async getPromos() {
+      const res = await api.get('/admin/promo')
+      if (res.result) return { promos: res.result.codes }
+      if (res.error) toastStore.error(`Failed to load promo codes: ${res.error}`)
+    },
+    async createPromo(_, input: Partial<AppSchema.PromoCode>, onSuccess?: () => void) {
+      const res = await api.post('/admin/promo', input)
+      if (res.error) return toastStore.error(`Failed to create code: ${res.error}`)
+      if (res.result) {
+        toastStore.success('Promo code created')
+        adminStore.getPromos()
+        onSuccess?.()
+      }
+    },
+    async updatePromo(_, id: string, patch: Partial<AppSchema.PromoCode>, onSuccess?: () => void) {
+      const res = await api.post(`/admin/promo/${id}`, patch)
+      if (res.error) return toastStore.error(`Failed to update code: ${res.error}`)
+      if (res.result) {
+        toastStore.success('Promo code updated')
+        adminStore.getPromos()
+        onSuccess?.()
+      }
+    },
+    async deletePromo(_, id: string, onSuccess?: () => void) {
+      const res = await api.method('delete', `/admin/promo/${id}`)
+      if (res.error) return toastStore.error(`Failed to delete code: ${res.error}`)
+      if (res.result) {
+        toastStore.success('Promo code deleted')
+        adminStore.getPromos()
+        onSuccess?.()
       }
     },
   }
