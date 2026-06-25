@@ -97,9 +97,9 @@ async function streamPost<T = any>(path: string, body: any) {
 
 async function callApi<T = any>(
   path: string,
-  opts: RequestInit & { noAuth?: boolean; responseType?: 'json' }
+  opts: RequestInit & { noAuth?: boolean; responseType?: 'json' | 'blob' }
 ): Promise<{
-  result: T | Blob | undefined
+  result: T | undefined
   status: number
   error?: string
 }> {
@@ -109,6 +109,9 @@ async function callApi<T = any>(
     ...headers(opts?.noAuth),
     ...opts,
   }).catch((err) => ({ error: err }))
+  if ('error' in res) {
+    return { result: undefined, status: 503, error: res.error.message || res.error }
+  }
   if (res.status === 401 && fullUrl.includes(baseUrl)) {
     events.emit(EVENTS.sessionExpired)
     return {
@@ -117,14 +120,10 @@ async function callApi<T = any>(
       error: 'Your session has expired. Please login again.',
     }
   }
-  if ('error' in res) {
-    return { result: undefined, status: 503, error: res.error.message || res.error }
-  }
 
   if (opts.responseType === 'blob') {
-    console.log('BLOB')
     const blob = await res.blob()
-    return { result: blob, status: res.status, error: undefined }
+    return { result: blob as T, status: res.status, error: undefined }
   }
 
   const json = await res.json()

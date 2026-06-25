@@ -1,3 +1,5 @@
+// @ts-nocheck — runs in the WebWorker/service-worker runtime (uses `self`, `importScripts`,
+// and the workbox CDN global); built by Vite via new URL(), not part of the DOM app typecheck.
 // This is the "Offline page" service worker
 
 importScripts('https://storage.googleapis.com/workbox-cdn/releases/5.1.2/workbox-sw.js')
