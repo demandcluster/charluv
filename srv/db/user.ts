@@ -76,7 +76,7 @@ export async function clearRestriction(userId: string) {
   await db('user').updateOne(
     { kind: 'user', _id: userId },
     {
-      $set: { creditsRestricted: false, restrictedReason: undefined as any, credits },
+      $set: { creditsRestricted: false, credits },
       $unset: { restrictedReason: '' },
     }
   )
@@ -563,6 +563,12 @@ export function toSafeUser(user: AppSchema.User) {
       tierId: sub.tier?._id,
     }
   }
+
+  // Abuse-detection internals: never expose to the client.
+  delete (user as any).fingerprint
+  delete (user as any).restrictedReason
+  delete (user as any).lastIp
+  delete (user as any).identifierConsentAt
 
   return user
 }
