@@ -1,7 +1,6 @@
-import './home.scss'
-import logoDark from '../../asset/logoDark.png?url'
+import './blog.css'
 import nsfwTools from '../../asset/featured-on-badge-b.avif?url'
-import { Component, For, Match, Show, Switch, createMemo, createSignal, onMount } from 'solid-js'
+import { Component, For, Show, createMemo, onMount } from 'solid-js'
 import {
   ComponentEmitter,
   createEmitter,
@@ -9,46 +8,26 @@ import {
   setComponentPageTitle,
   uniqueBy,
 } from '../../shared/util'
-import { announceStore, chatStore, settingStore, userStore } from '../../store'
+import { announceStore, chatStore, userStore } from '../../store'
 import { A, useNavigate } from '@solidjs/router'
 import { MoveRight, Plus, Heart, Users } from '/web/icons'
-import { Card, Pill, SolidCard, TitleCard } from '/web/shared/Card'
-import Modal from '/web/shared/Modal'
 import AvatarIcon from '/web/shared/AvatarIcon'
-
 import { elapsedSince } from '/common/util'
-import { AppSchema } from '/common/types'
 import { markdown } from '/web/shared/markdown'
 import Slot from '/web/shared/Slot'
-import { adaptersToOptions } from '/common/adapters'
 import { useRef } from '/web/shared/hooks'
 
-const enum Sub {
-  None,
-  OpenAI,
-  NovelAI,
-  Horde,
-}
-const HomePage: Component = () => {
-  const [ref, onRef] = useRef()
-  setComponentPageTitle('Information')
-  const [sub, setSub] = createSignal(Sub.None)
+const taaftHTML = `<a href="https://theresanaiforthat.com/ai/charluv/?ref=featured&v=2416874" target="_blank" rel="nofollow"><img width="300" src="https://media.theresanaiforthat.com/featured-on-taaft.png?width=600"></a>`
 
-  const closeSub = () => setSub(Sub.None)
+const itchHTML = `<iframe frameborder="0" src="https://itch.io/embed/2216072?bg_color=55b89c&amp;fg_color=fff" width="552" height="167"><a href="https://rongames.itch.io/charluv">Charluv by Charluv</a></iframe>`
+
+const BlogPage: Component = () => {
+  const [topRef, onTopRef] = useRef()
+  const [midRef, onMidRef] = useRef()
+  setComponentPageTitle('News')
 
   const user = userStore()
-
   const announce = announceStore()
-  settingStore((cfg) => ({
-    initLoading: cfg.initLoading,
-    adapters: adaptersToOptions(cfg.config.adapters),
-    guest: cfg.guestAccessAllowed,
-    config: cfg.config,
-  }))
-
-  const rawHTML = `<a href="https://theresanaiforthat.com/ai/charluv/?ref=featured&v=2416874" target="_blank" rel="nofollow"><img width="300" src="https://media.theresanaiforthat.com/featured-on-taaft.png?width=600"></a>`
-
-  const itchHTML = `<iframe frameborder="0" src="https://itch.io/embed/2216072?bg_color=55b89c&amp;fg_color=fff" width="552" height="167"><a href="https://rongames.itch.io/charluv">Charluv by Charluv</a></iframe>`
 
   const announcements = createMemo(() => {
     return announce.list.filter((ann) => {
@@ -68,163 +47,93 @@ const HomePage: Component = () => {
   })
 
   return (
-    <div>
-      <div class="flex flex-col  text-lg">
-        <div class="flex w-full justify-center bg-[#55b89c] p-3">
-          <img src={logoDark} class="w-1/3" />
-        </div>
-        <div class="w-full" ref={onRef}>
-          <Slot slot="leaderboard" parent={ref()} />
-        </div>
-        <Card border class="mb-2">
-          <div class="leading-6">
-            <b>Charluv</b> is a virtual dating chat service where you can even create your own
-            characters. Membership is free, premium membership gives you priority and near unlimited
-            messages. Your conversations are completely private and never shared with anyone unless
-            you invite them to your chat.
-          </div>
-        </Card>
+    <div class="blg-root">
+      <header class="blg-head">
+        <h1 class="blg-title">
+          News &amp; <em>Updates</em>
+        </h1>
+        <p class="blg-tag">
+          Charluv is a virtual dating chat service where you can even create your own characters.
+          Membership is free; premium gives you priority and near-unlimited messages. Your
+          conversations are completely private and never shared with anyone unless you invite them.
+        </p>
+      </header>
 
-        <RecentChats emitter={emitter} />
-
-        <Show when={announcements().length > 0}>
-          <Announcements list={announcements().slice(0, 1)} />
-        </Show>
-
-        <div class="home-cards mb-2 gap-2">
-          <TitleCard
-            type="bg"
-            title="Guides"
-            class="mb-2"
-            center
-            ariaRole="region"
-            ariaLabel="Guides"
-          >
-            <div class="flex flex-wrap justify-center gap-2">
-              <A href="/guides/memory">
-                <Pill>Memory Book</Pill>
-              </A>
-            </div>
-          </TitleCard>
-
-          <TitleCard
-            class="mb-2"
-            type="bg"
-            title="Links"
-            center
-            ariaRole="region"
-            ariaLabel="Links"
-          >
-            <div class="mb-2 flex flex-wrap justify-center gap-2">
-              <a href="/discord" target="_blank">
-                <Pill inverse>Charluv Discord</Pill>
-              </a>
-
-              <A class="link" href="/terms">
-                <Pill>Terms of Service</Pill>
-              </A>
-
-              <A class="link" href="/privacy">
-                <Pill>Privacy Policy</Pill>
-              </A>
-            </div>
-          </TitleCard>
-        </div>
-
-        <div ref={onRef} class="my-1 flex w-full justify-center">
-          <Slot slot="content" parent={ref()} />
-        </div>
-
-        <Show when={announcements().length > 1}>
-          <Announcements list={announcements().slice(1, 4)} />
-        </Show>
-
-        <Show when={announcements().length === 0}>
-          <Features />
-        </Show>
-
-        <Card border ariaRole="region" ariaLabel="Getting started">
-          <div class="mb-2 flex justify-center text-xl font-bold" aria-hidden="true">
-            Getting Started
-          </div>
-          <div class="flex flex-col items-center gap-2 leading-6">
-            <p>
-              Looking for help with getting started? Check out the{' '}
-              <a class="link" href="https://guide.charluv.com" target="_blank">
-                Official Guide
-              </a>{' '}
-              or head to the{' '}
-              <a class="link" target="_blank" href="https://charluv.com/discord">
-                Charluv Discord
-              </a>
-              .
-            </p>
-          </div>
-        </Card>
-        <TitleCard class="mb-2" type="bg" center title="Featured on">
-          <div class="mb-2 flex justify-center">
-            <div class="mr-2" innerHTML={rawHTML} />
-            <a href="https://nsfw.tools" target="_blank" rel="nofollow">
-              <img width="250" src={nsfwTools} />
-            </a>
-          </div>
-        </TitleCard>
-        <TitleCard class="mb-2" type="bg" center title="Get Android and Windows app">
-          <div class="flex justify-center" innerHTML={itchHTML} />
-        </TitleCard>
-        <Card border>
-          <div class="mb-2 flex justify-center text-xl font-bold">Credits</div>
-          <div class=" gap-2 leading-6">
-            Our app is based on{' '}
-            <a class="link" href="https://github.com/luminai-companion/agn-ai" target="_blank">
-              AgnAIstic
-            </a>
-            .<br />
-            The source code for our version can be found{' '}
-            <a href="https://github.com/demandcluster/charluv" class="link" target="_blank">
-              here
-            </a>
-            <br />
-            <br />
-            We run our{' '}
-            <a href="https://github.com/demandcluster/aivohorde" class="link" target="_blank">
-              own AI Horde
-            </a>{' '}
-            on a massive fine-tuned 13B model{' '}
-            <a
-              href="https://huggingface.co/dcbv/charluv-13B-tiefighter-merged"
-              class="link"
-              target="_blank"
-            >
-              Charluv-13B-Tiefighter
-            </a>
-            !<br />
-            The software we use for the Horde is made possible by{' '}
-            <a href="https://dbzer0.com" class="link" target="_blank">
-              db0
-            </a>
-            <br />
-            <br />
-            Charluv is created by Demandcluster B.V. in the Netherlands, we are a small team of
-            developers and designers.
-          </div>
-        </Card>
+      <div class="blg-ad" ref={onTopRef}>
+        <Slot slot="leaderboard" parent={topRef()} />
       </div>
 
-      <Switch>
-        <Match when={sub() === Sub.Horde}>
-          <HordeGuide close={closeSub} />
-        </Match>
+      <Show when={announcements().length > 0}>
+        <section class="blg-feed" aria-label="Announcements">
+          <For each={announcements()}>
+            {(item) => (
+              <article class="blg-post">
+                <div class="blg-post-head">
+                  <h2 class="blg-post-title">{item.title}</h2>
+                  <span class="blg-post-date">{elapsedSince(item.showAt)} ago</span>
+                </div>
+                <div
+                  class="blg-post-body rendered-markdown"
+                  innerHTML={markdown.makeHtml(item.content)}
+                />
+              </article>
+            )}
+          </For>
+        </section>
+      </Show>
 
-        <Match when={sub() === Sub.OpenAI}>
-          <OpenAIGuide close={closeSub} />
-        </Match>
-      </Switch>
+      <RecentChats emitter={emitter} />
+
+      <div class="blg-ad" ref={onMidRef}>
+        <Slot slot="content" parent={midRef()} />
+      </div>
+
+      <Features />
+
+      <section class="blg-card" aria-label="Getting started">
+        <h2 class="blg-card-title">Getting Started</h2>
+        <p>
+          Looking for help getting started? Check out the{' '}
+          <a class="blg-link-inline" href="https://guide.charluv.com" target="_blank">
+            Official Guide
+          </a>{' '}
+          or head to the{' '}
+          <a class="blg-link-inline" href="https://charluv.com/discord" target="_blank">
+            Charluv Discord
+          </a>
+          .
+        </p>
+      </section>
+
+      <nav class="blg-links" aria-label="Links">
+        <A class="blg-pill" href="/guides/memory">
+          Memory Book
+        </A>
+        <a class="blg-pill" href="/discord" target="_blank">
+          Discord
+        </a>
+        <A class="blg-pill" href="/terms">
+          Terms of Service
+        </A>
+        <A class="blg-pill" href="/privacy">
+          Privacy Policy
+        </A>
+      </nav>
+
+      <footer class="blg-footer">
+        <div class="blg-foot-group" innerHTML={itchHTML} />
+        <div class="blg-foot-group">
+          <div innerHTML={taaftHTML} />
+          <a href="https://nsfw.tools" target="_blank" rel="nofollow">
+            <img width="250" src={nsfwTools} alt="Featured on nsfw.tools" />
+          </a>
+        </div>
+      </footer>
     </div>
   )
 }
 
-export default HomePage
+export default BlogPage
 
 const RecentChats: Component<{ emitter: ComponentEmitter<'loaded'> }> = (props) => {
   const nav = useNavigate()
@@ -246,23 +155,20 @@ const RecentChats: Component<{ emitter: ComponentEmitter<'loaded'> }> = (props) 
   })
 
   return (
-    <section class="mb-2 flex flex-col" aria-labelledby="homeRecConversations">
-      <div id="homeRecConversations" class="text-lg font-bold" aria-hidden="true">
+    <section class="blg-recent" aria-labelledby="homeRecConversations">
+      <h2 id="homeRecConversations" class="blg-recent-title">
         Recent Conversations
-      </div>
-      <div
-        class="grid w-full grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-4"
-        classList={{ hidden: state.last.length === 0 }}
-      >
+      </h2>
+      <div class="blg-recent-grid" classList={{ hidden: state.last.length === 0 }}>
         <For each={state.last}>
-          {({ chat, char }, index) => (
+          {({ chat, char }) => (
             <>
               <div
                 role="link"
                 aria-label={`Chat with ${char?.name}, ${elapsedSince(chat.updatedAt)} ago ${
                   chat.name
                 }`}
-                class="bg-800 hover:bg-700 hidden h-24 w-full cursor-pointer rounded-md border-[1px] border-[var(--bg-700)] transition duration-300 sm:flex"
+                class="hover:bg-[var(--dsc-bg-2)] hidden h-24 w-full cursor-pointer overflow-hidden rounded-xl border border-[var(--dsc-line)] bg-[var(--dsc-surface)] transition duration-300 hover:border-[var(--dsc-green)] sm:flex"
                 onClick={() => nav(`/chat/${chat._id}`)}
               >
                 <Show when={char?.avatar}>
@@ -287,15 +193,15 @@ const RecentChats: Component<{ emitter: ComponentEmitter<'loaded'> }> = (props) 
                 <div class="flex w-full flex-col justify-between text-sm" aria-hidden="true">
                   <div class="flex flex-col px-1">
                     <div class="text-sm font-bold">{char?.name}</div>
-                    <div class="text-500 text-xs">{elapsedSince(chat.updatedAt)} ago</div>
+                    <div class="text-[var(--dsc-muted)] text-xs">
+                      {elapsedSince(chat.updatedAt)} ago
+                    </div>
                     <Show when={chat.name}>
                       <p class="line-clamp-2 max-h-10 overflow-hidden text-ellipsis">{chat.name}</p>
                     </Show>
                   </div>
                   <div class="flex max-h-10 w-full items-center justify-end px-2">
-                    {/* <div class="flex items-center"> */}
                     <MoveRight size={14} />
-                    {/* </div> */}
                   </div>
                 </div>
               </div>
@@ -305,7 +211,7 @@ const RecentChats: Component<{ emitter: ComponentEmitter<'loaded'> }> = (props) 
                 aria-label={`Chat with ${char?.name}, ${elapsedSince(chat.updatedAt)} ago ${
                   chat.name
                 }`}
-                class="bg-800 hover:bg-700 flex w-full cursor-pointer flex-col rounded-md border-[1px] border-[var(--bg-700)] transition duration-300 sm:hidden"
+                class="hover:bg-[var(--dsc-bg-2)] flex w-full cursor-pointer flex-col overflow-hidden rounded-xl border border-[var(--dsc-line)] bg-[var(--dsc-surface)] transition duration-300 hover:border-[var(--dsc-green)] sm:hidden"
                 onClick={() => nav(`/chat/${chat._id}`)}
               >
                 <div class="flex" aria-hidden="true">
@@ -318,7 +224,9 @@ const RecentChats: Component<{ emitter: ComponentEmitter<'loaded'> }> = (props) 
                   </div>
                   <div class="flex flex-col overflow-hidden text-ellipsis whitespace-nowrap px-1">
                     <div class="overflow-hidden text-ellipsis text-sm font-bold">{char?.name}</div>
-                    <div class="text-500 text-xs">{elapsedSince(chat.updatedAt)} ago</div>
+                    <div class="text-[var(--dsc-muted)] text-xs">
+                      {elapsedSince(chat.updatedAt)} ago
+                    </div>
                   </div>
                 </div>
 
@@ -328,9 +236,7 @@ const RecentChats: Component<{ emitter: ComponentEmitter<'loaded'> }> = (props) 
                   </p>
 
                   <div class="flex max-h-10 w-full items-center justify-end px-2">
-                    {/* <div class="flex items-center"> */}
                     <MoveRight size={14} />
-                    {/* </div> */}
                   </div>
                 </div>
               </div>
@@ -346,8 +252,8 @@ const RecentChats: Component<{ emitter: ComponentEmitter<'loaded'> }> = (props) 
         </Show>
 
         <Show when={state.last.length < 4 && user.loggedIn}>
-          <BorderCard href="/likes/list">
-            <div>Like to Get Matches</div>
+          <BorderCard href="/discover">
+            <div>Find Matches</div>
             <Users size={20} />
           </BorderCard>
         </Show>
@@ -360,10 +266,8 @@ const RecentChats: Component<{ emitter: ComponentEmitter<'loaded'> }> = (props) 
         </Show>
 
         <Show when={state.last.length < 2 && user.loggedIn}>
-          <BorderCard href="/editor">
-            <div class="flex w-full items-center justify-center text-center">
-              Create a Character
-            </div>
+          <BorderCard href="/create">
+            <div class="flex w-full items-center justify-center text-center">Create a Character</div>
             <Heart size={20} />
           </BorderCard>
         </Show>
@@ -378,7 +282,7 @@ const BorderCard: Component<{ children: any; href: string; ariaLabel?: string }>
     <div
       role="button"
       aria-label={props.ariaLabel}
-      class="bg-800 text-700 hover:bg-600 flex h-24 w-full cursor-pointer flex-col items-center justify-center border-[2px] border-dashed border-[var(--bg-700)] text-center transition duration-300"
+      class="hover:bg-[var(--dsc-surface)] flex h-24 w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-[var(--dsc-line)] text-center text-[var(--dsc-muted)] transition duration-300 hover:border-[var(--dsc-green)] hover:text-[var(--dsc-cream)]"
       onClick={() => nav(props.href)}
     >
       {props.children}
@@ -386,143 +290,31 @@ const BorderCard: Component<{ children: any; href: string; ariaLabel?: string }>
   )
 }
 
-const Announcements: Component<{ list: AppSchema.Announcement[] }> = (props) => {
-  return (
-    <>
-      <section class="flex flex-col gap-4" aria-labelledby="homeAnnouncements">
-        <For each={props.list}>
-          {(item, i) => (
-            <div class="rounded-md border-[1px] border-[var(--hl-700)]">
-              <div class="flex flex-col rounded-t-md bg-[var(--hl-800)] p-2">
-                <div class="text-lg font-bold" role="heading">
-                  {item.title}
-                </div>
-                <div class="text-700 text-xs">{elapsedSince(item.showAt)} ago</div>
-              </div>
-              <div
-                class="rendered-markdown bg-900 rounded-b-md p-2"
-                innerHTML={markdown.makeHtml(item.content)}
-              ></div>
-            </div>
-          )}
-        </For>
-      </section>
-    </>
-  )
-}
-
-const HordeGuide: Component<{ close: () => void }> = (props) => (
-  <Modal show close={props.close} title="Horde Guide" maxWidth="half" ariaLabel="Horde guide">
-    <div class="flex flex-col gap-2">
-      <SolidCard bg="hl-900">
-        <b>Important!</b> For reliable responses, ensure you have registered at{' '}
-        <a href="https://aihorde.net/register" class="link" target="_blank">
-          AI Horde
-        </a>
-        . Once you have your key, add it to your{' '}
-        <A href="/settings?tab=ai&service=horde" class="link">
-          Horde Settings
-        </A>
-        .
-      </SolidCard>
-
-      <SolidCard bg="hl-900">
-        AI Horde is run and powered by a small number of volunteers that provide their GPUs. This is
-        a great service, but it can be a little slow. Consider contributing to the Horde!
-      </SolidCard>
-
-      <Card>
-        Keep your <b>Max New Tokens</b> below 100 unless you know what you're doing!
-        <br />
-        Using high values for 'Max New Tokens' is the main cause of timeouts and slow replies.
-      </Card>
-      <Card>
-        By default we use anonymous access. You can provide your API key or change the model in the
-        Settings page.
-      </Card>
-    </div>
-  </Modal>
-)
-
 const Features: Component = () => (
-  <Card border>
-    <section aria-labelledby="homeNotableFeats">
-      <div id="homeNotableFeats" class="flex justify-center text-xl font-bold" aria-hidden="true">
-        Notable Features
-      </div>
-      <div class="flex flex-col gap-2 leading-6">
-        <p>
-          <b class="highlight">Charluv</b> is completely free to use. It is free to register. Your
-          data will be kept private and you can permanently delete your data at any time. We take
-          your privacy very seriously.
-        </p>
-        <p>
-          <b class="highlight">Unique model</b> trained for understanding virtual dating and
-          character progression.
-        </p>
-        <p>
-          <b class="highlight">Register</b> to have your data available on all of your devices.
-        </p>
-        <p>Chat with multiple users and multiple characters at the same time</p>
-        <p>
-          Create <b class="highlight">Memory Books</b> to give your characters information about
-          their world.
-        </p>
-        <p>
-          <b class="highlight">Image generation</b> - Generate images in your chats.
-        </p>
-        <p>
-          <b class="highlight">Voice</b> - Give your characters a voice and speak back to them.
-        </p>
-        <p>
-          Voices are generated by{' '}
-          <a href="https://elevenlabs.io/text-to-speech" class="link" target="_blank">
-            ElevenLabs
-          </a>
-          , the #1 text-to-speech service. *currently disabled due to issue with provider*
-        </p>
-      </div>
-    </section>
-  </Card>
-)
-
-const OpenAIGuide: Component<{ close: () => void }> = (props) => (
-  <Modal show close={props.close} title="OpenAI Guide" maxWidth="half" ariaLabel="OpenAI guide">
-    <div class="flex flex-col gap-2">
-      <Card>
-        OpenAI is a <b>paid service</b>. To use OpenAI, you to need provide your OpenAI API Key in
-        your settings:
-      </Card>
-
-      <Card>
-        Firstly, you will need to{' '}
-        <A class="link" href="https://auth0.openai.com/u/signup" target="_blank">
-          Register an account OpenAI
-        </A>
-        .
-      </Card>
-
-      <Card>
-        Once registered, you will need to{' '}
-        <A class="link" href="https://platform.openai.com/account/api-keys" target="_blank">
-          generate an API key.
-        </A>
-      </Card>
-
-      <Card>
-        Once you have your API key, head to the{' '}
-        <A class="link" href="/settings?tab=ai&service=openai">
-          Settings
-        </A>{' '}
-        page and set your key in the OpenAI area.
-      </Card>
-
-      <Card>
-        To use OpenAI to generate your responses, ensure your chat is using OpenAI Preset in your{' '}
-        <b>Chat Preset settings</b>.
-        <br />
-        You can access these via the top-right menu in your chat.
-      </Card>
-    </div>
-  </Modal>
+  <section class="blg-card" aria-label="Notable features">
+    <h2 class="blg-card-title">Notable Features</h2>
+    <p>
+      <span class="hl">Charluv</span> is completely free to use and free to register. Your data is
+      kept private and you can permanently delete it at any time. We take your privacy very
+      seriously.
+    </p>
+    <p>
+      <span class="hl">Unique model</span> trained for understanding virtual dating and character
+      progression.
+    </p>
+    <p>
+      <span class="hl">Register</span> to have your data available on all of your devices.
+    </p>
+    <p>Chat with multiple characters at the same time.</p>
+    <p>
+      Create <span class="hl">Memory Books</span> to give your characters information about their
+      world.
+    </p>
+    <p>
+      <span class="hl">Image generation</span> — generate images in your chats.
+    </p>
+    <p>
+      <span class="hl">Voice</span> — give your characters a voice and have them speak back to you.
+    </p>
+  </section>
 )
