@@ -68,6 +68,7 @@
     "@aws-sdk/client-s3": "^3.309.0",
     "@css-hooks/solid": "^1.0.1",
     "@dqbd/tiktoken": "^1.0.2",
+    "@fingerprintjs/fingerprintjs": "^5.2.0",
     "@paypal/paypal-js": "^5.1.6",
     "@thisbeyond/solid-dnd": "^0.7.5",
     "@types/crypto-js": "^4.1.1",

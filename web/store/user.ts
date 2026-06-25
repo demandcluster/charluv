@@ -554,11 +554,13 @@ export const userStore = createStore<UserState>(
     async *register(
       _,
       newUser: { handle: string; username: string; password: string },
+      fingerprint: string | undefined,
+      consent: boolean,
       onSuccess?: () => void
     ) {
       yield { loading: true }
 
-      const res = await api.post('/user/register', newUser)
+      const res = await api.post('/user/register', { ...newUser, fingerprint, consent })
       yield { loading: false }
       if (res.error) {
         return void toastStore.error(`Failed to register: ${res.error}`)

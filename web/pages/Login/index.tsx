@@ -11,6 +11,7 @@ import { isLoggedIn } from '/web/store/api'
 import { TitleCard } from '/web/shared/Card'
 import { Page } from '/web/Layout'
 import { useGoogleReady } from '/web/shared/hooks'
+import { getVisitorId } from '/web/shared/fingerprint'
 
 // A `?return=` value is only honoured if it's a same-origin internal path, so
 // it can't be abused as an open-redirect to another site.
@@ -132,8 +133,9 @@ type FormProps = {
 const RegisterForm: Component<FormProps> = (props) => {
   const navigate = useNavigate()
   const [query] = useSearchParams()
+  const [consent, setConsent] = createSignal(false)
 
-  const register = (evt: Event) => {
+  const register = async (evt: Event) => {
     const { username, password, confirm, handle } = getStrictForm(evt, {
       handle: 'string',
       username: 'string',
@@ -146,11 +148,16 @@ const RegisterForm: Component<FormProps> = (props) => {
       toastStore.warn('Passwords do not match', 2)
       return
     }
+    if (!consent()) {
+      toastStore.warn('Please accept the identifier policy to register', 3)
+      return
+    }
 
+    const fingerprint = await getVisitorId()
     // Return the user to where they came from (e.g. the create wizard) when a
     // safe internal `?return=` path was supplied; otherwise land on the profile.
     const dest = internalReturn(query.return) || '/profile'
-    userStore.register({ handle, username, password }, () => navigate(dest))
+    userStore.register({ handle, username, password }, fingerprint, true, () => navigate(dest))
   }
 
   return (
@@ -180,10 +187,25 @@ const RegisterForm: Component<FormProps> = (props) => {
           required
         />
 
-        <div></div>
+        <label class="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            class="mt-1"
+            checked={consent()}
+            onChange={(e) => setConsent(e.currentTarget.checked)}
+          />
+          <span>
+            I agree to Charluv storing device and account identifiers to prevent abuse and the
+            creation of multiple accounts. See our{' '}
+            <A class="link" href="/privacy">
+              Privacy Policy
+            </A>
+            .
+          </span>
+        </label>
       </div>
 
-      <Button type="submit" disabled={props.isLoading}>
+      <Button type="submit" disabled={props.isLoading || !consent()}>
         {props.isLoading ? 'Registering...' : 'Register'}
       </Button>
     </form>
