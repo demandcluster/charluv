@@ -1,4 +1,4 @@
-import { Bot, VenetianMask } from '/web/icons'
+import { Bot, MaskHappy } from '/web/icons'
 import { Component, createEffect, createSignal, JSX, Match, Show, Switch } from 'solid-js'
 import { settingStore } from '../store'
 import { getAssetUrl } from './util'
@@ -181,7 +181,7 @@ const AvatarIcon: Component<Props> = (props) => {
             aria-hidden="true"
           >
             <Show when={!props.bot}>
-              <VenetianMask data-user-icon />
+              <MaskHappy data-user-icon />
             </Show>
             <Show when={props.bot}>
               <Show when={props.Icon}>{props.Icon && <props.Icon data-bot-icon />}</Show>

@@ -129,3 +129,7 @@ export {
 // Phosphor's prop/context types under the names the app used from lucide.
 export { IconContext, DiscordLogo } from 'phosphor-solid'
 export type { IconProps, IconProps as LucideProps } from 'phosphor-solid'
+
+// Vendored: phosphor-solid 1.1.5 ships no MaskHappy, so this is the official
+// Phosphor duotone SVG wrapped to read IconContext like the real icons.
+export { default as MaskHappy } from './icons/MaskHappyIcon'
