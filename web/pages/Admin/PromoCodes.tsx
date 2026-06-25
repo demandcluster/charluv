@@ -122,9 +122,9 @@ const PromoCodesPage: Component = () => {
 
       {/* ── Create form ─────────────────────────────────────────────────── */}
       <Card class="mb-4">
-        <div class="text-lg font-bold mb-2">Create Promo Code</div>
+        <div class="mb-2 text-lg font-bold">Create Promo Code</div>
         <div class="flex flex-col gap-2">
-          <div class="flex gap-2 items-end">
+          <div class="flex items-end gap-2">
             <div class="flex-1">
               <TextInput
                 fieldName="createCode"
@@ -134,11 +134,7 @@ const PromoCodesPage: Component = () => {
                 onInput={(ev) => setCreateCode(ev.currentTarget.value.toUpperCase())}
               />
             </div>
-            <Button
-              schema="secondary"
-              class="mb-[2px]"
-              onClick={() => setCreateCode(genCode())}
-            >
+            <Button schema="secondary" class="mb-[2px]" onClick={() => setCreateCode(genCode())}>
               Generate
             </Button>
           </div>
@@ -201,20 +197,25 @@ const PromoCodesPage: Component = () => {
             <div class="flex flex-col gap-1 rounded-lg bg-[var(--bg-800)] p-3">
               {/* ── View row ──────────────────────────────────────────── */}
               <Show when={editing()?._id !== promo._id}>
-                <div class="flex items-center justify-between gap-2 flex-wrap">
+                <div class="flex flex-wrap items-center justify-between gap-2">
                   <div class="flex flex-col gap-0.5">
-                    <span class="font-bold font-mono text-sm">{promo.code}</span>
+                    <span class="font-mono text-sm font-bold">{promo.code}</span>
                     <span class="text-xs text-[var(--text-500)]">
                       {promo.credits ? `${promo.credits} credits` : ''}
                       {promo.credits && promo.days ? ' · ' : ''}
                       {promo.days ? `${promo.days} days` : ''}
                     </span>
                   </div>
-                  <div class="flex gap-4 text-xs text-[var(--text-500)] flex-wrap">
+                  <div class="flex flex-wrap gap-4 text-xs text-[var(--text-500)]">
                     <span>Uses: {formatUses(promo.uses, promo.maxUses)}</span>
                     <span>
                       Status:{' '}
-                      <span classList={{ 'text-green-400': promo.enabled, 'text-red-400': !promo.enabled }}>
+                      <span
+                        classList={{
+                          'text-green-400': promo.enabled,
+                          'text-red-400': !promo.enabled,
+                        }}
+                      >
                         {promo.enabled ? 'Active' : 'Disabled'}
                       </span>
                     </span>
@@ -234,7 +235,7 @@ const PromoCodesPage: Component = () => {
               {/* ── Inline edit form ──────────────────────────────────── */}
               <Show when={editing()?._id === promo._id}>
                 <div class="flex flex-col gap-2">
-                  <div class="flex gap-2 items-end">
+                  <div class="flex items-end gap-2">
                     <div class="flex-1">
                       <TextInput
                         fieldName="editCode"
@@ -313,7 +314,7 @@ const PromoCodesPage: Component = () => {
       {/* ── Delete confirm modal ─────────────────────────────────────────── */}
       <Show when={!!deleting()}>
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div class="bg-[var(--bg-800)] rounded-lg p-6 flex flex-col gap-4 max-w-sm w-full mx-4">
+          <div class="mx-4 flex w-full max-w-sm flex-col gap-4 rounded-lg bg-[var(--bg-800)] p-6">
             <div class="text-lg font-bold">Delete Promo Code</div>
             <div>
               Are you sure you want to delete{' '}

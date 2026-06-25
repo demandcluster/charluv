@@ -41,9 +41,7 @@ export const SubscriptionPage: Component = (props) => {
 
   const renews = createMemo(() => {
     if (cfg.type === 'paypal')
-      return user.user?.premiumUntil
-        ? new Date(user.user.premiumUntil).toLocaleDateString()
-        : ''
+      return user.user?.premiumUntil ? new Date(user.user.premiumUntil).toLocaleDateString() : ''
     if (cfg.type === 'manual') {
       const last = new Date(user.user?.manualSub?.expiresAt!)
       return last.toLocaleDateString()
