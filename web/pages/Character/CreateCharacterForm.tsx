@@ -34,7 +34,6 @@ import Modal from '/web/shared/Modal'
 import { ToggleButtons } from '../../shared/Toggle'
 import { CharEditor, useCharEditor } from './editor'
 import { ARCHETYPES } from '/common/progression'
-import { downloadCharacterHub, jsonToCharacter } from './port'
 import { rootModalStore } from '/web/store/root-modal'
 import { getAssetUrl, random } from '/web/shared/util'
 import { ImageSettings } from '../Settings/Image/ImageSettings'
@@ -47,7 +46,6 @@ export const CreateCharacterForm: Component<{
   chat?: AppSchema.Chat
   editId?: string
   duplicateId?: string
-  import?: string
   children?: JSX.Element
   temp?: boolean
   noTitle?: boolean
@@ -69,7 +67,6 @@ export const CreateCharacterForm: Component<{
       props.close?.()
     }
   }
-  const query = { import: props.import }
   const [forceNew, setForceNew] = createSignal<boolean>(false)
 
   const srcId = createMemo(() => props.editId || props.duplicateId || '')
@@ -117,27 +114,6 @@ export const CreateCharacterForm: Component<{
 
     if (srcId()) {
       characterStore.getCharacter(srcId(), props.chat)
-    }
-
-    /* Character importing from CharacterHub */
-    if (!query.import) return
-    try {
-      const { file, json } = await downloadCharacterHub(query.import)
-      const imageData = await imageApi.getImageData(file)
-      const char = jsonToCharacter(json)
-      editor.load(char)
-      editor.update({
-        book: json.characterBook,
-        alternateGreetings: json.alternateGreetings || [],
-        avatar: file,
-        personaKind: 'text',
-      })
-      editor.receiveAvatar(file)
-
-      setImage(imageData)
-      toastStore.success(`Successfully downloaded from Char Archive`)
-    } catch (ex: any) {
-      toastStore.error(`Char Archive download failed: ${ex.message}`)
     }
   })
 

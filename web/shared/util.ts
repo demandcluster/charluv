@@ -731,10 +731,6 @@ export function isUsableService(
     case 'ooba': {
       return true
     }
-
-    case 'venus': {
-      return !!user?.adapterConfig?.venus?.apiKeySet
-    }
   }
 
   return false

@@ -843,7 +843,7 @@ export function getAdapter(
   }
 
   // Charluv is openai-endpoint-only. Route any other/legacy text service
-  // (horde, kobold, ooba, claude, venus, unset) to the charluv meta-adapter,
+  // (horde, kobold, ooba, claude, unset) to the charluv meta-adapter,
   // which gates via the subscription model and delegates to the openai endpoint.
   // This keeps legacy live data working (it just generates via openai) with no
   // data migration. `openai` stays direct.
@@ -922,9 +922,6 @@ export function getContextLimit(
 
     case 'claude':
       return configuredMax - genAmount
-
-    case 'venus':
-      return Math.min(configuredMax, 7800) - genAmount
   }
 }
 

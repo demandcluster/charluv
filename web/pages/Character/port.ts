@@ -4,8 +4,6 @@ import { characterBookToNative } from '/common/memory'
 import { AppSchema } from '/common/types'
 import { FileInputResult, getFileAsString } from '/web/shared/FileInput'
 import { NewCharacter, toastStore } from '/web/store'
-import { CHUB_URL } from '/web/store/chub'
-import { api } from '../../store/api'
 
 type ImportFormat = 'tavern' | 'tavernV2' | 'ooba' | 'agnai'
 
@@ -134,32 +132,6 @@ export function jsonToCharacter(json: any): NewCharacter {
     category: json.data.extensions.charluv?.category,
     nsfw: json.data.extensions.charluv?.nsfw,
   } as NewCharacter
-}
-
-/**
- * @param path Character `fullPath`
- */
-export async function downloadCharacterHub(path: string) {
-  if (!path.startsWith(CHUB_URL)) {
-    throw new Error(`Invalid path: ${path} does not start with ${CHUB_URL}`)
-  }
-  const imgPath = path.replace(CHUB_URL, '').split('?')[0].split('/').pop()
-  // const card = await fetch(`/api/charimport`, {
-  //   method: 'post',
-  //   headers: { 'Content-Type': 'application/json' },
-  //   body: JSON.stringify({ path: path }),
-  // }).then((res) => res.blob())
-  const card = await api.post<Blob>('/charimport', { path: path }, { responseType: 'blob' })
-  console.log(card)
-  if (card.error) {
-    toastStore.error(card.error)
-    throw new Error(`Failed to download image`)
-  }
-  const file = new File([card.result!], `${imgPath}.png`, { type: 'image/png' })
-  const data = await extractCardData(file)
-  const json = jsonToCharacter(data)
-  json.avatar = file
-  return { card, file, json }
 }
 
 function getImportFormat(obj: any): ImportFormat {

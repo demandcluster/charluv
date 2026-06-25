@@ -227,7 +227,6 @@ const SUMMARY_BACKENDS: { [key in AIAdapter]?: (opts: PromptEntities) => boolean
   ooba: () => true,
   kobold: () => true,
   claude: () => true,
-  venus: () => true,
 }
 
 async function createSummarizedImagePrompt(opts: PromptEntities) {
@@ -275,8 +274,7 @@ function getSummaryTemplate(service: AIAdapter, summaryPrompt?: string) {
   switch (service) {
     case 'charluv':
     case 'openai':
-    case 'claude':
-    case 'venus': {
+    case 'claude': {
       const prompt =
         summaryPrompt ||
         `Write an image caption of the current scene including the character's appearance`

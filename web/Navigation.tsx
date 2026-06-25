@@ -14,7 +14,6 @@ import {
   MessageCircle,
   Sparkles,
   Settings,
-  ShoppingBag,
   Speaker,
   Volume2,
   VolumeX,
@@ -273,12 +272,6 @@ const UserNavigation: Component = () => {
           <Heart aria-hidden="true" /> My AI
         </Item>
       </Show>
-      <Show when={menu.flags.chub}>
-        <Item href="/chub" ariaLabel="Character hub">
-          <ShoppingBag aria-hidden="true" />
-          CHUB
-        </Item>
-      </Show>
       <ChatLink />
       <Show when={user.loggedIn}>
         <Item onClick={() => setShowEvent(true)} ariaLabel="Start an event">
@@ -353,13 +346,6 @@ const GuestNavigation: Component = () => {
 
       <Show when={menu.guest}>
         <UserProfile />
-
-        <Show when={menu.flags.chub}>
-          <Item href="/chub" ariaLabel="Character hub">
-            <ShoppingBag aria-hidden="true" />
-            CHUB
-          </Item>
-        </Show>
 
         <ChatLink />
 

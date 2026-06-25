@@ -10,7 +10,6 @@ import { ModelAdapter } from './type'
 import { AIAdapter, AdapterSetting } from '/common/adapters'
 import { AppSchema } from '/common/types'
 import { parseStops } from '/common/util'
-import { handleVenus } from './venus'
 import { obtainLock, releaseLock } from '../api/chat/lock'
 import { getServerConfiguration } from '../db/admin'
 import { validateGenerationGate } from './gate'
@@ -231,7 +230,6 @@ export const handlers: { [key in AIAdapter]: ModelAdapter } = {
   openai: handleOAI,
   claude: handleClaude,
   charluv: handleCharluv,
-  venus: handleVenus,
 }
 
 export function getHandlers(settings: Partial<AppSchema.GenSettings>) {

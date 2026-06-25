@@ -291,8 +291,5 @@ export function getFallbackPreset(adapter: AIAdapter): Partial<AppSchema.GenSett
 
     case 'claude':
       return deepClone(defaultPresets.claude)
-
-    case 'venus':
-      return deepClone(defaultPresets.venus)
   }
 }

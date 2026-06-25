@@ -20,12 +20,9 @@ import Navigation from './Navigation'
 import Loading from './shared/Loading'
 import Button from './shared/Button'
 
-
 import ThankYou from './pages/Premium/ThankYou'
 import PremiumInfo from './pages/Premium/Info'
 
-
-import ChubRoutes from './pages/Chub'
 import Redirect from './shared/Redirect'
 import Maintenance from './shared/Maintenance'
 import CharacterChats from './pages/Character/ChatList'
@@ -69,7 +66,6 @@ const App: Component = () => {
         path="/discord"
         component={() => <Redirect external="https://discord.gg/8E6FRdsvhg" />}
       />
-      <ChubRoutes />
       <Route path="/chats/create/:id?" component={() => <CreateChatForm />} />
       <Route path="/chats" component={CharacterChats} />
       <Route path="/chat" component={ChatDetail} />
@@ -205,84 +201,84 @@ const Layout: Component<{ children?: any }> = (props) => {
       >
         <style>{css}</style>
         <AgeGate />
-      <div class="scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-[var(--hl-900)] app flex flex-col justify-between">
-        <Switch fallback={<NavBar />}>
-          <Match when={guestLanding()}>
-            <GuestTopBar />
-          </Match>
-          <Match when={state.loggedIn && !isChat()}>
-            <UserTopBar />
-          </Match>
-        </Switch>
-        <div class="flex w-full grow flex-row overflow-y-hidden">
-          <Show when={!guestLanding()}>
-            <Navigation />
-          </Show>
+        <div class="scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-[var(--hl-900)] app flex flex-col justify-between">
+          <Switch fallback={<NavBar />}>
+            <Match when={guestLanding()}>
+              <GuestTopBar />
+            </Match>
+            <Match when={state.loggedIn && !isChat()}>
+              <UserTopBar />
+            </Match>
+          </Switch>
+          <div class="flex w-full grow flex-row overflow-y-hidden">
+            <Show when={!guestLanding()}>
+              <Navigation />
+            </Show>
 
-          <main
-            id="main-content"
-            class="w-full overflow-y-auto"
-            classList={{
-              'sm:ml-[302px]': cfg.showMenu && !guestLanding(),
-              'sm:ml-0': !cfg.showMenu || guestLanding(),
-            }}
-            data-background
-            style={{ ...bgStyles(), 'scrollbar-gutter': 'stable both-edges' }}
-          >
-            <div
-              class={`mx-auto h-full min-h-full ${
-                isChat() ? maxW() : fullBleed() ? 'max-w-full' : 'max-w-8xl'
-              }`}
+            <main
+              id="main-content"
+              class="w-full overflow-y-auto"
               classList={{
-                'content-background': !isChat() && !fullBleed(),
+                'sm:ml-[302px]': cfg.showMenu && !guestLanding(),
+                'sm:ml-0': !cfg.showMenu || guestLanding(),
               }}
+              data-background
+              style={{ ...bgStyles(), 'scrollbar-gutter': 'stable both-edges' }}
             >
-              <Switch>
-                <Match when={cfg.init}>
-                  {props.children}
-                  <Maintenance />
-                </Match>
+              <div
+                class={`mx-auto h-full min-h-full ${
+                  isChat() ? maxW() : fullBleed() ? 'max-w-full' : 'max-w-8xl'
+                }`}
+                classList={{
+                  'content-background': !isChat() && !fullBleed(),
+                }}
+              >
+                <Switch>
+                  <Match when={cfg.init}>
+                    {props.children}
+                    <Maintenance />
+                  </Match>
 
-                <Match when={cfg.initLoading}>
-                  <div class="flex h-[80vh] flex-col items-center justify-center gap-2">
-                    <div>
-                      Login issues? Try{' '}
-                      <a class="link" onClick={() => userStore.logout()}>
-                        Logging out
-                      </a>{' '}
-                      then log back in.
+                  <Match when={cfg.initLoading}>
+                    <div class="flex h-[80vh] flex-col items-center justify-center gap-2">
+                      <div>
+                        Login issues? Try{' '}
+                        <a class="link" onClick={() => userStore.logout()}>
+                          Logging out
+                        </a>{' '}
+                        then log back in.
+                      </div>
+                      <Loading />
                     </div>
-                    <Loading />
-                  </div>
-                </Match>
-                <Match when>
-                  <div class="flex flex-col items-center gap-2">
-                    <div>Charluv failed to load</div>
-                    <div>
-                      <Button onClick={reload}>Try Again</Button>
+                  </Match>
+                  <Match when>
+                    <div class="flex flex-col items-center gap-2">
+                      <div>Charluv failed to load</div>
+                      <div>
+                        <Button onClick={reload}>Try Again</Button>
+                      </div>
                     </div>
-                  </div>
-                </Match>
-              </Switch>
-            </div>
-          </main>
+                  </Match>
+                </Switch>
+              </div>
+            </main>
+          </div>
         </div>
-      </div>
-      <Notifications />
-      <PerformanceModal
-        show={cfg.showPerformance}
-        close={() => settingStore.togglePerformance(false)}
-      />
-      <InfoModal />
-      <ProfileModal />
-      <For each={rootModals.modals}>{(modal) => modal.element}</For>
-      <ImageModal />
-      <SettingsModal />
-      <div
-        class="absolute bottom-0 left-0 right-0 top-0 z-10 h-[100vh] w-full bg-black bg-opacity-20 sm:hidden"
-        classList={{ hidden: !cfg.showMenu }}
-        onClick={() => settingStore.closeMenu()}
-      ></div>
+        <Notifications />
+        <PerformanceModal
+          show={cfg.showPerformance}
+          close={() => settingStore.togglePerformance(false)}
+        />
+        <InfoModal />
+        <ProfileModal />
+        <For each={rootModals.modals}>{(modal) => modal.element}</For>
+        <ImageModal />
+        <SettingsModal />
+        <div
+          class="absolute bottom-0 left-0 right-0 top-0 z-10 h-[100vh] w-full bg-black bg-opacity-20 sm:hidden"
+          classList={{ hidden: !cfg.showMenu }}
+          onClick={() => settingStore.closeMenu()}
+        ></div>
       </IconContext.Provider>
     </ContextProvider>
   )

@@ -17,17 +17,4 @@ export const oobaPresets = {
     streamResponse: true,
     gaslight: templates.Alpaca,
   },
-  venus: {
-    name: 'Venus',
-    service: 'venus',
-    maxTokens: 300,
-    maxContextLength: 8000,
-    presencePenalty: 1.15,
-    frequencyPenalty: 1.15,
-    temp: 0.7,
-    topK: 40,
-    topP: 1,
-    streamResponse: true,
-    gaslight: templates.Alpaca,
-  },
 } satisfies Record<string, Partial<AppSchema.GenSettings>>

@@ -81,15 +81,7 @@ export const THIRDPARTY_FORMATS = [
   'vllm',
 ] as const
 
-export const AI_ADAPTERS = [
-  'charluv',
-  'kobold',
-  'ooba',
-  'horde',
-  'openai',
-  'claude',
-  'venus',
-] as const
+export const AI_ADAPTERS = ['charluv', 'kobold', 'ooba', 'horde', 'openai', 'claude'] as const
 export const CHAT_ADAPTERS = ['default', ...AI_ADAPTERS] as const
 
 export const MULTI_TENANT_ADAPTERS = ['kobold'] as const
@@ -303,7 +295,6 @@ export const ADAPTER_LABELS: { [key in AIAdapter]: string } = {
   openai: 'OpenAI',
   claude: 'Claude',
   charluv: 'Charluv',
-  venus: 'Venus',
 }
 
 export const INSTRUCT_SERVICES: { [key in AIAdapter]?: boolean } = {
