@@ -47,6 +47,7 @@ import {
   removeProfileAvatar,
 } from './settings'
 import { deleteUserAccount } from './delete-user'
+import { redeemPromoCode } from './promo'
 
 const router = Router()
 
@@ -95,6 +96,7 @@ router.post('/presets/:id', loggedIn, updateUserPreset)
 router.post('/templates', loggedIn, createTemplate)
 router.post('/templates/:id', loggedIn, updateTemplate)
 router.delete('/templates/:id', loggedIn, deleteTemplate)
+router.post('/promo/redeem', loggedIn, redeemPromoCode)
 router.get('/:id', loggedIn, getProfile)
 
 export default router
