@@ -1,15 +1,22 @@
 import { AppSchema } from '../../common/types/schema'
 import { AppLog } from '../middleware'
-import { buildDirectorPrompt, buildSpeakerSchema } from '../../common/event'
+import {
+  buildDirectorPrompt,
+  buildDirectorEventPrompt,
+  buildDirectorEventSchema,
+  buildSpeakerSchema,
+} from '../../common/event'
 import { inferenceAsync } from './generate'
 
 type ElectOpts = {
   user: AppSchema.User
   log: AppLog
-  event: { location: string; description: string }
+  event: { location: string; description: string; when?: string; vibe?: string }
   roster: Array<{ id: string; name: string; hook: string }>
   recent: Array<{ name: string; text: string }>
   repliedThisTurn: string[]
+  /** The human participant — listed as present but never an electable speaker. */
+  present?: { name: string; hook: string }
 }
 
 /**
@@ -32,6 +39,7 @@ export async function electSpeaker(opts: ElectOpts): Promise<string> {
     roster,
     recent: opts.recent,
     repliedThisTurn: opts.repliedThisTurn,
+    user: opts.present,
   })
 
   try {
@@ -50,6 +58,59 @@ export async function electSpeaker(opts: ElectOpts): Promise<string> {
     opts.log.warn({ err }, 'director: election failed, defaulting to none')
     return 'none'
   }
+}
+
+type DirectorEventOpts = {
+  user: AppSchema.User
+  log: AppLog
+  event: { location: string; description: string; when?: string; vibe?: string }
+  roster: Array<{ name: string; hook: string }>
+  recent: Array<{ name: string; text: string }>
+}
+
+/**
+ * One director inference: optionally produce a short world/narration beat to push
+ * the scene forward (announcement, arrival, environment shift). Returns the beat
+ * text, or '' when the director declines / on any model or parse failure (a beat
+ * is never essential, so it must never crash a turn).
+ */
+export async function proposeDirectorEvent(opts: DirectorEventOpts): Promise<string> {
+  const prompt = buildDirectorEventPrompt({
+    event: opts.event,
+    roster: opts.roster,
+    recent: opts.recent,
+  })
+
+  try {
+    const { generated } = await inferenceAsync({
+      user: opts.user,
+      log: opts.log,
+      prompt,
+      maxTokens: 100,
+      temp: 0.7,
+      jsonSchema: buildDirectorEventSchema(),
+    })
+    return parseNarration(generated)
+  } catch (err) {
+    opts.log.warn({ err }, 'director: world-beat generation failed, skipping')
+    return ''
+  }
+}
+
+/** Pull the narration string out of `{ "narration": "..." }`, tolerating chatter. */
+function parseNarration(generated: string): string {
+  const text = (generated || '').trim()
+  try {
+    const match = text.match(/\{[\s\S]*\}/)
+    if (match) {
+      const obj = JSON.parse(match[0])
+      const s = String(obj?.narration ?? '').trim()
+      // Guard against a model echoing a literal empty-marker.
+      if (s.toLowerCase() === 'empty string' || s === '""') return ''
+      return s
+    }
+  } catch {}
+  return ''
 }
 
 /** Tolerant parse: accept strict JSON `{ "speaker": "<id>" }` or a bare id/"none". */

@@ -174,6 +174,9 @@ export async function createEventChat(input: {
   description: string
   characterIds: string[]
   memoryDisabled?: boolean
+  when?: string
+  vibe?: string
+  directorEvents?: string
 }) {
   return api.post<AppSchema.Chat>('/chat/event', input)
 }

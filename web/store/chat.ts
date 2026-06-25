@@ -402,6 +402,9 @@ export const chatStore = createStore<ChatState>('chat', {
         description: string
         characterIds: string[]
         memoryDisabled?: boolean
+        when?: string
+        vibe?: string
+        directorEvents?: string
       },
       onSuccess?: (id: string) => void
     ) {

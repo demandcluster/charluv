@@ -14,6 +14,7 @@ import {
   Delete,
   X,
   Zap,
+  Heart,
   MoreHorizontal,
 } from '/web/icons'
 import {
@@ -121,9 +122,7 @@ const Message: Component<MessageProps> = (props) => {
   onMount(() => obs().observe(avatarRef))
   onCleanup(() => obs().disconnect())
 
-  const isGeneratingImage = createMemo(() =>
-    msgState.imagesGenerating.includes(props.msg._id)
-  )
+  const isGeneratingImage = createMemo(() => msgState.imagesGenerating.includes(props.msg._id))
 
   const format = createMemo(() => ({ size: user.ui.avatarSize, corners: user.ui.avatarCorners }))
   const content = createMemo(() => {
@@ -201,6 +200,16 @@ const Message: Component<MessageProps> = (props) => {
             >
               <Switch>
                 <Match when={user.ui.avatarSize === 'hide'}>{null}</Match>
+                <Match when={props.msg.event === 'world' && props.msg.meta?.director}>
+                  <div
+                    class={`avatar-${
+                      format().size
+                    } flex shrink-0 items-center justify-center rounded-full bg-[var(--bg-700)] pt-3`}
+                    title="Director"
+                  >
+                    <Heart color="var(--hl-500)" fill="var(--hl-500)" />
+                  </div>
+                </Match>
                 <Match when={props.msg.event === 'world' || props.msg.event === 'ooc'}>
                   <div
                     class={`avatar-${format().size} flex shrink-0 items-center justify-center pt-3`}
@@ -491,7 +500,9 @@ const Message: Component<MessageProps> = (props) => {
                           class={'mt-2 max-h-32 max-w-[unset] cursor-pointer rounded-md'}
                           src={getAssetUrl(src)}
                           onClick={() =>
-                            settingStore.showImage(src, [toImageDeleteButton(props.msg._id, i() + 1)])
+                            settingStore.showImage(src, [
+                              toImageDeleteButton(props.msg._id, i() + 1),
+                            ])
                           }
                         />
                       )}
@@ -581,14 +592,14 @@ const MessageOptions: Component<{
       Record<
         UI.MessageOption,
         {
-        key: UI.MessageOption
-        outer: { outer: boolean; pos: number }
-        label: string
-        class: string
-        onClick: () => void
-        show: boolean
-        schema?: ButtonSchema
-        icon: (props: LucideProps) => JSX.Element
+          key: UI.MessageOption
+          outer: { outer: boolean; pos: number }
+          label: string
+          class: string
+          onClick: () => void
+          show: boolean
+          schema?: ButtonSchema
+          icon: (props: LucideProps) => JSX.Element
         }
       >
     > = {
@@ -675,10 +686,7 @@ const MessageOptions: Component<{
         }}
       </For>
 
-      <div
-        class="flex items-center"
-        onClick={() => props.showMore[1](true)}
-      >
+      <div class="flex items-center" onClick={() => props.showMore[1](true)}>
         <MoreHorizontal class="icon-button" />
       </div>
 

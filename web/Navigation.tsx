@@ -401,7 +401,7 @@ const NavIcons: Component<{
     <IconContext.Provider
       value={{ weight: 'duotone', size: '1em', color: 'var(--hl-500)', mirrored: false }}
     >
-      <div class="flex flex-wrap justify-center gap-[2px] text-sm">
+      <div class="flex flex-wrap items-center justify-center gap-[2px] text-sm">
         <Show when={!!props.supportEmail}>
           <ExternalLink href={`mailto:${props.supportEmail}`} newtab ariaLabel="Email Support">
             <Tooltip position="top" tip={`${props.supportEmail}`}>
@@ -444,8 +444,7 @@ const NavIcons: Component<{
             </Match>
           </Switch>
         </Item>
-      </div>
-      <div class="flex flex-wrap justify-center gap-[2px] text-sm">
+
         <Show when={props.patreon}>
           <ExternalLink href="https://patreon.com/charluv" newtab ariaLabel="Patreon">
             <HeartHandshake aria-hidden="true" />

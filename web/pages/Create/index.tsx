@@ -119,6 +119,21 @@ const SKIN_TONES: Swatch[] = [
   { label: 'Dark', color: '#5c3a26' },
 ]
 
+// Default skin tone (SKIN_TONES label) per ethnicity slug, so picking an
+// ethnicity lands on a sensible complexion (no 'fair' black women). The user
+// can still override afterward.
+const ETHNICITY_SKIN: Record<string, string> = {
+  asian: 'Light',
+  black: 'Dark',
+  white: 'Fair',
+  latina: 'Tan',
+  arab: 'Tan',
+  indian: 'Brown',
+  elf: 'Fair',
+  alien: 'Light',
+  demon: 'Tan',
+}
+
 const HAIR_COLORS: Swatch[] = [
   { label: 'Black', color: '#1c1c1c' },
   { label: 'Brown', color: '#5a3a22' },
@@ -237,7 +252,7 @@ const makeDefaultAnswers = (): Answers => ({
 
   ethnicity: ETHNICITIES[0].slug,
   ethnicityCustom: '',
-  skinTone: SKIN_TONES[0].label,
+  skinTone: ETHNICITY_SKIN[ETHNICITIES[0].slug] ?? SKIN_TONES[0].label,
 
   hairStyle: HAIR_STYLES[0].slug,
   hairStyleCustom: '',
@@ -332,8 +347,9 @@ const Create: Component = () => {
       `${answers.hairColor} ${hairStyleLabel()} hair`,
       `${answers.eyeColor} eyes`,
       `${labelOfImg(BODIES, answers.body)} body`,
-      `${labelOfImg(BREASTS, answers.breast)} bust`,
-      `${labelOfImg(BUTTS, answers.butt)} butt`,
+      ...(isMale()
+        ? []
+        : [`${labelOfImg(BREASTS, answers.breast)} bust`, `${labelOfImg(BUTTS, answers.butt)} butt`]),
       `${vibe().label} vibe`,
       answers.nsfw ? 'visually explicit/NSFW' : 'tasteful/SFW',
     ].join(', ')
@@ -475,15 +491,20 @@ const Create: Component = () => {
     () => answers.ethnicity !== CUSTOM && NON_HUMAN.has(answers.ethnicity)
   )
 
+  // Breast/butt selection only applies to female & trans characters.
+  const isMale = createMemo(() => answers.gender === 'male')
+
   const appearanceString = createMemo(() => {
     const skin = answers.skinTone.toLowerCase()
     const hairColor = answers.hairColor.toLowerCase()
     const hairStyle = hairStyleLabel().toLowerCase()
     const eyes = answers.eyeColor.toLowerCase()
     const body = labelOfImg(BODIES, answers.body).toLowerCase()
+    const base = `${skin} skin, ${hairColor} ${hairStyle} hair, ${eyes} eyes, ${body} build`
+    if (isMale()) return base
     const breast = labelOfImg(BREASTS, answers.breast).toLowerCase()
     const butt = labelOfImg(BUTTS, answers.butt).toLowerCase()
-    return `${skin} skin, ${hairColor} ${hairStyle} hair, ${eyes} eyes, ${body} build, ${breast} breasts, ${butt} butt`
+    return `${base}, ${breast} breasts, ${butt} butt`
   })
 
   const rollName = async () => {
@@ -765,7 +786,11 @@ const Create: Component = () => {
               gender={answers.gender}
               style={answers.artStyle}
               value={answers.ethnicity}
-              onPick={(v) => setAnswers('ethnicity', v)}
+              onPick={(v) => {
+                setAnswers('ethnicity', v)
+                const skin = ETHNICITY_SKIN[v]
+                if (skin) setAnswers('skinTone', skin)
+              }}
               custom={{
                 value: answers.ethnicityCustom,
                 active: answers.ethnicity === CUSTOM,
@@ -829,24 +854,26 @@ const Create: Component = () => {
               value={answers.body}
               onPick={(v) => setAnswers('body', v)}
             />
-            <ImageCards
-              label="Breast size"
-              options={BREASTS}
-              group="breast"
-              gender={answers.gender}
-              style={answers.artStyle}
-              value={answers.breast}
-              onPick={(v) => setAnswers('breast', v)}
-            />
-            <ImageCards
-              label="Butt size"
-              options={BUTTS}
-              group="butt"
-              gender={answers.gender}
-              style={answers.artStyle}
-              value={answers.butt}
-              onPick={(v) => setAnswers('butt', v)}
-            />
+            <Show when={!isMale()}>
+              <ImageCards
+                label="Breast size"
+                options={BREASTS}
+                group="breast"
+                gender={answers.gender}
+                style={answers.artStyle}
+                value={answers.breast}
+                onPick={(v) => setAnswers('breast', v)}
+              />
+              <ImageCards
+                label="Butt size"
+                options={BUTTS}
+                group="butt"
+                gender={answers.gender}
+                style={answers.artStyle}
+                value={answers.butt}
+                onPick={(v) => setAnswers('butt', v)}
+              />
+            </Show>
           </Step>
         </Show>
 
@@ -1007,16 +1034,18 @@ const Create: Component = () => {
                   value={labelOfImg(BODIES, answers.body)}
                   onEdit={() => setStep(3)}
                 />
-                <TraitCard
-                  label="Bust"
-                  value={labelOfImg(BREASTS, answers.breast)}
-                  onEdit={() => setStep(3)}
-                />
-                <TraitCard
-                  label="Butt"
-                  value={labelOfImg(BUTTS, answers.butt)}
-                  onEdit={() => setStep(3)}
-                />
+                <Show when={!isMale()}>
+                  <TraitCard
+                    label="Bust"
+                    value={labelOfImg(BREASTS, answers.breast)}
+                    onEdit={() => setStep(3)}
+                  />
+                  <TraitCard
+                    label="Butt"
+                    value={labelOfImg(BUTTS, answers.butt)}
+                    onEdit={() => setStep(3)}
+                  />
+                </Show>
                 <TraitCard label="Age" value={answers.age} onEdit={() => setStep(0)} />
                 <TraitCard
                   label="Style"

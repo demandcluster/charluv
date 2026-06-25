@@ -116,7 +116,15 @@ export const importChat = handle(async ({ body, userId }) => {
 
 export const createEventChat = handle(async ({ body, user, userId }) => {
   assertValid(
-    { location: 'string', description: 'string', characterIds: ['string'], memoryDisabled: 'boolean?' },
+    {
+      location: 'string',
+      description: 'string',
+      characterIds: ['string'],
+      memoryDisabled: 'boolean?',
+      when: 'string?',
+      vibe: 'string?',
+      directorEvents: 'string?',
+    },
     body
   )
 
@@ -134,6 +142,11 @@ export const createEventChat = handle(async ({ body, user, userId }) => {
     location: body.location,
     description: body.description,
     names: chars.map((c) => c!.name),
+    when: body.when || undefined,
+    vibe: body.vibe || undefined,
+    // List the user (self-persona handle) as present so the characters treat
+    // this as an ongoing acquaintance, not a stranger arriving.
+    userName: profile?.handle || undefined,
   })
 
   const characters: Record<string, boolean> = {}
@@ -145,7 +158,13 @@ export const createEventChat = handle(async ({ body, user, userId }) => {
       name: `${body.location} — ${body.description}`.slice(0, 80),
       userId: userId!,
       mode: 'event',
-      event: { location: body.location, description: body.description },
+      event: {
+        location: body.location,
+        description: body.description,
+        when: body.when || undefined,
+        vibe: body.vibe || undefined,
+        directorEvents: (body.directorEvents as 'none' | 'rare' | 'normal' | 'regular') || 'none',
+      },
       // Defaults on for events (no long-term residue), but the creator can opt in
       // to remembering the party from the start screen.
       memoryDisabled: body.memoryDisabled ?? true,

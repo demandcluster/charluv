@@ -12,8 +12,13 @@ import { v4 } from 'uuid'
 import { Response } from 'express'
 import { getScenarioEventType } from '/common/scenario'
 import { HydratedJson, jsonHydrator, parsePartialJson } from '/common/util'
-import { EVENT_TURN_COST, EVENT_MAX_REPLIES } from '../../../common/event'
-import { electSpeaker } from '../../adapter/director'
+import {
+  EVENT_TURN_COST,
+  EVENT_MAX_REPLIES,
+  DIRECTOR_EVENT_CHANCE,
+  DirectorFrequency,
+} from '../../../common/event'
+import { electSpeaker, proposeDirectorEvent } from '../../adapter/director'
 import { resolveScenario, getLinesForPrompt, getAdapter } from '../../../common/prompt'
 import { getTokenCounter } from '../../tokenize'
 
@@ -307,6 +312,12 @@ export const generateMessageV2 = handle(async (req, res) => {
           roster: roster.map((r) => ({ id: r.id, name: r.name, hook: r.hook })),
           recent,
           repliedThisTurn,
+          // The user is present in the scene (with their self-persona), so the
+          // director treats them as a known participant — not a stranger.
+          present: {
+            name: senderProfile?.handle || 'You',
+            hook: (senderProfile?.description || '').slice(0, 120),
+          },
         })
 
         // The opening/user turn MUST produce a reply: a user 'send' always
@@ -377,6 +388,48 @@ export const generateMessageV2 = handle(async (req, res) => {
         })
         if (!result.ok) break
         repliedThisTurn.push(eventReplyAs._id)
+      }
+
+      // Director events: after the characters have replied, the director may add an
+      // unprompted world beat (announcement, arrival, environment shift) to drive
+      // the story. Frequency gates how often we *consider* it; the model still
+      // decides whether a beat is warranted (it can decline → empty). Narration
+      // only — the director never speaks or acts for a character or the user. It's
+      // attributed to a Charluv-heart "Director" avatar via meta.director.
+      const directorFreq = (chat.event?.directorEvents as DirectorFrequency) || 'none'
+      const chance = DIRECTOR_EVENT_CHANCE[directorFreq] ?? 0
+      if (repliedThisTurn.length > 0 && chance > 0 && Math.random() < chance) {
+        try {
+          const msgs = await store.msgs.getMessages(chatId)
+          const recent = msgs
+            .slice()
+            .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
+            .slice(-8)
+            .map((m) => ({
+              name: m.name || (m.userId ? senderProfile?.handle || 'You' : 'Unknown'),
+              text: m.msg,
+            }))
+          const narration = await proposeDirectorEvent({
+            user: body.user!,
+            log,
+            event: chat.event!,
+            roster: roster.map((r) => ({ name: r.name, hook: r.hook })),
+            recent,
+          })
+          if (narration) {
+            const beat = await store.msgs.createChatMessage({
+              chatId,
+              message: narration,
+              ooc: false,
+              event: 'world',
+              name: 'Director',
+              meta: { director: true },
+            })
+            sendMany(members, { type: 'message-created', msg: beat, chatId })
+          }
+        } catch (err) {
+          log.warn({ err }, 'director: world-beat injection failed')
+        }
       }
 
       // Safety net: a turn that produced no reply at all (e.g. the fallback char
