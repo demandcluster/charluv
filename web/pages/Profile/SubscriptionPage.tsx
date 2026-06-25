@@ -1,14 +1,13 @@
 import { Component, For, Match, Show, Switch, createMemo, createSignal, onMount } from 'solid-js'
 import { settingStore, userStore } from '/web/store'
-import { AppSchema } from '/common/types'
 import { Pill, SolidCard, TitleCard } from '/web/shared/Card'
 import Button from '/web/shared/Button'
 import { TierCard } from './TierCard'
-import { ConfirmModal } from '/web/shared/Modal'
 import { PatreonControls } from '../Settings/PatreonOauth'
 import { getUserSubscriptionTier } from '/common/util'
 import { isLoggedIn } from '/web/store/api'
 import { useNavigate } from '@solidjs/router'
+import TextInput from '/web/shared/TextInput'
 
 export const SubscriptionPage: Component = (props) => {
   const settings = settingStore((s) => s.config)
@@ -21,27 +20,11 @@ export const SubscriptionPage: Component = (props) => {
       tier: tier?.tier,
       level: tier?.level ?? -1,
       tiers: s.tiers.sort((l, r) => r.level - l.level),
-      downgrade: s.subStatus?.downgrading?.tierId,
     }
   })
 
   const nav = useNavigate()
-  const [showUnsub, setUnsub] = createSignal(false)
-  const [showUpgrade, setUpgrade] = createSignal<AppSchema.SubscriptionTier>()
-  const [showDowngrade, setDowngrade] = createSignal<AppSchema.SubscriptionTier>()
-
-  const hasExpired = createMemo(() => {
-    // We should leave this out. It's possible a user can subscribe multiple ways
-    // if (cfg.type === 'patreon' || cfg.type === 'manual') return true
-
-    // if (!user.user?.billing?.cancelling) return false
-    if (!user.user?.billing) return true
-    if (user.user?.premium) return false
-    if (user.user.billing.status === 'cancelled') return true
-
-    const threshold = new Date(user.user.billing.validUntil)
-    return threshold.valueOf() < Date.now()
-  })
+  const [promoCode, setPromoCode] = createSignal('')
 
   const candidates = createMemo(() => {
     return cfg.tiers
@@ -110,6 +93,29 @@ export const SubscriptionPage: Component = (props) => {
             <p>Subscribing let's us spend more time developing and enhancing Charluv.</p>
           </SolidCard>
 
+          <SolidCard class="flex w-full flex-col gap-2" border>
+            <p class="font-bold text-[var(--hl-500)]">Redeem a promo code</p>
+            <p class="text-sm">
+              Have a promo code? Enter it below to claim credits or premium membership days.
+            </p>
+            <div class="flex items-end gap-2">
+              <TextInput
+                fieldName="promoCode"
+                placeholder="PROMO CODE"
+                value={promoCode()}
+                onInput={(ev) => setPromoCode(ev.currentTarget.value)}
+                class="flex-1"
+              />
+              <Button
+                schema="success"
+                disabled={!promoCode().trim() || user.subLoading}
+                onClick={() => userStore.redeemPromo(promoCode())}
+              >
+                Redeem
+              </Button>
+            </div>
+          </SolidCard>
+
           <Show when={settings.serverConfig?.supportEmail}>
             <SolidCard>
               If you require billing or subscription support contact{' '}
@@ -134,26 +140,13 @@ export const SubscriptionPage: Component = (props) => {
                     ? 'Gift'
                     : user.sub?.type === 'patreon'
                     ? 'Patreon'
-                    : user.sub?.type === 'native'
-                    ? 'Stripe'
                     : cfg.type === 'paypal'
                     ? 'Paypal'
                     : 'None'}
                 </Pill>
                 <Switch>
                   <Match when={cfg.type === 'paypal'}>
-                    Your membership thru PayPal does not auto-renew (use Stripe or Patreon if you
-                    want auto-renew)
-                  </Match>
-                  <Match when={cfg.downgrade && cfg.tier!._id !== cfg.downgrade}>
-                    Your subscription is set to downgrade
-                    <Button
-                      schema="green"
-                      onClick={() => userStore.modifySubscription(cfg.tier?._id!)}
-                      disabled={user.billingLoading}
-                    >
-                      Cancel Downgrade
-                    </Button>
+                    Your membership via PayPal does not auto-renew.
                   </Match>
                   <Match when={canResume()}>
                     Your subscription is currently scheduled to cancel
@@ -220,46 +213,8 @@ export const SubscriptionPage: Component = (props) => {
                             Subscribed!
                           </Button>
                         </Match>
-                        <Match
-                          when={user.sub?.type === 'native' && cfg.tier && cfg.level < each.level}
-                        >
-                          <Button
-                            schema="success"
-                            disabled={canResume() || user.billingLoading}
-                            onClick={() => setUpgrade(each)}
-                          >
-                            Upgrade
-                          </Button>
-                        </Match>
 
-                        <Match
-                          when={
-                            user.sub?.tier &&
-                            user.sub.level > each.level &&
-                            each._id === cfg.downgrade
-                          }
-                        >
-                          <Button
-                            schema="gray"
-                            disabled
-                            onClick={() => userStore.modifySubscription(each._id)}
-                          >
-                            Downgrading...
-                          </Button>
-                        </Match>
-
-                        <Match when={user.sub?.type === 'native' && user.sub.level > each.level}>
-                          <Button
-                            schema="gray"
-                            disabled={canResume() || user.billingLoading}
-                            onClick={() => setDowngrade(each)}
-                          >
-                            Downgrade
-                          </Button>
-                        </Match>
-
-                        {/* New subscriptions are Patreon-only. Stripe (native) is
-                            kept solely to manage existing grandfathered subs above. */}
+                        {/* New subscriptions are Patreon-only. */}
                         <Match when>
                           <a
                             class="link font-bold"
@@ -277,56 +232,13 @@ export const SubscriptionPage: Component = (props) => {
             </For>
           </div>
 
-          <div class="flex justify-center">All prices are in EUR</div>
-
           <div class="mt-4 flex gap-4">
             {/* <Button onClick={userStore.validateSubscription} disabled={user.billingLoading}>
               Validate
             </Button> */}
-
-            <Show when={cfg.tier && cfg.type !== 'paypal' && !hasExpired()}>
-              <Button schema="red" onClick={() => setUnsub(true)} disabled={user.billingLoading}>
-                Unsubscribe
-              </Button>
-            </Show>
           </div>
-
-          <div class="flex justify-center text-sm">Patreon price shown is excl. VAT.</div>
         </div>
       </div>
-      <ConfirmModal
-        show={showUnsub()}
-        close={() => setUnsub(false)}
-        message="Are you sure you wish to unsubscribe?"
-        confirm={userStore.stopSubscription}
-      />
-
-      <ConfirmModal
-        show={!!showUpgrade()}
-        close={() => setUpgrade()}
-        message={
-          <div class="flex flex-col items-center justify-center gap-2">
-            <p>You will be immediately charged upon confirm.</p>
-            <p>Are you sure you wish to upgrade now?</p>
-          </div>
-        }
-        confirm={() => userStore.modifySubscription(showUpgrade()!._id)}
-      />
-
-      <ConfirmModal
-        show={!!showDowngrade()}
-        close={() => setDowngrade()}
-        message={
-          <div class="flex flex-col items-center justify-center gap-2">
-            <p>
-              Your downgrade will take affect at the beginning of your next billing period. You will
-              retain access to your current subscription tier until your downgrade takes affect.
-            </p>
-            <p>Are you sure you wish to downgrade?</p>
-          </div>
-        }
-        confirm={() => userStore.modifySubscription(showDowngrade()!._id)}
-      />
     </>
   )
 }
