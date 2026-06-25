@@ -4,6 +4,7 @@ import character from './character'
 import classify from './classify'
 import user from './user'
 import admin from './admin'
+import promo from './promo'
 import subscriptions from './subscriptions'
 import horde from './horde'
 import settings from './settings'
@@ -34,6 +35,7 @@ router.use('/character', character)
 router.use('/classify', classify)
 router.use('/admin', subscriptions)
 router.use('/admin', admin)
+router.use('/admin', promo)
 router.use('/horde', horde)
 router.use('/settings', settings)
 router.use('/memory', memory)
