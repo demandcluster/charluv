@@ -310,6 +310,9 @@ const UserNavigation: Component = () => {
           <SubItem href="/admin/announcements" parent="/" ariaLabel="Announcements">
             Announcements
           </SubItem>
+          <SubItem href="/admin/promo" parent="/" ariaLabel="Promo Codes">
+            Promo Codes
+          </SubItem>
         </SubMenu>
       </Show>
 

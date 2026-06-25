@@ -141,6 +141,7 @@ const App: Component = () => {
             component={lazy(() => import('./pages/Admin/Announcements'))}
           />
           <Route path="/admin/tiers/:id" component={lazy(() => import('./pages/Admin/Tiers'))} />
+          <Route path="/admin/promo" component={lazy(() => import('./pages/Admin/PromoCodes'))} />
         </Show>
       </Show>
 
