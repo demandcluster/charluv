@@ -34,6 +34,8 @@ export type AllDoc =
   | AppSchema.SagaTemplate
   | AppSchema.SagaSession
   | AppSchema.CharacterReport
+  | AppSchema.PromoCode
+  | AppSchema.PromoRedemption
 
 export type OAuthScope = keyof typeof oauthScopes
 
@@ -129,6 +131,32 @@ export namespace AppSchema {
     premium: boolean
     days: number
     incart: false
+  }
+
+  export interface PromoCode {
+    _id: string
+    kind: 'promo-code'
+    code: string
+    credits?: number
+    days?: number
+    maxUses: number
+    uses: number
+    enabled: boolean
+    expiresAt?: string
+    createdAt: string
+    createdBy: string
+    updatedAt?: string
+  }
+
+  export interface PromoRedemption {
+    _id: string
+    kind: 'promo-redemption'
+    codeId: string
+    userId: string
+    code: string
+    credits: number
+    days: number
+    createdAt: string
   }
 
   export interface Profile {

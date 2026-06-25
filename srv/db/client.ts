@@ -150,6 +150,12 @@ export async function createIndexes() {
   await db('saga-session').createIndex({ userId: 1 }, { name: 'saga-session_userId' })
   await db('saga-session').createIndex({ templateId: 1 }, { name: 'saga-session_templateId' })
 
+  await db('promo-code').createIndex({ code: 1 }, { unique: true, name: 'promo-code_code' })
+  await db('promo-redemption').createIndex(
+    { codeId: 1, userId: 1 },
+    { unique: true, name: 'promo-redemption_code_user' }
+  )
+
   await db('chat-lock').createIndex({ kind: 1, chatLock: 1 }, { name: 'chat-lock_kind_chatlock' })
   await db('evtstore-events' as any).createIndex(
     { aggregateId: 1, stream: 1, position: 1 },
