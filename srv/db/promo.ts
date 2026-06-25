@@ -66,9 +66,13 @@ export async function updatePromo(
     Pick<AppSchema.PromoCode, 'code' | 'credits' | 'days' | 'maxUses' | 'enabled' | 'expiresAt'>
   >
 ) {
+  const existing = await db('promo-code').findOne({ kind: 'promo-code', _id: id })
+  if (!existing) throw new StatusError('Promo code not found', 404)
+
   const set: any = { updatedAt: now() }
   if (patch.code !== undefined) {
     const code = patch.code.trim().toUpperCase()
+    if (!code) throw new StatusError('Code is required', 400)
     const clash = await db('promo-code').findOne({ kind: 'promo-code', code, _id: { $ne: id } })
     if (clash) throw new StatusError('A code with that name already exists', 400)
     set.code = code
@@ -78,6 +82,10 @@ export async function updatePromo(
   if (patch.maxUses !== undefined) set.maxUses = patch.maxUses
   if (patch.enabled !== undefined) set.enabled = patch.enabled
   if (patch.expiresAt !== undefined) set.expiresAt = patch.expiresAt || undefined
+
+  const effCredits = patch.credits !== undefined ? patch.credits : existing.credits
+  const effDays = patch.days !== undefined ? patch.days : existing.days
+  if (!effCredits && !effDays) throw new StatusError('A code must grant credits and/or days', 400)
 
   await db('promo-code').updateOne({ kind: 'promo-code', _id: id }, { $set: set })
   return db('promo-code').findOne({ kind: 'promo-code', _id: id })
@@ -127,13 +135,28 @@ export async function redeemPromo(userId: string, rawCode: string) {
   const credits = promo.credits || 0
   const days = promo.days || 0
 
-  if (credits > 0) await updateCredits(userId, credits)
-
-  if (days > 0) {
-    const user = await getUser(userId)
-    if (!user) throw new StatusError('User not found', 404)
-    const premiumUntil = extendPremium(user.premiumUntil || 0, days, Date.now())
-    await updateUser(userId, { premium: true, premiumUntil })
+  let creditsApplied = false
+  try {
+    if (credits > 0) {
+      await updateCredits(userId, credits)
+      creditsApplied = true
+    }
+    if (days > 0) {
+      const user = await getUser(userId)
+      if (!user) throw new StatusError('User not found', 404)
+      const premiumUntil = extendPremium(user.premiumUntil || 0, days, Date.now())
+      await updateUser(userId, { premium: true, premiumUntil })
+    }
+  } catch (err) {
+    // Roll back so the user can retry: reverse any credits, drop the redemption, free the use slot.
+    if (creditsApplied) await updateCredits(userId, -credits).catch(() => {})
+    await db('promo-redemption')
+      .deleteOne({ kind: 'promo-redemption', codeId: promo._id, userId })
+      .catch(() => {})
+    await db('promo-code')
+      .updateOne({ kind: 'promo-code', _id: promo._id }, { $inc: { uses: -1 } })
+      .catch(() => {})
+    throw err
   }
 
   const user = await getUser(userId)

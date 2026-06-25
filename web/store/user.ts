@@ -167,7 +167,9 @@ export const userStore = createStore<UserState>(
         toastStore.error('Please enter a code')
         return
       }
+      yield { subLoading: true }
       const res = await api.post('/user/promo/redeem', { code: code.trim() })
+      yield { subLoading: false }
       if (res.error) {
         toastStore.error(res.error)
         return
@@ -176,7 +178,9 @@ export const userStore = createStore<UserState>(
         const parts: string[] = []
         if (res.result.credits) parts.push(`${res.result.credits} credits`)
         if (res.result.days) parts.push(`${res.result.days} premium days`)
-        toastStore.success(`Redeemed! You received ${parts.join(' and ')}.`)
+        toastStore.success(
+          parts.length ? `Redeemed! You received ${parts.join(' and ')}.` : 'Code redeemed!'
+        )
         yield { user: res.result.user }
       }
     },
