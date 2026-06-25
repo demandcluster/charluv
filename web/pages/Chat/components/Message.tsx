@@ -14,9 +14,9 @@ import {
   Delete,
   X,
   Zap,
-  Heart,
   MoreHorizontal,
 } from '/web/icons'
+import charluvHeart from '../../../charluv512.png?url'
 import {
   Accessor,
   Component,
@@ -199,14 +199,12 @@ const Message: Component<MessageProps> = (props) => {
               <Switch>
                 <Match when={user.ui.avatarSize === 'hide'}>{null}</Match>
                 <Match when={props.msg.event === 'world' && props.msg.meta?.director}>
-                  <div
-                    class={`avatar-${
-                      format().size
-                    } flex shrink-0 items-center justify-center rounded-full bg-[var(--bg-700)] pt-3`}
+                  <img
+                    src={charluvHeart}
+                    class={`avatar-${format().size} shrink-0 rounded-full object-cover`}
                     title="Director"
-                  >
-                    <Heart color="var(--hl-500)" fill="var(--hl-500)" />
-                  </div>
+                    alt="Director"
+                  />
                 </Match>
                 <Match when={props.msg.event === 'world' || props.msg.event === 'ooc'}>
                   <div

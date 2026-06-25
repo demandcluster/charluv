@@ -32,5 +32,20 @@ describe('Event helpers', () => {
         (0, chai_1.expect)(prompt).to.contain('bar');
         (0, chai_1.expect)(prompt.toLowerCase()).to.contain('none');
     });
+    it('includes the director note in the director prompt only when set', () => {
+        const base = {
+            event: { location: 'bar', description: 'after work drinks' },
+            roster: [{ id: 'a', name: 'Mia', hook: 'flirty bartender' }],
+            recent: [{ name: 'You', text: 'Hey Mia' }],
+            repliedThisTurn: [],
+        };
+        (0, chai_1.expect)((0, event_1.buildDirectorPrompt)(base)).to.not.contain("Director's note");
+        const withNote = (0, event_1.buildDirectorPrompt)({
+            ...base,
+            event: { ...base.event, note: 'keep it playful' },
+        });
+        (0, chai_1.expect)(withNote).to.contain("Director's note");
+        (0, chai_1.expect)(withNote).to.contain('keep it playful');
+    });
 });
 //# sourceMappingURL=event.spec.js.map

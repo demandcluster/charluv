@@ -405,6 +405,7 @@ export const chatStore = createStore<ChatState>('chat', {
         when?: string
         vibe?: string
         directorEvents?: string
+        note?: string
       },
       onSuccess?: (id: string) => void
     ) {

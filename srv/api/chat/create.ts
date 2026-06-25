@@ -124,6 +124,7 @@ export const createEventChat = handle(async ({ body, user, userId }) => {
       when: 'string?',
       vibe: 'string?',
       directorEvents: 'string?',
+      note: 'string?',
     },
     body
   )
@@ -164,6 +165,7 @@ export const createEventChat = handle(async ({ body, user, userId }) => {
         when: body.when || undefined,
         vibe: body.vibe || undefined,
         directorEvents: (body.directorEvents as 'none' | 'rare' | 'normal' | 'regular') || 'none',
+        note: body.note?.trim() || undefined,
       },
       // Defaults on for events (no long-term residue), but the creator can opt in
       // to remembering the party from the start screen.

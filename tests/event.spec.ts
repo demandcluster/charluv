@@ -40,4 +40,21 @@ describe('Event helpers', () => {
     expect(prompt).to.contain('bar')
     expect(prompt.toLowerCase()).to.contain('none')
   })
+
+  it('includes the director note in the director prompt only when set', () => {
+    const base = {
+      event: { location: 'bar', description: 'after work drinks' },
+      roster: [{ id: 'a', name: 'Mia', hook: 'flirty bartender' }],
+      recent: [{ name: 'You', text: 'Hey Mia' }],
+      repliedThisTurn: [],
+    }
+    expect(buildDirectorPrompt(base)).to.not.contain("Director's note")
+
+    const withNote = buildDirectorPrompt({
+      ...base,
+      event: { ...base.event, note: 'keep it playful' },
+    })
+    expect(withNote).to.contain("Director's note")
+    expect(withNote).to.contain('keep it playful')
+  })
 })

@@ -272,11 +272,7 @@ const UserNavigation: Component = () => {
         <Item href="/mine" ariaLabel="My AI companions">
           <Heart aria-hidden="true" /> My AI
         </Item>
-        <Item onClick={() => setShowEvent(true)} ariaLabel="Start an event">
-          <Sparkles aria-hidden="true" /> Event
-        </Item>
       </Show>
-      <CreateEventModal show={showEvent()} close={() => setShowEvent(false)} />
       <Show when={menu.flags.chub}>
         <Item href="/chub" ariaLabel="Character hub">
           <ShoppingBag aria-hidden="true" />
@@ -284,6 +280,12 @@ const UserNavigation: Component = () => {
         </Item>
       </Show>
       <ChatLink />
+      <Show when={user.loggedIn}>
+        <Item onClick={() => setShowEvent(true)} ariaLabel="Start an event">
+          <Sparkles aria-hidden="true" /> Event
+        </Item>
+      </Show>
+      <CreateEventModal show={showEvent()} close={() => setShowEvent(false)} />
 
       <Show when={menu.flags.sounds}>
         <Sounds />

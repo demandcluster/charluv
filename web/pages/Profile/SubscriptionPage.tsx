@@ -91,7 +91,7 @@ export const SubscriptionPage: Component = (props) => {
             <p>Subscribing let's us spend more time developing and enhancing Charluv.</p>
           </SolidCard>
 
-          <SolidCard class="flex w-full flex-col gap-2" border>
+          <SolidCard class="flex flex-col gap-2" border>
             <p class="font-bold text-[var(--hl-500)]">Redeem a promo code</p>
             <p class="text-sm">
               Have a promo code? Enter it below to claim credits or premium membership days.

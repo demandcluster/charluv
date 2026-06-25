@@ -177,6 +177,7 @@ export async function createEventChat(input: {
   when?: string
   vibe?: string
   directorEvents?: string
+  note?: string
 }) {
   return api.post<AppSchema.Chat>('/chat/event', input)
 }

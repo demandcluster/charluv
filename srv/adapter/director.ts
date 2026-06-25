@@ -11,7 +11,7 @@ import { inferenceAsync } from './generate'
 type ElectOpts = {
   user: AppSchema.User
   log: AppLog
-  event: { location: string; description: string; when?: string; vibe?: string }
+  event: { location: string; description: string; when?: string; vibe?: string; note?: string }
   roster: Array<{ id: string; name: string; hook: string }>
   recent: Array<{ name: string; text: string }>
   repliedThisTurn: string[]
@@ -63,7 +63,7 @@ export async function electSpeaker(opts: ElectOpts): Promise<string> {
 type DirectorEventOpts = {
   user: AppSchema.User
   log: AppLog
-  event: { location: string; description: string; when?: string; vibe?: string }
+  event: { location: string; description: string; when?: string; vibe?: string; note?: string }
   roster: Array<{ name: string; hook: string }>
   recent: Array<{ name: string; text: string }>
 }

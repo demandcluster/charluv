@@ -330,13 +330,17 @@ export namespace AppSchema {
     /** Event scene metadata. Present only when `mode === 'event'`.
      * `when` (time of day) and `vibe` (tone) are optional scene flavour.
      * `directorEvents` sets how often the director injects an unprompted world
-     * beat to drive the story. */
+     * beat to drive the story.
+     * `note` is the director's standing instruction (set on start) used to steer
+     * the scene — who speaks, what beats happen. Director-only; never shown to
+     * characters as scene context. */
     event?: {
       location: string
       description: string
       when?: string
       vibe?: string
       directorEvents?: 'none' | 'rare' | 'normal' | 'regular'
+      note?: string
     }
     /** When true, this chat neither writes nor recalls long-term memory.
      * Set on event creation; also user-toggleable in chat settings. */

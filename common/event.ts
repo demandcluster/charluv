@@ -52,7 +52,7 @@ export function buildSpeakerSchema(presentIds: string[]): object {
  * specific reason. Returns "none" when no one (else) should speak.
  */
 export function buildDirectorPrompt(opts: {
-  event: { location: string; description: string; when?: string; vibe?: string }
+  event: { location: string; description: string; when?: string; vibe?: string; note?: string }
   roster: Array<{ id: string; name: string; hook: string }>
   recent: Array<{ name: string; text: string }>
   repliedThisTurn: string[]
@@ -92,6 +92,11 @@ export function buildDirectorPrompt(opts: {
 
   return [
     `Setting: ${setting}. Event: ${opts.event.description}.${mood}`,
+    ...(opts.event.note
+      ? [
+          `Director's note (the host's standing instruction — weight it heavily): ${opts.event.note}`,
+        ]
+      : []),
     `People present:`,
     roster,
     ``,
@@ -111,7 +116,7 @@ export function buildDirectorPrompt(opts: {
  * for the user.
  */
 export function buildDirectorEventPrompt(opts: {
-  event: { location: string; description: string; when?: string; vibe?: string }
+  event: { location: string; description: string; when?: string; vibe?: string; note?: string }
   roster: Array<{ name: string; hook: string }>
   recent: Array<{ name: string; text: string }>
 }): string {
@@ -125,6 +130,11 @@ export function buildDirectorEventPrompt(opts: {
   return [
     `You are the unseen scene director for an event.`,
     `Setting: ${setting}. Event: ${opts.event.description}.${mood}`,
+    ...(opts.event.note
+      ? [
+          `Director's note (the host's standing instruction for the scene — follow it): ${opts.event.note}`,
+        ]
+      : []),
     `Characters present:`,
     roster,
     ``,

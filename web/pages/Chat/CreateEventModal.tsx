@@ -49,6 +49,7 @@ const CreateEventModal: Component<{ show: boolean; close: () => void }> = (props
   const [when, setWhen] = createSignal(WHENS[1])
   const [vibe, setVibe] = createSignal(VIBES[0])
   const [directorEvents, setDirectorEvents] = createSignal('normal')
+  const [note, setNote] = createSignal('')
   const [selected, setSelected] = createSignal<Record<string, boolean>>({})
   const [memoryDisabled, setMemoryDisabled] = createSignal(true)
 
@@ -74,6 +75,7 @@ const CreateEventModal: Component<{ show: boolean; close: () => void }> = (props
         when: when(),
         vibe: vibe(),
         directorEvents: directorEvents(),
+        note: note().trim() || undefined,
       },
       (id: string) => {
         props.close()
@@ -145,6 +147,17 @@ const CreateEventModal: Component<{ show: boolean; close: () => void }> = (props
               )}
             </For>
           </div>
+        </div>
+        <div>
+          <TextInput
+            fieldName="eventDirectorNote"
+            label="Director's note"
+            helperText="A standing instruction the director uses to steer the scene — who speaks, what beats happen. The characters never see this. Optional."
+            placeholder="Keep it playful; have someone spill a drink early; nudge Mia and Jade together."
+            isMultiline
+            value={note()}
+            onInputText={setNote}
+          />
         </div>
         <div>
           <div class="text-sm">Who's invited</div>
