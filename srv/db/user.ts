@@ -69,6 +69,16 @@ export async function updateUser(userId: string, props: Partial<AppSchema.User>)
   return getUser(userId)
 }
 
+export async function clearRestriction(userId: string) {
+  const user = await db('user').findOne({ kind: 'user', _id: userId })
+  if (!user) throw errors.NotFound
+  const credits = (user.credits || 0) < 200 ? 200 : user.credits
+  await db('user').updateOne(
+    { kind: 'user', _id: userId },
+    { $set: { creditsRestricted: false, restrictedReason: undefined as any, credits }, $unset: { restrictedReason: '' } }
+  )
+}
+
 export async function updateProfile(userId: string, props: Partial<AppSchema.Profile>) {
   await db('profile').updateOne({ userId }, { $set: props })
   return getProfile(userId)
@@ -87,6 +97,12 @@ export async function checkIp(ip?: string) {
   return true
 }
 
+export async function checkFingerprint(fingerprint?: string) {
+  if (!fingerprint) return false
+  const count = await db('user').countDocuments({ kind: 'user', fingerprint })
+  return count > 0
+}
+
 export async function authenticate(username: string, password: string) {
   const user = await db('user').findOne({ username: username.toLowerCase() })
   if (!user) return
@@ -102,7 +118,17 @@ export async function authenticate(username: string, password: string) {
   return { token, profile, user: toSafeUser(user) }
 }
 
-export async function createUser(newUser: NewUser, admin?: boolean) {
+export async function createUser(
+  newUser: NewUser,
+  admin?: boolean,
+  opts?: {
+    restricted?: boolean
+    restrictedReason?: 'ip' | 'fingerprint' | 'both'
+    fingerprint?: string
+    ip?: string
+    consentAt?: string
+  }
+) {
   const username = newUser.username.toLowerCase().trim()
   const existing = await db('user').findOne({ kind: 'user', username })
 
@@ -121,7 +147,7 @@ export async function createUser(newUser: NewUser, admin?: boolean) {
     novelApiKey: '',
     premium: false,
     premiumUntil: 0,
-    credits: 200,
+    credits: opts?.restricted ? 0 : 200,
     nextCredits: 0,
     defaultAdapter: 'horde',
     koboldUrl: '',
@@ -135,6 +161,11 @@ export async function createUser(newUser: NewUser, admin?: boolean) {
     defaultPresets: {},
     useLocalPipeline: false,
     createdAt: new Date().toISOString(),
+    creditsRestricted: opts?.restricted || undefined,
+    restrictedReason: opts?.restrictedReason,
+    fingerprint: opts?.fingerprint || undefined,
+    lastIp: opts?.ip || undefined,
+    identifierConsentAt: opts?.consentAt,
   }
 
   await db('user').insertOne(user)

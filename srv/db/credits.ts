@@ -26,10 +26,10 @@ export async function getFreeCredits() {
   const nextTime: number = Number(now) + 120000
 
   const users = await db('user')
-    .find({ kind: 'user', nextCredits: { $lte: now }, premium: false, credits: { $lt: 500 } })
+    .find({ kind: 'user', nextCredits: { $lte: now }, premium: false, credits: { $lt: 500 }, creditsRestricted: { $ne: true } })
     .toArray()
   const premiumUsers = await db('user')
-    .find({ kind: 'user', nextCredits: { $lte: now }, credits: { $lt: 5000 }, premium: true })
+    .find({ kind: 'user', nextCredits: { $lte: now }, credits: { $lt: 5000 }, premium: true, creditsRestricted: { $ne: true } })
     .toArray()
   const expiredPremium = await db('user')
     .find({
