@@ -329,31 +329,36 @@ export const generateMessageV2 = handle(async (req, res) => {
           speakerId === replyAs._id ? replyAs : await store.characters.getCharacterById(speakerId)
         if (!eventReplyAs) break
 
-        // History the model sees, with this speaker's identity resolved. Same call
-        // and ordering the client uses for request.lines (createChatStream reverses
-        // internally) — DO NOT reverse it here.
-        const lines = await getLinesForPrompt(
-          {
-            kind: body.kind,
-            settings: entities.gen,
-            members: profiles,
-            messages: msgs,
-            char: entities.char,
-            characters: body.characters,
-            sender: senderProfile!,
-            replyAs: eventReplyAs,
-            impersonate,
-            chat,
-            user: entities.user,
-            book: entities.book,
-            lastMessage: '',
-            chatEmbeds: [],
-            userEmbeds: [],
-            resolvedScenario: '',
-            jsonValues: undefined,
-          },
-          encoder
-        )
+        // History the model sees, with this speaker's identity resolved.
+        // getLinesForPrompt returns time-DESCENDING (newest first); createChatStream
+        // (via assemblePrompt's `order: 'asc'`) expects time-ASCENDING. The client
+        // reverses inside createPromptParts before sending request.lines, so we must
+        // do the same here — otherwise the history is reversed and every character
+        // replies to the opening message.
+        const lines = (
+          await getLinesForPrompt(
+            {
+              kind: body.kind,
+              settings: entities.gen,
+              members: profiles,
+              messages: msgs,
+              char: entities.char,
+              characters: body.characters,
+              sender: senderProfile!,
+              replyAs: eventReplyAs,
+              impersonate,
+              chat,
+              user: entities.user,
+              book: entities.book,
+              lastMessage: '',
+              chatEmbeds: [],
+              userEmbeds: [],
+              resolvedScenario: '',
+              jsonValues: undefined,
+            },
+            encoder
+          )
+        ).reverse()
 
         const result = await generateOneReply({
           req,
@@ -613,13 +618,16 @@ async function generateOneReply(ctx: {
   delete (meta as any).imageTool
 
   // Native memory tool: facts the model chose to remember. Pull out of meta (not
-  // persisted on the message) and store them in long-term memory, scoped to this
-  // character so they're recalled (via RAG) in future chats.
+  // persisted on the message) and store them in long-term memory, scoped to the
+  // SPEAKING character (replyAs) — NOT chat.characterId. In a multi-char/event
+  // chat the speaker isn't the main char, so keying on chat.characterId would
+  // dump every participant's facts onto the main character (the memory pane would
+  // then show "all characters'" memories). In a 1:1 chat replyAs === main char.
   const rememberFacts: string[] | undefined = (meta as any).rememberFacts
   delete (meta as any).rememberFacts
-  if (rememberFacts?.length && chat.characterId && !chat.memoryDisabled) {
+  if (rememberFacts?.length && replyAs._id && !chat.memoryDisabled) {
     for (const fact of rememberFacts) {
-      rememberFact(userId!, chat.characterId, fact, 'tool').catch((err) =>
+      rememberFact(userId!, replyAs._id, fact, 'tool').catch((err) =>
         log.error({ err }, 'Failed to store long-term memory')
       )
     }

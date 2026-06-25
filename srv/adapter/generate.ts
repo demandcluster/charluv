@@ -350,9 +350,11 @@ export async function createChatStream(
 
     // RAG: recall long-term memories relevant to the recent conversation and
     // inject them into the {{memory}} slot (additive to any book memory). Scoped
-    // to the chat owner + character so they persist across chats.
+    // to the chat owner + the SPEAKING character (replyAs) so each companion only
+    // recalls its own memories — in a multi-char/event chat the main char
+    // (chat.characterId) is not necessarily the one replying.
     try {
-      const charId = opts.chat?.characterId
+      const charId = opts.replyAs?._id || opts.chat?.characterId
       const ownerId = opts.chat?.userId
       if (charId && ownerId && opts.lines?.length) {
         const query = [...opts.lines].slice(-3).join('\n')
