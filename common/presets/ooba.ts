@@ -15,6 +15,6 @@ export const oobaPresets = {
     topP: 0.5,
     typicalP: 1,
     streamResponse: true,
-    gaslight: templates.Alpaca,
+    gaslight: templates.Charluv,
   },
 } satisfies Record<string, Partial<AppSchema.GenSettings>>

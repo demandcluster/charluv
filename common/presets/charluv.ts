@@ -24,7 +24,7 @@ const charluvBase = {
     skipSpecialTokens: true,
     frequencyPenalty: 0,
     presencePenalty: 0,
-    gaslight: templates.Alpaca,
+    gaslight: templates.Charluv,
     ultimeJailbreak: '',
     oaiModel: OPENAI_MODELS.Turbo,
     streamResponse: true,
