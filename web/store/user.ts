@@ -162,6 +162,25 @@ export const userStore = createStore<UserState>(
       }
     },
 
+    async *redeemPromo(_, code: string) {
+      if (!code.trim()) {
+        toastStore.error('Please enter a code')
+        return
+      }
+      const res = await api.post('/user/promo/redeem', { code: code.trim() })
+      if (res.error) {
+        toastStore.error(res.error)
+        return
+      }
+      if (res.result) {
+        const parts: string[] = []
+        if (res.result.credits) parts.push(`${res.result.credits} credits`)
+        if (res.result.days) parts.push(`${res.result.days} premium days`)
+        toastStore.success(`Redeemed! You received ${parts.join(' and ')}.`)
+        yield { user: res.result.user }
+      }
+    },
+
     async *unlinkGoogleAccount(_, success?: () => void) {
       const res = await api.post('/user/unlink-google')
       if (res.result) {
