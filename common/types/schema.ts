@@ -186,6 +186,16 @@ export namespace AppSchema {
 
     admin: boolean
     lastIp?: string
+    /** Device identifier (FingerprintJS visitorId) captured at registration, with
+     * consent, to detect multiple-account abuse. */
+    fingerprint?: string
+    /** ISO timestamp when the user accepted the identifier-collection checkbox at registration. */
+    identifierConsentAt?: string
+    /** True when this account matched an existing fingerprint or IP at signup: it
+     * receives no signup bonus and no automatic free-credit refills until cleared. */
+    creditsRestricted?: boolean
+    /** Why the account was restricted (admin context; never shown to end users). */
+    restrictedReason?: 'ip' | 'fingerprint' | 'both'
     role?: 'moderator' | 'admin'
 
     novelApiKey: string

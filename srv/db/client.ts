@@ -145,6 +145,7 @@ export async function createIndexes() {
   )
   await db('user').createIndex({ 'google.sub': 1 }, { name: 'user_googleSub' })
   await db('user').createIndex({ 'google.email': 1 }, { name: 'user_googleEmail' })
+  await db('user').createIndex({ fingerprint: 1 }, { name: 'user_fingerprint' })
 
   await db('saga-template').createIndex({ userId: 1 }, { name: 'saga-template_userId' })
   await db('saga-session').createIndex({ userId: 1 }, { name: 'saga-session_userId' })
