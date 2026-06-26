@@ -76,6 +76,7 @@ const ChatDetail: Component = () => {
     retrying: s.retrying,
     inference: s.lastInference,
     textBeforeGenMore: s.textBeforeGenMore,
+    queuePosition: s.queuePosition,
   }))
 
   const showPane = useValidChatPane()
@@ -532,6 +533,9 @@ const ChatDetail: Component = () => {
                   />
                 )}
               </For>
+            </Show>
+            <Show when={msgs.waiting && msgs.queuePosition}>
+              <div class="text-500 text-xs opacity-70">Queued #{msgs.queuePosition}</div>
             </Show>
           </div>
         </section>

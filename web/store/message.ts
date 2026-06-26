@@ -93,6 +93,8 @@ export type MsgState = {
     tree: ChatTree
     root: string
   }
+  /** 1-based queue position while waiting for inference admission; undefined when admitted or idle */
+  queuePosition?: number
 }
 
 const initState: MsgState = {
@@ -116,6 +118,7 @@ const initState: MsgState = {
     tree: {},
     root: '',
   },
+  queuePosition: undefined,
 }
 
 export const msgStore = createStore<MsgState>(
@@ -1161,6 +1164,10 @@ subscribe('message-error', { error: 'any', chatId: 'string' }, (body) => {
   toastStore.error(`Failed to generate response: ${body.error}`)
 
   msgStore.setState({ partial: undefined, waiting: undefined, retrying: undefined })
+})
+
+subscribe('queue-position', { position: 'number', kind: 'string' }, (body) => {
+  msgStore.setState({ queuePosition: body.position > 0 ? body.position : undefined })
 })
 
 subscribe('message-warning', { warning: 'string' }, (body) => {
