@@ -499,9 +499,12 @@ export const userStore = createStore<UserState>(
     async *loginPatreon(_, code: string, onDone?: (error?: string) => void) {
       yield { loading: true }
       // Login may create a new account, so include the device fingerprint for
-      // the multi-account abuse check.
+      // the multi-account abuse check. `url` is the redirect_uri the browser used
+      // at authorize — the server needs the exact same value for the token
+      // exchange (same origin as this callback).
       const fingerprint = await getVisitorId()
-      const res = await api.post('/user/login/patreon', { code, fingerprint })
+      const url = `${location.origin}/oauth/patreon`
+      const res = await api.post('/user/login/patreon', { code, fingerprint, url })
       yield { loading: false }
 
       if (res.result) {

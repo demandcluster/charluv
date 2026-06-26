@@ -144,13 +144,13 @@ export const oathGoogleLogin = handle(async (req) => {
  */
 export const oauthPatreonLogin = handle(async (req) => {
   const { body, ip, log } = req
-  assertValid({ code: 'string', fingerprint: 'string?' }, body)
+  assertValid({ code: 'string', fingerprint: 'string?', url: 'string?' }, body)
 
   if (!config.patreon.client_id) {
     throw new StatusError('Not allowed', 405)
   }
 
-  const token = await patreon.authorize(body.code)
+  const token = await patreon.authorize(body.code, false, patreonRedirect(body.url))
   const patron = await patreon.identity(token.access_token)
 
   // Already linked → straight login.
@@ -288,10 +288,22 @@ export const resyncPatreon = handle(async (req) => {
   return { user: next, token }
 })
 
+// The token exchange's redirect_uri must exactly match the one the browser used
+// at the authorize step. The client sends the origin it used; accept it only if
+// it's a well-formed `.../oauth/patreon` URL (otherwise fall back to config).
+// Patreon also validates it against the app's registered URIs, so this can't be
+// abused as an open redirect.
+function patreonRedirect(raw?: string) {
+  if (typeof raw === 'string' && /^https?:\/\/[a-z0-9.-]+(:\d+)?\/oauth\/patreon$/i.test(raw)) {
+    return raw
+  }
+  return undefined
+}
+
 export const verifyPatreonOauth = handle(async (req) => {
   const { body } = req
-  assertValid({ code: 'string' }, body)
-  await patreon.initialVerifyPatron(req.userId, body.code)
+  assertValid({ code: 'string', url: 'string?' }, body)
+  await patreon.initialVerifyPatron(req.userId, body.code, patreonRedirect(body.url))
   const user = await getSafeUserConfig(req.userId)
   // Re-issue the JWT so its embedded `premium` flag reflects the newly linked account.
   const token = user ? await createAccessToken(user.username, user) : undefined

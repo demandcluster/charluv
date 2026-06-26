@@ -17,10 +17,13 @@ export const patreon = {
   getCampaignTiers,
 }
 
-async function authorize(code: string, refresh?: boolean) {
+async function authorize(code: string, refresh?: boolean, redirectUri?: string) {
   const form = new URLSearchParams()
   form.append('code', code)
-  form.append('redirect_uri', config.patreon.redirect)
+  // The token exchange's redirect_uri MUST be identical to the one the browser
+  // used at the authorize step. Prefer the caller-supplied value (derived from
+  // the actual site origin); fall back to the configured default.
+  form.append('redirect_uri', redirectUri || config.patreon.redirect)
   form.append('client_id', config.patreon.client_id)
   form.append('client_secret', config.patreon.client_secret)
   form.append('grant_type', refresh ? 'refresh_token' : 'authorization_code')
@@ -207,8 +210,8 @@ function getPatronSubscriptionTier(contrib: number) {
   return sub
 }
 
-async function initialVerifyPatron(userId: string, code: string) {
-  const token = await patreon.authorize(code)
+async function initialVerifyPatron(userId: string, code: string, redirectUri?: string) {
+  const token = await patreon.authorize(code, false, redirectUri)
   const patron = await identity(token.access_token)
 
   const existing = await store.users.findByPatreonUserId(patron.user.id)
