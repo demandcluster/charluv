@@ -12,13 +12,16 @@ import { FLAG_LABELS } from '/common/publish'
  */
 const ModerationPage: Component = () => {
   setComponentPageTitle('Moderation')
-  const tabs = useTabs(['Published', 'Reports'], 0)
+  const tabs = useTabs(['Pending', 'Published', 'Reports'], 0)
 
   return (
     <div>
       <PageHeader title="Moderation" />
       <Tabs tabs={tabs.tabs} select={tabs.select} selected={tabs.selected} />
       <div class="pt-4">
+        <Show when={tabs.current() === 'Pending'}>
+          <PendingTab />
+        </Show>
         <Show when={tabs.current() === 'Published'}>
           <PublishedTab />
         </Show>
@@ -26,6 +29,71 @@ const ModerationPage: Component = () => {
           <ReportsTab />
         </Show>
       </div>
+    </div>
+  )
+}
+
+/** Stage-1 queue: characters the automated check rejected, awaiting a human call. */
+const PendingTab: Component = () => {
+  const state = adminStore()
+  const load = () => adminStore.getPending()
+  onMount(load)
+
+  const act = async (charId: string, action: 'approve' | 'reject' | 'delete') => {
+    let reason: string | undefined
+    if (action === 'reject' || action === 'delete') {
+      const verb = action === 'delete' ? 'removing' : 'rejecting'
+      const input = window.prompt(`Reason for ${verb} this character (sent to the owner):`)
+      if (input === null) return // cancelled
+      reason = input.trim() || undefined
+    }
+    await adminStore.moderatePending(charId, action, reason)
+    load()
+  }
+
+  return (
+    <div class="flex flex-col gap-2 pb-4">
+      <Show when={!state.pending?.length}>
+        <div class="text-600 py-8 text-center">Nothing awaiting review.</div>
+      </Show>
+      <For each={state.pending}>
+        {(char) => (
+          <div class="bg-800 flex items-center gap-3 rounded-xl p-3">
+            <Show when={char.avatar}>
+              <img class="h-16 w-16 rounded-md object-cover" src={getAssetUrl(char.avatar!)} />
+            </Show>
+            <div class="flex flex-1 flex-col">
+              <div class="font-bold">{char.name}</div>
+              <Show when={char.moderation?.reason}>
+                <div class="text-600 text-xs">{char.moderation!.reason}</div>
+              </Show>
+              <div class="text-600 mt-1 flex flex-wrap gap-1 text-xs">
+                <For each={char.moderation?.flags || []}>
+                  {(f: string) => (
+                    <span class="rounded bg-[var(--bg-700)] px-2 py-0.5">{FLAG_LABELS[f] || f}</span>
+                  )}
+                </For>
+              </div>
+            </div>
+            <div class="flex justify-end gap-2">
+              <Button size="sm" schema="green" onClick={() => act(char._id, 'approve')}>
+                Approve & publish
+              </Button>
+              <Button size="sm" schema="gray" onClick={() => act(char._id, 'reject')}>
+                Reject
+              </Button>
+              <Button
+                size="sm"
+                class="text-error"
+                schema="red"
+                onClick={() => act(char._id, 'delete')}
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
+        )}
+      </For>
     </div>
   )
 }

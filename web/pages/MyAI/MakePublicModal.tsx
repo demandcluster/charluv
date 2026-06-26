@@ -14,7 +14,7 @@ import {
 } from '/common/publish'
 import { AppSchema } from '/common/types'
 
-type Phase = 'idle' | 'checking' | 'approved' | 'rejected' | 'error'
+type Phase = 'idle' | 'checking' | 'approved' | 'pending' | 'rejected' | 'error'
 
 const MakePublicModal: Component<{
   show: boolean
@@ -53,12 +53,23 @@ const MakePublicModal: Component<{
 
     subscribe(
       'publish-response',
-      { acceptable: 'boolean?', requestId: 'string', reason: 'string?', flags: 'any?', rewarded: 'number?' },
+      {
+        acceptable: 'boolean?',
+        pending: 'boolean?',
+        requestId: 'string',
+        reason: 'string?',
+        flags: 'any?',
+        rewarded: 'number?',
+      },
       (body) => {
         if (body.acceptable) {
           setPhase('approved')
           setResult({ rewarded: body.rewarded })
           characterStore.getCharacters(true)
+        } else if (body.pending) {
+          // Failed the automated check → handed to a human moderator, not a dead end.
+          setPhase('pending')
+          setResult({ reason: body.reason })
         } else {
           setPhase('rejected')
           setResult({ reason: body.reason, flags: (body.flags as string[]) || [] })
@@ -71,9 +82,9 @@ const MakePublicModal: Component<{
   const footer = (
     <>
       <Button schema="secondary" onClick={props.close}>
-        <X /> {phase() === 'approved' ? 'Done' : 'Cancel'}
+        <X /> {phase() === 'approved' || phase() === 'pending' ? 'Done' : 'Cancel'}
       </Button>
-      <Show when={phase() !== 'approved'}>
+      <Show when={phase() !== 'approved' && phase() !== 'pending'}>
         <Button onClick={publish} disabled={!ready() || phase() === 'checking'}>
           <Globe />
           {phase() === 'checking' ? 'Checking…' : 'Make public'}
@@ -104,6 +115,16 @@ const MakePublicModal: Component<{
                 {' '}
                 You earned <b>{result().rewarded} credits</b>.
               </Show>
+            </p>
+          </div>
+        </Show>
+
+        <Show when={phase() === 'pending'}>
+          <div class="rounded-lg bg-[var(--hl-900)] p-4 text-center">
+            <div class="text-lg font-bold">Sent for review</div>
+            <p class="text-600 mt-1">
+              {result().reason ||
+                "Your character didn't pass the automatic check and has been sent to our moderators. You'll be notified once it's reviewed."}
             </p>
           </div>
         </Show>

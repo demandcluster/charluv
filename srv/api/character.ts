@@ -356,6 +356,30 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
 
   const requestId = body.requestId || v4()
 
+  // A failed automated check (an AI denial, or a verdict we couldn't interpret)
+  // doesn't dead-end the user — the character is kept private and queued for a
+  // human moderator, who approves (publishes) or confirms the rejection. The
+  // technical flags/reason are stored for the admin; the user sees a neutral
+  // "sent for review" message.
+  const sendToReview = async (char: AppSchema.Character, flags: string[], reason: string) => {
+    const moderation: AppSchema.CharacterModeration = {
+      status: 'rejected',
+      flags,
+      reason,
+      autoCheckedAt: Date.now(),
+      moderated: false,
+    }
+    await store.characters.updateCharacter(char._id, userId!, { published: false, moderation })
+    sendOne(userId, {
+      type: 'publish-response',
+      acceptable: false,
+      pending: true,
+      requestId,
+      reason:
+        "Your character didn't pass the automatic check and has been sent to our moderators for review. You'll be notified once it's reviewed.",
+    })
+  }
+
   const { stream, service } = await createInferenceStream({
     requestId,
     jsonSchema: modSchema,
@@ -427,19 +451,14 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
   // violation, so an empty output would otherwise auto-approve anything.)
   fromJsonResponse(modSchema, response, output)
   if (!Object.keys(output).length) {
-    const moderation: AppSchema.CharacterModeration = {
-      status: 'rejected',
-      flags: [],
-      reason: 'The content check could not be interpreted. Please try again.',
-      autoCheckedAt: Date.now(),
-    }
-    await store.characters.updateCharacter(character._id, userId!, { moderation })
-    sendOne(userId, {
-      type: 'publish-response',
-      acceptable: false,
-      requestId,
-      reason: moderation.reason,
-    })
+    // The automated check didn't return a usable verdict — don't approve, but
+    // don't dead-end the user either: hand it to a human moderator (same as any
+    // AI denial below).
+    await sendToReview(
+      character,
+      [],
+      'Automated check returned no usable verdict — needs manual review.'
+    )
     return
   }
 
@@ -486,20 +505,13 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
   const checkedAt = Date.now()
 
   if (!acceptable) {
-    const moderation: AppSchema.CharacterModeration = {
-      status: 'rejected',
+    // AI denial: the character is NOT published. Instead of dead-ending the user,
+    // route it to the admin pending-review queue for a human decision.
+    await sendToReview(
+      character,
       flags,
-      reason: flags.length ? `Flagged for: ${flags.join(', ')}` : 'Did not pass the content check',
-      autoCheckedAt: checkedAt,
-    }
-    await store.characters.updateCharacter(character._id, userId!, { moderation })
-    sendOne(userId, {
-      type: 'publish-response',
-      acceptable: false,
-      requestId,
-      flags,
-      reason: moderation.reason,
-    })
+      flags.length ? `Flagged for: ${flags.join(', ')}` : 'Did not pass the content check'
+    )
     return
   }
 

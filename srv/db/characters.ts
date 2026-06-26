@@ -150,6 +150,24 @@ export async function getPublishedForReview() {
   return list
 }
 
+/**
+ * Characters that FAILED the automated publish check and are awaiting a human
+ * decision: rejected by the AI, not yet actioned by a moderator. These are not
+ * published (not live) — an admin approves (publishes) or confirms the rejection.
+ */
+export async function getPendingModeration() {
+  const list = await db('character')
+    .find({
+      kind: 'character',
+      'moderation.status': 'rejected',
+      'moderation.moderated': { $ne: true },
+    })
+    .sort({ 'moderation.autoCheckedAt': -1 })
+    .limit(500)
+    .toArray()
+  return list
+}
+
 /** Delete a character by id regardless of owner (admin moderation action). */
 export async function adminDeleteCharacter(charId: string) {
   await db('character').deleteOne({ _id: charId, kind: 'character' })

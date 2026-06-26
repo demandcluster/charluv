@@ -5,6 +5,7 @@ import { isAdmin, loggedIn } from './auth'
 import { StatusError, handle } from './wrap'
 import { getLiveCounts, sendAll, sendOne } from './ws/bus'
 import { encryptText } from '../db/util'
+import { PUBLISH_DEFAULTS } from '/common/publish'
 
 const router = Router()
 
@@ -101,6 +102,84 @@ const moderatePublished = handle(async ({ params, body, userId }) => {
       sendOne(char.userId, {
         type: 'admin-notification',
         message: `Your public character "${char.name}" was removed by a moderator.${suffix}`,
+      })
+      return { success: true }
+
+    default:
+      throw new StatusError('Unknown action', 400)
+  }
+})
+
+// --- Stage-1 review: characters the automated check rejected (not yet live) ---
+
+const getPending = handle(async () => {
+  const characters = await store.characters.getPendingModeration()
+  return { characters }
+})
+
+/** Human decision on an AI-rejected character. */
+const moderatePending = handle(async ({ params, body, userId }) => {
+  assertValid({ action: 'string', reason: 'string?' }, body)
+  const char = await store.characters.getCharacterById(params.id)
+  if (!char) throw new StatusError('Character not found', 404)
+
+  // Optional moderator note, relayed to the character's owner.
+  const reason = body.reason?.trim()
+  const suffix = reason ? ` Reason: ${reason}` : ''
+  const now = Date.now()
+
+  switch (body.action) {
+    case 'approve': {
+      // Overrides the AI denial: publish it. Pay the publish reward if the owner
+      // hasn't already been rewarded for this character.
+      const config = await store.admin.getServerConfiguration()
+      const reward = config.publishReward || PUBLISH_DEFAULTS.reward
+      const shouldReward = !char.publishRewarded && reward > 0
+      await store.characters.setCharacterModeration(char._id, {
+        published: true,
+        publishedAt: now,
+        publishRewarded: char.publishRewarded || shouldReward,
+        moderation: {
+          ...(char.moderation || { status: 'approved' }),
+          status: 'approved',
+          moderated: true,
+          moderatedBy: userId!,
+          moderatedAt: now,
+        },
+      })
+      if (shouldReward) await store.credits.updateCredits(char.userId, reward)
+      sendOne(char.userId, {
+        type: 'admin-notification',
+        message: `Your character "${char.name}" passed review and is now public.${
+          shouldReward ? ` You earned ${reward} credits.` : ''
+        }`,
+      })
+      return { success: true }
+    }
+
+    case 'reject':
+      // Upholds the AI denial: stays private, leaves the pending queue.
+      await store.characters.setCharacterModeration(char._id, {
+        published: false,
+        moderation: {
+          ...(char.moderation || { status: 'rejected' }),
+          status: 'rejected',
+          moderated: true,
+          moderatedBy: userId!,
+          moderatedAt: now,
+        },
+      })
+      sendOne(char.userId, {
+        type: 'admin-notification',
+        message: `Your character "${char.name}" was not approved for publishing.${suffix}`,
+      })
+      return { success: true }
+
+    case 'delete':
+      await store.characters.adminDeleteCharacter(char._id)
+      sendOne(char.userId, {
+        type: 'admin-notification',
+        message: `Your character "${char.name}" was removed by a moderator.${suffix}`,
       })
       return { success: true }
 
@@ -294,6 +373,8 @@ router.post('/users/:userId/clear-restriction', clearRestriction)
 router.get('/metrics', getMetrics)
 router.get('/published', getPublished)
 router.post('/published/:id', moderatePublished)
+router.get('/pending', getPending)
+router.post('/pending/:id', moderatePending)
 router.get('/reports', getReports)
 router.post('/reports/:id', resolveReport)
 router.get('/users/:id/info', getUserInfo)

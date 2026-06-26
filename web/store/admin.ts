@@ -27,6 +27,7 @@ type AdminState = {
   users: AppSchema.User[]
   info?: UserInfo
   published?: AppSchema.Character[]
+  pending?: AppSchema.Character[]
   reports?: any[]
   metrics?: {
     totalUsers: number
@@ -76,6 +77,22 @@ export const adminStore = createStore<AdminState>('admin', {
       reason?: string
     ) {
       const res = await api.post(`/admin/published/${charId}`, { action, reason })
+      if (res.error) toastStore.error(`Action failed: ${res.error}`)
+      if (res.result?.success) toastStore.success(`Done`)
+      return res.result?.success
+    },
+    async getPending() {
+      const res = await api.get<{ characters: AppSchema.Character[] }>('/admin/pending')
+      if (res.error) toastStore.error(`Failed to load pending characters: ${res.error}`)
+      if (res.result) return { pending: res.result.characters }
+    },
+    async moderatePending(
+      _,
+      charId: string,
+      action: 'approve' | 'reject' | 'delete',
+      reason?: string
+    ) {
+      const res = await api.post(`/admin/pending/${charId}`, { action, reason })
       if (res.error) toastStore.error(`Action failed: ${res.error}`)
       if (res.result?.success) toastStore.success(`Done`)
       return res.result?.success
