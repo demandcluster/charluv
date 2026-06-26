@@ -1104,8 +1104,8 @@ export function toJsonSchema(body: JsonField[]): JsonSchema | undefined {
     if (type.type === 'bool') {
       props[name].type = 'enum'
 
-      // @ts-ignore
-      props[key].enum = ['true', 'false', 'yes', 'no']
+      // @ts-ignore — JsonType union doesn't carry `enum` until narrowed to the enum variant
+      props[name].enum = ['true', 'false', 'yes', 'no']
     }
     schema.required.push(name)
   }

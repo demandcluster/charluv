@@ -10,6 +10,7 @@ import { decryptText } from '../db/util'
 import { streamCompletion } from './stream'
 import { getTokenCounter } from '../tokenize'
 import { isZImageConfigured } from '../image/zimage'
+import { toJsonSchema } from '../../common/prompt'
 
 const baseUrl = `https://api.openai.com`
 
@@ -190,6 +191,14 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     // min_p is unsupported with speculative decoding on the self-hosted endpoint.
     if (!config.inference.specDecoding && typeof gen.minP === 'number' && gen.minP > 0)
       body.min_p = gen.minP
+
+    // Structured output: when the caller supplies a JSON schema (e.g. publish
+    // moderation), constrain the self-hosted model with vLLM guided decoding so
+    // the response is always valid JSON matching the schema. Without this the
+    // model free-forms and the verdict parse fails (which fail-closes the
+    // moderation check). vLLM reads `guided_json` as an OpenAI-API extension.
+    const guided = opts.jsonSchema ? toJsonSchema(opts.jsonSchema) : undefined
+    if (guided) body.guided_json = guided
   }
 
   const useChat =
