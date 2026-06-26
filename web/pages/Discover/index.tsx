@@ -32,7 +32,9 @@ const Discover: Component = () => {
   const [gender, setGender] = createSignal('')
   const [style, setStyle] = createSignal('')
   const [sort, setSort] = createSignal<DiscoverFilters['sort']>('trending')
-  const [sfw, setSfw] = createSignal(false)
+  // Discover is the public landing page, so default to SFW-only; users opt in
+  // to NSFW by toggling this off.
+  const [sfw, setSfw] = createSignal(true)
   const [search, setSearch] = createSignal('')
 
   const load = () =>

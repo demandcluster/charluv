@@ -1,4 +1,4 @@
-import { Component, For, Show, createMemo, onMount } from 'solid-js'
+import { Component, For, Show, createMemo, createSignal, onMount } from 'solid-js'
 import { useNavigate, A } from '@solidjs/router'
 import { Plus } from '/web/icons'
 import '../Discover/discover.css'
@@ -9,9 +9,31 @@ import { getCharacterLevel } from '/common/xplevel'
 import { resolveStage, getArchetype } from '/common/progression'
 import { AppSchema } from '/common/types'
 
+const GENDERS = [
+  { value: '', label: 'Everyone' },
+  { value: 'female', label: 'Women' },
+  { value: 'male', label: 'Men' },
+  { value: 'nonbinary', label: 'Nonbinary' },
+]
+const STYLES = [
+  { value: '', label: 'Any style' },
+  { value: 'realistic', label: 'Realistic' },
+  { value: 'anime', label: 'Anime' },
+]
+
 const MyAI: Component = () => {
   const navigate = useNavigate()
   const state = characterStore()
+
+  // Unlike Discover (server-side query), /mine filters the already-loaded list
+  // client-side. No popular/trending/new sort — these are the user's own
+  // companions, so we keep a recently-updated default and add a Favourites
+  // toggle Discover doesn't have.
+  const [gender, setGender] = createSignal('')
+  const [style, setStyle] = createSignal('')
+  const [sfw, setSfw] = createSignal(false)
+  const [favorite, setFavorite] = createSignal(false)
+  const [search, setSearch] = createSignal('')
 
   onMount(() => {
     // Always refresh so publish/edit state (e.g. the Public/Private tag) is
@@ -20,12 +42,24 @@ const MyAI: Component = () => {
     characterStore.getCharacters(true)
   })
 
-  // The user's companions, most-recently-updated first.
-  const companions = createMemo(() =>
-    [...state.characters.list].sort((a, b) =>
-      (b.updatedAt || '').localeCompare(a.updatedAt || '')
-    )
-  )
+  // The user's companions, filtered then most-recently-updated first.
+  const companions = createMemo(() => {
+    const term = search().trim().toLowerCase()
+    return state.characters.list
+      .filter((c) => {
+        if (gender() && c.gender !== gender()) return false
+        if (style() && c.artStyle !== style()) return false
+        if (sfw() && c.nsfw) return false
+        if (favorite() && !c.favorite) return false
+        if (term) {
+          const inName = c.name?.toLowerCase().includes(term)
+          const inTags = c.category?.some((t) => t.toLowerCase().includes(term))
+          if (!inName && !inTags) return false
+        }
+        return true
+      })
+      .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
+  })
 
   const open = (char: AppSchema.Character) => navigate(`/mine/${char._id}`)
 
@@ -46,6 +80,58 @@ const MyAI: Component = () => {
         </div>
       </header>
 
+      <div class="dsc-filters" role="search">
+        <div class="dsc-group" role="group" aria-label="Gender">
+          <For each={GENDERS}>
+            {(g) => (
+              <button class="dsc-chip" data-on={gender() === g.value} onClick={() => setGender(g.value)}>
+                {g.label}
+              </button>
+            )}
+          </For>
+        </div>
+
+        <span class="dsc-label">Style</span>
+        <div class="dsc-group" role="group" aria-label="Art style">
+          <For each={STYLES}>
+            {(s) => (
+              <button class="dsc-chip" data-on={style() === s.value} onClick={() => setStyle(s.value)}>
+                {s.label}
+              </button>
+            )}
+          </For>
+        </div>
+
+        <button
+          class="dsc-chip"
+          data-on={favorite()}
+          aria-pressed={favorite()}
+          onClick={() => setFavorite(!favorite())}
+        >
+          {favorite() ? '★ ' : '☆ '}Favourites
+        </button>
+
+        <button
+          class="dsc-chip"
+          data-on={sfw()}
+          aria-pressed={sfw()}
+          onClick={() => setSfw(!sfw())}
+        >
+          {sfw() ? '✓ ' : ''}SFW only
+        </button>
+
+        <span class="dsc-spacer" />
+
+        <input
+          class="dsc-search"
+          type="search"
+          placeholder="Search by name or tag…"
+          aria-label="Search your companions"
+          value={search()}
+          onInput={(e) => setSearch(e.currentTarget.value)}
+        />
+      </div>
+
       <div class="dsc-grid">
         <Show
           when={state.characters.loaded}
@@ -54,9 +140,16 @@ const MyAI: Component = () => {
           <Show
             when={companions().length}
             fallback={
-              <div class="dsc-empty">
-                No companions yet — head to <A href="/discover" style={{ color: 'var(--dsc-green)' }}>Discover</A> and pick one.
-              </div>
+              <Show
+                when={state.characters.list.length}
+                fallback={
+                  <div class="dsc-empty">
+                    No companions yet — head to <A href="/discover" style={{ color: 'var(--dsc-green)' }}>Discover</A> and pick one.
+                  </div>
+                }
+              >
+                <div class="dsc-empty">No companions match those filters. Try widening them.</div>
+              </Show>
             }
           >
             <For each={companions()}>{(char) => <Companion char={char} onOpen={open} />}</For>

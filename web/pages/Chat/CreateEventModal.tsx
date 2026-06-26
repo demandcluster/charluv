@@ -1,11 +1,9 @@
-import { Component, createMemo, createSignal, For, Show } from 'solid-js'
+import { Component, createEffect, createMemo, createSignal, For, onCleanup, Show } from 'solid-js'
+import { Portal } from 'solid-js/web'
 import { useNavigate } from '@solidjs/router'
-import Modal from '../../shared/Modal'
-import TextInput from '../../shared/TextInput'
-import Button from '../../shared/Button'
-import { Toggle } from '../../shared/Toggle'
-import { CharacterAvatar } from '../../shared/AvatarIcon'
+import { getAssetUrl } from '../../shared/util'
 import { characterStore, chatStore } from '../../store'
+import './event.css'
 
 const WHENS = ['Morning', 'Afternoon', 'Evening', 'Late night']
 const VIBES = ['Chill', 'Flirty', 'Tense', 'Chaotic', 'Formal', 'Erotic/NSFW']
@@ -16,30 +14,13 @@ const DIRECTOR_EVENTS: Array<{ label: string; value: string }> = [
   { label: 'Normal', value: 'normal' },
   { label: 'Regular', value: 'regular' },
 ]
-
-const PillRow: Component<{
-  options: string[]
-  value: string
-  onPick: (v: string) => void
-}> = (props) => (
-  <div class="flex flex-wrap gap-2">
-    <For each={props.options}>
-      {(opt) => (
-        <button
-          type="button"
-          class="rounded-full px-3 py-1 text-sm"
-          classList={{
-            'bg-[var(--hl-500)] text-black': props.value === opt,
-            'bg-700': props.value !== opt,
-          }}
-          onClick={() => props.onPick(opt)}
-        >
-          {opt}
-        </button>
-      )}
-    </For>
-  </div>
-)
+// How the director clause of the living logline reads for each cadence.
+const DIRECTOR_CLAUSE: Record<string, string> = {
+  none: 'stays out',
+  rare: 'rarely steps in',
+  normal: 'nudges normally',
+  regular: 'steps in often',
+}
 
 const CreateEventModal: Component<{ show: boolean; close: () => void }> = (props) => {
   const navigate = useNavigate()
@@ -53,6 +34,8 @@ const CreateEventModal: Component<{ show: boolean; close: () => void }> = (props
   const [selected, setSelected] = createSignal<Record<string, boolean>>({})
   const [memoryDisabled, setMemoryDisabled] = createSignal(true)
 
+  let whereRef: HTMLInputElement | undefined
+
   const chars = createMemo(() => state.characters.list)
   const ids = createMemo(() =>
     Object.entries(selected())
@@ -63,6 +46,14 @@ const CreateEventModal: Component<{ show: boolean; close: () => void }> = (props
     () => !!location().trim() && !!description().trim() && ids().length > 0
   )
   const toggle = (id: string) => setSelected((s) => ({ ...s, [id]: !s[id] }))
+
+  // Names of the selected cast, in roster order, for the logline.
+  const castNames = createMemo(() => {
+    const sel = selected()
+    return chars()
+      .filter((c) => sel[c._id])
+      .map((c) => c.name)
+  })
 
   const start = () => {
     if (!canStart()) return
@@ -84,115 +75,279 @@ const CreateEventModal: Component<{ show: boolean; close: () => void }> = (props
     )
   }
 
+  // Body scroll lock + Escape-to-close + autofocus, only while shown.
+  createEffect(() => {
+    if (!props.show) return
+
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') props.close()
+    }
+    window.addEventListener('keydown', onKey)
+
+    // Focus the first field once it has mounted.
+    const focusTimer = window.setTimeout(() => whereRef?.focus(), 0)
+
+    onCleanup(() => {
+      document.body.style.overflow = prevOverflow
+      window.removeEventListener('keydown', onKey)
+      window.clearTimeout(focusTimer)
+    })
+  })
+
+  const onBackdrop = (e: MouseEvent) => {
+    // Only a true gutter click (the scroll container itself) dismisses.
+    if (e.target === e.currentTarget) props.close()
+  }
+
+  const autoGrow = (el: HTMLTextAreaElement) => {
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }
+
   return (
-    <Modal
-      show={props.show}
-      close={props.close}
-      title="Start an Event"
-      footer={
-        <>
-          <Button schema="secondary" onClick={props.close}>
-            Cancel
-          </Button>
-          <Button onClick={start} disabled={!canStart()}>
-            Start Event
-          </Button>
-        </>
-      }
-    >
-      <div class="flex flex-col gap-3">
-        <TextInput
-          fieldName="eventLocation"
-          label="Where"
-          placeholder="nightclub"
-          value={location()}
-          onInputText={setLocation}
-        />
-        <TextInput
-          fieldName="eventDescription"
-          label="What's happening"
-          placeholder="Saturday DJ night"
-          isMultiline
-          value={description()}
-          onInputText={setDescription}
-        />
-        <div>
-          <div class="text-sm">When</div>
-          <PillRow options={WHENS} value={when()} onPick={setWhen} />
-        </div>
-        <div>
-          <div class="text-sm">Vibe</div>
-          <PillRow options={VIBES} value={vibe()} onPick={setVibe} />
-        </div>
-        <div>
-          <div class="text-sm">Director events</div>
-          <div class="text-600 mb-1 text-xs">
-            How often the director adds a scene beat (an announcement, an arrival) to drive the
-            story.
-          </div>
-          <div class="flex flex-wrap gap-2">
-            <For each={DIRECTOR_EVENTS}>
-              {(opt) => (
-                <button
-                  type="button"
-                  class="rounded-full px-3 py-1 text-sm"
-                  classList={{
-                    'bg-[var(--hl-500)] text-black': directorEvents() === opt.value,
-                    'bg-700': directorEvents() !== opt.value,
-                  }}
-                  onClick={() => setDirectorEvents(opt.value)}
-                >
-                  {opt.label}
-                </button>
-              )}
-            </For>
-          </div>
-        </div>
-        <div>
-          <TextInput
-            fieldName="eventDirectorNote"
-            label="Director's note"
-            helperText="A standing instruction the director uses to steer the scene — who speaks, what beats happen. The characters never see this. Optional."
-            placeholder="Keep it playful; have someone spill a drink early; nudge Mia and Jade together."
-            isMultiline
-            value={note()}
-            onInputText={setNote}
-          />
-        </div>
-        <div>
-          <div class="text-sm">Who's invited</div>
-          <div class="flex max-h-64 flex-col gap-1 overflow-auto">
-            <For each={chars()}>
-              {(c) => (
-                <label class="bg-700 flex cursor-pointer items-center gap-2 rounded-md px-2 py-1">
-                  <input
-                    type="checkbox"
-                    checked={!!selected()[c._id]}
-                    onChange={() => toggle(c._id)}
-                  />
-                  <CharacterAvatar
-                    char={c}
-                    format={{ size: 'sm', corners: 'circle' }}
-                    zoom={1.75}
-                  />
-                  <span>{c.name}</span>
+    <Show when={props.show}>
+      <Portal>
+        <div
+          class="evt-root evt-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Start an event"
+          onClick={onBackdrop}
+        >
+          <div class="evt-page">
+            <button class="evt-close" aria-label="Close" onClick={props.close}>
+              ✕
+            </button>
+
+            {/* MASTHEAD */}
+            <div class="evt-head">
+              <span class="evt-kicker">NEW EVENT</span>
+              <h1 class="evt-title">
+                Set the <em>scene</em>
+              </h1>
+              <p class="evt-dek">Pick a place, a moment, and who's in the room.</p>
+            </div>
+
+            {/* THE BILLBOARD — required prose */}
+            <div class="evt-block evt-billboard">
+              <div>
+                <label class="evt-caplabel" for="evt-where">
+                  WHERE<span class="evt-req">*</span>
                 </label>
-              )}
-            </For>
-            <Show when={!chars().length}>
-              <div class="text-600 text-sm">You have no characters yet. Create one first.</div>
-            </Show>
+                <input
+                  id="evt-where"
+                  ref={whereRef}
+                  class="evt-headline-input"
+                  type="text"
+                  placeholder="a rooftop bar, her apartment, the old pier…"
+                  value={location()}
+                  onInput={(e) => setLocation(e.currentTarget.value)}
+                />
+              </div>
+              <div>
+                <label class="evt-caplabel" for="evt-what">
+                  WHAT'S HAPPENING<span class="evt-req">*</span>
+                </label>
+                <textarea
+                  id="evt-what"
+                  class="evt-body-input"
+                  rows={2}
+                  placeholder="Saturday DJ night — she's been waiting by the bar…"
+                  value={description()}
+                  onInput={(e) => {
+                    setDescription(e.currentTarget.value)
+                    autoGrow(e.currentTarget)
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* THE DIALS — pill rows */}
+            <div class="evt-block evt-dials">
+              <div>
+                <span class="evt-caplabel">WHEN</span>
+                <div class="evt-pillrow">
+                  <For each={WHENS}>
+                    {(opt) => (
+                      <button
+                        type="button"
+                        class="evt-chip"
+                        data-on={when() === opt}
+                        onClick={() => setWhen(opt)}
+                      >
+                        {opt}
+                      </button>
+                    )}
+                  </For>
+                </div>
+              </div>
+              <div>
+                <span class="evt-caplabel">VIBE</span>
+                <div class="evt-pillrow">
+                  <For each={VIBES}>
+                    {(opt) => (
+                      <button
+                        type="button"
+                        class="evt-chip"
+                        data-on={vibe() === opt}
+                        data-nsfw={opt === 'Erotic/NSFW'}
+                        onClick={() => setVibe(opt)}
+                      >
+                        {opt}
+                      </button>
+                    )}
+                  </For>
+                </div>
+              </div>
+              <div>
+                <span class="evt-caplabel">DIRECTOR</span>
+                <div class="evt-pillrow">
+                  <For each={DIRECTOR_EVENTS}>
+                    {(opt) => (
+                      <button
+                        type="button"
+                        class="evt-chip"
+                        data-on={directorEvents() === opt.value}
+                        onClick={() => setDirectorEvents(opt.value)}
+                      >
+                        {opt.label}
+                      </button>
+                    )}
+                  </For>
+                </div>
+                <p class="evt-help">
+                  How often the director adds a scene beat (an announcement, an arrival) to drive
+                  the story.
+                </p>
+              </div>
+            </div>
+
+            {/* THE CAST — selectable photo cards */}
+            <div class="evt-block">
+              <div class="evt-cast-head">
+                <h2 class="evt-section">The cast</h2>
+                <span class="evt-count">{ids().length} invited</span>
+              </div>
+              <Show
+                when={chars().length}
+                fallback={
+                  <div class="evt-empty">You have no characters yet. Create one first.</div>
+                }
+              >
+                <div class="evt-cast-scroll">
+                  <div class="evt-cast-grid">
+                    <For each={chars()}>
+                      {(c) => {
+                        const isSel = () => !!selected()[c._id]
+                        return (
+                          <button
+                            type="button"
+                            class="evt-cast-card"
+                            aria-pressed={isSel()}
+                            aria-label={c.name}
+                            onClick={() => toggle(c._id)}
+                          >
+                            <Show
+                              when={c.avatar}
+                              fallback={
+                                <div class="evt-ph">{c.name?.[0]?.toUpperCase() || '?'}</div>
+                              }
+                            >
+                              <img
+                                class="evt-cast-photo"
+                                src={getAssetUrl(c.avatar!)}
+                                alt={c.name}
+                                loading="lazy"
+                              />
+                            </Show>
+                            <div class="evt-scrim" />
+                            <Show when={isSel()}>
+                              <span class="evt-check" aria-hidden="true">
+                                ✓
+                              </span>
+                            </Show>
+                            <span class="evt-cast-name">{c.name}</span>
+                          </button>
+                        )
+                      }}
+                    </For>
+                  </div>
+                </div>
+              </Show>
+            </div>
+
+            {/* THE ASIDE — director's note */}
+            <div class="evt-block evt-aside">
+              <label class="evt-aside-label" for="evt-note">
+                Director's note — they never read this.
+              </label>
+              <textarea
+                id="evt-note"
+                class="evt-note-input"
+                placeholder="Keep it playful; have someone spill a drink early; nudge Mia and Jade together."
+                value={note()}
+                onInput={(e) => setNote(e.currentTarget.value)}
+              />
+            </div>
+
+            {/* THE FINE PRINT — memory */}
+            <div class="evt-block evt-fineprint">
+              <input
+                id="evt-memory"
+                class="evt-switch"
+                type="checkbox"
+                checked={memoryDisabled()}
+                onChange={(e) => setMemoryDisabled(e.currentTarget.checked)}
+              />
+              <div>
+                <label class="evt-fineprint-label" for="evt-memory">
+                  Keep this off the record
+                </label>
+                <p class="evt-help">
+                  Nothing said in this event is remembered or recalled later. On by default.
+                </p>
+              </div>
+            </div>
+
+            {/* STICKY FOOTER — living logline + CTA */}
+            <div class="evt-footer">
+              <p class="evt-logline">
+                {when()} at{' '}
+                <Show when={location().trim()} fallback={<span class="evt-blank">[a place]</span>}>
+                  {location().trim()}
+                </Show>{' '}
+                — {vibe().toLowerCase()}
+                <Show when={memoryDisabled()}>, off the record</Show>, with{' '}
+                <Show when={castNames().length} fallback={<span class="evt-blank">[someone]</span>}>
+                  {castNames().slice(0, 3).join(' & ')}
+                  <Show when={castNames().length > 3}> +{castNames().length - 3} more</Show>
+                </Show>
+                . Director {DIRECTOR_CLAUSE[directorEvents()]}.
+                <Show when={!description().trim()}>
+                  {' '}
+                  <span class="evt-blank">[a happening]</span>
+                </Show>
+              </p>
+
+              <div class="evt-actions">
+                <Show when={!canStart()}>
+                  <span class="evt-hint">Add a place, a happening, and at least one guest.</span>
+                </Show>
+                <button type="button" class="evt-cancel" onClick={props.close}>
+                  Cancel
+                </button>
+                <button type="button" class="evt-start" disabled={!canStart()} onClick={start}>
+                  Start the night
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-        <Toggle
-          fieldName="eventMemoryDisabled"
-          label="Disable long-term memory"
-          helperText="Nothing said in this event is remembered or recalled later. On by default."
-          value={memoryDisabled()}
-          onChange={setMemoryDisabled}
-        />
-      </div>
-    </Modal>
+      </Portal>
+    </Show>
   )
 }
 

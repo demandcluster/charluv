@@ -94,10 +94,6 @@ const BlogPage: Component = () => {
         <h2 class="blg-card-title">Getting Started</h2>
         <p>
           Looking for help getting started? Check out the{' '}
-          <a class="blg-link-inline" href="https://guide.charluv.com" target="_blank">
-            Official Guide
-          </a>{' '}
-          or head to the{' '}
           <a class="blg-link-inline" href="https://charluv.com/discord" target="_blank">
             Charluv Discord
           </a>
@@ -304,14 +300,14 @@ const Features: Component = () => (
     </p>
     <p>Chat with multiple characters at the same time.</p>
     <p>
-      Create <span class="hl">Memory Books</span> to give your characters information about their
-      world.
+      Automatic <span class="hl">Long Term Memory</span> to give your characters information about
+      their world.
     </p>
     <p>
       <span class="hl">Image generation</span> — generate images in your chats.
     </p>
     <p>
-      <span class="hl">Voice</span> — give your characters a voice and have them speak back to you.
+      <span class="hl">LoRA</span> — Train the model to know what your character looks like.
     </p>
   </section>
 )
