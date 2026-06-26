@@ -61,8 +61,9 @@ pnpm start           # concurrently: vite web + watched server + tsc
   `girlfriend`, `casual`, `submissive`, `dominant`) map XP level → stage token. `getArchetype`,
   `getProgressionSteps`, `resolveStage`. No archetype on a character = **fixed** (no fallback to
   romantic). Display the `.label`, not the raw id. XP lives on `char.xp`, granted per message.
-- **Credits**: message 10, image gen/regen 25, **create 100** (charged on entering the final
-  wizard step), **edit 30**, publish **+500** reward. Free tier refills +5/2min up to 500;
+- **Credits**: message 10, image gen/regen 25, **create 100** (charged when the AI is finalized
+  on the final wizard step — the hidden draft made on entering that step is free), **edit 30**,
+  LoRA train 300, publish **+500** reward. Free tier refills +5/2min up to 500;
   premium +20/2min up to 5,000.
 - **Publishing**: any user can make a character public (`published`/`moderation`/`reportCount`
   fields); auto-publish on the local vision-LLM moderation pass, also surfaced in admin for a

@@ -10,6 +10,7 @@ import {
 } from 'solid-js'
 import { MinusCircle, Plus, Save, X, Trash, WandSparkles, Dices, BookPlus } from '/web/icons'
 import Button from '../../shared/Button'
+import CreditCost from '../../shared/CreditCost'
 import PageHeader from '../../shared/PageHeader'
 import TextInput, { ButtonInput } from '../../shared/TextInput'
 import { FormLabel } from '../../shared/FormLabel'
@@ -202,6 +203,7 @@ export const CreateCharacterForm: Component<{
       <Button onClick={onSubmit} disabled={state.creating}>
         <Save />
         {props.editId && !forceNew() ? 'Update' : 'Create'}
+        <CreditCost amount={props.editId && !forceNew() ? 30 : 100} class="ml-1" />
       </Button>
       <Show when={user.user?.admin}>
         <Button onClick={onPublish}>
@@ -1044,7 +1046,7 @@ const CharacterGallery: Component<{
           onClick={buildLora}
           disabled={busy() || !selected().length || !props.charId}
         >
-          Build LoRA ({selected().length}/{LORA_MAX})
+          Build LoRA ({selected().length}/{LORA_MAX}) <CreditCost amount={300} class="ml-1" />
         </Button>
         <span class="text-600 text-sm">
           {gallery().length}/{GALLERY_MAX} images · {selected().length}/{LORA_MAX} picked

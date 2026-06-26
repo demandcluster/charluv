@@ -45,6 +45,7 @@ import {
 } from '../../../store'
 import { markdown } from '../../../shared/markdown'
 import Button, { ButtonSchema } from '/web/shared/Button'
+import CreditCost from '/web/shared/CreditCost'
 import { rootModalStore } from '/web/store/root-modal'
 import { ContextState, useAppContext } from '/web/store/context'
 import { hydrateTemplate, trimSentence } from '/common/util'
@@ -406,10 +407,12 @@ const Message: Component<MessageProps> = (props) => {
                       )}
                     </For>
                     <div
-                      class="icon-button mx-2 flex items-center"
+                      class="icon-button mx-2 flex items-center gap-1"
                       onClick={() => msgStore.createImage(props.msg._id, true)}
+                      title="Regenerate image"
                     >
                       <PlusCircle size={20} />
+                      <CreditCost amount={25} size={12} class="text-xs" />
                     </div>
                   </div>
                 </Match>

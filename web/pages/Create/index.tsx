@@ -25,6 +25,7 @@ import { imageApi } from '../../store/data/image'
 import { genApi } from '../../store/data/inference'
 import { defaultPresets } from '/common/presets'
 import FileInput, { FileInputResult } from '../../shared/FileInput'
+import CreditCost from '../../shared/CreditCost'
 import ImportCharacterModal from '../Character/ImportCharacter'
 import { getAssetUrl, random } from '../../shared/util'
 import { DEFAULT_ARCHETYPE_ID } from '/common/progression'
@@ -297,8 +298,9 @@ const Create: Component = () => {
 
   const [step, setStep] = createSignal(0)
   const [submitting, setSubmitting] = createSignal(false)
-  // The server-side hidden draft character. Created (and charged) on entering
-  // the final step; finalized for free on "Create my date"; deleted by Reset.
+  // The server-side hidden draft character. Created for free on entering the
+  // final step; the 100-credit fee is taken when finalized on "Create my date";
+  // deleted by Reset.
   const [draftId, setDraftId] = createSignal<string>()
 
   // Optional portrait chosen on the final step (generated or uploaded).
@@ -617,10 +619,10 @@ const Create: Component = () => {
       (chatId: string) => navigate(`/chat/${chatId}`)
     )
 
-  // Step 4 -> 5 ("Next" on the last details step). This is where the creation
-  // credit is charged: it creates a hidden draft character so the user has
-  // "paid to reach the final step". Resuming an existing draft never re-charges.
-  const payAndContinue = async () => {
+  // Step 4 -> 5 ("Next" on the last details step). Creates a hidden draft so the
+  // user's selections are saved server-side — this is FREE; the 100-credit
+  // creation fee is taken later, when they finalize on "Create my date".
+  const continueToFinal = async () => {
     // The final step is gated: guests must register before continuing (this is
     // where logged-in users are charged). Save their selections so they resume
     // exactly here after signing up, then send them to register.
@@ -657,8 +659,9 @@ const Create: Component = () => {
     }
   }
 
-  // Final step: finalize the draft (free — the credit was already taken) and
-  // open the chat. Falls back to a normal create if somehow there's no draft.
+  // Final step: finalize the draft — this is where the 100-credit creation fee is
+  // taken (server-side, on the edit/finalize route) — then open the chat. Falls
+  // back to a normal create (also 100) if somehow there's no draft.
   const create = async () => {
     if (submitting()) return
     setSubmitting(true)
@@ -684,7 +687,8 @@ const Create: Component = () => {
     setTimeout(() => setSubmitting(false), 4000)
   }
 
-  // Discard the draft and start fresh. Forfeits the paid credit (no refund).
+  // Discard the draft and start fresh. The draft was free, so nothing is
+  // forfeited — the creation fee is only charged on finalizing.
   const reset = async () => {
     const id = draftId()
     setSubmitting(false)
@@ -710,7 +714,7 @@ const Create: Component = () => {
     if (saved?.answers) setAnswers(saved.answers)
 
     if (draft) {
-      // Paid, finalize-pending draft: jump straight to the portrait step.
+      // Finalize-pending draft: jump straight to the portrait step.
       setDraftId(draft._id)
       setStep(TOTAL - 1)
     } else if (saved?.answers) {
@@ -1091,7 +1095,7 @@ const Create: Component = () => {
               <button
                 class="cr-btn cr-btn-primary"
                 type="button"
-                onClick={step() === TOTAL - 2 ? payAndContinue : next}
+                onClick={step() === TOTAL - 2 ? continueToFinal : next}
                 disabled={submitting()}
               >
                 <Show
@@ -1118,6 +1122,7 @@ const Create: Component = () => {
                 disabled={submitting()}
               >
                 <Heart size={16} /> {submitting() ? 'Creating…' : 'Create my date'}
+                <CreditCost amount={100} class="ml-1" />
               </button>
             </div>
           </Show>

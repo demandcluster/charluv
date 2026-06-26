@@ -28,6 +28,13 @@ import { EVENTS, events } from '/web/emitter'
 import { AutoComplete } from '/web/shared/AutoComplete'
 import FileInput, { FileInputResult, getFileAsDataURL } from '/web/shared/FileInput'
 import { ALLOWED_TYPES } from '/web/store/data/image'
+import CreditCost from '/web/shared/CreditCost'
+import { EVENT_TURN_COST } from '/common/event'
+
+/** Credit cost to send a message: a flat event turn, or a normal chat message. */
+const MESSAGE_COST = 10
+/** Credit cost to generate an image from chat. */
+const IMAGE_COST = 25
 
 const InputBar: Component<{
   chat: AppSchema.Chat
@@ -327,6 +334,7 @@ const InputBar: Component<{
           </Show>
           <Button schema="secondary" class="w-full" onClick={createImage} alignLeft>
             <ImagePlus size={18} /> Generate Image
+            <CreditCost amount={IMAGE_COST} class="ml-auto" />
           </Button>
           <Show when={!!state.lastMsg?.characterId && isOwner()}>
             <Button schema="secondary" class="w-full" onClick={respondAgain} alignLeft>
@@ -370,8 +378,15 @@ const InputBar: Component<{
         </Match>
 
         <Match when>
-          <Button schema="clear" onClick={send} class="mt-1">
+          <Button schema="clear" onClick={send} class="mt-1 flex items-center gap-1">
             <Send class="icon-button" size={18} />
+            <Show when={!props.ooc}>
+              <CreditCost
+                amount={props.chat.mode === 'event' ? EVENT_TURN_COST : MESSAGE_COST}
+                size={12}
+                class="text-xs"
+              />
+            </Show>
           </Button>
         </Match>
       </Switch>

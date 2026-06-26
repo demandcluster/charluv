@@ -152,8 +152,12 @@ const createCharacterFor = (charge: boolean) =>
       throw new StatusError('Character `extensions` field must be an object or undefined.', 400)
     }
     // Imports bring a ready-made character (nothing is generated for them) and are
-    // created via the separate, charge-free /import route. The create route bills.
-    if (charge) {
+    // created via the separate, charge-free /import route. The create route bills —
+    // but NOT for the hidden draft made on entering the final step: the 100-credit
+    // creation fee is taken when the user actually finalizes the AI (the draft is
+    // finalized via the edit route, which charges there instead).
+    const isDraft = body.draft?.toString() === 'true'
+    if (charge && !isDraft) {
       const user = await store.users.getUser(req.userId!)
       if (user?.credits && user?.credits < 100) {
         throw new StatusError('Not enough credits', 400)
@@ -806,16 +810,16 @@ const editFullCharacter = handle(async (req) => {
     }
   }
 
-  // Finalizing a draft is free: the 100-credit creation fee was already taken
-  // when the draft was created (on entering the final step). Only charge the
-  // 30-credit edit fee for edits to already-finished characters.
-  if (!existing?.draft) {
-    const user = await store.users.getUser(req.userId!)
-    if (user?.credits && user?.credits < 30) {
-      throw new StatusError('Not enough credits', 400)
-    }
-    await store.credits.updateCredits(req.userId!, -30)
+  // Billing: finalizing a draft into a live character IS the creation step, so it
+  // takes the 100-credit creation fee (the draft itself was made for free on
+  // entering the final step). Editing an already-finished character takes the
+  // smaller 30-credit edit fee.
+  const fee = existing?.draft ? 100 : 30
+  const billed = await store.users.getUser(req.userId!)
+  if (billed?.credits && billed.credits < fee) {
+    throw new StatusError('Not enough credits', 400)
   }
+  await store.credits.updateCredits(req.userId!, -fee)
 
   const char = await store.characters.updateCharacter(id, req.userId!, update)
 
@@ -930,11 +934,21 @@ const removeCharacterMemory = handle(async ({ userId, params }) => {
 /** Max reference images accepted by the Z-Image encode endpoint. */
 const MAX_LORA_REFS = 4
 
+/** Credit cost to train/encode a character LoRA. */
+const LORA_COST = 300
+
 const encodeLora = handle(async ({ userId, params, body }) => {
   assertValid({ images: ['string'] }, body)
 
   const char = await store.characters.getCharacter(userId!, params.id)
   if (!char) throw errors.NotFound
+
+  // Gate on credits up front so an under-funded request is rejected before the
+  // expensive encode; the actual deduction happens only after it succeeds.
+  const user = await store.users.getUser(userId!)
+  if ((user?.credits ?? 0) < LORA_COST) {
+    throw new StatusError(`Not enough credits — training a LoRA costs ${LORA_COST}`, 400)
+  }
 
   const refs = (body.images || []).filter((img: string) => !!img).slice(0, MAX_LORA_REFS)
   if (!refs.length) {
@@ -969,6 +983,7 @@ const encodeLora = handle(async ({ userId, params, body }) => {
   const loraName = await zimageEncode(images, saveAs)
 
   await store.characters.updateCharacter(params.id, userId!, { loraName })
+  await store.credits.updateCredits(userId!, -LORA_COST)
   return { loraName }
 })
 
