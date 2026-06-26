@@ -3,6 +3,7 @@ import { prepareTokenizers } from './tokenize'
 import * as os from 'os'
 import throng from 'throng'
 import { initMessageBus } from './api/ws'
+import { startQueue } from './queue'
 import { createApp } from './app'
 import { config } from './config'
 import { store } from './db'
@@ -32,6 +33,7 @@ export async function start() {
 
   prepareTokenizers()
   await Promise.allSettled([initDb(), initMessageBus()])
+  startQueue()
 
   server.on('error', (err) => {
     logger.error({ cause: err.message }, 'Failed to start API')

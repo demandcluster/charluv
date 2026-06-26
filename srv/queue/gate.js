@@ -4,6 +4,7 @@ exports.PriorityGate = void 0;
 exports.priorityForUser = priorityForUser;
 const uuid_1 = require("uuid");
 const util_1 = require("/common/util");
+const middleware_1 = require("../middleware");
 class PriorityGate {
     constructor(backend, sender, now = () => Date.now()) {
         this.backend = backend;
@@ -37,13 +38,22 @@ class PriorityGate {
         }
     }
     async enter(id, opts) {
-        await this.backend.acquire({
-            id,
-            kind: opts.kind,
-            priority: opts.priority,
-            enqueuedAt: this.now(),
-            onPosition: (position) => this.emit(opts, position),
-        });
+        try {
+            await this.backend.acquire({
+                id,
+                kind: opts.kind,
+                priority: opts.priority,
+                enqueuedAt: this.now(),
+                onPosition: (position) => this.emit(opts, position),
+            });
+        }
+        catch (err) {
+            // Backend (e.g. Redis) unavailable: degrade to ungated rather than failing
+            // the inference request. Fulfils the spec's "Redis unavailable -> proceed"
+            // fallback. (Abort/disconnect is not wired through the facade in v1.)
+            middleware_1.logger.warn({ err }, 'inference gate: acquire failed, proceeding ungated');
+            return;
+        }
         this.emit(opts, 0); // clear the badge on admission
     }
     emit(opts, position) {

@@ -3,6 +3,7 @@ import { GateBackend } from './local'
 import { Kind, Priority } from './types'
 import { getUserSubscriptionTier } from '/common/util'
 import { AppSchema } from '/common/types/schema'
+import { logger } from '../middleware'
 
 export type GateOpts = {
   kind: Kind
@@ -59,13 +60,21 @@ export class PriorityGate {
   }
 
   private async enter(id: string, opts: GateOpts) {
-    await this.backend.acquire({
-      id,
-      kind: opts.kind,
-      priority: opts.priority,
-      enqueuedAt: this.now(),
-      onPosition: (position) => this.emit(opts, position),
-    })
+    try {
+      await this.backend.acquire({
+        id,
+        kind: opts.kind,
+        priority: opts.priority,
+        enqueuedAt: this.now(),
+        onPosition: (position) => this.emit(opts, position),
+      })
+    } catch (err) {
+      // Backend (e.g. Redis) unavailable: degrade to ungated rather than failing
+      // the inference request. Fulfils the spec's "Redis unavailable -> proceed"
+      // fallback. (Abort/disconnect is not wired through the facade in v1.)
+      logger.warn({ err }, 'inference gate: acquire failed, proceeding ungated')
+      return
+    }
     this.emit(opts, 0) // clear the badge on admission
   }
 
