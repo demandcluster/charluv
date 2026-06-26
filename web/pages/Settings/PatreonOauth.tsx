@@ -117,17 +117,20 @@ export default PatreonOauth
 
 // `state` is echoed back to /oauth/patreon so the callback knows whether this
 // was a login (from the login page) or a link (from the signed-in profile).
+// Build the query with URLSearchParams so every value — especially redirect_uri
+// — is properly percent-encoded. (The old hand-rolled `encodeURI` left `:` and
+// `/` raw, so appending `&state=` after the unencoded redirect_uri broke
+// Patreon's redirect_uri match and the token exchange 400'd.)
 export function authorizePatreon(state?: 'login' | 'link') {
   const { config } = settingStore.getState()
   const scopes = ['identity', 'identity.memberships', 'identity[email]']
-  const redir = `${location.origin}/oauth/patreon`
-  const params = [
-    `response_type=code`,
-    `client_id=${config.patreonAuth?.clientId}`,
-    `scope=${scopes.join(' ')}`,
-    `redirect_uri=${redir}`,
-    `state=${state || 'link'}`,
-  ]
-  const url = `https://www.patreon.com/oauth2/authorize?${encodeURI(params.join('&'))}`
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: config.patreonAuth?.clientId || '',
+    scope: scopes.join(' '),
+    redirect_uri: `${location.origin}/oauth/patreon`,
+    state: state || 'link',
+  })
+  const url = `https://www.patreon.com/oauth2/authorize?${params.toString()}`
   window.open(url, '_self')
 }

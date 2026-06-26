@@ -6,6 +6,7 @@ import { getCachedTiers } from '../../db/subscriptions'
 import { store } from '../../db'
 import { command } from '../../domains'
 import { sendOne } from '../ws'
+import { logger } from '../../middleware'
 
 export const patreon = {
   authorize,
@@ -35,7 +36,14 @@ async function authorize(code: string, refresh?: boolean) {
   })
 
   if (result.statusCode && result.statusCode > 200) {
-    throw new StatusError(`Unable to verify Patreon account`, 400)
+    // Surface Patreon's actual error (e.g. invalid_grant, redirect_uri mismatch)
+    // instead of swallowing it — both in the logs and the message.
+    logger.error({ statusCode: result.statusCode, body: result.body }, 'Patreon token exchange failed')
+    const detail =
+      result.body && typeof result.body === 'object'
+        ? result.body.error_description || result.body.error
+        : undefined
+    throw new StatusError(`Unable to verify Patreon account${detail ? `: ${detail}` : ''}`, 400)
   }
 
   const user: Patreon.Authorize = result.body
