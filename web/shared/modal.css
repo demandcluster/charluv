@@ -30,6 +30,12 @@
   .modal-height-fixed {
     min-height: calc(75vh - 132px);
     min-height: calc(75dvh - 132px);
+    /* Pin max-height to the same value so the content area is truly fixed on
+       desktop. Without this, .modal-content's larger max-height let tall tabs
+       (Profile/Subscription) grow while a short tab (Your Character) sat at the
+       min — making the tabs different heights. */
+    max-height: calc(75vh - 132px);
+    max-height: calc(75dvh - 132px);
   }
 }
 
