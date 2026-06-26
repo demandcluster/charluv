@@ -183,6 +183,14 @@ export const config = {
      */
     imageNegative: env('INFERENCE_IMAGE_NEGATIVE', ''),
   },
+  queue: {
+    global: +env('INFERENCE_GLOBAL_CONCURRENCY', '10'),
+    image: +env('IMAGE_CONCURRENCY', '4'),
+    textHardCap: +env('TEXT_HARD_CAP', '16'),
+    metricsUrl: env('VLLM_METRICS_URL', ''),
+    waitingThreshold: +env('VLLM_WAITING_THRESHOLD', '1'),
+    pollMs: +env('VLLM_METRICS_POLL_MS', '1500'),
+  },
   keys: {
     REPLICATE: env('REPLICATE_KEY', ''),
   },
