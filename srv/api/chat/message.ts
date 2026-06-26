@@ -11,7 +11,7 @@ import { AppSchema } from '../../../common/types/schema'
 import { v4 } from 'uuid'
 import { Response } from 'express'
 import { getScenarioEventType } from '/common/scenario'
-import { HydratedJson, jsonHydrator, parsePartialJson } from '/common/util'
+import { HydratedJson, jsonHydrator, parsePartialJson, escapeRegex } from '/common/util'
 import {
   EVENT_TURN_COST,
   EVENT_MAX_REPLIES,
@@ -293,6 +293,10 @@ export const generateMessageV2 = handle(async (req, res) => {
       const senderProfile = await store.users.getProfile(userId!)
 
       const repliedThisTurn: string[] = []
+      // Set when the previous reply directly addressed a present character who
+      // hasn't spoken yet — a deterministic fallback for when the director model
+      // declines an obviously-warranted continuation (see detectAddressedSpeaker).
+      let addressed: string | undefined
 
       for (let i = 0; i < EVENT_MAX_REPLIES; i++) {
         const msgs = await store.msgs.getMessages(chatId)
@@ -328,9 +332,20 @@ export const generateMessageV2 = handle(async (req, res) => {
         // zero replies — otherwise the client hangs forever on `waiting`.
         // Subsequent declines (someone already spoke) are legitimate: stop there.
         if (speakerId === 'none') {
-          if (repliedThisTurn.length > 0) break
-          speakerId = replyAs._id
+          if (repliedThisTurn.length > 0) {
+            // Director declined a continuation. If the previous reply directly
+            // addressed a present character who hasn't spoken (named them + asked
+            // a question), let them answer anyway — the small director model
+            // reliably under-triggers this case even when prompted to.
+            if (addressed) speakerId = addressed
+            else break
+          } else {
+            speakerId = replyAs._id
+          }
         }
+        // Consumed (or irrelevant because the director picked someone): clear so a
+        // stale value can't leak into a later iteration.
+        addressed = undefined
 
         const picked = roster.find((r) => r.id === speakerId)
         if (!picked) break
@@ -388,6 +403,7 @@ export const generateMessageV2 = handle(async (req, res) => {
         })
         if (!result.ok) break
         repliedThisTurn.push(eventReplyAs._id)
+        addressed = detectAddressedSpeaker(result.text, roster, new Set(repliedThisTurn))
       }
 
       // Director events: after the characters have replied, the director may add an
@@ -465,6 +481,29 @@ export const generateMessageV2 = handle(async (req, res) => {
   await releaseLock(chatId)
   return
 })
+
+/**
+ * When a just-generated reply directly addresses another present character who
+ * hasn't spoken this turn — naming them AND asking a question — return that
+ * character's id so the loop can let them respond. Deterministic safety net for
+ * the director under-triggering continuations. Conservative on purpose: requires
+ * both a whole-word name match and a question mark, and picks the most recently
+ * named candidate (closest to the question).
+ */
+function detectAddressedSpeaker(
+  text: string,
+  roster: Array<{ id: string; name: string }>,
+  replied: Set<string>
+): string | undefined {
+  if (!text || !text.includes('?')) return undefined
+  let best: { id: string; idx: number } | undefined
+  for (const r of roster) {
+    if (replied.has(r.id) || !r.name) continue
+    const match = new RegExp(`\\b${escapeRegex(r.name)}\\b`, 'i').exec(text)
+    if (match && (!best || match.index > best.idx)) best = { id: r.id, idx: match.index }
+  }
+  return best?.id
+}
 
 // Present characters in the event, with a one-line persona hook for the director.
 async function getEventRoster(chat: AppSchema.Chat) {
