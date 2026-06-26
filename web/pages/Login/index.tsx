@@ -12,6 +12,7 @@ import { TitleCard } from '/web/shared/Card'
 import { Page } from '/web/Layout'
 import { useGoogleReady } from '/web/shared/hooks'
 import { getVisitorId } from '/web/shared/fingerprint'
+import { authorizePatreon } from '../Settings/PatreonOauth'
 
 // A `?return=` value is only honoured if it's a same-origin internal path, so
 // it can't be abused as an open-redirect to another site.
@@ -20,6 +21,16 @@ const internalReturn = (p?: string | string[]) => {
   if (!p.startsWith('/') || p.startsWith('//') || p.startsWith('/\\')) return ''
   return p
 }
+
+// Shown before each social sign-in option: signing in with Google/Patreon
+// creates a NEW account if none is linked, so existing users must link from
+// their profile instead of registering a duplicate (which the abuse check
+// blocks anyway).
+const LinkFirstWarning: Component = () => (
+  <p class="text-center text-xs text-[var(--orange-500)]">
+    Already have an account? Don't create a new one — sign in, then link it from your profile.
+  </p>
+)
 
 const LoginPage: Component = () => {
   setComponentPageTitle('Login')
@@ -314,17 +325,29 @@ const LoginForm: Component<FormProps> = (props) => {
         {props.isLoading ? 'Logging in...' : 'Login'}
       </Button>
 
-      <div
-        class="flex justify-center"
-        ref={(ref) => {
-          refGoogle = ref
-        }}
-        id="g_id_onload"
-        data-context="signin"
-        data-ux_mode="popup"
-        data-login_uri={`${location.origin}/oauth/google`}
-        data-itp_support="true"
-      ></div>
+      <div class="flex flex-col items-center gap-1">
+        <LinkFirstWarning />
+        <div
+          class="flex justify-center"
+          ref={(ref) => {
+            refGoogle = ref
+          }}
+          id="g_id_onload"
+          data-context="signin"
+          data-ux_mode="popup"
+          data-login_uri={`${location.origin}/oauth/google`}
+          data-itp_support="true"
+        ></div>
+      </div>
+
+      <Show when={state.config.patreonAuth}>
+        <div class="flex flex-col items-center gap-1">
+          <LinkFirstWarning />
+          <Button schema="secondary" onClick={() => authorizePatreon('login')}>
+            Sign in with Patreon
+          </Button>
+        </div>
+      </Show>
     </form>
   )
 }

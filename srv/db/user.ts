@@ -564,6 +564,10 @@ export function toSafeUser(user: AppSchema.User) {
     }
   }
 
+  // Password hash must never reach the client. Most paths project it out, but
+  // OAuth login (Google/Patreon) reads the raw doc, so strip it here centrally.
+  delete (user as any).hash
+
   // Abuse-detection internals: never expose to the client.
   delete (user as any).fingerprint
   delete (user as any).restrictedReason

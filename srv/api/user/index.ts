@@ -6,6 +6,7 @@ import {
   linkGoogleAccount,
   login,
   oathGoogleLogin,
+  oauthPatreonLogin,
   register,
   remoteLogin,
   resyncPatreon,
@@ -53,6 +54,7 @@ const router = Router()
 
 router.post('/login/callback', loggedIn, remoteLogin)
 router.post('/login/google', oathGoogleLogin)
+router.post('/login/patreon', oauthPatreonLogin)
 router.post('/link-google', loggedIn, linkGoogleAccount)
 router.post('/unlink-google', loggedIn, unlinkGoogleAccount)
 router.post('/login', login)

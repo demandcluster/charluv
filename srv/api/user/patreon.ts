@@ -12,6 +12,7 @@ export const patreon = {
   identity,
   revalidatePatron,
   initialVerifyPatron,
+  persistPatron,
   getCampaignTiers,
 }
 
@@ -207,6 +208,20 @@ async function initialVerifyPatron(userId: string, code: string) {
     throw new StatusError(`This Patreon account is already attributed to another user`, 400)
   }
 
+  return persistPatron(userId, token, patron)
+}
+
+/**
+ * Persist a verified Patreon authorization onto a user and grant premium for an
+ * active patron. Shared by the link flow (`initialVerifyPatron`) and the
+ * Patreon login-that-creates-an-account flow, which has already exchanged the
+ * single-use code for a token and can't authorize again.
+ */
+async function persistPatron(
+  userId: string,
+  token: Patreon.Authorize,
+  patron: Awaited<ReturnType<typeof identity>>
+) {
   const expires = new Date(Date.now() + token.expires_in * 1000).toISOString()
 
   /**

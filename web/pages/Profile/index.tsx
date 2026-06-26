@@ -24,6 +24,7 @@ import { SubscriptionPage } from './SubscriptionPage'
 import { useTabs } from '/web/shared/Tabs'
 import { Page } from '/web/Layout'
 import { useGoogleReady } from '/web/shared/hooks'
+import { PatreonControls } from '../Settings/PatreonOauth'
 
 export const ProfileModal: Component = () => {
   const state = userStore()
@@ -232,6 +233,29 @@ const ProfilePage: Component<{ footer?: (children: any) => void }> = (props) => 
                     </div>
                   </Show>
                 </Show>
+              </TitleCard>
+            </div>
+          </Show>
+
+          {/* Surface Patreon linking next to Google so users don't miss it (it
+              also lives on the Subscription tab). PatreonControls self-gates on
+              config.patreonAuth, so this renders nothing when Patreon is off. */}
+          <Show
+            when={
+              state.user?._id !== 'anon' && !admin.impersonating && settings.config.patreonAuth
+            }
+          >
+            <div class="flex justify-center">
+              <TitleCard class="flex w-fit flex-col items-center justify-center gap-1" type="hl">
+                {/* When linked, PatreonControls shows no status line — add one to
+                    mirror the Google card. When unlinked, its own Pill already
+                    prompts, so we don't duplicate the message here. */}
+                <Show when={state.user?.patreon}>
+                  <div class="flex justify-center text-sm font-bold">
+                    Your account is Linked to Patreon
+                  </div>
+                </Show>
+                <PatreonControls />
               </TitleCard>
             </div>
           </Show>

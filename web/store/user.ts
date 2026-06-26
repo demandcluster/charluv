@@ -3,6 +3,7 @@ import { AppSchema } from '../../common/types/schema'
 import { EVENTS, events } from '../emitter'
 import { FileInputResult } from '../shared/FileInput'
 import { createDebounce, storage } from '../shared/util'
+import { getVisitorId } from '../shared/fingerprint'
 import { api, clearAuth, getAuth, getUserId, isLoggedIn, setAuth } from './api'
 import { createStore, getStore } from './create'
 import { localApi } from './data/storage'
@@ -208,8 +209,13 @@ export const userStore = createStore<UserState>(
       }
       yield { loading: true }
 
+      // On login the server may create a new account, so send the device
+      // fingerprint for the multi-account abuse check (ignored when linking).
+      const fingerprint = action === 'login' ? await getVisitorId() : undefined
+
       const res = await api.post(action === 'link' ? '/user/link-google' : '/user/login/google', {
         token: data.credential,
+        fingerprint,
       })
 
       yield { loading: false }
@@ -486,6 +492,34 @@ export const userStore = createStore<UserState>(
         onDone(res.error)
         return
       }
+    },
+
+    // Sign in with a previously-linked Patreon account (mirrors the Google login
+    // branch of handleGoogleCallback). Only succeeds if the Patreon is linked.
+    async *loginPatreon(_, code: string, onDone?: (error?: string) => void) {
+      yield { loading: true }
+      // Login may create a new account, so include the device fingerprint for
+      // the multi-account abuse check.
+      const fingerprint = await getVisitorId()
+      const res = await api.post('/user/login/patreon', { code, fingerprint })
+      yield { loading: false }
+
+      if (res.result) {
+        yield {
+          loggedIn: true,
+          user: res.result.user,
+          profile: res.result.profile,
+          jwt: res.result.token,
+          userType: getUserType(res.result.user),
+        }
+        setAuth(res.result.token)
+        publish({ type: 'login', token: res.result.token })
+        events.emit(EVENTS.loggedIn)
+        onDone?.()
+        return
+      }
+
+      onDone?.(res.error || 'Could not sign in with Patreon')
     },
 
     async unverifyPatreon(_: UserState) {
