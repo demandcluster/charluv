@@ -176,14 +176,19 @@ export const remoteLogin = handle(async (req) => {
 export const resyncPatreon = handle(async (req) => {
   await patreon.revalidatePatron(req.userId)
   const next = await getSafeUserConfig(req.userId)
-  return next
+  // Re-issue the JWT so its embedded `premium` flag reflects the just-synced state.
+  const token = next ? await createAccessToken(next.username, next) : undefined
+  return { user: next, token }
 })
 
 export const verifyPatreonOauth = handle(async (req) => {
   const { body } = req
   assertValid({ code: 'string' }, body)
   await patreon.initialVerifyPatron(req.userId, body.code)
-  return { success: true }
+  const user = await getSafeUserConfig(req.userId)
+  // Re-issue the JWT so its embedded `premium` flag reflects the newly linked account.
+  const token = user ? await createAccessToken(user.username, user) : undefined
+  return { success: true, user, token }
 })
 
 export const unlinkPatreon = handle(async (req) => {

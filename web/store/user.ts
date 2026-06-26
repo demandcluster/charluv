@@ -475,6 +475,9 @@ export const userStore = createStore<UserState>(
     async verifyPatreon(_, body: any, onDone: (error?: any) => void) {
       const res = await api.post(`/user/verify/patreon`, body)
       if (res.result) {
+        // Refresh the JWT so premium-gated requests see the linked account immediately.
+        if (res.result.token) setAuth(res.result.token)
+        if (res.result.user) userStore.setState({ user: res.result.user })
         onDone()
         return
       }
@@ -502,16 +505,20 @@ export const userStore = createStore<UserState>(
     async *syncPatreonAccount({ sub: previous, tiers }, quiet?: boolean) {
       const res = await api.post('/user/resync/patreon')
 
-      if (res.result) {
-        yield { user: res.result }
+      // Refresh the JWT so premium-gated requests see the synced state immediately.
+      if (res.result?.token) setAuth(res.result.token)
+
+      const user = res.result?.user
+      if (user) {
+        yield { user }
       }
 
       if (quiet) return
 
-      if (res.result) {
+      if (user) {
         toastStore.success('Successfully updated Patreon information')
-        const sub = getUserSubscriptionTier(res.result, tiers, previous)
-        return { user: res.result, sub }
+        const sub = getUserSubscriptionTier(user, tiers, previous)
+        return { user, sub }
       }
 
       if (res.error) {
