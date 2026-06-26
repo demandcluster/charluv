@@ -182,9 +182,11 @@
     "values.js": "^2.1.1",
     "vite": "^5.4.20",
     "vite-plugin-node-polyfills": "0.22.0",
+    "vite-plugin-pwa": "^0.21.2",
     "vite-plugin-solid": "^2.11.6",
     "vite-tsconfig-paths": "^4.3.2",
     "vm-browserify": "^1.1.2",
+    "workbox-window": "^7.4.1",
     "zustand": "^4.5.2"
   },
   "@parcel/resolver-default": {

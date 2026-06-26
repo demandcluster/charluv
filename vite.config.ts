@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import solid from 'vite-plugin-solid'
 import tsconfigPaths from 'vite-tsconfig-paths'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
+import { VitePWA } from 'vite-plugin-pwa'
 import { resolve } from 'path'
 
 // Web bundler (replaces Parcel). The Node server still builds via tsc.
@@ -16,6 +17,47 @@ export default defineConfig(({ mode }) => ({
     nodePolyfills({
       include: ['buffer', 'process', 'events', 'stream', 'util', 'crypto', 'path'],
       globals: { Buffer: true, process: true, global: true },
+    }),
+    // PWA: generate a real same-origin service worker (the old `new URL('*.ts')`
+    // approach inlined a data: URL that browsers reject). Reuses the existing
+    // hand-written web/asset/site.webmanifest (manifest: false → don't generate
+    // or inject one). Registration is auto-injected into index.html.
+    VitePWA({
+      // 'prompt': the new SW waits instead of activating itself, so the in-app
+      // "update available" banner (web/pwa.ts + UpdatePrompt.tsx) can let the user
+      // reload on their terms. injectRegister: false — we register manually in
+      // web/pwa.ts to hook onNeedRefresh.
+      registerType: 'prompt',
+      injectRegister: false,
+      manifest: false,
+      // Don't run the SW in dev — avoids stale-cache confusion while developing.
+      devOptions: { enabled: false },
+      workbox: {
+        // Precache the app shell + small static assets. The heavy ML/PDF chunks
+        // (onnxruntime, transformers, pdfjs — many MB, minify is off) blow past
+        // the size cap and are runtime-cached on first use instead of bloating
+        // the install.
+        globPatterns: ['**/*.{css,html,ico,woff,woff2}'],
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+        cleanupOutdatedCaches: true,
+        // SPA: serve the cached app shell for client-side routes when offline,
+        // but never for the API, user-asset uploads, or well-known files.
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api/, /^\/assets\//, /^\/\.well-known\//],
+        runtimeCaching: [
+          {
+            // App JS/CSS chunks (incl. lazy ones too big to precache) — cache on
+            // first fetch so subsequent loads work offline; revalidate in bg.
+            urlPattern: ({ request, sameOrigin }) =>
+              sameOrigin && (request.destination === 'script' || request.destination === 'style'),
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'charluv-app-assets',
+              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+        ],
+      },
     }),
   ],
   resolve: {

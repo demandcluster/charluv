@@ -11,6 +11,7 @@ import GuestTopBar from './shared/GuestTopBar'
 import UserTopBar from './shared/UserTopBar'
 import { IconContext } from './icons'
 import Notifications from './Toasts'
+import UpdatePrompt from './shared/UpdatePrompt'
 import CharacterRoutes from './pages/Character'
 import { settingStore } from './store/settings'
 import { userStore } from './store/user'
@@ -264,6 +265,7 @@ const Layout: Component<{ children?: any }> = (props) => {
           </div>
         </div>
         <Notifications />
+        <UpdatePrompt />
         <PerformanceModal
           show={cfg.showPerformance}
           close={() => settingStore.togglePerformance(false)}

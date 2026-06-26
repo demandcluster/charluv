@@ -16,7 +16,13 @@
       rel="stylesheet"
     />
     <link rel="icon" href="./favicon.ico" />
-    <link rel="manifest" href="./site.webmanifest" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#5eead4" />
+    <link rel="apple-touch-icon" href="/icons/ios/180.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Charluv" />
     <title>Charluv</title>
   </head>
   <body>
@@ -24,17 +30,8 @@
     <script src="https://accounts.google.com/gsi/client"></script>
     <script type="module" src="./index.tsx"></script>
     <script type="module">
-      // The offline service worker was registered from a bundled `.ts` file via
-      // `new URL(..., import.meta.url)`, which Vite inlines as a `data:` URL —
-      // browsers reject SW registration from a data URL (it errored on every
-      // load and never actually worked). Unregister any stale SW from older
-      // deploys so it can't serve cached content, and don't register a new one.
-      if (typeof navigator.serviceWorker !== 'undefined') {
-        navigator.serviceWorker.getRegistrations?.().then(function (regs) {
-          regs.forEach(function (reg) { reg.unregister(); });
-        });
-      }
-
+      // PWA service worker is registered from the app (web/pwa.ts, called in
+      // index.tsx) so it can drive the in-app update prompt. Don't register here.
       console.clear();
       const charluv = `
 
