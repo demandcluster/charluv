@@ -9,6 +9,8 @@ import { handleSDImage } from './stable-diffusion'
 import { sendGuest, sendMany } from '../api/ws'
 import { handleHordeImage } from './horde'
 import { handleZImage, isZImageConfigured } from './zimage'
+import { inferenceGate, priorityForUser } from '../queue'
+import { getCachedTiers } from '../db/subscriptions'
 
 /**
  * Merge negative-prompt sources into a single comma-separated string, deduping
@@ -128,66 +130,52 @@ export async function generateImage(
   }
 
   try {
-    // image-endpoint-only: when the self-hosted Z-Image backend is configured,
-    // route all generation there regardless of the chat/user's stored `type`
-    // (production data is 'horde'). Generate from the character's stored LoRA
-    // (i2L Mode A) when present, with its locked seed for consistency. No data
-    // migration required.
-    if (isZImageConfigured()) {
-      // Character/avatar/gallery images (faster) vs in-chat images (keep quality).
-      const isCharImage = opts.source === 'avatar'
-      const size = isCharImage
-        ? config.inference.imageSize || 640
-        : config.inference.imageChatSize || 512
-      const steps = isCharImage
-        ? config.inference.imageSteps || 14
-        : config.inference.imageChatSteps || 20
-      image = await handleZImage(
-        {
-          user,
-          prompt,
-          negative,
-          settings: imageSettings,
-          loraName: character?.loraName,
-          // Seed is locked only when supplied by the caller (the character
-          // editor). Chat generation omits it so images vary (the LoRA gives
-          // identity). Persisted character.imageSeed is forwarded by the editor.
-          seed: opts.seed,
-          width: size,
-          height: size,
-          steps,
-        },
-        log,
-        guestId
-      )
-    } else
-      switch (imageSettings?.type || 'horde') {
-        case 'novel':
-          image = await handleNovelImage(
-            { user, prompt, negative, settings: imageSettings },
+    const priority = priorityForUser(user as any, !!guestId, getCachedTiers())
+    image = await inferenceGate.run(
+      {
+        kind: 'image',
+        priority,
+        userId: guestId ? undefined : user._id,
+        socketId: guestId,
+        requestId: opts.requestId,
+      },
+      async () => {
+        if (isZImageConfigured()) {
+          const isCharImage = opts.source === 'avatar'
+          const size = isCharImage
+            ? config.inference.imageSize || 640
+            : config.inference.imageChatSize || 512
+          const steps = isCharImage
+            ? config.inference.imageSteps || 14
+            : config.inference.imageChatSteps || 20
+          return handleZImage(
+            {
+              user,
+              prompt,
+              negative,
+              settings: imageSettings,
+              loraName: character?.loraName,
+              seed: opts.seed,
+              width: size,
+              height: size,
+              steps,
+            },
             log,
             guestId
           )
-          break
-
-        case 'sd':
-        case 'agnai':
-          image = await handleSDImage(
-            { user, prompt, negative, settings: imageSettings },
-            log,
-            guestId
-          )
-          break
-
-        case 'horde':
-        default:
-          image = await handleHordeImage(
-            { user, prompt, negative, settings: imageSettings },
-            log,
-            guestId
-          )
-          break
+        }
+        switch (imageSettings?.type || 'horde') {
+          case 'novel':
+            return handleNovelImage({ user, prompt, negative, settings: imageSettings }, log, guestId)
+          case 'sd':
+          case 'agnai':
+            return handleSDImage({ user, prompt, negative, settings: imageSettings }, log, guestId)
+          case 'horde':
+          default:
+            return handleHordeImage({ user, prompt, negative, settings: imageSettings }, log, guestId)
+        }
       }
+    )
   } catch (ex: any) {
     error = ex.message || ex
   }

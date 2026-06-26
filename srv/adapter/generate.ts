@@ -30,7 +30,8 @@ import {
   calculateGuidanceCounts,
   runGuidance,
 } from '/common/guidance/guidance-parser'
-import { getCachedSubscriptionModels } from '../db/subscriptions'
+import { getCachedSubscriptionModels, getCachedTiers } from '../db/subscriptions'
+import { inferenceGate, priorityForUser } from '../queue'
 import { sendOne } from '../api/ws'
 import { recallMemories } from '../memory/store'
 import { ResponseSchema } from '/common/types/library'
@@ -93,6 +94,8 @@ export type InferenceRequest = {
 
   jsonSchema?: any
   jsonValues?: Record<string, any>
+  /** Queue priority: 0 premium, 1 free, 2 guest, 3 background. Defaults to 3 (utility). */
+  queuePriority?: number
 }
 
 export async function inferenceAsync(opts: InferenceRequest) {
@@ -265,7 +268,18 @@ export async function createInferenceStream(opts: InferenceRequest) {
     jsonValues: opts.jsonValues,
   })
 
-  return { stream, service: settings.service || '' }
+  const gated = inferenceGate.gateStream(
+    {
+      kind: 'text',
+      priority: (opts.queuePriority ?? 3) as any,
+      userId: opts.guest ? undefined : opts.user?._id,
+      socketId: opts.guest,
+      requestId: opts.requestId,
+    },
+    () => stream
+  )
+
+  return { stream: gated, service: settings.service || '' }
 }
 
 async function getRequestPreset(opts: InferenceRequest) {
@@ -468,8 +482,20 @@ export async function createChatStream(
     jsonValues: opts.jsonValues,
   })
 
+  const priority = priorityForUser(opts.user as any, !!guestSocketId, getCachedTiers())
+  const gatedStream = inferenceGate.gateStream(
+    {
+      kind: 'text',
+      priority,
+      userId: guestSocketId ? undefined : opts.user._id,
+      socketId: guestSocketId,
+      requestId: opts.requestId,
+    },
+    () => stream
+  )
+
   return {
-    stream,
+    stream: gatedStream,
     adapter,
     settings: gen,
     user: opts.user,
