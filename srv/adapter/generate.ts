@@ -209,10 +209,24 @@ export async function guidanceAsync(opts: InferenceRequest) {
 }
 
 export async function createInferenceStream(opts: InferenceRequest) {
-  const settings = await getRequestPreset(opts)
+  // getRequestPreset can return a SHARED cached preset object, so clone before
+  // applying any per-request override — otherwise stop/temp/maxTokens leak into
+  // the cache and affect every other request. (This also makes opts.temp /
+  // opts.maxTokens actually take effect: they were declared but never applied, so
+  // callers like the event director ran at the default temp instead of the 0.2
+  // election / 0.7 world-beat temps they asked for.)
+  const settings = { ...(await getRequestPreset(opts)) }
 
   if (opts.stop) {
     settings.stopSequences = opts.stop
+  }
+
+  if (opts.temp !== undefined) {
+    settings.temp = opts.temp
+  }
+
+  if (opts.maxTokens !== undefined) {
+    settings.maxTokens = opts.maxTokens
   }
 
   const handler = getHandlers(settings)

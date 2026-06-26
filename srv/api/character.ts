@@ -421,6 +421,28 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
   }
   if (user.admin) sendOne(userId, { type: 'inference', requestId, response, output })
 
+  // Fail CLOSED: if we couldn't parse the verdict into any known moderation
+  // field, the model didn't actually clear the character — do NOT publish. (The
+  // verdict below defaults to acceptable=true and only flips on a parsed
+  // violation, so an empty output would otherwise auto-approve anything.)
+  fromJsonResponse(modSchema, response, output)
+  if (!Object.keys(output).length) {
+    const moderation: AppSchema.CharacterModeration = {
+      status: 'rejected',
+      flags: [],
+      reason: 'The content check could not be interpreted. Please try again.',
+      autoCheckedAt: Date.now(),
+    }
+    await store.characters.updateCharacter(character._id, userId!, { moderation })
+    sendOne(userId, {
+      type: 'publish-response',
+      acceptable: false,
+      requestId,
+      reason: moderation.reason,
+    })
+    return
+  }
+
   // A field is a violation when its moderation-schema rule isn't satisfied; the
   // field name doubles as the moderation flag (e.g. 'underage', 'violence').
   let acceptable = true

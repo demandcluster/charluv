@@ -1131,7 +1131,12 @@ export function fromJsonResponse(schema: JsonField[], response: any, output: any
 
     output[key] = value
     if (def.type.type === 'bool') {
-      output[key] = value.trim() === 'true' || value.trim() === 'yes'
+      // Tolerate both real JSON booleans and string forms ("True", "YES", "1").
+      // Calling .trim() on a boolean throws, so type-check first.
+      output[key] =
+        value === true ||
+        (typeof value === 'string' &&
+          ['true', 'yes', '1'].includes(value.trim().toLowerCase()))
     }
   }
 
@@ -1156,6 +1161,17 @@ export function tryJsonParseResponse(res: string) {
       return json
     }
   } catch (ex) {}
+
+  // Models often wrap JSON in ```json fences or surrounding prose. Extract the
+  // first balanced {...} object and parse that. Without this, any non-bare-JSON
+  // verdict parses to {} — which fail-open moderation would treat as "clean".
+  const start = res.indexOf('{')
+  const end = res.lastIndexOf('}')
+  if (start !== -1 && end > start) {
+    try {
+      return JSON.parse(res.slice(start, end + 1))
+    } catch (ex) {}
+  }
 
   return {}
 }

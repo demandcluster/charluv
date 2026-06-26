@@ -24,8 +24,15 @@
     <script src="https://accounts.google.com/gsi/client"></script>
     <script type="module" src="./index.tsx"></script>
     <script type="module">
+      // The offline service worker was registered from a bundled `.ts` file via
+      // `new URL(..., import.meta.url)`, which Vite inlines as a `data:` URL —
+      // browsers reject SW registration from a data URL (it errored on every
+      // load and never actually worked). Unregister any stale SW from older
+      // deploys so it can't serve cached content, and don't register a new one.
       if (typeof navigator.serviceWorker !== 'undefined') {
-        navigator.serviceWorker.register(new URL('serviceWorker.ts', import.meta.url));
+        navigator.serviceWorker.getRegistrations?.().then(function (regs) {
+          regs.forEach(function (reg) { reg.unregister(); });
+        });
       }
 
       console.clear();

@@ -106,9 +106,6 @@ const BlogPage: Component = () => {
       </section>
 
       <nav class="blg-links" aria-label="Links">
-        <A class="blg-pill" href="/guides/memory">
-          Memory Book
-        </A>
         <a class="blg-pill" href="/discord" target="_blank">
           Discord
         </a>

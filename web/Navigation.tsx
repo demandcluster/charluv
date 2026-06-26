@@ -233,6 +233,9 @@ const Navigation: Component = () => {
           <Show when={state.config.policies || true}>
             <div class="text-500 flex w-full justify-center gap-4 text-xs">
               <div>
+                <A href="/blog">News</A>
+              </div>
+              <div>
                 <A href="/terms">Term of Service</A>
               </div>
               <div>
