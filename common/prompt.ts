@@ -563,12 +563,18 @@ export async function buildPromptParts(
       : supplementary.system
 
   // Event chats: keep each elected speaker in their own voice instead of narrating
-  // the whole scene (the scene context otherwise frames every reply as prose).
+  // the whole scene (the scene context otherwise frames every reply as prose). The
+  // directive goes in BOTH the system prompt (framing) and the UJB/post-history
+  // slot — the latter sits right before the "<Name>:" reply cue, the most-obeyed
+  // position, so the model can't drift into a "Narrator:" passage.
   if (!systemKind && opts.chat.mode === 'event') {
     const directive = buildEventCharacterPrompt(replyAs.name)
     parts.systemPrompt = parts.systemPrompt
       ? `${parts.systemPrompt}\n\n${directive}`
       : directive
+
+    const ujbDirective = `(OOC: Reply ONLY as ${replyAs.name} — only ${replyAs.name}'s own dialogue and actions. Do NOT begin with "Narrator:" or narrate the room, the host, or any other person; another narrator handles all scene description.)`
+    parts.ujb = parts.ujb ? `${parts.ujb}\n\n${ujbDirective}` : ujbDirective
   }
 
   parts.post = post.map(replace)

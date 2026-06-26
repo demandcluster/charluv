@@ -81,9 +81,9 @@ export function buildDirectorPrompt(opts: {
   // reply cap is a ceiling, never a goal.
   const instructions = hasReplied
     ? [
-        `Someone has already replied this turn. Usually that is enough — most turns have just one speaker.`,
-        `Answer "none" UNLESS another present character has a strong, specific, immediate reason to interject right now.`,
-        `Do not add a speaker merely to keep the scene busy. When in doubt, answer "none".`,
+        `Someone has already replied this turn.`,
+        `If the MOST RECENT message directly addresses another present character by name, asks them a question, or clearly hands the conversation to them, elect THAT character so they can respond.`,
+        `Otherwise usually answer "none" — most turns have just one speaker. Only elect another character if they have a strong, specific, immediate reason to interject; do not add a speaker merely to keep the scene busy.`,
       ]
     : [
         `Decide who speaks NEXT. Prefer the character the user is directly addressing.`,
