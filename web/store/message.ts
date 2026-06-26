@@ -34,12 +34,7 @@ type ChatId = string
 
 export type VoiceState = 'generating' | 'playing'
 
-type SendModes =
-  | 'send'
-  | 'ooc'
-  | 'retry'
-  | 'self'
-  | 'send-noreply'
+type SendModes = 'send' | 'ooc' | 'retry' | 'self' | 'send-noreply'
 
 export type ChatMessageExt = AppSchema.ChatMessage & { voiceUrl?: string }
 
@@ -726,7 +721,6 @@ setInterval(() => {
   publish({ type: 'message-ready', messageId: id, updatedAt: retrying?.updatedAt })
 }, 4000)
 
-
 function processQueue() {
   const state = msgStore.getState()
   const queue = state.queue
@@ -750,9 +744,7 @@ function stopImageSpinner(messageId?: string) {
   if (!imagesGenerating.length) return
   if (messageId && !imagesGenerating.includes(messageId)) return
   msgStore.setState({
-    imagesGenerating: messageId
-      ? imagesGenerating.filter((id) => id !== messageId)
-      : [],
+    imagesGenerating: messageId ? imagesGenerating.filter((id) => id !== messageId) : [],
   })
 }
 

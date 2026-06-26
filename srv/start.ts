@@ -91,4 +91,3 @@ if (config.clustering) {
 } else {
   startWorker()
 }
-

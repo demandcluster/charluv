@@ -166,13 +166,21 @@ export async function generateImage(
         }
         switch (imageSettings?.type || 'horde') {
           case 'novel':
-            return handleNovelImage({ user, prompt, negative, settings: imageSettings }, log, guestId)
+            return handleNovelImage(
+              { user, prompt, negative, settings: imageSettings },
+              log,
+              guestId
+            )
           case 'sd':
           case 'agnai':
             return handleSDImage({ user, prompt, negative, settings: imageSettings }, log, guestId)
           case 'horde':
           default:
-            return handleHordeImage({ user, prompt, negative, settings: imageSettings }, log, guestId)
+            return handleHordeImage(
+              { user, prompt, negative, settings: imageSettings },
+              log,
+              guestId
+            )
         }
       }
     )

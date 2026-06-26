@@ -71,7 +71,8 @@ export class LocalBackend implements GateBackend {
     const idx = this.waiting.findIndex((p) => p.waiter.id === id)
     if (idx === -1) return
     const [pending] = this.waiting.splice(idx, 1)
-    if (pending.onAbort && pending.signal) pending.signal.removeEventListener('abort', pending.onAbort)
+    if (pending.onAbort && pending.signal)
+      pending.signal.removeEventListener('abort', pending.onAbort)
     pending.reject(new Error('aborted'))
     this.schedule()
   }

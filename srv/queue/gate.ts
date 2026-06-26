@@ -103,7 +103,10 @@ export class PriorityGate {
 }
 
 export function priorityForUser(
-  user: Pick<AppSchema.User, '_id' | 'patreon' | 'billing' | 'sub' | 'manualSub' | 'premium' | 'premiumUntil' | 'username'>,
+  user: Pick<
+    AppSchema.User,
+    '_id' | 'patreon' | 'billing' | 'sub' | 'manualSub' | 'premium' | 'premiumUntil' | 'username'
+  >,
   isGuest: boolean,
   tiers: AppSchema.SubscriptionTier[]
 ): Priority {
