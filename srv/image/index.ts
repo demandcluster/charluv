@@ -140,7 +140,13 @@ export async function generateImage(
         requestId: opts.requestId,
       },
       async () => {
+        // image-endpoint-only: when the self-hosted Z-Image backend is configured,
+        // route all generation there regardless of the chat/user's stored `type`
+        // (production data is 'horde'). Generate from the character's stored LoRA
+        // (i2L Mode A) when present, with its locked seed for consistency. No data
+        // migration required.
         if (isZImageConfigured()) {
+          // Character/avatar/gallery images (faster) vs in-chat images (keep quality).
           const isCharImage = opts.source === 'avatar'
           const size = isCharImage
             ? config.inference.imageSize || 640
@@ -155,6 +161,9 @@ export async function generateImage(
               negative,
               settings: imageSettings,
               loraName: character?.loraName,
+              // Seed is locked only when supplied by the caller (the character
+              // editor). Chat generation omits it so images vary (the LoRA gives
+              // identity). Persisted character.imageSeed is forwarded by the editor.
               seed: opts.seed,
               width: size,
               height: size,

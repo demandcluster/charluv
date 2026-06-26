@@ -151,21 +151,29 @@ export class RedisBackend implements GateBackend {
       return { ok: ok === 1, position: Number(position) }
     }
 
-    while (true) {
-      if (req.signal?.aborted) {
-        await this.removeWaiter(req.id)
-        throw new Error('aborted')
+    try {
+      while (true) {
+        if (req.signal?.aborted) {
+          await this.removeWaiter(req.id)
+          throw new Error('aborted')
+        }
+        const { ok, position } = await tryAcquire()
+        if (ok) {
+          this.startHeartbeat(req.id, req.kind)
+          return
+        }
+        if (req.onPosition && position !== lastPosition) {
+          lastPosition = position
+          req.onPosition(position)
+        }
+        await this.waitForWake(req.signal)
       }
-      const { ok, position } = await tryAcquire()
-      if (ok) {
-        this.startHeartbeat(req.id, req.kind)
-        return
-      }
-      if (req.onPosition && position !== lastPosition) {
-        lastPosition = position
-        req.onPosition(position)
-      }
-      await this.waitForWake(req.signal)
+    } catch (err) {
+      // Any failure (Redis eval error, abort) must not orphan our waiter in the
+      // gate:wait ZSET — it has no TTL/reaper, and a stale head would block other
+      // waiters. ZREM self (best-effort) before propagating.
+      await this.removeWaiter(req.id).catch(() => {})
+      throw err
     }
   }
 
