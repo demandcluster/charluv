@@ -5,6 +5,7 @@ import { LocalBackend } from './local'
 import { RedisBackend } from './redis'
 import { PriorityGate, Sender } from './gate'
 import { Breaker, startMetricsPoller } from './metrics'
+import { isPresent, startPresenceRefresh } from './presence'
 
 const caps = { global: config.queue.global, image: config.queue.image }
 
@@ -20,7 +21,7 @@ const sender: Sender = {
 // constructed during createApp(), before the bus connects. Selecting by
 // config.redis.host alone is also wrong: its default ('127.0.0.1') is always
 // truthy, so dev/Redis-down would needlessly use the Redis backend.
-export const inferenceGate = new PriorityGate(new LocalBackend(caps), sender)
+export const inferenceGate = new PriorityGate(new LocalBackend(caps), sender, isPresent)
 
 const breaker = new Breaker(config.queue.waitingThreshold, config.queue.pollMs * 4)
 
@@ -30,13 +31,18 @@ export function startQueue(): () => void {
       new RedisBackend({ caps, cmd: clients.pub as any, sub: clients.sub as any })
     )
   }
-  if (!config.queue.metricsUrl) return () => {}
-  return startMetricsPoller({
+  const stopPresence = startPresenceRefresh()
+  if (!config.queue.metricsUrl) return stopPresence
+  const stopPoller = startMetricsPoller({
     url: config.queue.metricsUrl,
     pollMs: config.queue.pollMs,
     breaker,
     onUpdate: (pause) => inferenceGate.setPauseText(pause),
   })
+  return () => {
+    stopPoller()
+    stopPresence()
+  }
 }
 
 export { PriorityGate, priorityForUser } from './gate'

@@ -1,6 +1,7 @@
 import { AppSocket } from './types'
 import { handlers, WebMessage } from './handlers'
 import { allSockets } from './bus'
+import { markPresent, clearPresent } from '../../queue/presence'
 
 export function handleMessage(client: AppSocket) {
   client.on('message', (data) => {
@@ -20,10 +21,12 @@ export function handleMessage(client: AppSocket) {
   }
 
   client.on('close', () => {
+    clearPresent({ socketId: client.uid }, client.uid)
     handlers.logout(client, { type: 'logout' })
   })
 
   client.on('error', () => {
+    clearPresent({ socketId: client.uid }, client.uid)
     handlers.logout(client, { type: 'logout' })
   })
 
@@ -32,6 +35,7 @@ export function handleMessage(client: AppSocket) {
   })
 
   allSockets.set(client.uid, client)
+  markPresent({ socketId: client.uid }, client.uid)
 }
 
 function parse(data: any) {

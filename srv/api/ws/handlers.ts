@@ -3,6 +3,7 @@ import { AppSocket } from './types'
 import { assertValid } from '../../../common/valid'
 import { store } from '../../db'
 import { verifyJwt } from '../../db/user'
+import { markPresent, clearPresent } from '../../queue/presence'
 
 export type WebMessage =
   | { type: 'login'; token: string }
@@ -35,6 +36,7 @@ export const handlers: Handlers = {
       const sockets = userSockets.get(client.userId) || []
       sockets.push(client)
       userSockets.set(client.userId, sockets)
+      markPresent({ userId: client.userId }, client.uid)
       client.dispatch({ type: 'login', success: true })
 
       // Replay any per-user notifications raised while the user was offline, then
@@ -42,7 +44,12 @@ export const handlers: Handlers = {
       const pending = await store.notifications.getUndelivered(client.userId)
       if (pending.length) {
         for (const n of pending) {
-          client.dispatch({ type: 'admin-notification', id: n._id, message: n.message, level: n.level })
+          client.dispatch({
+            type: 'admin-notification',
+            id: n._id,
+            message: n.message,
+            level: n.level,
+          })
         }
         await store.notifications.markDelivered(
           client.userId,
@@ -57,6 +64,7 @@ export const handlers: Handlers = {
     allSockets.delete(client.uid)
     if (!client.userId) return
     const userId = client.userId
+    clearPresent({ userId }, client.uid)
     const sockets = userSockets.get(userId) || []
 
     client.userId = ''
