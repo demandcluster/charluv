@@ -78,6 +78,7 @@ const App: Component = () => {
       <Route path="/create" component={lazy(() => import('./pages/Create'))} />
       <Route path="/mine" component={lazy(() => import('./pages/MyAI'))} />
       <Route path="/mine/:id" component={lazy(() => import('./pages/MyAI/Profile'))} />
+      <Route path="/event" component={lazy(() => import('./pages/Chat/EventPage'))} />
       <Route path="/" component={DiscoverPage} />
       <Route path="/blog" component={HomePage} />
       <Route path="/info" component={HomePage} />
@@ -189,7 +190,8 @@ const Layout: Component<{ children?: any }> = (props) => {
       location.pathname === '/info' ||
       location.pathname.startsWith('/discover') ||
       location.pathname === '/mine' ||
-      location.pathname.startsWith('/mine/')
+      location.pathname.startsWith('/mine/') ||
+      location.pathname === '/event'
   )
 
   const bgStyles = useCharacterBg('layout')

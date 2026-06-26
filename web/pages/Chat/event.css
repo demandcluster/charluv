@@ -5,10 +5,10 @@
    untouched. */
 @import '../warm-dusk.css';
 
-/* ---- overlay shell ---- */
+/* ---- page shell ---- */
 .evt-root {
-  /* palette is inherited from the .dsc-root/.blg-root vars in warm-dusk.css,
-     but this overlay is portalled to <body> and must redeclare them. */
+  /* Redeclare the palette: this page lives inside the app shell (not under
+     .dsc-root), so it can't rely on inheriting those vars. */
   --dsc-bg: oklch(0.18 0.03 350);
   --dsc-bg-2: oklch(0.23 0.04 348);
   --dsc-surface: oklch(0.27 0.045 345);
@@ -19,20 +19,14 @@
   --dsc-green-deep: oklch(0.64 0.12 165);
   --dsc-wine: oklch(0.55 0.16 5);
 
+  /* Fill the main content area and paint the warm-dusk background edge-to-edge,
+     keeping the app's nav drawer + top bar visible around it. */
+  min-height: 100%;
   color: var(--dsc-cream);
   font-family: 'Lato', system-ui, sans-serif;
-}
-.evt-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 120;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  height: 100dvh;
   background: radial-gradient(120% 80% at 85% -10%, oklch(0.3 0.08 350 / 0.6), transparent 60%),
     radial-gradient(90% 60% at -10% 110%, oklch(0.28 0.06 165 / 0.35), transparent 55%),
-    oklch(0.18 0.03 350 / 0.96);
-  backdrop-filter: blur(2px);
+    var(--dsc-bg);
   animation: evt-fade 200ms ease;
 }
 @keyframes evt-fade {

@@ -1,5 +1,4 @@
-import { Component, createEffect, createMemo, createSignal, For, onCleanup, Show } from 'solid-js'
-import { Portal } from 'solid-js/web'
+import { Component, createMemo, createSignal, For, onMount, Show } from 'solid-js'
 import { useNavigate } from '@solidjs/router'
 import { getAssetUrl } from '../../shared/util'
 import { characterStore, chatStore } from '../../store'
@@ -22,9 +21,10 @@ const DIRECTOR_CLAUSE: Record<string, string> = {
   regular: 'steps in often',
 }
 
-const CreateEventModal: Component<{ show: boolean; close: () => void }> = (props) => {
+const EventPage: Component = () => {
   const navigate = useNavigate()
   const state = characterStore()
+  const close = () => navigate(-1)
   const [location, setLocation] = createSignal('')
   const [description, setDescription] = createSignal('')
   const [when, setWhen] = createSignal(WHENS[1])
@@ -55,6 +55,20 @@ const CreateEventModal: Component<{ show: boolean; close: () => void }> = (props
       .map((c) => c.name)
   })
 
+  // The CTA mirrors the picked time of day rather than always saying "night".
+  const startLabel = createMemo(() => {
+    switch (when()) {
+      case 'Morning':
+        return 'Start the morning'
+      case 'Afternoon':
+        return 'Start the afternoon'
+      case 'Evening':
+        return 'Start the evening'
+      default:
+        return 'Start the night'
+    }
+  })
+
   const start = () => {
     if (!canStart()) return
     chatStore.createEvent(
@@ -69,38 +83,13 @@ const CreateEventModal: Component<{ show: boolean; close: () => void }> = (props
         note: note().trim() || undefined,
       },
       (id: string) => {
-        props.close()
         navigate(`/chat/${id}`)
       }
     )
   }
 
-  // Body scroll lock + Escape-to-close + autofocus, only while shown.
-  createEffect(() => {
-    if (!props.show) return
-
-    const prevOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') props.close()
-    }
-    window.addEventListener('keydown', onKey)
-
-    // Focus the first field once it has mounted.
-    const focusTimer = window.setTimeout(() => whereRef?.focus(), 0)
-
-    onCleanup(() => {
-      document.body.style.overflow = prevOverflow
-      window.removeEventListener('keydown', onKey)
-      window.clearTimeout(focusTimer)
-    })
-  })
-
-  const onBackdrop = (e: MouseEvent) => {
-    // Only a true gutter click (the scroll container itself) dismisses.
-    if (e.target === e.currentTarget) props.close()
-  }
+  // Focus the first field on load.
+  onMount(() => whereRef?.focus())
 
   const autoGrow = (el: HTMLTextAreaElement) => {
     el.style.height = 'auto'
@@ -108,19 +97,11 @@ const CreateEventModal: Component<{ show: boolean; close: () => void }> = (props
   }
 
   return (
-    <Show when={props.show}>
-      <Portal>
-        <div
-          class="evt-root evt-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Start an event"
-          onClick={onBackdrop}
-        >
-          <div class="evt-page">
-            <button class="evt-close" aria-label="Close" onClick={props.close}>
-              ✕
-            </button>
+    <div class="evt-root" role="region" aria-label="Start an event">
+      <div class="evt-page">
+        <button class="evt-close" aria-label="Close" onClick={close}>
+          ✕
+        </button>
 
             {/* MASTHEAD */}
             <div class="evt-head">
@@ -336,19 +317,17 @@ const CreateEventModal: Component<{ show: boolean; close: () => void }> = (props
                 <Show when={!canStart()}>
                   <span class="evt-hint">Add a place, a happening, and at least one guest.</span>
                 </Show>
-                <button type="button" class="evt-cancel" onClick={props.close}>
+                <button type="button" class="evt-cancel" onClick={close}>
                   Cancel
                 </button>
                 <button type="button" class="evt-start" disabled={!canStart()} onClick={start}>
-                  Start the night
+                  {startLabel()}
                 </button>
               </div>
             </div>
           </div>
         </div>
-      </Portal>
-    </Show>
   )
 }
 
-export default CreateEventModal
+export default EventPage

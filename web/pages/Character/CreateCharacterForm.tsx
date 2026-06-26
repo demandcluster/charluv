@@ -8,7 +8,7 @@ import {
   Show,
   Switch,
 } from 'solid-js'
-import { MinusCircle, Plus, Save, X, Trash, WandSparkles, Dices, BookPlus } from '/web/icons'
+import { MinusCircle, Plus, Save, X, Trash, WandSparkles, Dices } from '/web/icons'
 import Button from '../../shared/Button'
 import CreditCost from '../../shared/CreditCost'
 import PageHeader from '../../shared/PageHeader'
@@ -20,7 +20,6 @@ import {
   tagStore,
   toastStore,
   chatStore,
-  userStore,
   settingStore,
 } from '../../store'
 import { useNavigate } from '@solidjs/router'
@@ -56,7 +55,6 @@ export const CreateCharacterForm: Component<{
 }> = (props) => {
   let personaRef: any
   const nav = useNavigate()
-  const user = userStore()
 
   const isPage = props.close === undefined
 
@@ -184,16 +182,6 @@ export const CreateCharacterForm: Component<{
     }
   }
 
-  const onPublish = async () => {
-    const id = (editor.payload(false) as any)._id
-    if (!id) {
-      toastStore.error('Save the character before publishing it')
-      return
-    }
-    const image = editor.state.avatar ? await imageApi.getImageData(editor.state.avatar) : undefined
-    charsApi.publishCharacter(id, image)
-  }
-
   const footer = (
     <>
       <Button onClick={cancel} schema="secondary">
@@ -205,11 +193,6 @@ export const CreateCharacterForm: Component<{
         {props.editId && !forceNew() ? 'Update' : 'Create'}
         <CreditCost amount={props.editId && !forceNew() ? 30 : 100} class="ml-1" />
       </Button>
-      <Show when={user.user?.admin}>
-        <Button onClick={onPublish}>
-          <BookPlus /> Publish
-        </Button>
-      </Show>
     </>
   )
 
@@ -481,14 +464,6 @@ export const CreateCharacterForm: Component<{
                   ]}
                   onChange={(opt) => editor.update('nsfw', opt.value === 'true')}
                   selected={String(editor.state.nsfw ?? false)}
-                />
-                <TextInput
-                  fieldName="loraName"
-                  label="Image LoRA name"
-                  helperText="Z-Image stored LoRA for character-consistent image generation. Temporary/manual for testing."
-                  placeholder="e.g. ashelle-1a2b3c4d"
-                  value={editor.state.loraName ?? ''}
-                  onChange={(ev) => editor.update('loraName', ev.currentTarget.value)}
                 />
               </Card>
 

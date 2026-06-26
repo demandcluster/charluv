@@ -229,6 +229,13 @@
   color: var(--dsc-cream);
   backdrop-filter: blur(2px);
 }
+/* Marks a character that has a trained image LoRA (consistent appearance). */
+.dsc-pill-lora {
+  background: var(--dsc-green);
+  color: oklch(0.2 0.03 350);
+  font-weight: 700;
+  backdrop-filter: none;
+}
 .dsc-engage {
   display: flex;
   gap: 0.9rem;

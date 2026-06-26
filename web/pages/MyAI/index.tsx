@@ -190,12 +190,17 @@ const Companion: Component<{ char: AppSchema.Character; onOpen: (c: AppSchema.Ch
 
       <div class="dsc-meta">
         <div class="dsc-name">{props.char.name}</div>
-        <Show when={props.char.progression?.archetype}>
+        <Show when={props.char.progression?.archetype || props.char.loraName}>
           <div class="dsc-tags">
-            <span class="dsc-pill">
-              {getArchetype(props.char.progression!.archetype)?.label ||
-                props.char.progression!.archetype}
-            </span>
+            <Show when={props.char.progression?.archetype}>
+              <span class="dsc-pill">
+                {getArchetype(props.char.progression!.archetype)?.label ||
+                  props.char.progression!.archetype}
+              </span>
+            </Show>
+            <Show when={props.char.loraName}>
+              <span class="dsc-pill dsc-pill-lora">LoRA</span>
+            </Show>
           </div>
         </Show>
       </div>

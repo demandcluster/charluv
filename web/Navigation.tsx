@@ -59,7 +59,6 @@ import { Badge } from './shared/Card'
 import { navStore } from './subnav'
 import { getRgbaFromVar } from './shared/colors'
 import { CallToAction } from './shared/CallToAction'
-import CreateEventModal from './pages/Chat/CreateEventModal'
 
 const Navigation: Component = () => {
   let parent: any
@@ -253,7 +252,6 @@ const Navigation: Component = () => {
 const UserNavigation: Component = () => {
   const user = userStore()
   const menu = settingStore()
-  const [showEvent, setShowEvent] = createSignal(false)
 
   return (
     <>
@@ -275,11 +273,10 @@ const UserNavigation: Component = () => {
       </Show>
       <ChatLink />
       <Show when={user.loggedIn}>
-        <Item onClick={() => setShowEvent(true)} ariaLabel="Start an event">
+        <Item href="/event" ariaLabel="Start an event">
           <Sparkles aria-hidden="true" /> Event
         </Item>
       </Show>
-      <CreateEventModal show={showEvent()} close={() => setShowEvent(false)} />
 
       <Item href="/blog" ariaLabel="News and updates">
         <Megaphone aria-hidden="true" /> News

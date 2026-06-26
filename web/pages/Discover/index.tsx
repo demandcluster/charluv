@@ -221,11 +221,14 @@ const Card: Component<{ char: AppSchema.Character; onPick: (c: AppSchema.Charact
             <span>· {props.char.ageRange}</span>
           </Show>
         </div>
-        <Show when={props.char.category?.length}>
+        <Show when={props.char.category?.length || props.char.loraName}>
           <div class="dsc-tags">
-            <For each={props.char.category!.slice(0, 3)}>
+            <For each={props.char.category?.slice(0, 3) || []}>
               {(c) => <span class="dsc-pill">{c}</span>}
             </For>
+            <Show when={props.char.loraName}>
+              <span class="dsc-pill dsc-pill-lora">LoRA</span>
+            </Show>
           </div>
         </Show>
         <Show when={eng()}>
