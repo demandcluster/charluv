@@ -1,6 +1,6 @@
 import { expect } from 'chai'
 import { LocalBackend } from '/srv/queue/local'
-import { PriorityGate, priorityForUser, PositionEvent } from '/srv/queue/gate'
+import { PriorityGate, priorityForUser, PositionEvent, ClientGoneError } from '/srv/queue/gate'
 
 const tick = () => new Promise((r) => setTimeout(r, 0))
 
@@ -36,7 +36,10 @@ describe('PriorityGate', () => {
 
   it('gateStream does no work before a slot is acquired', async () => {
     const { gate } = makeGate({ global: 1, image: 4 })
-    const blocker = gate.run({ kind: 'text', priority: 1, userId: 'u0' }, () => new Promise(() => {}))
+    const blocker = gate.run(
+      { kind: 'text', priority: 1, userId: 'u0' },
+      () => new Promise(() => {})
+    )
     void blocker
     await tick()
     let started = false
@@ -87,7 +90,9 @@ describe('PriorityGate', () => {
       yield 'a'
       yield 'b'
     }
-    for await (const c of gate.gateStream({ kind: 'text', priority: 1, userId: 'u' }, () => gen())) {
+    for await (const c of gate.gateStream({ kind: 'text', priority: 1, userId: 'u' }, () =>
+      gen()
+    )) {
       chunks.push(c)
     }
     expect(chunks).to.deep.equal(['a', 'b'])
@@ -106,7 +111,9 @@ describe('PriorityGate', () => {
     async function* gen() {
       yield 'a'
     }
-    for await (const c of gate.gateStream({ kind: 'text', priority: 1, userId: 'u' }, () => gen())) {
+    for await (const c of gate.gateStream({ kind: 'text', priority: 1, userId: 'u' }, () =>
+      gen()
+    )) {
       chunks.push(c)
     }
     expect(chunks).to.deep.equal(['a'])
@@ -127,5 +134,63 @@ describe('PriorityGate', () => {
     gate.setBackend(mk('B') as any)
     await gate.run({ kind: 'text', priority: 1 }, async () => '')
     expect(calls).to.deep.equal(['A', 'B'])
+  })
+
+  it('drops an admitted request whose client has disconnected', async () => {
+    const released: string[] = []
+    const backend = {
+      acquire: () => Promise.resolve(),
+      release: (id: string) => {
+        released.push(id)
+        return Promise.resolve()
+      },
+      setPauseText: () => {},
+    }
+    const gate = new PriorityGate(
+      backend as any,
+      { toUser: () => {}, toGuest: () => {} },
+      async () => false // client is gone
+    )
+    let err: any
+    let ran = false
+    await gate
+      .run({ kind: 'text', priority: 1, userId: 'u' }, async () => {
+        ran = true
+        return 'x'
+      })
+      .catch((e) => (err = e))
+    expect(ran).to.equal(false) // generation never ran
+    expect(err).to.be.instanceOf(ClientGoneError)
+    expect(released.length).to.equal(1) // slot freed for the next waiter
+  })
+
+  it('runs normally when the client is present', async () => {
+    const gate = new PriorityGate(
+      {
+        acquire: () => Promise.resolve(),
+        release: () => Promise.resolve(),
+        setPauseText: () => {},
+      } as any,
+      { toUser: () => {}, toGuest: () => {} },
+      async () => true
+    )
+    const result = await gate.run({ kind: 'text', priority: 1, userId: 'u' }, async () => 'ok')
+    expect(result).to.equal('ok')
+  })
+
+  it('fails open (runs) when the presence check throws', async () => {
+    const gate = new PriorityGate(
+      {
+        acquire: () => Promise.resolve(),
+        release: () => Promise.resolve(),
+        setPauseText: () => {},
+      } as any,
+      { toUser: () => {}, toGuest: () => {} },
+      async () => {
+        throw new Error('presence backend down')
+      }
+    )
+    const result = await gate.run({ kind: 'text', priority: 1, userId: 'u' }, async () => 'ok')
+    expect(result).to.equal('ok')
   })
 })

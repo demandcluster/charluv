@@ -121,5 +121,49 @@ describe('PriorityGate', () => {
         await gate.run({ kind: 'text', priority: 1 }, async () => '');
         (0, chai_1.expect)(calls).to.deep.equal(['A', 'B']);
     });
+    it('drops an admitted request whose client has disconnected', async () => {
+        const released = [];
+        const backend = {
+            acquire: () => Promise.resolve(),
+            release: (id) => {
+                released.push(id);
+                return Promise.resolve();
+            },
+            setPauseText: () => { },
+        };
+        const gate = new gate_1.PriorityGate(backend, { toUser: () => { }, toGuest: () => { } }, async () => false // client is gone
+        );
+        let err;
+        let ran = false;
+        await gate
+            .run({ kind: 'text', priority: 1, userId: 'u' }, async () => {
+            ran = true;
+            return 'x';
+        })
+            .catch((e) => (err = e));
+        (0, chai_1.expect)(ran).to.equal(false); // generation never ran
+        (0, chai_1.expect)(err).to.be.instanceOf(gate_1.ClientGoneError);
+        (0, chai_1.expect)(released.length).to.equal(1); // slot freed for the next waiter
+    });
+    it('runs normally when the client is present', async () => {
+        const gate = new gate_1.PriorityGate({
+            acquire: () => Promise.resolve(),
+            release: () => Promise.resolve(),
+            setPauseText: () => { },
+        }, { toUser: () => { }, toGuest: () => { } }, async () => true);
+        const result = await gate.run({ kind: 'text', priority: 1, userId: 'u' }, async () => 'ok');
+        (0, chai_1.expect)(result).to.equal('ok');
+    });
+    it('fails open (runs) when the presence check throws', async () => {
+        const gate = new gate_1.PriorityGate({
+            acquire: () => Promise.resolve(),
+            release: () => Promise.resolve(),
+            setPauseText: () => { },
+        }, { toUser: () => { }, toGuest: () => { } }, async () => {
+            throw new Error('presence backend down');
+        });
+        const result = await gate.run({ kind: 'text', priority: 1, userId: 'u' }, async () => 'ok');
+        (0, chai_1.expect)(result).to.equal('ok');
+    });
 });
 //# sourceMappingURL=queue-gate.spec.js.map

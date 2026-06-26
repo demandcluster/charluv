@@ -5,6 +5,15 @@ import { getUserSubscriptionTier } from '/common/util'
 import { AppSchema } from '/common/types/schema'
 import { logger } from '../middleware'
 
+/** Thrown when an admitted request's client has already disconnected. Consumers
+ * treat it like any generation error (no message/credit/image persisted). */
+export class ClientGoneError extends Error {
+  constructor(message = 'client disconnected before generation') {
+    super(message)
+    this.name = 'ClientGoneError'
+  }
+}
+
 export type GateOpts = {
   kind: Kind
   priority: Priority
@@ -25,10 +34,13 @@ export type Sender = {
   toGuest: (socketId: string, ev: PositionEvent) => void
 }
 
+export type PresenceCheck = (id: { userId?: string; socketId?: string }) => Promise<boolean>
+
 export class PriorityGate {
   constructor(
     private backend: GateBackend,
     private sender: Sender,
+    private presence: PresenceCheck = async () => true,
     private now: () => number = () => Date.now()
   ) {}
 
@@ -38,6 +50,10 @@ export class PriorityGate {
 
   setBackend(backend: GateBackend) {
     this.backend = backend
+  }
+
+  setPresence(presence: PresenceCheck) {
+    this.presence = presence
   }
 
   async run<T>(opts: GateOpts, fn: () => Promise<T>): Promise<T> {
@@ -86,6 +102,19 @@ export class PriorityGate {
       // fallback. (Abort/disconnect is not wired through the facade in v1.)
       logger.warn({ err }, 'inference gate: acquire failed, proceeding ungated')
       return
+    }
+    // Admitted — but drop the request if its client has already disconnected,
+    // freeing the slot for the next waiter. Fails open (treats as present) on
+    // any presence-check error so an outage never wrongly drops requests.
+    let present = true
+    try {
+      present = await this.presence({ userId: opts.userId, socketId: opts.socketId })
+    } catch {
+      present = true
+    }
+    if (!present) {
+      await this.release(id)
+      throw new ClientGoneError()
     }
     this.emit(opts, 0) // clear the badge on admission
   }
