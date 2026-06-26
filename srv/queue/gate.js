@@ -14,6 +14,9 @@ class PriorityGate {
     setPauseText(pause) {
         this.backend.setPauseText(pause);
     }
+    setBackend(backend) {
+        this.backend = backend;
+    }
     async run(opts, fn) {
         const id = (0, uuid_1.v4)();
         await this.enter(id, opts);
@@ -21,7 +24,7 @@ class PriorityGate {
             return await fn();
         }
         finally {
-            await this.backend.release(id);
+            await this.release(id);
         }
     }
     async *gateStream(opts, makeGen) {
@@ -34,7 +37,15 @@ class PriorityGate {
             }
         }
         finally {
+            await this.release(id);
+        }
+    }
+    async release(id) {
+        try {
             await this.backend.release(id);
+        }
+        catch (err) {
+            middleware_1.logger.warn({ err }, 'inference gate: release failed, ignoring');
         }
     }
     async enter(id, opts) {

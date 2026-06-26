@@ -14,21 +14,19 @@ const sender = {
     toUser: (userId, ev) => (0, ws_1.sendOne)(userId, ev),
     toGuest: (socketId, ev) => (0, ws_1.sendGuest)(socketId, ev),
 };
-// Backend is chosen by CONFIG, not live connection state: this module is
-// constructed during createApp(), before initMessageBus() connects Redis, so
-// isConnected() would always be false here. When a Redis host is configured
-// (multi-process throng clustering in production) we use the shared Redis gate;
-// the client finishes connecting during startup, before requests arrive.
-// Otherwise (single-process dev) the in-process backend.
-function makeBackend() {
-    if (config_1.config.redis.host) {
-        return new redis_1.RedisBackend({ caps, cmd: bus_1.clients.pub, sub: bus_1.clients.sub });
-    }
-    return new local_1.LocalBackend(caps);
-}
-exports.inferenceGate = new gate_1.PriorityGate(makeBackend(), sender);
+// Default to the in-process backend. startQueue() — run after initMessageBus()
+// has connected the Redis bus — upgrades to the shared Redis backend when Redis
+// is actually connected, so the global cap holds across the throng worker
+// processes. Selecting here by isConnected() would be wrong: this module is
+// constructed during createApp(), before the bus connects. Selecting by
+// config.redis.host alone is also wrong: its default ('127.0.0.1') is always
+// truthy, so dev/Redis-down would needlessly use the Redis backend.
+exports.inferenceGate = new gate_1.PriorityGate(new local_1.LocalBackend(caps), sender);
 const breaker = new metrics_1.Breaker(config_1.config.queue.waitingThreshold, config_1.config.queue.pollMs * 4);
 function startQueue() {
+    if (config_1.config.redis.host && (0, bus_1.isConnected)()) {
+        exports.inferenceGate.setBackend(new redis_1.RedisBackend({ caps, cmd: bus_1.clients.pub, sub: bus_1.clients.sub }));
+    }
     if (!config_1.config.queue.metricsUrl)
         return () => { };
     return (0, metrics_1.startMetricsPoller)({

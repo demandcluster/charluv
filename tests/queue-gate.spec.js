@@ -87,5 +87,39 @@ describe('PriorityGate', () => {
         }
         (0, chai_1.expect)(chunks).to.deep.equal(['a', 'b']);
     });
+    it('degrades to ungated when both acquire AND release fail', async () => {
+        const failing = {
+            acquire: () => Promise.reject(new Error('redis down')),
+            release: () => Promise.reject(new Error('redis down')),
+            setPauseText: () => { },
+        };
+        const gate = new gate_1.PriorityGate(failing, { toUser: () => { }, toGuest: () => { } });
+        const result = await gate.run({ kind: 'text', priority: 1, userId: 'u' }, async () => 'ok');
+        (0, chai_1.expect)(result).to.equal('ok');
+        const chunks = [];
+        async function* gen() {
+            yield 'a';
+        }
+        for await (const c of gate.gateStream({ kind: 'text', priority: 1, userId: 'u' }, () => gen())) {
+            chunks.push(c);
+        }
+        (0, chai_1.expect)(chunks).to.deep.equal(['a']);
+    });
+    it('setBackend swaps the active backend', async () => {
+        const calls = [];
+        const mk = (name) => ({
+            acquire: () => {
+                calls.push(name);
+                return Promise.resolve();
+            },
+            release: () => Promise.resolve(),
+            setPauseText: () => { },
+        });
+        const gate = new gate_1.PriorityGate(mk('A'), { toUser: () => { }, toGuest: () => { } });
+        await gate.run({ kind: 'text', priority: 1 }, async () => '');
+        gate.setBackend(mk('B'));
+        await gate.run({ kind: 'text', priority: 1 }, async () => '');
+        (0, chai_1.expect)(calls).to.deep.equal(['A', 'B']);
+    });
 });
 //# sourceMappingURL=queue-gate.spec.js.map

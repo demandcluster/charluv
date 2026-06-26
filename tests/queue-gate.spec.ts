@@ -92,4 +92,40 @@ describe('PriorityGate', () => {
     }
     expect(chunks).to.deep.equal(['a', 'b'])
   })
+
+  it('degrades to ungated when both acquire AND release fail', async () => {
+    const failing = {
+      acquire: () => Promise.reject(new Error('redis down')),
+      release: () => Promise.reject(new Error('redis down')),
+      setPauseText: () => {},
+    }
+    const gate = new PriorityGate(failing as any, { toUser: () => {}, toGuest: () => {} })
+    const result = await gate.run({ kind: 'text', priority: 1, userId: 'u' }, async () => 'ok')
+    expect(result).to.equal('ok')
+    const chunks: string[] = []
+    async function* gen() {
+      yield 'a'
+    }
+    for await (const c of gate.gateStream({ kind: 'text', priority: 1, userId: 'u' }, () => gen())) {
+      chunks.push(c)
+    }
+    expect(chunks).to.deep.equal(['a'])
+  })
+
+  it('setBackend swaps the active backend', async () => {
+    const calls: string[] = []
+    const mk = (name: string) => ({
+      acquire: () => {
+        calls.push(name)
+        return Promise.resolve()
+      },
+      release: () => Promise.resolve(),
+      setPauseText: () => {},
+    })
+    const gate = new PriorityGate(mk('A') as any, { toUser: () => {}, toGuest: () => {} })
+    await gate.run({ kind: 'text', priority: 1 }, async () => '')
+    gate.setBackend(mk('B') as any)
+    await gate.run({ kind: 'text', priority: 1 }, async () => '')
+    expect(calls).to.deep.equal(['A', 'B'])
+  })
 })

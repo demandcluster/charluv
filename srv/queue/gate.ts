@@ -36,13 +36,17 @@ export class PriorityGate {
     this.backend.setPauseText(pause)
   }
 
+  setBackend(backend: GateBackend) {
+    this.backend = backend
+  }
+
   async run<T>(opts: GateOpts, fn: () => Promise<T>): Promise<T> {
     const id = uuid()
     await this.enter(id, opts)
     try {
       return await fn()
     } finally {
-      await this.backend.release(id)
+      await this.release(id)
     }
   }
 
@@ -55,7 +59,15 @@ export class PriorityGate {
         yield chunk
       }
     } finally {
+      await this.release(id)
+    }
+  }
+
+  private async release(id: string) {
+    try {
       await this.backend.release(id)
+    } catch (err) {
+      logger.warn({ err }, 'inference gate: release failed, ignoring')
     }
   }
 

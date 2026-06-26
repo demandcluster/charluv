@@ -1,5 +1,5 @@
 import { config } from '../config'
-import { clients } from '../api/ws/bus'
+import { clients, isConnected } from '../api/ws/bus'
 import { sendGuest, sendOne } from '../api/ws'
 import { LocalBackend } from './local'
 import { RedisBackend } from './redis'
@@ -13,24 +13,23 @@ const sender: Sender = {
   toGuest: (socketId, ev) => sendGuest(socketId, ev),
 }
 
-// Backend is chosen by CONFIG, not live connection state: this module is
-// constructed during createApp(), before initMessageBus() connects Redis, so
-// isConnected() would always be false here. When a Redis host is configured
-// (multi-process throng clustering in production) we use the shared Redis gate;
-// the client finishes connecting during startup, before requests arrive.
-// Otherwise (single-process dev) the in-process backend.
-function makeBackend() {
-  if (config.redis.host) {
-    return new RedisBackend({ caps, cmd: clients.pub as any, sub: clients.sub as any })
-  }
-  return new LocalBackend(caps)
-}
-
-export const inferenceGate = new PriorityGate(makeBackend(), sender)
+// Default to the in-process backend. startQueue() — run after initMessageBus()
+// has connected the Redis bus — upgrades to the shared Redis backend when Redis
+// is actually connected, so the global cap holds across the throng worker
+// processes. Selecting here by isConnected() would be wrong: this module is
+// constructed during createApp(), before the bus connects. Selecting by
+// config.redis.host alone is also wrong: its default ('127.0.0.1') is always
+// truthy, so dev/Redis-down would needlessly use the Redis backend.
+export const inferenceGate = new PriorityGate(new LocalBackend(caps), sender)
 
 const breaker = new Breaker(config.queue.waitingThreshold, config.queue.pollMs * 4)
 
 export function startQueue(): () => void {
+  if (config.redis.host && isConnected()) {
+    inferenceGate.setBackend(
+      new RedisBackend({ caps, cmd: clients.pub as any, sub: clients.sub as any })
+    )
+  }
   if (!config.queue.metricsUrl) return () => {}
   return startMetricsPoller({
     url: config.queue.metricsUrl,
