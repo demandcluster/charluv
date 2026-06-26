@@ -15,6 +15,7 @@ import * as oauth from './oauth'
 import * as subs from './subscriptions'
 import * as announce from './announcements'
 import * as promo from './promo'
+import * as notifications from './notifications'
 
 export { db } from './client'
 
@@ -36,4 +37,5 @@ export const store = {
   subs,
   announce,
   promo,
+  notifications,
 }

@@ -162,4 +162,10 @@ export async function createIndexes() {
     { aggregateId: 1, stream: 1, position: 1 },
     { name: 'evtstore-events_aggId_stream_position' }
   )
+
+  // Per-user notifications: replay undelivered ones on login, oldest first.
+  await db('notification').createIndex(
+    { userId: 1, deliveredAt: 1, createdAt: 1 },
+    { name: 'notification_userId_delivered_created' }
+  )
 }

@@ -1,5 +1,5 @@
 import { createStore, getStore } from './create'
-import { subscribe } from './socket'
+import { publish, subscribe } from './socket'
 import { setNotifier } from '/common/requests/util'
 
 export type Toast = {
@@ -130,6 +130,9 @@ function getLevel(type: Toast['type']) {
   }
 }
 
-subscribe('admin-notification', { message: 'string', level: 'number?' }, (body) => {
+subscribe('admin-notification', { id: 'string?', message: 'string', level: 'number?' }, (body) => {
   toastStore.admin(body.message, body.level)
+  // Ack durable notifications so the server marks them delivered and doesn't
+  // replay them on the next login. Transient (id-less) admin broadcasts skip this.
+  if (body.id) publish({ type: 'notification-ack', ids: [body.id] })
 })

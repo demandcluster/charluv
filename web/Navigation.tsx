@@ -10,6 +10,7 @@ import {
   HelpCircle,
   LogIn,
   MailQuestion,
+  Megaphone,
   Menu,
   MessageCircle,
   Sparkles,
@@ -283,6 +284,10 @@ const UserNavigation: Component = () => {
       </Show>
       <CreateEventModal show={showEvent()} close={() => setShowEvent(false)} />
 
+      <Item href="/blog" ariaLabel="News and updates">
+        <Megaphone aria-hidden="true" /> News
+      </Item>
+
       <Show when={menu.flags.sounds}>
         <Sounds />
       </Show>
@@ -357,6 +362,10 @@ const GuestNavigation: Component = () => {
         </Show>
       </Show>
 
+      <Item href="/blog" ariaLabel="News and updates">
+        <Megaphone aria-hidden="true" /> News
+      </Item>
+
       <NavIcons
         supportEmail={menu.config.serverConfig?.supportEmail}
         patreon={menu.config.patreon}
@@ -389,11 +398,11 @@ const NavIcons: Component<{
   })
 
   return (
-    // The bottom utility icons are icon-only buttons, not labelled rows, so keep
-    // them at the global 1em (the menu list bumps row icons to 1.5rem). All green
-    // for a consistent footer.
+    // The bottom utility icons are icon-only buttons, not labelled rows. Sized a
+    // touch larger than the old 1em so they're comfortable tap targets (still
+    // under the 1.5rem labelled-row icons). All green for a consistent footer.
     <IconContext.Provider
-      value={{ weight: 'duotone', size: '1em', color: 'var(--hl-500)', mirrored: false }}
+      value={{ weight: 'duotone', size: '1.35rem', color: 'var(--hl-500)', mirrored: false }}
     >
       <div class="flex flex-wrap items-center justify-center gap-[2px] text-sm">
         <Show when={!!props.supportEmail}>

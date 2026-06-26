@@ -34,6 +34,7 @@ export type AllDoc =
   | AppSchema.SagaTemplate
   | AppSchema.SagaSession
   | AppSchema.CharacterReport
+  | AppSchema.Notification
   | AppSchema.PromoCode
   | AppSchema.PromoRedemption
 
@@ -66,6 +67,23 @@ export namespace AppSchema {
     resolved?: boolean
     resolvedAt?: string
     resolvedBy?: string
+  }
+
+  /**
+   * A durable per-user notification (e.g. a moderation outcome). Persisted so a
+   * user who was offline when it was raised still receives it: undelivered ones
+   * are replayed over the socket on their next login, then marked delivered.
+   */
+  export interface Notification {
+    _id: string
+    kind: 'notification'
+    userId: string
+    message: string
+    /** Optional admin-broadcast level (mirrors the legacy admin-notification toast). */
+    level?: number
+    createdAt: string
+    /** Set once the message has been pushed to a live socket for this user. */
+    deliveredAt?: string
   }
 
   export type GenSettings = Preset.GenSettings

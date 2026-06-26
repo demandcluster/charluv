@@ -3,7 +3,7 @@ import { assertValid } from '/common/valid'
 import { store } from '../db'
 import { isAdmin, loggedIn } from './auth'
 import { StatusError, handle } from './wrap'
-import { getLiveCounts, sendAll, sendOne } from './ws/bus'
+import { getLiveCounts, notifyUser, sendAll } from './ws/bus'
 import { encryptText } from '../db/util'
 import { PUBLISH_DEFAULTS } from '/common/publish'
 
@@ -90,19 +90,19 @@ const moderatePublished = handle(async ({ params, body, userId }) => {
           moderatedAt: Date.now(),
         },
       })
-      sendOne(char.userId, {
-        type: 'admin-notification',
-        message: `Your public character "${char.name}" has been unpublished by a moderator.${suffix}`,
-      })
+      await notifyUser(
+        char.userId,
+        `Your public character "${char.name}" has been unpublished by a moderator.${suffix}`
+      )
       return { success: true }
 
     case 'delete':
       await store.reports.resolveReportsForChar(char._id, userId!)
       await store.characters.adminDeleteCharacter(char._id)
-      sendOne(char.userId, {
-        type: 'admin-notification',
-        message: `Your public character "${char.name}" was removed by a moderator.${suffix}`,
-      })
+      await notifyUser(
+        char.userId,
+        `Your public character "${char.name}" was removed by a moderator.${suffix}`
+      )
       return { success: true }
 
     default:
@@ -148,12 +148,12 @@ const moderatePending = handle(async ({ params, body, userId }) => {
         },
       })
       if (shouldReward) await store.credits.updateCredits(char.userId, reward)
-      sendOne(char.userId, {
-        type: 'admin-notification',
-        message: `Your character "${char.name}" passed review and is now public.${
+      await notifyUser(
+        char.userId,
+        `Your character "${char.name}" passed review and is now public.${
           shouldReward ? ` You earned ${reward} credits.` : ''
-        }`,
-      })
+        }`
+      )
       return { success: true }
     }
 
@@ -169,18 +169,18 @@ const moderatePending = handle(async ({ params, body, userId }) => {
           moderatedAt: now,
         },
       })
-      sendOne(char.userId, {
-        type: 'admin-notification',
-        message: `Your character "${char.name}" was not approved for publishing.${suffix}`,
-      })
+      await notifyUser(
+        char.userId,
+        `Your character "${char.name}" was not approved for publishing.${suffix}`
+      )
       return { success: true }
 
     case 'delete':
       await store.characters.adminDeleteCharacter(char._id)
-      sendOne(char.userId, {
-        type: 'admin-notification',
-        message: `Your character "${char.name}" was removed by a moderator.${suffix}`,
-      })
+      await notifyUser(
+        char.userId,
+        `Your character "${char.name}" was removed by a moderator.${suffix}`
+      )
       return { success: true }
 
     default:
@@ -253,18 +253,18 @@ const resolveReport = handle(async ({ params, body, userId }) => {
           moderatedAt: Date.now(),
         },
       })
-      sendOne(char.userId, {
-        type: 'admin-notification',
-        message: `Your public character "${char.name}" has been taken down after reports.${suffix}`,
-      })
+      await notifyUser(
+        char.userId,
+        `Your public character "${char.name}" has been taken down after reports.${suffix}`
+      )
       return { success: true }
 
     case 'delete':
       await store.characters.adminDeleteCharacter(char._id)
-      sendOne(char.userId, {
-        type: 'admin-notification',
-        message: `Your public character "${char.name}" was removed after reports.${suffix}`,
-      })
+      await notifyUser(
+        char.userId,
+        `Your public character "${char.name}" was removed after reports.${suffix}`
+      )
       return { success: true }
 
     default:

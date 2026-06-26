@@ -484,14 +484,14 @@ export function useGoogleReady() {
   createEffect(() => {
     const timer = setInterval(() => {
       const win: any = window
-      if (win.default_gsi) {
-        console.log('ready')
+      // Google Identity Services (loaded from index.html) exposes
+      // window.google.accounts.id once ready. The old `default_gsi` flag was never
+      // set by anything, so this never flipped and the sign-in button never rendered.
+      if (win.google?.accounts?.id) {
         setReady(true)
         clearInterval(timer)
-      } else {
-        console.log('not ready')
       }
-    }, 500)
+    }, 300)
 
     return () => clearInterval(timer)
   })

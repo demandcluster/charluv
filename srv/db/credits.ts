@@ -1,7 +1,6 @@
 import { errors, StatusError } from '../api/wrap'
 import { db } from './client'
 import { sendOne } from '../api/ws'
-import { AppSchema } from '../../common/types/schema'
 import { getUserSubscriptionTier } from '../../common/util'
 import { getCachedTiers } from './subscriptions'
 

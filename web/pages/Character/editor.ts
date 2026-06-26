@@ -136,30 +136,19 @@ const newCharGuard = {
   ...baseImageValid,
 } as const
 
+// Only fields backed by an actual uncontrolled form input belong here — reset()
+// uses setFormField to populate them, and getPayload reads them back via
+// getStrictForm. Everything else (systemPrompt, postHistoryInstructions, tags,
+// creator, characterVersion, match, xp, share, premium…) is read from `state`,
+// which reset() hydrates directly from the character, so listing them here only
+// produced "Element not found" warnings for inputs the Charluv editor dropped.
 const fieldMap: Map<CharKey, GuardKey | 'tags'> = new Map([
   ['name', 'name'],
   ['appearance', 'appearance'],
   ['description', 'description'],
   ['greeting', 'greeting'],
   ['sampleChat', 'sampleChat'],
-  ['creator', 'creator'],
-  ['characterVersion', 'characterVersion'],
-  ['postHistoryInstructions', 'postHistoryInstructions'],
   ['scenario', 'scenario'],
-  ['systemPrompt', 'systemPrompt'],
-  ['tags', 'tags'],
-  ['name', 'name'],
-  ['match', 'match'],
-  ['xp', 'xp'],
-  ['share', 'share'],
-  ['premium', 'premium'],
-  ['description', 'description'],
-  ['scenario', 'scenario'],
-  ['greeting', 'greeting'],
-  ['creator', 'creator'],
-  ['characterVersion', 'characterVersion'],
-  ['postHistoryInstructions', 'postHistoryInstructions'],
-  ['systemPrompt', 'systemPrompt'],
 ])
 
 /** Random seed for the character's locked base look. */

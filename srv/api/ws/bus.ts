@@ -4,6 +4,7 @@ import { config } from '../../config'
 import { logger } from '../../middleware'
 import { AppSocket } from './types'
 import { PING_INTERVAL_MS } from '../../../common/util'
+import { store } from '../../db'
 
 export const allSockets = new Map<string, AppSocket>()
 export const userSockets = new Map<string, AppSocket[]>()
@@ -231,4 +232,18 @@ export async function sendAll<T extends { type: string }>(data: T) {
 
 export async function sendGuest<T extends { type: string }>(socketId: string, data: T) {
   await broadcast({ target: 'guest', socketId, data })
+}
+
+/**
+ * Durable per-user notification (e.g. a moderation outcome). Unlike sendOne it
+ * survives the recipient being offline: it's persisted first, then pushed live.
+ * The live push goes through sendOne → Redis fan-out, so it reaches the user on
+ * whichever node holds their socket (a local presence check would miss cross-node
+ * users). Delivery is confirmed by the client's `notification-ack` (keyed by the
+ * `id` below), which marks it delivered so it isn't replayed on the next login.
+ * If the user is offline no ack arrives and login replay handles it instead.
+ */
+export async function notifyUser(userId: string, message: string, level?: number) {
+  const notif = await store.notifications.createNotification(userId, message, level)
+  await sendOne(userId, { type: 'admin-notification', id: notif._id, message, level })
 }
