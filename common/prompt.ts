@@ -164,6 +164,17 @@ Set a field to true only when the character — in appearance, description, or i
 Be strict about underage: if the character looks or reads as a minor (and when in doubt), flag it. Underage is never acceptable, to be safe, flag anyone under age of 21.
 `
 
+/**
+ * System message for the publish-moderation call. Sent as a leading `system`
+ * message so it OVERRIDES the served model's default chat-template system prompt
+ * (the Charluv companion/LEVEL preamble). Without it the model inherits that
+ * preamble and answers the moderation prompt in-character (a roleplay reply)
+ * instead of returning the verdict — which fail-closes every publish to review.
+ */
+export const DEFAULT_MOD_SYSTEM = neat`
+You are a content-safety classifier, not a character. Do not role-play, narrate, or write any in-character or conversational text. Read the submitted character and respond ONLY with the requested JSON verdict.
+`
+
 const modBool = (name: string, description: string): JsonField => ({
   name,
   disabled: false,

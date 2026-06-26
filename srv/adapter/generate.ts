@@ -84,6 +84,13 @@ export type InferenceRequest = {
   imageData?: string
   images?: string[]
 
+  /**
+   * Leading `system` message for chat-completion calls. Overrides the served
+   * model's default chat-template system prompt (the companion/LEVEL preamble)
+   * so utility calls like publish moderation aren't answered in-character.
+   */
+  system?: string
+
   jsonSchema?: any
   jsonValues?: Record<string, any>
 }
@@ -254,6 +261,7 @@ export async function createInferenceStream(opts: InferenceRequest) {
     jsonSchema: opts.jsonSchema,
     imageData: opts.imageData,
     images: opts.images,
+    system: opts.system,
     jsonValues: opts.jsonValues,
   })
 

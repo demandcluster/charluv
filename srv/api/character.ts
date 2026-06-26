@@ -27,6 +27,7 @@ import {
   fromJsonResponse,
   DEFAULT_MOD_PROMPT,
   DEFAULT_MOD_SCHEMA,
+  DEFAULT_MOD_SYSTEM,
 } from '/common/prompt'
 import { checkPublishRequirements, PUBLISH_DEFAULTS, PUBLISH_MIN } from '/common/publish'
 import { createInferenceStream } from '../adapter/generate'
@@ -387,6 +388,9 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
     log,
     prompt,
     images,
+    // Overrides the served model's default companion system prompt so the model
+    // classifies the character instead of answering the prompt in-character.
+    system: DEFAULT_MOD_SYSTEM,
   })
 
   res.json({ success: true, generating: true, requestId })

@@ -133,6 +133,12 @@ export type AdapterProps = {
   imageData?: string
   /** Multiple base64 data URLs (e.g. avatar + gallery for moderation). */
   images?: string[]
+  /**
+   * Leading `system` message (chat-completion only). Overrides the served model's
+   * default chat-template system prompt so utility calls (publish moderation)
+   * aren't answered in-character.
+   */
+  system?: string
   guidance?: boolean
   placeholders?: Record<string, string>
   lists?: Record<string, string[]>

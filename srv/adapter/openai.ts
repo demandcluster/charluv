@@ -216,6 +216,12 @@ export const handleOAI: ModelAdapter = async function* (opts) {
           body.max_tokens
         )
 
+    // A leading `system` message overrides the served model's default
+    // chat-template system prompt (the companion/LEVEL preamble). Utility calls
+    // like publish moderation pass `system` so the model follows the instruction
+    // instead of answering in-character.
+    if (opts.system) messages.unshift({ role: 'system', content: opts.system })
+
     // Vision requests (e.g. publish moderation reviewing the avatar + gallery)
     // carry one or more images. vLLM's OpenAI endpoint only sees them as
     // `image_url` content parts, so fold them into the last user message —
