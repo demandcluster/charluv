@@ -349,11 +349,18 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
     if (b64) images.push(`data:image/png;base64,${b64}`)
   }
 
-  const prompt = buildModPrompt({
+  // Spell out the exact JSON shape in the prompt. `guided_json` rides along but
+  // the self-hosted endpoint's speculative decoding ignores it, so the model
+  // free-forms its own shape (e.g. `{"safe": true}`) whose keys don't match the
+  // schema — fromJsonResponse then parses nothing and the publish fail-closes.
+  // Enumerating the schema's keys forces the model to emit the fields we read.
+  const verdictKeys = modSchema.filter((f) => !f.disabled).map((f) => f.name)
+  const jsonShape = `{${verdictKeys.map((k) => `"${k}": false`).join(', ')}}`
+  const prompt = `${buildModPrompt({
     char: character,
     prompt: config.modPrompt || DEFAULT_MOD_PROMPT,
     fields: config.modFieldPrompt,
-  })
+  })}\n\nRespond with ONLY this JSON object — exactly these keys, each set to true or false, no other keys and no prose:\n${jsonShape}`
 
   const requestId = body.requestId || v4()
 
