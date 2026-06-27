@@ -15,13 +15,7 @@ import PageHeader from '../../shared/PageHeader'
 import TextInput, { ButtonInput } from '../../shared/TextInput'
 import { FormLabel } from '../../shared/FormLabel'
 import FileInput, { FileInputResult } from '../../shared/FileInput'
-import {
-  characterStore,
-  tagStore,
-  toastStore,
-  chatStore,
-  settingStore,
-} from '../../store'
+import { characterStore, tagStore, toastStore, chatStore, settingStore } from '../../store'
 import { useNavigate } from '@solidjs/router'
 import Select from '../../shared/Select'
 import TagInput from '../../shared/TagInput'
@@ -168,6 +162,17 @@ export const CreateCharacterForm: Component<{
       })
     } else if (!forceNew() && props.editId) {
       characterStore.editFullCharacter(props.editId, payload, () => {
+        // This chat froze the character's definition in chat.overrides (the old
+        // per-chat override feature, whose "Edit Chat → disable" UI was removed).
+        // Clear it so this edit — and future edits — apply to the chat. Skip
+        // event chats: they reuse chat.overrides as the event scenario carrier.
+        if (
+          props.chat?.overrides &&
+          props.chat.characterId === props.editId &&
+          props.chat.mode !== 'event'
+        ) {
+          chatStore.editChat(props.chat._id, {}, false)
+        }
         if (isPage) {
           nav(`/character/${props.editId}/chats`)
         } else if (paneOrPopup() === 'popup') {
@@ -194,10 +199,6 @@ export const CreateCharacterForm: Component<{
         <CreditCost amount={props.editId && !forceNew() ? 30 : 100} class="ml-1" />
       </Button>
     </>
-  )
-
-  const showWarning = createMemo(
-    () => !!props.chat?.overrides && props.chat.characterId === props.editId
   )
 
   return (
@@ -230,13 +231,6 @@ export const CreateCharacterForm: Component<{
         <div class="flex flex-col gap-4">
           <Show when={!isPage}>
             <div> {props.children} </div>
-          </Show>
-
-          <Show when={showWarning()}>
-            <SolidCard bg="orange-600">
-              <b>Warning!</b> Your chat currently overrides your character definitions. These
-              changes won't affect your current chat until you disable them in the "Edit Chat" menu.
-            </SolidCard>
           </Show>
 
           <div class={`flex grow flex-col justify-between gap-2 pl-2 pr-3 `}>
