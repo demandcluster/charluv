@@ -556,7 +556,10 @@ const Create: Component = () => {
     let name = answers.name.trim()
     if (!name) name = await random('first', {})
 
-    const appearance = appearanceString()
+    // The character's appearance IS the (tweaked) image-generation prompt, so the
+    // saved look matches the portrait exactly and drives consistent chat images.
+    // Fall back to the joined trait string if the prompt never got crafted.
+    const appearance = imagePrompt().trim() || appearanceString()
     const v = vibe()
     const ethnicity = ethnicityLabel()
 
