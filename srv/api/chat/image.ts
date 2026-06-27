@@ -1,10 +1,7 @@
 import { assertValid } from '/common/valid'
 import { store } from '../../db'
-import { generateImage } from '../../image'
+import { generateImage, IMAGE_COST } from '../../image'
 import { handle, StatusError } from '../wrap'
-
-/** Credit cost to generate (or regenerate) an image. */
-const IMAGE_COST = 25
 
 export const createImage = handle(async ({ body, userId, socketId, log, params }) => {
   assertValid(

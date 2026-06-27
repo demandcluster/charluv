@@ -45,4 +45,4 @@ export function startQueue(): () => void {
   }
 }
 
-export { PriorityGate, priorityForUser } from './gate'
+export { PriorityGate, priorityForUser, ClientGoneError } from './gate'

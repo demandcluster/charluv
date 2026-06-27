@@ -9,8 +9,12 @@ import { handleSDImage } from './stable-diffusion'
 import { sendGuest, sendMany } from '../api/ws'
 import { handleHordeImage } from './horde'
 import { handleZImage, isZImageConfigured } from './zimage'
-import { inferenceGate, priorityForUser } from '../queue'
+import { inferenceGate, priorityForUser, ClientGoneError } from '../queue'
 import { getCachedTiers } from '../db/subscriptions'
+
+/** Credit cost charged up-front by the image route; refunded if the request is
+ * dropped because the client disconnected before generation. */
+export const IMAGE_COST = 25
 
 /**
  * Merge negative-prompt sources into a single comma-separated string, deduping
@@ -194,6 +198,14 @@ export async function generateImage(
       }
     )
   } catch (ex: any) {
+    if (ex instanceof ClientGoneError) {
+      // Client disconnected before the image was generated; the gate freed the
+      // slot. Refund the credits the route charged up-front (guests aren't charged).
+      if (!guestId && user?._id) {
+        await store.credits.updateCredits(user._id, IMAGE_COST)
+      }
+      return { output: '' }
+    }
     error = ex.message || ex
   }
 
