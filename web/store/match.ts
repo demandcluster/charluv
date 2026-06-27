@@ -2,7 +2,7 @@ import { AppSchema } from '../../common/types/schema'
 import { api } from './api'
 import { createStore } from './create'
 import { toastStore } from './toasts'
-import { chatStore } from './chat'
+import { chatStore, startChat } from './chat'
 import { characterStore } from './character'
 
 //import { chatsApi } from './data/chats'
@@ -110,6 +110,21 @@ export const matchStore = createStore<Matchesstate>('Match', {
       navi: (url: string) => void,
       name?: string
     ) => {
+      // A user's personal copy of a Discover template has `parent` set to the
+      // template's id. If they already matched this character, resume that copy
+      // instead of cloning another — startChat reopens the latest chat (or makes
+      // one). The server enforces the same idempotency as a safety net.
+      if (!characterStore.getState().characters.loaded) {
+        await characterStore.getCharacters()
+      }
+      const existing = characterStore
+        .getState()
+        .characters.list.find((c) => c.parent === char._id && !c.draft)
+      if (existing) {
+        await startChat(existing, navi)
+        return
+      }
+
       const res = await api.post(`/match/${char._id}`, { name })
 
       if (res.error) toastStore.error(`Failed to create Match: ${res.error}`)

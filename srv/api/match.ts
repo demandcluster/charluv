@@ -58,6 +58,13 @@ const createCharacter = handle(async (req) => {
   const id = req.params.id || ''
   const { userId } = req?.user || { userId: '' }
 
+  // Idempotent: if the user already cloned this template, return that existing
+  // copy (its `parent` is the template id) instead of creating a duplicate.
+  if (userId) {
+    const existing = await store.characters.getUserCopyOfTemplate(userId, id)
+    if (existing) return existing
+  }
+
   const matchChar = await store.matches.getMatch(userId, id)
   const oldId = matchChar?._id.toString()
   const newChar = matchChar

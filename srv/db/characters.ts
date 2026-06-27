@@ -245,6 +245,21 @@ export async function getCharacter(
   return char || undefined
 }
 
+/**
+ * The user's existing personal copy of a Discover template, if any. A clone's
+ * `parent` points back to the template it was matched from, so this is how we
+ * avoid spawning a second copy when the user matches the same character again.
+ */
+export async function getUserCopyOfTemplate(userId: string, templateId: string) {
+  const char = await db('character').findOne({
+    kind: 'character',
+    userId,
+    parent: templateId,
+    draft: { $ne: true },
+  })
+  return char || undefined
+}
+
 /** The user's current unfinished wizard draft, if any. One draft per user. */
 export async function getDraftCharacter(userId: string) {
   const char = await db('character').findOne({ userId, kind: 'character', draft: true })

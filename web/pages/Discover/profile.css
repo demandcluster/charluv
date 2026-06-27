@@ -13,8 +13,7 @@
   --dpf-green-deep: oklch(0.64 0.12 165);
 
   min-height: 100%;
-  background:
-    radial-gradient(120% 80% at 85% -10%, oklch(0.3 0.08 350 / 0.6), transparent 60%),
+  background: radial-gradient(120% 80% at 85% -10%, oklch(0.3 0.08 350 / 0.6), transparent 60%),
     radial-gradient(90% 60% at -10% 110%, oklch(0.28 0.06 165 / 0.35), transparent 55%),
     var(--dpf-bg);
   color: var(--dpf-cream);
@@ -52,8 +51,16 @@
   cursor: zoom-in;
   width: 100%;
   line-height: 0;
-  position: sticky;
-  top: 1.5rem;
+}
+/* Sticky is a TWO-COLUMN (desktop) enhancement only: the image holds position
+   while you read the detail column beside it. In the single-column mobile layout
+   the image stacks ABOVE the text, so sticky would pin it (a positioned element)
+   over the text as you scroll and make the copy unreadable — keep it static there. */
+@media (min-width: 821px) {
+  .dpf-main-btn {
+    position: sticky;
+    top: 1.5rem;
+  }
 }
 .dpf-main-btn:focus-visible {
   outline: 2px solid var(--dpf-green, #4ade80);
