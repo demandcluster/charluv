@@ -418,7 +418,8 @@ export const characterStore = createStore<CharacterState>(
       user: AppSchema.User,
       persona: AppSchema.Persona | string,
       onDone?: (err: any, image?: File) => void,
-      seed?: number
+      seed?: number,
+      noCharge?: boolean
     ) {
       try {
         let prompt =
@@ -433,6 +434,7 @@ export const characterStore = createStore<CharacterState>(
           prompt,
           source: 'avatar',
           seed,
+          noCharge,
           onTick: (status) => {
             set({ hordeStatus: status })
           },

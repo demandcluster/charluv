@@ -92,6 +92,9 @@ export async function generateImageWithPrompt(opts: {
   prompt: string
   source: string
   seed?: number
+  /** Skip the image credit charge (e.g. the create wizard's first portrait,
+   * which is bundled into the creation fee). Server validates eligibility. */
+  noCharge?: boolean
   onDone: (result: { image: string; file: File; data?: string }) => void
   onTick?: (status: horde.HordeCheck) => void
 }) {
@@ -129,6 +132,7 @@ export async function generateImageWithPrompt(opts: {
     ephemeral: true,
     source,
     seed: opts.seed,
+    noCharge: opts.noCharge,
   })
 
   return res

@@ -1,8 +1,7 @@
 import { userStore } from '../../../store'
-import { Component, Show } from 'solid-js'
+import { Component } from 'solid-js'
 import { Toggle } from '../../../shared/Toggle'
 import Divider from '../../../shared/Divider'
-import { getSpeechRecognition } from '../../Chat/components/SpeechRecognitionRecorder'
 
 export const VoiceSettings: Component = () => {
   const state = userStore()
@@ -10,40 +9,6 @@ export const VoiceSettings: Component = () => {
   return (
     <>
       <div class="flex flex-col gap-4">
-        <p class="text-lg font-bold">Speech to text (Speak with Microphone)</p>
-
-        <Show
-          when={getSpeechRecognition()}
-          fallback={<p class="text-red-800">Speech to text is not available in your browser</p>}
-        >
-          <p class="italic">
-            You can use speech recognition by using the microphone icon in the input text box.
-          </p>
-
-          <Toggle
-            label="Enabled"
-            helperText="Whether to show the microphone button."
-            fieldName="speechToTextEnabled"
-            value={state.user?.speechtotext?.enabled ?? true}
-          />
-
-          <Toggle
-            label="Submit Automatically"
-            helperText="Whether to send the message when a sentence has been completed."
-            fieldName="speechToTextAutoSubmit"
-            value={state.user?.speechtotext?.autoSubmit ?? true}
-          />
-
-          <Toggle
-            label="Resume Listening Automatically"
-            helperText="Whether to re-start recording after a message has been received."
-            fieldName="speechToTextAutoRecord"
-            value={state.user?.speechtotext?.autoRecord ?? true}
-          />
-        </Show>
-
-        <Divider />
-
         <p class="text-lg font-bold">Text to Speech (Character Voice)</p>
 
         <p class="italic">

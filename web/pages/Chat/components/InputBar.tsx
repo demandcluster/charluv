@@ -1,22 +1,11 @@
 import { ImagePlus, ImageUp, Megaphone, MoreHorizontal, PlusCircle, Send } from '/web/icons'
-import {
-  Component,
-  createMemo,
-  createSignal,
-  For,
-  Match,
-  onCleanup,
-  Setter,
-  Show,
-  Switch,
-} from 'solid-js'
+import { Component, createMemo, createSignal, For, onCleanup, Setter, Show } from 'solid-js'
 import { AppSchema } from '../../../../common/types/schema'
 import Button, { LabelButton } from '../../../shared/Button'
 import { DropMenu } from '../../../shared/DropMenu'
 import TextInput from '../../../shared/TextInput'
 import { chatStore, toastStore, userStore, characterStore, ChatMessageExt } from '../../../store'
 import { msgStore } from '../../../store'
-import { SpeechRecognitionRecorder } from './SpeechRecognitionRecorder'
 import { Toggle } from '/web/shared/Toggle'
 import { defaultCulture } from '/web/shared/CultureCodes'
 import { createDebounce } from '/web/shared/util'
@@ -30,6 +19,7 @@ import FileInput, { FileInputResult, getFileAsDataURL } from '/web/shared/FileIn
 import { ALLOWED_TYPES } from '/web/store/data/image'
 import CreditCost from '/web/shared/CreditCost'
 import { EVENT_TURN_COST } from '/common/event'
+import Tooltip from '/web/shared/Tooltip'
 
 /** Credit cost to send a message: a flat event turn, or a normal chat message. */
 const MESSAGE_COST = 10
@@ -88,9 +78,7 @@ const InputBar: Component<{
 
   const [text, setText] = createSignal(draft.text)
   const [menu, setMenu] = createSignal(false)
-  const [cleared, setCleared] = createSignal(0, { equals: false })
   const [complete, setComplete] = createSignal(false)
-  const [listening, setListening] = createSignal(false)
   const [dragging, setDragging] = createSignal(false)
 
   const completeOpts = createMemo(() => {
@@ -144,7 +132,6 @@ const InputBar: Component<{
     props.send(value, props.ooc, () => {
       ref.value = ''
       setText('')
-      setCleared(0)
       draft.clear()
     })
   }, 100)
@@ -287,9 +274,16 @@ const InputBar: Component<{
           },
         }}
       />
-      <Button schema="clear" onClick={onButtonClick} class="h-full bg-[var(--bg-800)] px-2 py-2">
-        <MoreHorizontal class="icon-button" />
-      </Button>
+      <Tooltip tip="Options" position="top">
+        <Button
+          schema="clear"
+          onClick={onButtonClick}
+          class="h-full bg-[var(--bg-800)] px-2 py-2"
+          aria-label="Chat options"
+        >
+          <MoreHorizontal class="icon-button" />
+        </Button>
+      </Tooltip>
 
       <DropMenu show={menu()} close={() => setMenu(false)} vert="up" horz="left">
         <div class="flex w-48 flex-col gap-2 p-2">
@@ -363,33 +357,16 @@ const InputBar: Component<{
           </Show>
         </div>
       </DropMenu>
-      <Switch>
-        <Match when={user.user?.speechtotext && (text() === '' || listening())}>
-          <div class="flex h-full items-center">
-            <SpeechRecognitionRecorder
-              culture={props.char?.culture}
-              onText={(value) => setText(value)}
-              onSubmit={() => send()}
-              cleared={cleared}
-              listening={setListening}
-              class="h-full bg-[var(--bg-800)]"
-            />
-          </div>
-        </Match>
-
-        <Match when>
-          <Button schema="clear" onClick={send} class="mt-1 flex items-center gap-1">
-            <Send class="icon-button" size={18} />
-            <Show when={!props.ooc}>
-              <CreditCost
-                amount={props.chat.mode === 'event' ? EVENT_TURN_COST : MESSAGE_COST}
-                size={12}
-                class="text-xs"
-              />
-            </Show>
-          </Button>
-        </Match>
-      </Switch>
+      <Button schema="clear" onClick={send} class="mt-1 flex items-center gap-1">
+        <Send class="icon-button" size={18} />
+        <Show when={!props.ooc}>
+          <CreditCost
+            amount={props.chat.mode === 'event' ? EVENT_TURN_COST : MESSAGE_COST}
+            size={12}
+            class="text-xs"
+          />
+        </Show>
+      </Button>
     </div>
   )
 }

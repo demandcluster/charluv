@@ -251,6 +251,22 @@ export async function getDraftCharacter(userId: string) {
   return char || undefined
 }
 
+/**
+ * Atomically claim the single free portrait for the user's active draft. Returns
+ * true exactly once per draft (the create wizard's first auto-generation, bundled
+ * into the creation fee); every later generation returns false and is charged.
+ * The `freePortraitUsed: { $ne: true }` guard makes the claim race-safe, so
+ * concurrent requests can't both win the freebie. Eligibility is derived entirely
+ * from server state — the client's request only signals intent.
+ */
+export async function claimDraftFreePortrait(userId: string) {
+  const res = await db('character').updateOne(
+    { userId, kind: 'character', draft: true, freePortraitUsed: { $ne: true } },
+    { $set: { freePortraitUsed: true } }
+  )
+  return res.modifiedCount === 1
+}
+
 export async function getCharacters(userId: string) {
   const list = await db('character')
     // Hide unfinished wizard drafts from the My AI list.

@@ -1017,7 +1017,7 @@ const CharacterGallery: Component<{
 
       <div class="flex flex-wrap items-center gap-2">
         <Button size="sm" onClick={generate} disabled={busy() || full() || !props.charId}>
-          Generate
+          Generate <CreditCost amount={25} class="ml-1" />
         </Button>
         <FileInput
           fieldName="galleryUpload"
@@ -1052,7 +1052,7 @@ const CharacterGallery: Component<{
         </div>
       </Show>
 
-      <Show when={loraName()}>
+      <Show when={props.charId && loraName()}>
         <div class="text-600 flex items-center gap-3 text-sm">
           <span>
             Current LoRA: <span class="text-700 font-mono">{loraName()}</span>

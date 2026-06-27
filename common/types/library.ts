@@ -64,6 +64,13 @@ export interface Character extends BaseCharacter {
    */
   draft?: boolean
   /**
+   * Set once the draft's single free portrait (the create wizard's first
+   * auto-generation, bundled into the creation fee) has been claimed. Every
+   * subsequent image generation is charged. Server-derived; never trusted from
+   * the client.
+   */
+  freePortraitUsed?: boolean
+  /**
    * @deprecated Legacy scenario-state-machine progression. Replaced by `progression` (archetypes).
    * Retained only for back-compat with existing ScenarioBooks during migration.
    */

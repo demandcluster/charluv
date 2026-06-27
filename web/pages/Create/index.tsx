@@ -443,15 +443,21 @@ const Create: Component = () => {
     }
   }
 
-  const generatePortrait = () => {
+  const generatePortrait = (opts?: { free?: boolean }) => {
     const user = userStore().user
     if (!user || genBusy()) return
     const prompt = imagePrompt().trim() || portraitPrompt()
     setGenBusy(true)
-    characterStore.generateAvatar(user, prompt, (_err: any, file?: File) => {
-      setGenBusy(false)
-      if (file) setPortrait(file)
-    })
+    characterStore.generateAvatar(
+      user,
+      prompt,
+      (_err: any, file?: File) => {
+        setGenBusy(false)
+        if (file) setPortrait(file)
+      },
+      undefined,
+      opts?.free
+    )
   }
 
   // On reaching the finish step: focus the name field, ask the LLM for a prompt,
@@ -468,7 +474,8 @@ const Create: Component = () => {
       const prompt = await craftPrompt(d)
       setImagePrompt(prompt)
       setPromptLoading(false)
-      generatePortrait()
+      // First portrait is free — bundled into the creation fee charged on finish.
+      generatePortrait({ free: true })
     })()
   })
 
@@ -976,10 +983,11 @@ const Create: Component = () => {
                   <button
                     class="cr-btn"
                     type="button"
-                    onClick={generatePortrait}
+                    onClick={() => generatePortrait()}
                     disabled={genBusy() || promptLoading()}
                   >
                     <Sparkles size={15} /> {genBusy() ? 'Generating…' : 'Regenerate'}
+                    <CreditCost amount={25} class="ml-1" />
                   </button>
                   <FileInput
                     fieldName="crPortrait"

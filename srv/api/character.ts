@@ -15,7 +15,7 @@ import { PERSONA_FORMATS } from '../../common/adapters'
 import { AppSchema } from '../../common/types/schema'
 import { CharacterUpdate } from '../db/characters'
 import { getVoiceService } from '../voice'
-import { generateImage } from '../image'
+import { generateImage, IMAGE_COST } from '../image'
 import { makeLoraName, zimageEncode, zimageDeleteLora } from '../image/zimage'
 import { logger } from '../middleware'
 import { listMemories, rememberFact, deleteMemory, deleteAllMemories } from '../memory/store'
@@ -1083,10 +1083,30 @@ export const createImage = handle(async ({ body, userId, socketId, log }) => {
       requestId: 'string?',
       parent: 'string?',
       seed: 'number?',
+      noCharge: 'boolean?',
     },
     body
   )
   const user = userId ? await store.users.getUser(userId) : body.user
+
+  // Charge logged-in users for each image generation/regeneration. Avatar,
+  // gallery, and the create-wizard portrait all route through here, so this is
+  // the single place the image cost is applied. Guests have no account to bill;
+  // generateImage refunds the charge if the request is dropped on disconnect.
+  if (userId && userId !== 'anon') {
+    // The create wizard's FIRST portrait is free — it's bundled into the
+    // 100-credit creation fee. This is a single-use freebie claimed atomically
+    // from the draft's server state (not the client's `noCharge` flag), so it
+    // can't be replayed for unlimited free images, nor used on the edit form or
+    // in chat (no draft). Every other generation is charged.
+    const free = body.noCharge ? await store.characters.claimDraftFreePortrait(userId) : false
+    if (!free) {
+      if ((user?.credits ?? 0) < IMAGE_COST) {
+        throw new StatusError(`Not enough credits — generating an image costs ${IMAGE_COST}`, 400)
+      }
+      await store.credits.updateCredits(userId, -IMAGE_COST)
+    }
+  }
 
   const guestId = userId ? undefined : socketId
   generateImage(
