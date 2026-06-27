@@ -406,7 +406,7 @@ export const CreateCharacterForm: Component<{
                       { label: 'Unset', value: '' },
                       { label: 'Female', value: 'female' },
                       { label: 'Male', value: 'male' },
-                      { label: 'Nonbinary', value: 'nonbinary' },
+                      { label: 'Trans', value: 'trans' },
                     ]}
                     value={editor.state.gender ?? ''}
                     onChange={(opt) => editor.update('gender', opt.value || undefined)}

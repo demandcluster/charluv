@@ -235,6 +235,9 @@
   color: oklch(0.2 0.03 350);
   font-weight: 700;
   backdrop-filter: none;
+  /* Keep the brand casing "LoRA" — the base pill forces uppercase ("LORA"). */
+  text-transform: none;
+  letter-spacing: 0;
 }
 .dsc-engage {
   display: flex;

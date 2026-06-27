@@ -13,7 +13,7 @@ const GENDERS = [
   { value: '', label: 'Everyone' },
   { value: 'female', label: 'Women' },
   { value: 'male', label: 'Men' },
-  { value: 'nonbinary', label: 'Nonbinary' },
+  { value: 'trans', label: 'Trans' },
 ]
 const STYLES = [
   { value: '', label: 'Any style' },
@@ -47,7 +47,14 @@ const MyAI: Component = () => {
     const term = search().trim().toLowerCase()
     return state.characters.list
       .filter((c) => {
-        if (gender() && c.gender !== gender()) return false
+        if (gender()) {
+          // 'trans' also matches legacy 'nonbinary' chars (same third option).
+          const ok =
+            gender() === 'trans'
+              ? c.gender === 'trans' || c.gender === 'nonbinary'
+              : c.gender === gender()
+          if (!ok) return false
+        }
         if (style() && c.artStyle !== style()) return false
         if (sfw() && c.nsfw) return false
         if (favorite() && !c.favorite) return false

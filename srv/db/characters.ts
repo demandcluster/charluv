@@ -275,6 +275,17 @@ export async function getCharacters(userId: string) {
       parent: 1,
       voiceDisabled: 1,
       folder: 1,
+      // The My AI list filters and cards need these: gender/artStyle/nsfw/category
+      // drive the filter chips and tag search; progression/loraName render the
+      // stage badge and archetype/LoRA pills. Without them the filters match
+      // nothing (undefined !== 'female') and the pills never show.
+      gender: 1,
+      artStyle: 1,
+      ageRange: 1,
+      nsfw: 1,
+      category: 1,
+      progression: 1,
+      loraName: 1,
     })
     .toArray()
 

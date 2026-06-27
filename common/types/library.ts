@@ -72,7 +72,9 @@ export interface Character extends BaseCharacter {
   progression?: CharacterProgression
 
   // --- Discover gallery metadata (additive; all optional, missing reads as unset/zero) ---
-  gender?: 'female' | 'male' | 'nonbinary'
+  // 'trans' is the canonical third option (the create wizard's value); 'nonbinary'
+  // is retained for legacy data written by the editor before they were unified.
+  gender?: 'female' | 'male' | 'trans' | 'nonbinary'
   artStyle?: 'realistic' | 'anime'
   /** Display bucket for the age-gated gallery (e.g. "18-25"). */
   ageRange?: string

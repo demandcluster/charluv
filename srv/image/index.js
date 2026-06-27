@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.IMAGE_COST = void 0;
 exports.generateImage = generateImage;
 const novel_1 = require("./novel");
 const db_1 = require("../db");
@@ -12,6 +13,9 @@ const horde_1 = require("./horde");
 const zimage_1 = require("./zimage");
 const queue_1 = require("../queue");
 const subscriptions_1 = require("../db/subscriptions");
+/** Credit cost charged up-front by the image route; refunded if the request is
+ * dropped because the client disconnected before generation. */
+exports.IMAGE_COST = 25;
 /**
  * Merge negative-prompt sources into a single comma-separated string, deduping
  * tokens case-insensitively (first occurrence wins, preserving order). Used to
@@ -161,6 +165,14 @@ async function generateImage({ user, chatId, messageId, ...opts }, log, guestId)
         });
     }
     catch (ex) {
+        if (ex instanceof queue_1.ClientGoneError) {
+            // Client disconnected before the image was generated; the gate freed the
+            // slot. Refund the credits the route charged up-front (guests aren't charged).
+            if (!guestId && user?._id) {
+                await db_1.store.credits.updateCredits(user._id, exports.IMAGE_COST);
+            }
+            return { output: '' };
+        }
         error = ex.message || ex;
     }
     /**

@@ -50,7 +50,6 @@ const characterForm = {
   persona: 'string?',
 
   xp: 'any?',
-  match: 'any?',
   share: 'string?',
   premium: 'any?',
 
@@ -105,7 +104,6 @@ const newCharacterValidator = {
   greeting: 'string',
   sampleChat: 'string',
   xp: 'any?',
-  match: 'any?',
   premium: 'boolean?',
   share: 'string?',
   persona: 'string',
@@ -181,7 +179,6 @@ const createCharacterFor = (charge: boolean) =>
       persona,
       premium: !!body.premium,
       xp: 0,
-      match: body.match?.toString() === 'true' || false,
       draft: body.draft?.toString() === 'true' || undefined,
       progression,
       gender: (body.gender as AppSchema.Character['gender']) || undefined,
@@ -753,7 +750,6 @@ const editFullCharacter = handle(async (req) => {
     // creator left as-is (omitted from update so it isn't overwritten);
     // characterVersion auto-incremented.
     characterVersion: nextVersion,
-    match: body.match?.toString() === 'true' || false,
     // Editing always lands a finished character. Finalizing a draft clears the
     // flag (making it visible); editing a normal character is a harmless no-op.
     draft: false,

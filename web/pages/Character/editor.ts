@@ -47,7 +47,6 @@ type EditState = {
   systemPrompt: string
 
   xp?: string
-  match?: string
   share?: string
   premium?: string
   visualType: string
@@ -121,7 +120,6 @@ const newCharGuard = {
   sampleChat: 'string',
   xp: 'string?',
   share: 'string?',
-  match: 'string?',
   premium: 'string?',
   // The following fields no longer have form inputs (Voice/Advanced tabs removed).
   // Kept optional so existing values pass through load()/getPayload unchanged.
@@ -172,7 +170,6 @@ const initState: EditState = {
   },
   systemPrompt: '',
   xp: '0',
-  match: 'false',
   share: 'private',
   premium: 'false',
   visualType: 'avatar',
@@ -735,7 +732,6 @@ function getPayload(ev: any, state: EditState, original?: NewCharacter) {
     voice: state.voice,
 
     // charluv fields
-    match: state.match?.toString() === 'true' || false,
     premium: state.premium?.toString() === 'true' || false,
     xp: 0,
     share: state.share ?? 'private',

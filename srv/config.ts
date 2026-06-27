@@ -181,7 +181,10 @@ export const config = {
      * is the authoritative negative; any legacy stored negative is appended after
      * it (deduped). Comma-separated tokens.
      */
-    imageNegative: env('INFERENCE_IMAGE_NEGATIVE', ''),
+    imageNegative: env(
+      'INFERENCE_IMAGE_NEGATIVE',
+      'bad anatomy, bad composition, bad lighting, distorted face, extra limbs, low quality, out of focus, overexposed, plastic, poor symmetry, signature, watermark, ugly'
+    ),
   },
   queue: {
     global: +env('INFERENCE_GLOBAL_CONCURRENCY', '10'),

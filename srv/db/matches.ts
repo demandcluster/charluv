@@ -90,18 +90,22 @@ export async function discover(userId: string, filter: DiscoverFilter = {}) {
   const query: any = {
     kind: 'character',
     draft: { $ne: true },
-    // Show legacy admin-curated templates (match) OR user-published characters,
-    // but never anything taken down by moderation/reports.
+    // Discovery surfaces ONLY user-published characters now. The legacy
+    // admin-curated "match" templates are no longer discoverable, so the page is
+    // intentionally empty until the publishing system populates it. Never show
+    // anything taken down by moderation/reports.
     'moderation.status': { $ne: 'hidden' },
-    $and: [
-      { $or: [{ match: true }, { published: true }] },
-      { $or: [{ premium: false }, { premium }] },
-    ],
+    published: true,
+    $or: [{ premium: false }, { premium }],
   }
 
   // Defensive: only ever place primitive strings into the query so a malformed
   // caller can't inject Mongo operators (e.g. { $ne: ... }) via these fields.
-  if (typeof filter.gender === 'string') query.gender = filter.gender
+  // 'trans' is the canonical third gender; older editor-written chars stored
+  // 'nonbinary' for the same thing, so the Trans filter must match either. The
+  // $in is built from the validated literal, not caller input, so it's safe.
+  if (filter.gender === 'trans') query.gender = { $in: ['trans', 'nonbinary'] }
+  else if (typeof filter.gender === 'string') query.gender = filter.gender
   if (typeof filter.artStyle === 'string') query.artStyle = filter.artStyle
   if (typeof filter.category === 'string') query.category = filter.category
   if (filter.nsfw === false) query.nsfw = { $ne: true }

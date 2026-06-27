@@ -23,7 +23,7 @@ const getMatches = handle(async (req) => {
 
   return { characters: newChars }
 })
-const GENDERS = ['female', 'male', 'nonbinary'] as const
+const GENDERS = ['female', 'male', 'trans', 'nonbinary'] as const
 const ART_STYLES = ['realistic', 'anime'] as const
 
 /** Only accept primitive strings; reject objects/arrays (e.g. `?gender[$ne]=x`) to prevent operator injection. */

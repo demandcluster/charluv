@@ -12,7 +12,7 @@ const GENDERS = [
   { value: '', label: 'Everyone' },
   { value: 'female', label: 'Women' },
   { value: 'male', label: 'Men' },
-  { value: 'nonbinary', label: 'Nonbinary' },
+  { value: 'trans', label: 'Trans' },
 ]
 const STYLES = [
   { value: '', label: 'Any style' },
@@ -184,6 +184,16 @@ const Card: Component<{ char: AppSchema.Character; onPick: (c: AppSchema.Charact
   // Only the (level-independent) archetype label — public templates are always
   // level 0, so a stage badge would just read "Novice" on every card.
   const stageLabel = createMemo(() => getArchetype(props.char.progression?.archetype)?.label)
+  // The archetype trait already shows as the top badge, so drop any category tag
+  // that repeats it (by label or raw id) — otherwise "Submissive" shows twice.
+  const tags = createMemo(() => {
+    const dupes = new Set(
+      [stageLabel(), props.char.progression?.archetype]
+        .filter(Boolean)
+        .map((t) => t!.toLowerCase())
+    )
+    return (props.char.category || []).filter((c) => !dupes.has(c.toLowerCase())).slice(0, 3)
+  })
   const eng = () => props.char.engagement
   const initial = () => props.char.name?.[0]?.toUpperCase() || '?'
 
@@ -221,11 +231,9 @@ const Card: Component<{ char: AppSchema.Character; onPick: (c: AppSchema.Charact
             <span>· {props.char.ageRange}</span>
           </Show>
         </div>
-        <Show when={props.char.category?.length || props.char.loraName}>
+        <Show when={tags().length || props.char.loraName}>
           <div class="dsc-tags">
-            <For each={props.char.category?.slice(0, 3) || []}>
-              {(c) => <span class="dsc-pill">{c}</span>}
-            </For>
+            <For each={tags()}>{(c) => <span class="dsc-pill">{c}</span>}</For>
             <Show when={props.char.loraName}>
               <span class="dsc-pill dsc-pill-lora">LoRA</span>
             </Show>

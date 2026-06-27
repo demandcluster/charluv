@@ -600,7 +600,6 @@ const Create: Component = () => {
       category: [v.label],
       progression: { archetype: v.archetype || DEFAULT_ARCHETYPE_ID, speed: 'normal' },
       premium: false,
-      match: false,
       share: undefined,
       originalAvatar: undefined,
     }
