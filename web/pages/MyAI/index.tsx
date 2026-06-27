@@ -77,8 +77,12 @@ const MyAI: Component = () => {
           My <em>AI</em>
         </h1>
         <p class="dsc-tag">
-          Your companions and the relationships you're building. Pick up where you left off — or find
-          someone new in <A href="/discover" style={{ color: 'var(--dsc-green)' }}>Discover</A>.
+          Your companions and the relationships you're building. Pick up where you left off — or
+          find someone new in{' '}
+          <A href="/discover" style={{ color: 'var(--dsc-green)' }}>
+            Discover
+          </A>
+          .
         </p>
         <div class="myai-actions">
           <A class="myai-new" href="/create">
@@ -91,7 +95,11 @@ const MyAI: Component = () => {
         <div class="dsc-group" role="group" aria-label="Gender">
           <For each={GENDERS}>
             {(g) => (
-              <button class="dsc-chip" data-on={gender() === g.value} onClick={() => setGender(g.value)}>
+              <button
+                class="dsc-chip"
+                data-on={gender() === g.value}
+                onClick={() => setGender(g.value)}
+              >
                 {g.label}
               </button>
             )}
@@ -102,7 +110,11 @@ const MyAI: Component = () => {
         <div class="dsc-group" role="group" aria-label="Art style">
           <For each={STYLES}>
             {(s) => (
-              <button class="dsc-chip" data-on={style() === s.value} onClick={() => setStyle(s.value)}>
+              <button
+                class="dsc-chip"
+                data-on={style() === s.value}
+                onClick={() => setStyle(s.value)}
+              >
                 {s.label}
               </button>
             )}
@@ -151,7 +163,11 @@ const MyAI: Component = () => {
                 when={state.characters.list.length}
                 fallback={
                   <div class="dsc-empty">
-                    No companions yet — head to <A href="/discover" style={{ color: 'var(--dsc-green)' }}>Discover</A> and pick one.
+                    No companions yet — head to{' '}
+                    <A href="/discover" style={{ color: 'var(--dsc-green)' }}>
+                      Discover
+                    </A>{' '}
+                    and pick one.
                   </div>
                 }
               >
@@ -167,9 +183,10 @@ const MyAI: Component = () => {
   )
 }
 
-const Companion: Component<{ char: AppSchema.Character; onOpen: (c: AppSchema.Character) => void }> = (
-  props
-) => {
+const Companion: Component<{
+  char: AppSchema.Character
+  onOpen: (c: AppSchema.Character) => void
+}> = (props) => {
   const level = createMemo(() => getCharacterLevel(props.char.xp))
   const stage = createMemo(() => resolveStage(level(), props.char.progression))
   const initial = () => props.char.name?.[0]?.toUpperCase() || '?'
@@ -184,14 +201,22 @@ const Companion: Component<{ char: AppSchema.Character; onOpen: (c: AppSchema.Ch
       onClick={() => props.onOpen(props.char)}
       onKeyDown={(e) => e.key === 'Enter' && props.onOpen(props.char)}
     >
-      <span class="dsc-badge">Lv {level()}{stage() ? ` · ${stage()!.stage.replace('BDSM/', '')}` : ''}</span>
+      <span class="dsc-badge">
+        Lv {level()}
+        {stage() ? ` · ${stage()!.stage.replace('BDSM/', '')}` : ''}
+      </span>
 
       <span class="myai-status" classList={{ public: isPublic(), private: !isPublic() }}>
         {isPublic() ? 'Public' : 'Private'}
       </span>
 
       <Show when={props.char.avatar} fallback={<div class="dsc-ph">{initial()}</div>}>
-        <img class="dsc-photo" src={getAssetUrl(props.char.avatar!)} alt={props.char.name} loading="lazy" />
+        <img
+          class="dsc-photo"
+          src={getAssetUrl(props.char.avatar!)}
+          alt={props.char.name}
+          loading="lazy"
+        />
       </Show>
       <div class="dsc-scrim" />
 

@@ -24,7 +24,7 @@ import Loading from '/web/shared/Loading'
 import { JSX, For } from 'solid-js'
 import { Card, SolidCard, TitleCard } from '../../shared/Card'
 import { usePane } from '../../shared/hooks'
-import Modal from '/web/shared/Modal'
+import Modal, { ConfirmModal } from '/web/shared/Modal'
 import { ToggleButtons } from '../../shared/Toggle'
 import { CharEditor, useCharEditor } from './editor'
 import { ARCHETYPES } from '/common/progression'
@@ -789,6 +789,7 @@ const CharacterGallery: Component<{
   // lands in its own reserved tile instead of the main cover/profile slot.
   const [genLoading, setGenLoading] = createSignal(false)
   const [loraName, setLoraName] = createSignal<string>(props.editor.state.loraName || '')
+  const [confirmDeleteLora, setConfirmDeleteLora] = createSignal(false)
 
   const full = () => gallery().length >= GALLERY_MAX
   const isSelected = (url: string) => selected().includes(url)
@@ -891,6 +892,20 @@ const CharacterGallery: Component<{
     } else if (res.error) {
       toastStore.error(`Could not build LoRA: ${res.error}`)
     }
+  }
+
+  const deleteLora = async () => {
+    if (!props.charId || !loraName()) return
+    setBusy(true)
+    const res = await charsApi.deleteLora(props.charId)
+    setBusy(false)
+    if (res.error) {
+      toastStore.error(`Could not delete LoRA: ${res.error}`)
+      return
+    }
+    setLoraName('')
+    props.editor.update('loraName', undefined)
+    toastStore.success('LoRA deleted')
   }
 
   const tileClass = (url: string) => `relative h-24 w-24 shrink-0 cursor-pointer rounded-md`
@@ -1038,10 +1053,29 @@ const CharacterGallery: Component<{
       </Show>
 
       <Show when={loraName()}>
-        <div class="text-600 text-sm">
-          Current LoRA: <span class="text-700 font-mono">{loraName()}</span>
+        <div class="text-600 flex items-center gap-3 text-sm">
+          <span>
+            Current LoRA: <span class="text-700 font-mono">{loraName()}</span>
+          </span>
+          <Button
+            schema="red"
+            size="sm"
+            onClick={() => setConfirmDeleteLora(true)}
+            disabled={busy()}
+          >
+            <Trash size={14} /> Delete LoRA
+          </Button>
         </div>
       </Show>
+
+      <ConfirmModal
+        show={confirmDeleteLora()}
+        close={() => setConfirmDeleteLora(false)}
+        confirm={deleteLora}
+        message={
+          "Delete this character's image LoRA?\n\nGenerated images will no longer keep a consistent appearance, and rebuilding a LoRA costs 300 credits. This can't be undone."
+        }
+      />
     </Card>
   )
 }

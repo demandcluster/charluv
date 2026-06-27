@@ -168,6 +168,29 @@ export async function zimageListLoras(): Promise<string[]> {
 }
 
 /**
+ * DELETE /v1/loras/{name} — remove a stored character LoRA. A 404 (already gone)
+ * counts as success so callers can delete idempotently; transport or other 4xx/5xx
+ * errors throw so the caller can log them.
+ */
+export async function zimageDeleteLora(name: string): Promise<void> {
+  if (!isZImageConfigured() || !name) return
+  const url = `${baseUrl()}/v1/loras/${encodeURIComponent(name)}`
+  const result: any = await needle('delete', url, null, { json: true, headers: headers() }).catch(
+    (err) => ({ err })
+  )
+
+  if (result && 'err' in result) {
+    const e = result.err
+    throw new Error(`Image request failed: ${e?.code ? `Service unreachable - ${e.code}` : e?.message || e}`)
+  }
+
+  if (result?.statusCode && result.statusCode >= 400 && result.statusCode !== 404) {
+    const detail = result.body?.detail || result.body?.message || result.statusMessage
+    throw new Error(`Image request failed: ${detail} (${result.statusCode})`)
+  }
+}
+
+/**
  * ImageAdapter wrapper for the chat/avatar image pipeline. Generates from the
  * character's stored LoRA when present (Mode A); otherwise plain text-to-image.
  */

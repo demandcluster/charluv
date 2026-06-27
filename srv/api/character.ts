@@ -16,7 +16,8 @@ import { AppSchema } from '../../common/types/schema'
 import { CharacterUpdate } from '../db/characters'
 import { getVoiceService } from '../voice'
 import { generateImage } from '../image'
-import { makeLoraName, zimageEncode } from '../image/zimage'
+import { makeLoraName, zimageEncode, zimageDeleteLora } from '../image/zimage'
+import { logger } from '../middleware'
 import { listMemories, rememberFact, deleteMemory, deleteAllMemories } from '../memory/store'
 import { v4 } from 'uuid'
 import { validBook } from './memory'
@@ -983,9 +984,41 @@ const encodeLora = handle(async ({ userId, params, body }) => {
   return { loraName }
 })
 
+/**
+ * Remove a stored LoRA from the image server, but only when no remaining
+ * character still references it (clones share the parent's `loraName`). Call this
+ * AFTER the local change (clear/delete) so the usage check reflects reality.
+ * Best-effort: a failed remote delete must not fail the user's local action.
+ */
+async function deleteLoraFromImageServer(loraName?: string) {
+  if (!loraName) return
+  if (await store.characters.anyCharacterUsesLora(loraName)) return
+  try {
+    await zimageDeleteLora(loraName)
+  } catch (err: any) {
+    logger.warn({ err: err?.message, loraName }, 'Failed to delete LoRA from image server')
+  }
+}
+
+/** Delete just the character's image LoRA (keeps the character itself). */
+const deleteLora = handle(async ({ userId, params }) => {
+  const char = await store.characters.getCharacter(userId!, params.id)
+  if (!char) throw errors.NotFound
+  const loraName = char.loraName
+  if (!loraName) return { success: true }
+
+  await store.characters.clearCharacterLora(params.id, userId!)
+  await deleteLoraFromImageServer(loraName)
+  return { success: true }
+})
+
 const deleteCharacter = handle(async ({ userId, params }) => {
   const id = params.id
+  // Read the LoRA name before the doc is gone; clean it up off the image server
+  // after deletion (so the shared-use check sees the character as already removed).
+  const char = await store.characters.getCharacter(userId!, id)
   await store.characters.deleteCharacter({ userId: userId!, charId: id })
+  await deleteLoraFromImageServer(char?.loraName)
   return { success: true }
 })
 
@@ -1096,6 +1129,7 @@ router.post('/:id/gallery', addGalleryImage)
 router.delete('/:id/gallery', removeGalleryImage)
 router.post('/:id/cover', setCover)
 router.post('/:id/encode-lora', encodeLora)
+router.delete('/:id/lora', loggedIn, deleteLora)
 router.get('/:id/memories', listCharacterMemories)
 router.post('/:id/memories', addCharacterMemory)
 router.delete('/:id/memories/:memId', removeCharacterMemory)

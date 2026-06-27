@@ -29,6 +29,7 @@ export const charsApi = {
   removeGalleryImage,
   setCover,
   encodeLora,
+  deleteLora,
   listMemories,
   addMemory,
   deleteMemory,
@@ -76,6 +77,15 @@ async function setCover(charId: string, url: string) {
 /** Encode 1-4 reference images (base64 data urls) into a stored character LoRA. */
 async function encodeLora(charId: string, images: string[]) {
   return api.post<{ loraName: string }>(`/character/${charId}/encode-lora`, { images })
+}
+
+/**
+ * Delete a character's stored image LoRA. Clears the association locally and
+ * removes it from the image server unless another character (e.g. a clone) shares
+ * the same LoRA.
+ */
+async function deleteLora(charId: string) {
+  return api.method<{ success: boolean }>('delete', `/character/${charId}/lora`)
 }
 
 async function getCharacterDetail(charId: string) {

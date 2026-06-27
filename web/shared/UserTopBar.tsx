@@ -30,15 +30,20 @@ const UserTopBar: Component = () => {
       data-header=""
       class="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-[var(--bg-800)] bg-[var(--menu-bg)] px-3 sm:px-6"
     >
+      {/* The side drawer is only force-open at xl (≥1280px); below that it's
+          collapsed, so the opener must be visible the whole way down — not just
+          on mobile. `xl:hidden` matches the platform xl threshold exactly, which
+          `sm:hidden` (640px) did not, leaving a dead band where neither this nor
+          the chat-only floating hamburger showed. */}
       <div
-        class="icon-button w-8 sm:hidden"
+        class="icon-button w-8 xl:hidden"
         role="button"
         aria-label="Open menu"
         onClick={() => settingStore.menu()}
       >
         <Menu class="cursor-pointer" />
       </div>
-      <div class="hidden sm:block" />
+      <div class="hidden xl:block" />
 
       <div class="flex items-center gap-2 sm:gap-3">
         <A

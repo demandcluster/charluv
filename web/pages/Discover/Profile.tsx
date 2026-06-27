@@ -9,6 +9,7 @@ import TextInput from '../../shared/TextInput'
 import { Flag } from '/web/icons'
 import ReportModal from './ReportModal'
 import { AppSchema } from '/common/types'
+import { BOT_REPLACE, SELF_REPLACE } from '/common/prompt'
 
 type Attributes = Record<string, string[] | undefined>
 
@@ -65,7 +66,11 @@ const Profile: Component = () => {
 
   const description = createMemo(() => {
     const c = char()
-    return attr(c, 'description') || c?.description || ''
+    const raw = attr(c, 'description') || c?.description || ''
+    // Render the prompt placeholders for display: {{char}} (and {{name}}) tracks
+    // the renameable name shown above; {{user}} reads as "you" since the viewer
+    // may be a guest with no profile name yet.
+    return raw.replace(BOT_REPLACE, name() || c?.name || '').replace(SELF_REPLACE, 'you')
   })
 
   // Cover/avatar first, then gallery, de-duped. One image is "main" (large); the

@@ -188,9 +188,7 @@ const Card: Component<{ char: AppSchema.Character; onPick: (c: AppSchema.Charact
   // that repeats it (by label or raw id) — otherwise "Submissive" shows twice.
   const tags = createMemo(() => {
     const dupes = new Set(
-      [stageLabel(), props.char.progression?.archetype]
-        .filter(Boolean)
-        .map((t) => t!.toLowerCase())
+      [stageLabel(), props.char.progression?.archetype].filter(Boolean).map((t) => t!.toLowerCase())
     )
     return (props.char.category || []).filter((c) => !dupes.has(c.toLowerCase())).slice(0, 3)
   })

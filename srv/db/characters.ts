@@ -299,6 +299,28 @@ export async function deleteCharacter(opts: { charId: string; userId: string }) 
   await db('chat').deleteMany({ characterId: opts.charId, userId: opts.userId })
 }
 
+/**
+ * True if any character *other than* `exceptId` still references this LoRA name.
+ * Cloning a character copies the parent's `loraName`, so the stored LoRA on the
+ * image server is shared — it must outlive the deletion of any single character
+ * that points at it.
+ */
+export async function anyCharacterUsesLora(loraName: string, exceptId?: string) {
+  if (!loraName) return false
+  const query: any = { kind: 'character', loraName }
+  if (exceptId) query._id = { $ne: exceptId }
+  const found = await db('character').findOne(query, { projection: { _id: 1 } })
+  return !!found
+}
+
+/** Drop the LoRA association from a character. Does not touch the image server. */
+export async function clearCharacterLora(charId: string, userId: string) {
+  await db('character').updateOne(
+    { _id: charId, userId, kind: 'character' },
+    { $set: { updatedAt: now() }, $unset: { loraName: '' } }
+  )
+}
+
 export async function getCharacterList(charIds: string[], userId?: string) {
   const project = {
     _id: 1,
