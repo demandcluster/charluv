@@ -265,6 +265,20 @@
   left: auto;
   right: 0.7rem;
 }
+/* Plum progression marker: an icon-only badge (tooltip "Scenario progression")
+   that flags the character has a relationship arc — no extra text. */
+.dsc-badge-progress {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  background: var(--dsc-plum);
+  color: var(--dsc-cream);
+}
+/* On My AI the top-left slot holds the level badge, so stack the marker below it. */
+.dsc-badge-progress.myai-progress {
+  top: 2.7rem;
+}
 .dsc-cta {
   position: absolute;
   inset: auto 0.7rem 0.7rem 0.7rem;

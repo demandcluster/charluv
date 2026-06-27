@@ -16,6 +16,8 @@
   --dsc-green: oklch(0.74 0.11 165);
   --dsc-green-deep: oklch(0.64 0.12 165);
   --dsc-wine: oklch(0.55 0.16 5);
+  /* progression marker — plum, distinct from the green type/level badges */
+  --dsc-plum: oklch(0.55 0.15 330);
 
   min-height: 100%;
   background: radial-gradient(120% 80% at 85% -10%, oklch(0.3 0.08 350 / 0.6), transparent 60%),

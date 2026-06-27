@@ -1,12 +1,12 @@
 import { Component, For, Show, createMemo, createSignal, onMount } from 'solid-js'
 import { useNavigate, A } from '@solidjs/router'
-import { Plus } from '/web/icons'
+import { Plus, Book } from '/web/icons'
 import '../Discover/discover.css'
 import './myai.css'
 import { characterStore } from '../../store/character'
 import { getAssetUrl } from '../../shared/util'
 import { getCharacterLevel } from '/common/xplevel'
-import { resolveStage, getArchetype } from '/common/progression'
+import { resolveStage } from '/common/progression'
 import { AppSchema } from '/common/types'
 
 const GENDERS = [
@@ -210,6 +210,16 @@ const Companion: Component<{
         {isPublic() ? 'Public' : 'Private'}
       </span>
 
+      <Show when={props.char.progression?.archetype}>
+        <span
+          class="dsc-badge dsc-badge-progress myai-progress"
+          title="Scenario progression"
+          aria-label="Scenario progression"
+        >
+          <Book size={15} />
+        </span>
+      </Show>
+
       <Show when={props.char.avatar} fallback={<div class="dsc-ph">{initial()}</div>}>
         <img
           class="dsc-photo"
@@ -222,14 +232,11 @@ const Companion: Component<{
 
       <div class="dsc-meta">
         <div class="dsc-name">{props.char.name}</div>
-        <Show when={props.char.progression?.archetype || props.char.loraName}>
+        <Show when={props.char.category?.length || props.char.loraName}>
           <div class="dsc-tags">
-            <Show when={props.char.progression?.archetype}>
-              <span class="dsc-pill">
-                {getArchetype(props.char.progression!.archetype)?.label ||
-                  props.char.progression!.archetype}
-              </span>
-            </Show>
+            <For each={props.char.category?.slice(0, 3) || []}>
+              {(c) => <span class="dsc-pill">{c}</span>}
+            </For>
             <Show when={props.char.loraName}>
               <span class="dsc-pill dsc-pill-lora">LoRA</span>
             </Show>

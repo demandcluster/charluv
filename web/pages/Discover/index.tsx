@@ -1,11 +1,10 @@
-import { Component, For, Show, createMemo, createSignal, onMount } from 'solid-js'
+import { Component, For, Show, createSignal, onMount } from 'solid-js'
 import { A, useNavigate } from '@solidjs/router'
-import { Sparkles } from '/web/icons'
+import { Sparkles, Book } from '/web/icons'
 import './discover.css'
 import { matchStore, DiscoverFilters } from '../../store/match'
 import { userStore } from '../../store'
 import { getAssetUrl } from '../../shared/util'
-import { getArchetype } from '/common/progression'
 import { AppSchema } from '/common/types'
 
 const GENDERS = [
@@ -181,17 +180,10 @@ const Card: Component<{ char: AppSchema.Character; onPick: (c: AppSchema.Charact
   props
 ) => {
   const [broken, setBroken] = createSignal(false)
-  // Only the (level-independent) archetype label — public templates are always
-  // level 0, so a stage badge would just read "Novice" on every card.
-  const stageLabel = createMemo(() => getArchetype(props.char.progression?.archetype)?.label)
-  // The archetype trait already shows as the top badge, so drop any category tag
-  // that repeats it (by label or raw id) — otherwise "Submissive" shows twice.
-  const tags = createMemo(() => {
-    const dupes = new Set(
-      [stageLabel(), props.char.progression?.archetype].filter(Boolean).map((t) => t!.toLowerCase())
-    )
-    return (props.char.category || []).filter((c) => !dupes.has(c.toLowerCase())).slice(0, 3)
-  })
+  // The category pills carry the character "type"; a progression archetype is
+  // shown instead as a small plum book icon (with a tooltip) — no extra text.
+  const hasProgression = () => !!props.char.progression?.archetype
+  const tags = () => props.char.category?.slice(0, 3) || []
   const eng = () => props.char.engagement
   const initial = () => props.char.name?.[0]?.toUpperCase() || '?'
 
@@ -202,8 +194,14 @@ const Card: Component<{ char: AppSchema.Character; onPick: (c: AppSchema.Charact
       onClick={() => props.onPick(props.char)}
       onKeyDown={(e) => e.key === 'Enter' && props.onPick(props.char)}
     >
-      <Show when={stageLabel()}>
-        <span class="dsc-badge">{stageLabel()}</span>
+      <Show when={hasProgression()}>
+        <span
+          class="dsc-badge dsc-badge-progress"
+          title="Scenario progression"
+          aria-label="Scenario progression"
+        >
+          <Book size={15} />
+        </span>
       </Show>
       <Show when={props.char.nsfw}>
         <span class="dsc-badge" data-nsfw="true">
