@@ -90,6 +90,16 @@ export function createApp() {
       return next(errors.NotFound)
     }
 
+    // The static middleware above already served any file that exists. A request
+    // for something with a file extension that reaches here is a MISSING asset —
+    // most commonly a stale hashed chunk (e.g. /assets/index-OLDHASH.js) after a
+    // redeploy cleaned the old build. Return 404, never the SPA shell: handing the
+    // browser index.html for a .js fails with "MIME type text/html" and blanks the
+    // page. Extension-less paths are client routes, so they still get the shell.
+    if (/\.[^/]+$/.test(req.path)) {
+      return next(errors.NotFound)
+    }
+
     return res.sendFile(index)
   })
   app.use((err: any, _req: any, res: express.Response, _next: any) => {

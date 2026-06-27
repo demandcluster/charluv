@@ -788,7 +788,10 @@ const CharacterGallery: Component<{
   // would otherwise spin the cover tile. Track it separately so the spinner
   // lands in its own reserved tile instead of the main cover/profile slot.
   const [genLoading, setGenLoading] = createSignal(false)
-  const [loraName, setLoraName] = createSignal<string>(props.editor.state.loraName || '')
+  // Derive from the editor state (the source of truth) rather than snapshotting
+  // it once — on edit the character hydrates asynchronously after this component
+  // mounts, so a one-time signal would miss an existing LoRA and hide the delete.
+  const loraName = () => props.editor.state.loraName || ''
   const [confirmDeleteLora, setConfirmDeleteLora] = createSignal(false)
 
   const full = () => gallery().length >= GALLERY_MAX
@@ -886,7 +889,6 @@ const CharacterGallery: Component<{
     const res = await charsApi.encodeLora(props.charId, picks)
     setBusy(false)
     if (res.result && 'loraName' in res.result) {
-      setLoraName(res.result.loraName)
       props.editor.update('loraName', res.result.loraName)
       toastStore.success(`LoRA built: ${res.result.loraName}`)
     } else if (res.error) {
@@ -903,7 +905,6 @@ const CharacterGallery: Component<{
       toastStore.error(`Could not delete LoRA: ${res.error}`)
       return
     }
-    setLoraName('')
     props.editor.update('loraName', undefined)
     toastStore.success('LoRA deleted')
   }
