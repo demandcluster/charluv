@@ -139,6 +139,11 @@ export type AdapterProps = {
    * aren't answered in-character.
    */
   system?: string
+  /**
+   * Route this call to the dedicated moderation endpoint (original vision model)
+   * instead of the user-facing chat model. Set by the publish/edit moderation path.
+   */
+  moderation?: boolean
   guidance?: boolean
   placeholders?: Record<string, string>
   lists?: Record<string, string[]>

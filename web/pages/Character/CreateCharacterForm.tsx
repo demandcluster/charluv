@@ -600,6 +600,13 @@ export const CreateCharacterForm: Component<{
                     onChange={(ev) => editor.update('traitBody', ev.currentTarget.value)}
                   />
                 </div>
+                <TextInput
+                  fieldName="traitOutfit"
+                  label="Outfit"
+                  placeholder="e.g. a fitted blazer over a silk blouse"
+                  value={editor.state.traitOutfit ?? ''}
+                  onChange={(ev) => editor.update('traitOutfit', ev.currentTarget.value)}
+                />
 
                 <Show when={Object.keys(editor.state.personaExtras ?? {}).length > 0}>
                   <SolidCard type="bg" class="border-[1px] border-[var(--orange-600)] text-sm">

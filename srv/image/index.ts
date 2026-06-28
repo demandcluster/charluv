@@ -348,6 +348,15 @@ async function createImageMessage(opts: {
       name: char.name,
     })
 
+    // This image is a new message parented to the previous leaf. Advance the
+    // chat's persisted leaf to it, otherwise on reload resolveChatPath walks up
+    // from the stale (text) leaf and the image — being a CHILD of it — drops off
+    // the path, so generated images vanish from history. (The client already
+    // advances its in-memory leaf; only the server doc was stale.)
+    if (opts.chatId && msg?._id) {
+      await store.chats.update(opts.chatId, { treeLeafId: msg._id })
+    }
+
     sendMany(opts.memberIds, { type: 'message-created', msg, chatId: opts.chatId })
     return msg
   }

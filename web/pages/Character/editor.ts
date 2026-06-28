@@ -88,6 +88,7 @@ type EditState = {
   traitHates?: string
   traitCountry?: string
   traitBody?: string
+  traitOutfit?: string
   // Backward-compat: non-standard W++ attributes from existing characters.
   // Shown read-only; not editable and dropped on save.
   personaExtras?: Record<string, string[]>
@@ -200,6 +201,7 @@ const initState: EditState = {
   traitHates: '',
   traitCountry: '',
   traitBody: '',
+  traitOutfit: '',
   tags: [],
   alternateGreetings: [],
   culture: defaultCulture,
@@ -640,6 +642,7 @@ const FIXED_TRAIT_KEYS = [
   'hates',
   'country',
   'body',
+  'outfit',
   'appearance',
   'gender',
 ]
@@ -665,6 +668,7 @@ function hydratePersonaTraits(persona?: AppSchema.Persona) {
     traitHates: join('hates'),
     traitCountry: join('country'),
     traitBody: join('body'),
+    traitOutfit: join('outfit'),
   }
 
   // Fallback: a plain-text persona has no per-trait keys; preserve its content.
@@ -710,6 +714,7 @@ function getPayload(ev: any, state: EditState, original?: NewCharacter) {
   addTrait('hates', state.traitHates)
   addTrait('country', state.traitCountry)
   addTrait('body', state.traitBody)
+  addTrait('outfit', state.traitOutfit)
   addTrait('appearance', body.appearance)
   // gender is intentionally NOT a persona attribute — it lives in the charluv
   // metadata (char.gender) and is injected into the prompt at chat time.

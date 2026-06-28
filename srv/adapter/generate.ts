@@ -92,6 +92,12 @@ export type InferenceRequest = {
    */
   system?: string
 
+  /**
+   * Route this call to the dedicated moderation endpoint (original vision model)
+   * instead of the user-facing chat model. Set by the publish/edit moderation path.
+   */
+  moderation?: boolean
+
   jsonSchema?: any
   jsonValues?: Record<string, any>
   /** Queue priority: 0 premium, 1 free, 2 guest, 3 background. Defaults to 3 (utility). */
@@ -265,6 +271,7 @@ export async function createInferenceStream(opts: InferenceRequest) {
     imageData: opts.imageData,
     images: opts.images,
     system: opts.system,
+    moderation: opts.moderation,
     jsonValues: opts.jsonValues,
   })
 

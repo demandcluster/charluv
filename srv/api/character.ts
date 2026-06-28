@@ -404,6 +404,9 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
     // Overrides the served model's default companion system prompt so the model
     // classifies the character instead of answering the prompt in-character.
     system: DEFAULT_MOD_SYSTEM,
+    // Run on the dedicated (original, vision-capable) moderation model rather than
+    // the user-facing chat model, which may be a less-censored swap.
+    moderation: true,
   })
 
   res.json({ success: true, generating: true, requestId })

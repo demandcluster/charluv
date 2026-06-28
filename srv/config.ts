@@ -152,6 +152,17 @@ export const config = {
     textApiKey: env('INFERENCE_TEXT_KEY', ''),
     textModel: env('INFERENCE_TEXT_MODEL', ''),
     /**
+     * Dedicated moderation endpoint. Publish/edit moderation runs on the original
+     * (vision-capable) model, kept separate from the user-facing chat model on
+     * `textUrl` — so the chat model can be swapped for a less-censored one without
+     * weakening the safety check. When unset these fall back to the `text*`
+     * values, so existing single-endpoint deployments are unchanged. Base URL is
+     * the root exposing `/v1/chat/completions` (`/v1` is added if absent).
+     */
+    modUrl: env('INFERENCE_MOD_URL', ''),
+    modApiKey: env('INFERENCE_MOD_KEY', ''),
+    modModel: env('INFERENCE_MOD_MODEL', ''),
+    /**
      * The self-hosted text endpoint runs speculative decoding, which vLLM does
      * not yet support alongside `min_p` / `logit_bias` (it aborts the response:
      * "min_p and logit_bias sampling parameters are not yet supported with

@@ -396,8 +396,10 @@ const Create: Component = () => {
       `"description" (two vivid sentences, third person, do not state the name), ` +
       `"job" (their occupation), ` +
       `"personality" (4-6 comma-separated traits), ` +
+      `"mind" (one sentence on how they think — worldview, intelligence, quirks), ` +
       `"likes" (4-6 comma-separated things), ` +
       `"hates" (3-4 comma-separated things), ` +
+      `"zodiac" (their zodiac sign), ` +
       `"outfit" (one specific, fully-clothed outfit that suits their job and vibe). ` +
       `No commentary before or after the JSON.`
     try {
@@ -576,9 +578,18 @@ const Create: Component = () => {
     }
     // Country only makes sense for humans.
     if (!isNonHuman()) attributes.country = [ethnicity]
-    // Fold in the AI-imagined details so the character has a real backstory.
+    // Fold in the AI-imagined details so the character has a real backstory and a
+    // fully-populated W++ persona (not just the handful the wizard asked about).
+    if (d.description) attributes.description = [d.description]
+    if (d.mind) attributes.mind = [d.mind]
     if (d.job) attributes.job = [d.job]
-    if (d.likes) attributes.likes = [d.likes]
+    if (d.zodiac) attributes.zodiac = [d.zodiac]
+    if (d.outfit) attributes.outfit = [d.outfit]
+    if (d.likes) {
+      attributes.likes = [d.likes]
+      // "Loves" mirrors "Likes" exactly (reinforce) — same rule the editor applies.
+      attributes.loves = [d.likes]
+    }
     if (d.hates) attributes.hates = [d.hates]
 
     const persona: AppSchema.Persona = {

@@ -152,7 +152,7 @@ export type Completion<T = Inference> = {
 
 export const handleOAI: ModelAdapter = async function* (opts) {
   const { char, members, user, prompt, log, gen, guest, kind, isThirdParty } = opts
-  const base = getBaseUrl(user, !!gen.thirdPartyUrlNoSuffix, isThirdParty)
+  const base = getBaseUrl(user, !!gen.thirdPartyUrlNoSuffix, isThirdParty, opts.moderation)
   const handle = opts.impersonate?.name || opts.sender?.handle || 'You'
   if (!user.oaiKey && !base.changed) {
     yield { error: `OpenAI request failed: No OpenAI API key not set. Check your settings.` }
@@ -162,7 +162,10 @@ export const handleOAI: ModelAdapter = async function* (opts) {
   // When targeting the self-hosted endpoint, the server-configured model always
   // wins — that host serves a single model, so a preset's model id is irrelevant.
   const oaiModel =
-    (base.server && config.inference.textModel) ||
+    (base.server &&
+      (base.mod
+        ? config.inference.modModel || config.inference.textModel
+        : config.inference.textModel)) ||
     gen.thirdPartyModel ||
     gen.oaiModel ||
     defaultPresets.openai.oaiModel
@@ -314,9 +317,12 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     : null
 
   // The server-configured self-hosted key is stored in plaintext config, not encrypted per-user.
+  const serverKey = base.mod
+    ? config.inference.modApiKey || config.inference.textApiKey
+    : config.inference.textApiKey
   const bearer = base.server
-    ? config.inference.textApiKey
-      ? `Bearer ${config.inference.textApiKey}`
+    ? serverKey
+      ? `Bearer ${serverKey}`
       : null
     : !!guest
     ? `Bearer ${apiKey}`
@@ -451,24 +457,37 @@ export const handleOAI: ModelAdapter = async function* (opts) {
   }
 }
 
-function getBaseUrl(user: AppSchema.User, noSuffix: boolean, isThirdParty?: boolean) {
+function getBaseUrl(
+  user: AppSchema.User,
+  noSuffix: boolean,
+  isThirdParty?: boolean,
+  moderation?: boolean
+) {
+  // Moderation runs on the dedicated (original, vision-capable) model, kept off
+  // the user-facing chat model. Takes precedence over everything else so a
+  // less-censored chat swap can't weaken the safety check.
+  if (moderation && config.inference.modUrl) {
+    const version = config.inference.modUrl.match(/\/v\d+$/) ? '' : '/v1'
+    return { url: config.inference.modUrl + version, changed: true, server: true, mod: true }
+  }
+
   if (isThirdParty && user.koboldUrl) {
-    if (noSuffix) return { url: user.koboldUrl, changed: true, server: false }
+    if (noSuffix) return { url: user.koboldUrl, changed: true, server: false, mod: false }
 
     // If the user provides a versioned API URL for their third-party API, use that. Otherwise
     // fall back to the standard /v1 URL.
     const version = user.koboldUrl.match(/\/v\d+$/) ? '' : '/v1'
-    return { url: user.koboldUrl + version, changed: true, server: false }
+    return { url: user.koboldUrl + version, changed: true, server: false, mod: false }
   }
 
   // Self-hosted, OpenAI-compatible default endpoint configured at the server level.
   // Lets the platform run off its own model without a per-user OpenAI key.
   if (config.inference.textUrl) {
     const version = config.inference.textUrl.match(/\/v\d+$/) ? '' : '/v1'
-    return { url: config.inference.textUrl + version, changed: true, server: true }
+    return { url: config.inference.textUrl + version, changed: true, server: true, mod: false }
   }
 
-  return { url: `${baseUrl}/v1`, changed: false, server: false }
+  return { url: `${baseUrl}/v1`, changed: false, server: false, mod: false }
 }
 
 export type OAIUsage = {
