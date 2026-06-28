@@ -623,6 +623,34 @@ export const CreateCharacterForm: Component<{
                   </SolidCard>
                 </Show>
               </Card>
+
+              <Show when={user.user?.admin}>
+                <Card class="flex flex-col gap-3 border-[1px] border-[var(--rose-600)]">
+                  <FormLabel
+                    label="System prompt (admin only)"
+                    helperText="Power/safety-sensitive override. A character with a system prompt is locked from non-admin editing. Clear this field to unlock it for the owner."
+                  />
+                  <TextInput
+                    isMultiline
+                    fieldName="systemPrompt"
+                    placeholder="Custom system instruction injected after the Charluv levels preamble."
+                    value={editor.state.systemPrompt ?? ''}
+                    onChange={(ev) => editor.update('systemPrompt', ev.currentTarget.value)}
+                    class="h-40"
+                  />
+                  <TextInput
+                    isMultiline
+                    fieldName="postHistoryInstructions"
+                    label="Post-history instructions"
+                    placeholder="Instruction injected after the chat history (e.g. response length)."
+                    value={editor.state.postHistoryInstructions ?? ''}
+                    onChange={(ev) =>
+                      editor.update('postHistoryInstructions', ev.currentTarget.value)
+                    }
+                  />
+                </Card>
+              </Show>
+
               <Card class="flex flex-col gap-3">
                 <TextInput
                   isMultiline
