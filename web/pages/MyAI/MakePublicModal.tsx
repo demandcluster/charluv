@@ -23,9 +23,11 @@ const MakePublicModal: Component<{
 }> = (props) => {
   const [status, setStatus] = createSignal<PublishStatus>()
   const [phase, setPhase] = createSignal<Phase>('idle')
-  const [result, setResult] = createSignal<{ reason?: string; flags?: string[]; rewarded?: number }>(
-    {}
-  )
+  const [result, setResult] = createSignal<{
+    reason?: string
+    flags?: string[]
+    rewarded?: number
+  }>({})
 
   const reqs = createMemo(() => checkPublishRequirements(props.char, status()?.mins))
   const ready = createMemo(
@@ -41,9 +43,7 @@ const MakePublicModal: Component<{
 
   const publish = async () => {
     setPhase('checking')
-    const image = props.char.avatar
-      ? await imageApi.getImageData(props.char.avatar)
-      : undefined
+    const image = props.char.avatar ? await imageApi.getImageData(props.char.avatar) : undefined
     const { res, requestId } = await charsApi.publishCharacter(props.char._id, image)
     if (res.error) {
       setPhase('error')
@@ -170,10 +170,7 @@ const MakePublicModal: Component<{
               <For each={reqs().requirements}>
                 {(r) => (
                   <li class="flex items-center gap-2" classList={{ 'text-600': r.ok }}>
-                    <Show
-                      when={r.ok}
-                      fallback={<X size={15} class="text-[var(--red-500)]" />}
-                    >
+                    <Show when={r.ok} fallback={<X size={15} class="text-[var(--red-500)]" />}>
                       <Check size={15} class="text-[var(--green-600,#3aa)]" />
                     </Show>
                     {r.label}
@@ -204,7 +201,16 @@ const MakePublicModal: Component<{
                 <Sparkles size={13} /> Reward: {status()!.reward} credits
               </span>
               <span>
-                Publishes left today: <b>{status()!.remaining}</b> / {status()!.cap}
+                <Show
+                  when={!status()!.exempt}
+                  fallback={
+                    <>
+                      Publishes left today: <b>Unlimited</b>
+                    </>
+                  }
+                >
+                  Publishes left today: <b>{status()!.remaining}</b> / {status()!.cap}
+                </Show>
               </span>
             </div>
           </Show>

@@ -282,11 +282,14 @@ const getPublishStatus = handle(async ({ userId }) => {
   const user = await store.users.getUser(userId!)
   const cap = publishCap(config, user?.premium)
   const used = await store.characters.countPublishedToday(userId!)
+  // Admins/moderators are exempt from the daily cap — never report them as out.
+  const exempt = !!user?.admin
   return {
     enabled: canPublish(config.charlibPublish, user!),
     cap,
     used,
-    remaining: Math.max(0, cap - used),
+    remaining: exempt ? cap : Math.max(0, cap - used),
+    exempt,
     reward: config.publishReward || PUBLISH_DEFAULTS.reward,
     guidelines: config.charlibGuidelines || '',
     mins: publishMins(config),
@@ -322,8 +325,9 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
 
   // Daily cap applies only to a character's first publish; re-publishing after
   // an edit (publishRewarded already set) is exempt and never re-rewarded.
+  // Admins/moderators are exempt from the cap entirely.
   const cap = publishCap(config, user.premium)
-  if (!character.publishRewarded) {
+  if (!character.publishRewarded && !user.admin) {
     const used = await store.characters.countPublishedToday(userId!)
     if (used >= cap) throw new StatusError(`Daily publish limit reached (${cap} per day)`, 429)
   }
@@ -985,7 +989,15 @@ const encodeLora = handle(async ({ userId, params, body }) => {
   // Reuse the character's existing LoRA name so re-encoding REPLACES it (Z-Image
   // overwrites the stored LoRA under the same name). Only mint a new unique name
   // (character name + randomizer) the first time.
-  const saveAs = char.loraName || makeLoraName(char.name)
+  //
+  // BUT: a matched clone inherits its parent's `loraName`, so that name is shared
+  // on the image server. Overwriting it here would corrupt the parent template and
+  // every other clone. If anyone else still references this name, fork a fresh
+  // unique name so this character gets its own LoRA instead of clobbering theirs.
+  const shared = char.loraName
+    ? await store.characters.anyCharacterUsesLora(char.loraName, char._id)
+    : false
+  const saveAs = char.loraName && !shared ? char.loraName : makeLoraName(char.name)
   const loraName = await zimageEncode(images, saveAs)
 
   await store.characters.updateCharacter(params.id, userId!, { loraName })

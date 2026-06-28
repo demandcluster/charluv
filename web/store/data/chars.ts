@@ -120,6 +120,7 @@ export type PublishStatus = {
   cap: number
   used: number
   remaining: number
+  exempt?: boolean
   reward: number
   guidelines: string
   mins: { greeting: number; description: number; scenario: number; personality: number }
