@@ -66,7 +66,9 @@ const Profile: Component = () => {
 
   const description = createMemo(() => {
     const c = char()
-    const raw = attr(c, 'description') || c?.description || ''
+    // Prefer the general description field; only fall back to the W++ persona
+    // `description` trait for legacy chars that never had a general one.
+    const raw = c?.description || attr(c, 'description') || ''
     // Render the prompt placeholders for display: {{char}} (and {{name}}) tracks
     // the renameable name shown above; {{user}} reads as "you" since the viewer
     // may be a guest with no profile name yet.
@@ -104,12 +106,23 @@ const Profile: Component = () => {
 
   return (
     <div class="dpf-root">
-      <Show when={char()} fallback={<div class="dpf-loading"><Loading /></div>}>
+      <Show
+        when={char()}
+        fallback={
+          <div class="dpf-loading">
+            <Loading />
+          </div>
+        }
+      >
         <div class="dpf-layout">
           {/* Main image */}
           <Show
             when={main()}
-            fallback={<div class="dpf-ph" aria-hidden="true">{initial()}</div>}
+            fallback={
+              <div class="dpf-ph" aria-hidden="true">
+                {initial()}
+              </div>
+            }
           >
             <button
               type="button"

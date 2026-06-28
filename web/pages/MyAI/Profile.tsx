@@ -22,6 +22,7 @@ import ResetCharacterModal from '../Character/ResetCharacter'
 import { DownloadModal } from '../Character/DownloadModal'
 import { EVENTS, events } from '../../emitter'
 import { AppSchema } from '/common/types'
+import { BOT_REPLACE, SELF_REPLACE } from '/common/prompt'
 
 type Attributes = Record<string, string[] | undefined>
 
@@ -67,7 +68,11 @@ const Profile: Component = () => {
 
   const description = createMemo(() => {
     const c = char()
-    return attr(c, 'description') || c?.description || ''
+    // Prefer the general description field; only fall back to the W++ persona
+    // `description` trait for legacy chars that never had a general one.
+    const raw = c?.description || attr(c, 'description') || ''
+    // Render the prompt placeholders for display.
+    return raw.replace(BOT_REPLACE, c?.name || '').replace(SELF_REPLACE, 'you')
   })
 
   // The full photo set = cover/avatar first, then the gallery, de-duped. One

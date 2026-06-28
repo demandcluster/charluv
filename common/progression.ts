@@ -186,6 +186,35 @@ export function getArchetype(id?: string): ProgressionArchetype | undefined {
 }
 
 /**
+ * Display label for an archetype, adapted to the character's gender where the
+ * archetype name is inherently gendered. Only `girlfriend` is gendered
+ * ("Girlfriend"/"Boyfriend"); the others (Sweetheart, Flirty, Submissive,
+ * Dominant) are already unisex. The stored archetype id and the trained
+ * GIRLFRIEND stage token are NOT changed — this is display only.
+ */
+export function getArchetypeLabel(id?: string, gender?: string): string {
+  const archetype = getArchetype(id)
+  if (!archetype) return ''
+  if (archetype.id === 'girlfriend') {
+    if (gender === 'male') return 'Boyfriend'
+    if (gender === 'female') return 'Girlfriend'
+    return 'Partner'
+  }
+  return archetype.label
+}
+
+/**
+ * Display label for a relationship stage token, adapted to the character's
+ * gender. Only `GIRLFRIEND` is gendered (shown as `BOYFRIEND` for male
+ * characters); every other token is unisex. The underlying token injected into
+ * the prompt — `LEVEL("GIRLFRIEND")` — is NOT changed; this is display only.
+ */
+export function getStageLabel(stage: RelationshipStage, gender?: string): string {
+  if (stage === 'GIRLFRIEND' && gender === 'male') return 'BOYFRIEND'
+  return stage
+}
+
+/**
  * The ordered steps in effect for a character's progression config. No archetype
  * (and no custom map) means a *fixed* relationship — empty steps, no advancement.
  * It does NOT fall back to a default archetype: "None" must stay None. New

@@ -34,7 +34,7 @@ import { usePane } from '../../shared/hooks'
 import Modal, { ConfirmModal } from '/web/shared/Modal'
 import { ToggleButtons } from '../../shared/Toggle'
 import { CharEditor, useCharEditor } from './editor'
-import { ARCHETYPES } from '/common/progression'
+import { ARCHETYPES, getArchetypeLabel } from '/common/progression'
 import { rootModalStore } from '/web/store/root-modal'
 import { getAssetUrl, random } from '/web/shared/util'
 import { ImageSettings } from '../Settings/Image/ImageSettings'
@@ -300,12 +300,13 @@ export const CreateCharacterForm: Component<{
                 </ButtonInput>
 
                 <FormLabel
-                  label="Description / Creator's notes"
+                  label="Description (public bio)"
                   helperText={
                     <div class="flex flex-col">
                       <span>
-                        A description, label, or notes for your character. This is will not
-                        influence your character in any way.
+                        Shown as the “About” bio on this character's profile. {`{{char}}`} and{' '}
+                        {`{{user}}`} are rendered. It does not influence chat behaviour — the
+                        personality below does that.
                       </span>
                     </div>
                   }
@@ -410,7 +411,7 @@ export const CreateCharacterForm: Component<{
                   items={[
                     { label: 'None (fixed)', value: '' },
                     ...ARCHETYPES.map((a) => ({
-                      label: `${a.label} — ${a.description}`,
+                      label: `${getArchetypeLabel(a.id, editor.state.gender)} — ${a.description}`,
                       value: a.id,
                     })),
                   ]}

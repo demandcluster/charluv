@@ -28,7 +28,7 @@ import FileInput, { FileInputResult } from '../../shared/FileInput'
 import CreditCost from '../../shared/CreditCost'
 import ImportCharacterModal from '../Character/ImportCharacter'
 import { getAssetUrl, random } from '../../shared/util'
-import { DEFAULT_ARCHETYPE_ID } from '/common/progression'
+import { DEFAULT_ARCHETYPE_ID, getArchetypeLabel } from '/common/progression'
 import { AppSchema } from '/common/types'
 import { NewCharacter } from '../../store/character'
 
@@ -607,7 +607,7 @@ const Create: Component = () => {
       artStyle: answers.artStyle as ArtStyle,
       tags: [answers.gender, answers.artStyle],
       nsfw: answers.nsfw,
-      category: [v.label],
+      category: [getArchetypeLabel(v.archetype, answers.gender)],
       progression: { archetype: v.archetype || DEFAULT_ARCHETYPE_ID, speed: 'normal' },
       premium: false,
       share: undefined,
@@ -904,7 +904,7 @@ const Create: Component = () => {
                     gender={answers.gender}
                     style={answers.artStyle}
                     slug={v.slug}
-                    label={v.label}
+                    label={getArchetypeLabel(v.archetype, answers.gender)}
                     desc={v.desc}
                     checked={answers.vibe === v.slug}
                     onPick={() => setAnswers('vibe', v.slug)}
@@ -1069,7 +1069,11 @@ const Create: Component = () => {
                   value={labelOfImg(STYLES, answers.artStyle)}
                   onEdit={() => setStep(0)}
                 />
-                <TraitCard label="Vibe" value={vibe().label} onEdit={() => setStep(4)} />
+                <TraitCard
+                  label="Vibe"
+                  value={getArchetypeLabel(vibe().archetype, answers.gender)}
+                  onEdit={() => setStep(4)}
+                />
 
                 <div class="cr-trait cr-trait-toggle">
                   <div class="cr-trait-toggle-text">

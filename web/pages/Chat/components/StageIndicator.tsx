@@ -2,7 +2,7 @@ import { Component, Show, createMemo } from 'solid-js'
 import { Heart } from '/web/icons'
 import { AppSchema } from '/common/types'
 import { getCharacterLevel } from '/common/xplevel'
-import { resolveStage, getProgressionSteps } from '/common/progression'
+import { resolveStage, getProgressionSteps, getStageLabel } from '/common/progression'
 
 /**
  * Compact relationship indicator shown above the chat input: the companion's
@@ -31,11 +31,13 @@ const StageIndicator: Component<{ char?: AppSchema.Character }> = (props) => {
       <div
         class="mb-1 flex items-center gap-2 self-start rounded-full px-3 py-1 text-xs"
         style={{ background: 'rgba(85,184,156,0.14)', color: 'rgb(120,210,185)' }}
-        title={`Level ${level()} — ${step()!.stage}`}
+        title={`Level ${level()} — ${getStageLabel(step()!.stage, props.char?.gender)}`}
       >
         <Heart size={13} fill="currentColor" />
         <span style={{ 'font-weight': 700 }}>Lv {level()}</span>
-        <span style={{ opacity: 0.85 }}>{step()!.stage.replace('BDSM/', '')}</span>
+        <span style={{ opacity: 0.85 }}>
+          {getStageLabel(step()!.stage, props.char?.gender).replace('BDSM/', '')}
+        </span>
         <span
           class="ml-1 h-1 w-16 overflow-hidden rounded-full"
           style={{ background: 'rgba(255,255,255,0.15)' }}

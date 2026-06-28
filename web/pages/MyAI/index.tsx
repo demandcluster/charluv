@@ -6,7 +6,7 @@ import './myai.css'
 import { characterStore } from '../../store/character'
 import { getAssetUrl } from '../../shared/util'
 import { getCharacterLevel } from '/common/xplevel'
-import { resolveStage } from '/common/progression'
+import { resolveStage, getStageLabel } from '/common/progression'
 import { useLocalStorage } from '../../shared/hooks'
 import { AppSchema } from '/common/types'
 
@@ -217,7 +217,9 @@ const Companion: Component<{
     >
       <span class="dsc-badge">
         Lv {level()}
-        {stage() ? ` · ${stage()!.stage.replace('BDSM/', '')}` : ''}
+        {stage()
+          ? ` · ${getStageLabel(stage()!.stage, props.char.gender).replace('BDSM/', '')}`
+          : ''}
       </span>
 
       <span class="myai-status" classList={{ public: isPublic(), private: !isPublic() }}>
