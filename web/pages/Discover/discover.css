@@ -279,6 +279,26 @@
 .dsc-badge-progress.myai-progress {
   top: 2.7rem;
 }
+/* Caption explaining the plum progression marker (the tooltip alone isn't
+   discoverable on touch). Shown only when a card on screen actually has it. */
+.dsc-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: -0.25rem 0 0.5rem;
+  font-size: 0.8rem;
+  color: var(--dsc-muted);
+}
+.dsc-legend-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem;
+  border-radius: 6px;
+  background: var(--dsc-plum);
+  color: var(--dsc-cream);
+  flex-shrink: 0;
+}
 .dsc-cta {
   position: absolute;
   inset: auto 0.7rem 0.7rem 0.7rem;

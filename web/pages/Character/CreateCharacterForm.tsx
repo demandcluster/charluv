@@ -15,7 +15,14 @@ import PageHeader from '../../shared/PageHeader'
 import TextInput, { ButtonInput } from '../../shared/TextInput'
 import { FormLabel } from '../../shared/FormLabel'
 import FileInput, { FileInputResult } from '../../shared/FileInput'
-import { characterStore, tagStore, toastStore, chatStore, settingStore } from '../../store'
+import {
+  characterStore,
+  tagStore,
+  toastStore,
+  chatStore,
+  settingStore,
+  userStore,
+} from '../../store'
 import { useNavigate } from '@solidjs/router'
 import Select from '../../shared/Select'
 import TagInput from '../../shared/TagInput'
@@ -80,6 +87,13 @@ export const CreateCharacterForm: Component<{
       loaded: s.characters.loaded,
     }
   })
+
+  const user = userStore()
+
+  // A character carrying a custom system_prompt is a power/safety-sensitive
+  // definition (e.g. imported jailbreak-style cards). It is read-only for
+  // everyone but admins/moderators — the server rejects the edit too.
+  const locked = createMemo(() => !!state.edit?.systemPrompt && !user.user?.admin)
 
   const [imgUrl, setImageUrl] = createSignal<string>()
 
@@ -149,6 +163,12 @@ export const CreateCharacterForm: Component<{
   })
 
   const onSubmit = async (ev: Event) => {
+    if (locked()) {
+      toastStore.warn(
+        `This character has a custom system prompt and can only be edited by an admin.`
+      )
+      return
+    }
     const payload = editor.payload(true) as any
 
     if (props.temp && props.chat) {
@@ -193,11 +213,13 @@ export const CreateCharacterForm: Component<{
         <X />
         {props.close ? 'Close' : 'Cancel'}
       </Button>
-      <Button onClick={onSubmit} disabled={state.creating}>
-        <Save />
-        {props.editId && !forceNew() ? 'Update' : 'Create'}
-        <CreditCost amount={props.editId && !forceNew() ? 30 : 100} class="ml-1" />
-      </Button>
+      <Show when={!locked()}>
+        <Button onClick={onSubmit} disabled={state.creating}>
+          <Save />
+          {props.editId && !forceNew() ? 'Update' : 'Create'}
+          <CreditCost amount={props.editId && !forceNew() ? 30 : 100} class="ml-1" />
+        </Button>
+      </Show>
     </>
   )
 
@@ -228,7 +250,16 @@ export const CreateCharacterForm: Component<{
           editor.prepare(form)
         }}
       >
-        <div class="flex flex-col gap-4">
+        <Show when={locked()}>
+          <div class="mb-3">
+            <TitleCard type="rose">
+              This character has a custom system prompt and is locked. It can only be edited by an
+              admin or moderator. You can still chat with it.
+            </TitleCard>
+          </div>
+        </Show>
+
+        <div class="flex flex-col gap-4" classList={{ 'pointer-events-none opacity-60': locked() }}>
           <Show when={!isPage}>
             <div> {props.children} </div>
           </Show>
@@ -534,19 +565,14 @@ export const CreateCharacterForm: Component<{
                   value={editor.state.traitSexuality ?? ''}
                   onChange={(ev) => editor.update('traitSexuality', ev.currentTarget.value)}
                 />
+                {/* "Loves" is hidden — it's auto-filled as an exact copy of
+                    "Likes" on save (reinforces the same preferences). */}
                 <TextInput
                   fieldName="traitLikes"
                   label="Likes"
                   placeholder="e.g. drawing, playing with her cat"
                   value={editor.state.traitLikes ?? ''}
                   onChange={(ev) => editor.update('traitLikes', ev.currentTarget.value)}
-                />
-                <TextInput
-                  fieldName="traitLoves"
-                  label="Loves"
-                  placeholder="e.g. her cat Fluffy, rainy afternoons"
-                  value={editor.state.traitLoves ?? ''}
-                  onChange={(ev) => editor.update('traitLoves', ev.currentTarget.value)}
                 />
                 <TextInput
                   fieldName="traitHates"

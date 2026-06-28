@@ -341,7 +341,10 @@ export function getStoredValue<T = any>(id: string, initialValue: T) {
 }
 
 export function setStoredValue(id: string, value: any) {
-  const key = `agnaistic-ls-${id}`
+  // Must match getStoredValue's key — they were on different prefixes
+  // (agnaistic- vs charluv-), so reads never saw writes and persistence
+  // silently no-op'd (also broke the create-wizard draft resume).
+  const key = `charluv-ls-${id}`
   localStorage.setItem(key, JSON.stringify(value))
 }
 

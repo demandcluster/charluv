@@ -5,6 +5,7 @@ import './discover.css'
 import { matchStore, DiscoverFilters } from '../../store/match'
 import { userStore } from '../../store'
 import { getAssetUrl } from '../../shared/util'
+import { useLocalStorage } from '../../shared/hooks'
 import { AppSchema } from '/common/types'
 
 const GENDERS = [
@@ -28,13 +29,14 @@ const Discover: Component = () => {
   const navigate = useNavigate()
   const state = matchStore()
 
-  const [gender, setGender] = createSignal('')
-  const [style, setStyle] = createSignal('')
-  const [sort, setSort] = createSignal<DiscoverFilters['sort']>('trending')
+  // Persist the filter selections so they survive navigating away and back.
+  const [gender, setGender] = useLocalStorage('discover-gender', '')
+  const [style, setStyle] = useLocalStorage('discover-style', '')
+  const [sort, setSort] = useLocalStorage<DiscoverFilters['sort']>('discover-sort', 'trending')
   // Discover is the public landing page, so default to SFW-only; users opt in
   // to NSFW by toggling this off.
-  const [sfw, setSfw] = createSignal(true)
-  const [search, setSearch] = createSignal('')
+  const [sfw, setSfw] = useLocalStorage('discover-sfw', true)
+  const [search, setSearch] = useLocalStorage('discover-search', '')
 
   const load = () =>
     matchStore.loadDiscover({
@@ -151,6 +153,18 @@ const Discover: Component = () => {
           </For>
         </div>
       </div>
+
+      <Show when={state.discover.list.some((c) => c.progression?.archetype)}>
+        <p class="dsc-legend">
+          <span class="dsc-legend-chip" aria-hidden="true">
+            <Book size={13} />
+          </span>
+          <span>
+            <strong>Scenario progression</strong> — this companion's relationship grows through
+            stages as you chat.
+          </span>
+        </p>
+      </Show>
 
       <div class="dsc-grid">
         <Show

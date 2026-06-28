@@ -1,4 +1,4 @@
-import { Component, For, Show, createMemo, createSignal, onMount } from 'solid-js'
+import { Component, For, Show, createMemo, onMount } from 'solid-js'
 import { useNavigate, A } from '@solidjs/router'
 import { Plus, Book } from '/web/icons'
 import '../Discover/discover.css'
@@ -7,6 +7,7 @@ import { characterStore } from '../../store/character'
 import { getAssetUrl } from '../../shared/util'
 import { getCharacterLevel } from '/common/xplevel'
 import { resolveStage } from '/common/progression'
+import { useLocalStorage } from '../../shared/hooks'
 import { AppSchema } from '/common/types'
 
 const GENDERS = [
@@ -29,11 +30,12 @@ const MyAI: Component = () => {
   // client-side. No popular/trending/new sort — these are the user's own
   // companions, so we keep a recently-updated default and add a Favourites
   // toggle Discover doesn't have.
-  const [gender, setGender] = createSignal('')
-  const [style, setStyle] = createSignal('')
-  const [sfw, setSfw] = createSignal(false)
-  const [favorite, setFavorite] = createSignal(false)
-  const [search, setSearch] = createSignal('')
+  // Persist the filter selections so they survive navigating away and back.
+  const [gender, setGender] = useLocalStorage('myai-gender', '')
+  const [style, setStyle] = useLocalStorage('myai-style', '')
+  const [sfw, setSfw] = useLocalStorage('myai-sfw', false)
+  const [favorite, setFavorite] = useLocalStorage('myai-favorite', false)
+  const [search, setSearch] = useLocalStorage('myai-search', '')
 
   onMount(() => {
     // Always refresh so publish/edit state (e.g. the Public/Private tag) is
@@ -150,6 +152,18 @@ const MyAI: Component = () => {
           onInput={(e) => setSearch(e.currentTarget.value)}
         />
       </div>
+
+      <Show when={companions().some((c) => c.progression?.archetype)}>
+        <p class="dsc-legend">
+          <span class="dsc-legend-chip" aria-hidden="true">
+            <Book size={13} />
+          </span>
+          <span>
+            <strong>Scenario progression</strong> — this companion's relationship grows through
+            stages as you chat.
+          </span>
+        </p>
+      </Show>
 
       <div class="dsc-grid">
         <Show

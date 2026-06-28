@@ -703,7 +703,9 @@ function getPayload(ev: any, state: EditState, original?: NewCharacter) {
   addTrait('description', state.traitDescription)
   addTrait('sexuality', state.traitSexuality)
   addTrait('likes', state.traitLikes)
-  addTrait('loves', state.traitLoves)
+  // "Loves" is no longer a separate field — it mirrors "Likes" exactly to
+  // reinforce the same preferences in the persona.
+  addTrait('loves', state.traitLikes)
   addTrait('zodiac', state.traitZodiac)
   addTrait('hates', state.traitHates)
   addTrait('country', state.traitCountry)
