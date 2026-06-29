@@ -1,4 +1,4 @@
-import { sanitiseAndTrim } from '/common/requests/util'
+import { sanitiseAndTrim, sanitise, extractSpeakerTurn } from '/common/requests/util'
 import { ChatRole, CompletionItem, ModelAdapter } from './type'
 import { defaultPresets } from '../../common/presets'
 import { OPENAI_CHAT_MODELS, OPENAI_MODELS } from '../../common/adapters'
@@ -84,10 +84,11 @@ const IMAGE_TOOL_KINDS = new Set([
  */
 const NATIVE_TOOLS = process.env.CHARLUV_NATIVE_TOOLS === '1'
 
-/** Temperature ceiling for event/group character replies. The scene context tempts
- * the model into narrating and speaking for others; a lower temp keeps it on the
- * "reply only as this character" rails. Only caps — a cooler preset is left as-is. */
-const EVENT_REPLY_TEMP_CAP = 0.5
+/** Temperature ceiling for event/group character replies. Lowering it didn't move
+ * how often the model writes whole scenes (that's handled by extracting the
+ * speaker's turn), so this is a mild cap only. Only caps — a cooler preset is
+ * left as-is. */
+const EVENT_REPLY_TEMP_CAP = 0.7
 
 const IMG_MARKER = /<image>([\s\S]*?)<\/image>/gi
 const MEM_MARKER = /<remember>([\s\S]*?)<\/remember>/gi
@@ -177,27 +178,28 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     defaultPresets.openai.oaiModel
   const maxResponseLength = gen.maxTokens ?? defaultPresets.openai.maxTokens
 
-  // Stop the model from speaking for anyone but the elected character. Critical in
-  // event/group chats: without these the model writes the whole scene as one reply
-  // (every other character's lines + "Narrator:" narration). getStoppingStrings
-  // builds "\nName:" for each OTHER present character + member, the Narrator/Director
-  // labels, and the preset's own stopSequences. We add the spaced "Name :" narrator
-  // variants and the user cue on top. Skipped names when the speaker IS that role.
+  const isEvent = opts.chat?.mode === 'event'
+
+  // Stop the model from speaking for anyone but the elected character. In a 1:1
+  // chat getStoppingStrings adds "\nName:" for the user + the Narrator/Director
+  // labels; harmless and prevents stray narration. In an EVENT chat we do the
+  // OPPOSITE: the chat finetune writes the whole scene anyway, and stopping at the
+  // first other speaker would cut off before THIS character even talks — so we let
+  // it generate and extract the speaker's turn afterward (see below). Only the
+  // preset's own stopSequences apply there.
   const narratorStops =
     opts.replyAs?.name === 'Narrator' || opts.replyAs?.name === 'Director'
       ? []
       : ['\nNarrator :', '\nDirector :']
-  const stopSet = new Set<string>([`\n${handle}:`, ...narratorStops, ...getStoppingStrings(opts)])
+  const stopSet = isEvent
+    ? new Set<string>(gen.stopSequences || [])
+    : new Set<string>([`\n${handle}:`, ...narratorStops, ...getStoppingStrings(opts)])
 
-  // Event/group replies need tighter instruction-following: at the chat's normal
-  // temp (0.8 balanced, up to 1.4 "wild") the model drifts into narrating the
-  // scene and speaking for other characters despite the "reply only as X" directive.
-  // Cap the temp for event replies so it stays in its own voice. Detected via the
-  // chat mode — the client sends kind:'send' for event turns, so kind won't say so.
-  // Utility calls (director) run via inferenceAsync with an empty chat, unaffected.
+  // Mild temp cap for event replies (see EVENT_REPLY_TEMP_CAP). Detected via chat
+  // mode — the client sends kind:'send' for event turns. Director calls run via
+  // inferenceAsync with an empty chat, so they're unaffected.
   const baseTemp = gen.temp ?? defaultPresets.openai.temp
-  const temperature =
-    opts.chat?.mode === 'event' ? Math.min(baseTemp, EVENT_REPLY_TEMP_CAP) : baseTemp
+  const temperature = isEvent ? Math.min(baseTemp, EVENT_REPLY_TEMP_CAP) : baseTemp
 
   const body: any = {
     model: oaiModel,
@@ -490,14 +492,17 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     if (gen.swipesPerGeneration! > 1) {
       yield sanitiseAndTrim(swipeText, prompt, char, opts.characters, members)
     } else {
-      const finalText = sanitiseAndTrim(text || '', prompt, opts.replyAs, opts.characters, members)
-      // A non-empty raw reply that trims to nothing means it was entirely a foreign
-      // turn / scene narration (the chat finetune writing the whole scene in an
-      // event). Surface an error instead of storing an empty bubble, so the caller
-      // (the event loop) can stop or retry cleanly — and tool-only replies still go
-      // through (handled by the empty-text guard above).
+      // Event replies: the model writes the whole scene, so pull out only the
+      // elected character's own turn. Non-event: normal trim.
+      const finalText = isEvent
+        ? sanitise(extractSpeakerTurn(sanitise((text || '').replace(prompt, '')), opts.replyAs.name))
+        : sanitiseAndTrim(text || '', prompt, opts.replyAs, opts.characters, members)
+      // Empty after extraction/trim means the model produced nothing usable for
+      // this speaker (e.g. it narrated/spoke only as others). Surface an error so
+      // the caller (the event loop) retries cleanly instead of storing an empty
+      // bubble. Tool-only replies still go through (guarded by the empty-text check).
       if (!finalText && !imagePrompt && !rememberFacts.length) {
-        log.warn('OpenAI reply trimmed to empty (foreign/narration-only); dropping')
+        log.warn('OpenAI reply had no content for the speaker; dropping')
         yield { error: `OpenAI request failed: Received empty response. Try again.` }
         return
       }

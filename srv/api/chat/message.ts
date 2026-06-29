@@ -93,6 +93,11 @@ const genValidator = {
 /** Reply kinds that should trigger automatic long-term memory extraction: fresh
  * character replies only. Retries/continues re-cover an already-seen turn, and
  * ooc/summary/chat-query aren't in-character exchanges worth mining. */
+/** Re-rolls of a single event speaker's reply before the scene gives up. The chat
+ * finetune intermittently produces a whole-scene/Narrator output that gets dropped
+ * to empty; retrying the same speaker usually lands a clean in-character turn. */
+const EVENT_REPLY_RETRIES = 2
+
 const AUTO_MEMORY_KINDS = new Set<GenRequest['kind']>([
   'send',
   'request',
@@ -398,21 +403,38 @@ export const generateMessageV2 = handle(async (req, res) => {
           )
         ).reverse()
 
-        const result = await generateOneReply({
-          req,
-          body,
-          chat,
-          replyAs: eventReplyAs,
-          impersonate,
-          members,
-          userMsg,
-          requestId: i === 0 ? requestId : v4(),
-          eventTurn: true,
-          lines,
-          // chat.overrides is set on event chats, so scenario text = chat.scenario
-          // (the event block); the 4th arg makes the stage token + meta the speaker's.
-          resolvedScenario: resolveScenario(chat, eventReplyAs, [], eventReplyAs),
-        })
+        // Reuse one request id across retries so the client sees a single reply
+        // slot. The first turn keeps the original requestId for client correlation.
+        const slotRequestId = i === 0 ? requestId : v4()
+        const genReply = () =>
+          generateOneReply({
+            req,
+            body,
+            chat,
+            replyAs: eventReplyAs,
+            impersonate,
+            members,
+            userMsg,
+            requestId: slotRequestId,
+            eventTurn: true,
+            lines,
+            // chat.overrides is set on event chats, so scenario text = chat.scenario
+            // (the event block); the 4th arg makes the stage token + meta the speaker's.
+            resolvedScenario: resolveScenario(chat, eventReplyAs, [], eventReplyAs),
+          })
+
+        // A failed reply is usually the chat finetune going off the rails (a
+        // whole-scene / Narrator-led output that gets dropped to empty). That's
+        // random, so re-roll the same speaker a few times before giving up instead
+        // of stalling the scene — the only workaround was a manual resend.
+        let result = await genReply()
+        for (let attempt = 0; !result.ok && attempt < EVENT_REPLY_RETRIES; attempt++) {
+          log.warn(
+            { speaker: eventReplyAs.name, attempt: attempt + 1 },
+            'event: reply failed, retrying'
+          )
+          result = await genReply()
+        }
         if (!result.ok) break
         repliedThisTurn.push(eventReplyAs._id)
         addressed = detectAddressedSpeaker(result.text, roster, new Set(repliedThisTurn))
