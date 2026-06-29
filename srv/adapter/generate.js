@@ -44,7 +44,6 @@ let version = '';
 }, middleware_1.logger);
 async function inferenceAsync(opts) {
     const retries = opts.retries ?? 0;
-    let error;
     for (let attempt = 0; attempt <= retries; attempt++) {
         const { stream, service } = await createInferenceStream(opts);
         let generated = '';
@@ -76,7 +75,6 @@ async function inferenceAsync(opts) {
                 continue;
             }
             if ('error' in gen) {
-                error = gen.error;
                 if (attempt >= retries) {
                     throw new Error(gen.error);
                 }
@@ -92,8 +90,6 @@ async function inferenceAsync(opts) {
         }
         return { generated, prompt, meta };
     }
-    if (error)
-        throw error;
     throw new Error(`Could not complete inference: Max retries exceeded`);
 }
 async function guidanceAsync(opts) {
@@ -188,6 +184,7 @@ async function createInferenceStream(opts) {
         imageData: opts.imageData,
         images: opts.images,
         system: opts.system,
+        moderation: opts.moderation,
         jsonValues: opts.jsonValues,
     });
     const gated = queue_1.inferenceGate.gateStream({

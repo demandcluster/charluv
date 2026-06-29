@@ -423,7 +423,7 @@ const Slot: Component<{
         <Match when={cfg.flags.reporting}>
           <div
             class={`flex w-full justify-center border-[var(--bg-700)] bg-[var(--text-200)]`}
-            ref={ref}
+            ref={(e) => (ref = e)}
             id={id()}
             data-slot={specs()!.id}
             data-fuse={specs()!.fuseId}
@@ -433,7 +433,7 @@ const Slot: Component<{
         <Match when>
           <div
             class="flex w-full justify-center"
-            ref={ref}
+            ref={(e) => (ref = e)}
             id={id()}
             data-slot={specs()!.id}
             data-fuse={specs()!.fuseId}

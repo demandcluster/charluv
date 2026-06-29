@@ -163,15 +163,6 @@ const Message: Component<MessageProps> = (props) => {
     editRef?.focus()
   }
 
-  const alt = createMemo(() => {
-    const percent = `${ctx.ui.chatAlternating ?? 0}%`
-    return {
-      width: `calc(100% - ${ctx.ui.chatAlternating ?? 0}%)`,
-      'margin-right': ctx.user?._id === props.msg.userId ? percent : undefined,
-      'margin-left': ctx.user?._id !== props.msg.userId ? percent : undefined,
-    }
-  })
-
   return (
     <div
       class={'flex w-full rounded-md px-2 py-2 pr-2 sm:px-4'}
@@ -180,7 +171,7 @@ const Message: Component<MessageProps> = (props) => {
       data-user={props.msg.userId ? state.memberIds[props.msg.userId]?.handle : ''}
       data-last={props.last?.toString()}
       data-lastsplit="true"
-      style={true ? {} : alt()}
+      style={{}}
       classList={{
         'bg-chat-bot': !props.msg.ooc && !props.msg.userId,
         'bg-chat-user': !props.msg.ooc && !!props.msg.userId,
@@ -475,7 +466,7 @@ const Message: Component<MessageProps> = (props) => {
                 <Match when={edit()}>
                   <div
                     class="msg-edit-text-box"
-                    ref={editRef!}
+                    ref={(e) => (editRef = e)}
                     contentEditable={true}
                     onKeyUp={(ev) => {
                       if (ev.key === 'Escape') cancelEdit()

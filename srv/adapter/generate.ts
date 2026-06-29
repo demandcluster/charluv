@@ -106,7 +106,6 @@ export type InferenceRequest = {
 
 export async function inferenceAsync(opts: InferenceRequest) {
   const retries = opts.retries ?? 0
-  let error: any
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     const { stream, service } = await createInferenceStream(opts)
@@ -143,7 +142,6 @@ export async function inferenceAsync(opts: InferenceRequest) {
       }
 
       if ('error' in gen) {
-        error = gen.error
         if (attempt >= retries) {
           throw new Error(gen.error)
         }
@@ -163,7 +161,6 @@ export async function inferenceAsync(opts: InferenceRequest) {
     return { generated, prompt, meta }
   }
 
-  if (error) throw error
   throw new Error(`Could not complete inference: Max retries exceeded`)
 }
 

@@ -8,12 +8,20 @@ import { db } from './client'
 
 const KEY_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
 
-/** Cryptographically secure random alphanumeric string. */
+/**
+ * Cryptographically secure random alphanumeric string. Uses rejection sampling
+ * so the alphabet is sampled uniformly (a plain `byte % 62` would bias the
+ * lower indices since 256 is not a multiple of 62).
+ */
 function secureToken(length: number) {
-  const bytes = randomBytes(length)
+  const cutoff = 256 - (256 % KEY_ALPHABET.length)
   let out = ''
-  for (let i = 0; i < length; i++) {
-    out += KEY_ALPHABET[bytes[i] % KEY_ALPHABET.length]
+  while (out.length < length) {
+    const bytes = randomBytes(length - out.length)
+    for (const byte of bytes) {
+      if (byte >= cutoff) continue
+      out += KEY_ALPHABET[byte % KEY_ALPHABET.length]
+    }
   }
   return out
 }

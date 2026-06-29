@@ -72,7 +72,7 @@ export const CustomSelect: Component<{
     <div class={`${hide()} max-w-full ${props.parentClass || ''}`} classList={props.classList}>
       <Show when={props.fieldName}>
         <input
-          ref={ref!}
+          ref={(e) => (ref = e)}
           type="hidden"
           id={props.fieldName}
           name={props.fieldName}

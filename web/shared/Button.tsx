@@ -148,7 +148,7 @@ export const ToggleButton: Component<{
         <ButtonIcons>{props.children}</ButtonIcons>
       </button>
       <input
-        ref={ref!}
+        ref={(e) => (ref = e)}
         name={props.fieldName}
         type="checkbox"
         class="hidden"

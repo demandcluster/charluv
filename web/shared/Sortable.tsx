@@ -104,7 +104,7 @@ const Sortable: Component<{
         </Show>
 
         <div class="flex gap-1">
-          <ul class="w-full" ref={ref!}>
+          <ul class="w-full" ref={(e) => (ref = e)}>
             <Index each={items()}>
               {(item) => {
                 const match = items().find((i) => i.id === item().id)

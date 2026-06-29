@@ -139,7 +139,7 @@ const Navigation: Component = () => {
         </div>
       </Show>
       <div
-        ref={parent}
+        ref={(e) => (parent = e)}
         class={`drawer flex flex-col gap-2 bg-[var(--menu-bg)] pt-2`}
         classList={{
           flex: !state.showMenu,
@@ -150,7 +150,7 @@ const Navigation: Component = () => {
         aria-label="Main"
       >
         <div
-          ref={content}
+          ref={(e) => (content = e)}
           class="drawer__content sm:text-md text-md flex flex-col gap-1 px-2 sm:gap-1"
         >
           <div class="flex w-full items-center justify-between">

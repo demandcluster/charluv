@@ -231,7 +231,7 @@ const InfoModel: Component<{ show: boolean; close: () => void; userId: string; n
               <td>
                 <div class="flex gap-1">
                   <TextInput
-                    ref={subId}
+                    ref={(e) => (subId = e)}
                     parentClass="w-full"
                     fieldName="subscriptionId"
                     placeholder="Stripe Subscription ID"

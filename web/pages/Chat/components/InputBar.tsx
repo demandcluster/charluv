@@ -240,7 +240,7 @@ const InputBar: Component<{
         isMultiline
         spellcheck
         lang={props.char?.culture}
-        ref={ref! as any}
+        ref={(e) => (ref = e)}
         value={text()}
         placeholder={placeholder()}
         parentClass="flex w-full"

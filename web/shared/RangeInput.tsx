@@ -103,7 +103,7 @@ const RangeInput: Component<{
         <p class="helper-text markdown" innerHTML={markdown.makeHtml(props.helperMarkdown!)}></p>
       </Show>
       <input
-        ref={input}
+        ref={(e) => (input = e)}
         type="range"
         class="
         form-field
@@ -170,7 +170,7 @@ export const InlineRangeInput: Component<{
       class={`bg-800 flex items-center gap-2 rounded-xl px-2 ${hide()} ${props.parentClass || ''}`}
     >
       <input
-        ref={input}
+        ref={(e) => (input = e)}
         type="range"
         class="
         form-field

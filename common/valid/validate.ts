@@ -103,9 +103,6 @@ export function validateBody<T extends Validator>(
     }
 
     if (isOptionalPrimitive(bodyType)) {
-      // We have already checked this, but harmless to check again
-      if (value === undefined) continue
-
       const actual = bodyType.slice(0, -1)
       if (actual === 'any' || actual === 'unknown') continue
       if (typeof value !== actual)
@@ -133,8 +130,6 @@ export function validateBody<T extends Validator>(
     }
 
     if (isTupleOptional(bodyType)) {
-      if (value === undefined) continue
-
       const [innerType] = bodyType
       const actual = innerType.slice(0, -1)
 

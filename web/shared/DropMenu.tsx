@@ -147,7 +147,7 @@ export const DropMenu: Component<{
 
   return (
     <>
-      <div ref={ref!} class="relative z-50 text-sm" data-id={id()}>
+      <div ref={(e) => (ref = e)} class="relative z-50 text-sm" data-id={id()}>
         <Show when={props.show}>
           <div
             ref={onRef}

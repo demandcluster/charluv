@@ -160,7 +160,7 @@ const TemplateModal: Component<{
         close={props.close}
         footer={Footer}
       >
-        <form ref={form!} class="flex flex-col gap-4 text-sm">
+        <form ref={(e) => (form = e)} class="flex flex-col gap-4 text-sm">
           <TextInput
             fieldName="name"
             placeholder="Name"

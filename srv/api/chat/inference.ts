@@ -144,7 +144,7 @@ export const generateActions = wrap(async ({ userId, log, body, socketId, params
   return { actions }
 })
 
-export const guidance = wrap(async ({ userId, log, body, socketId }) => {
+export const guidance = wrap(async ({ userId, log, body }) => {
   assertValid(
     {
       ...validInference,
@@ -194,7 +194,7 @@ export const guidance = wrap(async ({ userId, log, body, socketId }) => {
     log,
     prompt: body.prompt,
     settings: body.settings,
-    guest: userId ? undefined : socketId,
+    guest: undefined,
     guidance: true,
     placeholders: body.placeholders,
     previous: body.previous,
