@@ -1,51 +1,30 @@
-import {
-  ImagePlus,
-  ClipboardList,
-  ImageUp,
-  Megaphone,
-  MoreHorizontal,
-  PlusCircle,
-  Send,
-  Zap,
-} from 'lucide-solid'
-import {
-  Component,
-  createMemo,
-  createSignal,
-  For,
-  Match,
-  onCleanup,
-  Setter,
-  Show,
-  Switch,
-} from 'solid-js'
+import { ImagePlus, ImageUp, Megaphone, MoreHorizontal, PlusCircle, Send } from '/web/icons'
+import { Component, createMemo, createSignal, For, onCleanup, Setter, Show } from 'solid-js'
 import { AppSchema } from '../../../../common/types/schema'
 import Button, { LabelButton } from '../../../shared/Button'
 import { DropMenu } from '../../../shared/DropMenu'
 import TextInput from '../../../shared/TextInput'
-import {
-  chatStore,
-  toastStore,
-  userStore,
-  settingStore,
-  characterStore,
-  ChatMessageExt,
-} from '../../../store'
+import { chatStore, toastStore, userStore, characterStore, ChatMessageExt } from '../../../store'
 import { msgStore } from '../../../store'
-import { SpeechRecognitionRecorder } from './SpeechRecognitionRecorder'
 import { Toggle } from '/web/shared/Toggle'
 import { defaultCulture } from '/web/shared/CultureCodes'
 import { createDebounce } from '/web/shared/util'
 import { useDraft, useEffect } from '/web/shared/hooks'
-import { eventStore } from '/web/store/event'
 import { useAppContext } from '/web/store/context'
 import NoCharacterIcon from '/web/icons/NoCharacterIcon'
 import WizardIcon from '/web/icons/WizardIcon'
 import { EVENTS, events } from '/web/emitter'
 import { AutoComplete } from '/web/shared/AutoComplete'
 import FileInput, { FileInputResult, getFileAsDataURL } from '/web/shared/FileInput'
-import AvatarIcon from '/web/shared/AvatarIcon'
 import { ALLOWED_TYPES } from '/web/store/data/image'
+import CreditCost from '/web/shared/CreditCost'
+import { EVENT_TURN_COST } from '/common/event'
+import Tooltip from '/web/shared/Tooltip'
+
+/** Credit cost to send a message: a flat event turn, or a normal chat message. */
+const MESSAGE_COST = 10
+/** Credit cost to generate an image from chat. */
+const IMAGE_COST = 25
 
 const InputBar: Component<{
   chat: AppSchema.Chat
@@ -60,7 +39,7 @@ const InputBar: Component<{
   more: (msg: string) => void
   request: (charId: string) => void
 }> = (props) => {
-  let ref: HTMLTextAreaElement
+  let ref: HTMLTextAreaElement = undefined!
 
   const [ctx] = useAppContext()
 
@@ -76,7 +55,7 @@ const InputBar: Component<{
     canCaption: s.canImageCaption,
   }))
   const chats = chatStore((s) => ({ replyAs: s.active?.replyAs }))
-  const chars = characterStore()
+  characterStore()
 
   useEffect(() => {
     const listener = (text: string) => {
@@ -99,9 +78,7 @@ const InputBar: Component<{
 
   const [text, setText] = createSignal(draft.text)
   const [menu, setMenu] = createSignal(false)
-  const [cleared, setCleared] = createSignal(0, { equals: false })
   const [complete, setComplete] = createSignal(false)
-  const [listening, setListening] = createSignal(false)
   const [dragging, setDragging] = createSignal(false)
 
   const completeOpts = createMemo(() => {
@@ -155,17 +132,9 @@ const InputBar: Component<{
     props.send(value, props.ooc, () => {
       ref.value = ''
       setText('')
-      setCleared(0)
       draft.clear()
     })
   }, 100)
-
-  const createSummary = () => {
-    ref.value = ''
-    msgStore.createSummary()
-    toastStore.normal('Summarizing...')
-    setMenu(false)
-  }
 
   const createImage = () => {
     msgStore.createImage()
@@ -203,14 +172,6 @@ const InputBar: Component<{
       char.voice,
       props.char?.culture || defaultCulture
     )
-    setMenu(false)
-  }
-
-  const triggerEvent = () => {
-    const char =
-      chats.replyAs && chats.replyAs in props.botMap ? props.botMap[chats.replyAs] : undefined
-
-    eventStore.triggerEvent(props.chat, char)
     setMenu(false)
   }
 
@@ -265,21 +226,6 @@ const InputBar: Component<{
         </div>
       </Show>
 
-      <div class="flex h-[40px] items-center sm:hidden">
-        <a
-          href="#"
-          role="button"
-          aria-label="Open impersonation menu"
-          class="icon-button"
-          onClick={() => settingStore.toggleImpersonate(true)}
-        >
-          <AvatarIcon
-            avatarUrl={chars.impersonating?.avatar || user.profile?.avatar}
-            format={{ corners: 'circle', size: 'sm' }}
-            class="ml-1 mr-2"
-          />
-        </a>
-      </div>
       <Show when={complete()}>
         <AutoComplete
           options={completeOpts()}
@@ -328,13 +274,16 @@ const InputBar: Component<{
           },
         }}
       />
-      <Button
-        schema="clear"
-        onClick={onButtonClick}
-        class="tour-message-actions h-full bg-[var(--bg-800)] px-2 py-2"
-      >
-        <MoreHorizontal class="icon-button" />
-      </Button>
+      <Tooltip tip="Options" position="top">
+        <Button
+          schema="clear"
+          onClick={onButtonClick}
+          class="h-full bg-[var(--bg-800)] px-2 py-2"
+          aria-label="Chat options"
+        >
+          <MoreHorizontal class="icon-button" />
+        </Button>
+      </Tooltip>
 
       <DropMenu show={menu()} close={() => setMenu(false)} vert="up" horz="left">
         <div class="flex w-48 flex-col gap-2 p-2">
@@ -342,7 +291,7 @@ const InputBar: Component<{
               <MessageCircle size={18} />
               Respond as Me
             </Button> */}
-          <Show when={ctx.activeBots.length > 1}>
+          <Show when={ctx.activeBots.length > 1 && props.chat.mode !== 'event'}>
             <div>Auto-reply</div>
             <Button
               schema="secondary"
@@ -379,6 +328,7 @@ const InputBar: Component<{
           </Show>
           <Button schema="secondary" class="w-full" onClick={createImage} alignLeft>
             <ImagePlus size={18} /> Generate Image
+            <CreditCost amount={IMAGE_COST} class="ml-auto" />
           </Button>
           <Show when={!!state.lastMsg?.characterId && isOwner()}>
             <Button schema="secondary" class="w-full" onClick={respondAgain} alignLeft>
@@ -387,17 +337,9 @@ const InputBar: Component<{
             <Button schema="secondary" class="w-full" onClick={more} alignLeft>
               <PlusCircle size={18} /> Generate More
             </Button>
-            <Button schema="secondary" class="w-full" onClick={createSummary} alignLeft>
-              <ClipboardList size={18} /> Summarize Chat
-            </Button>
             <Show when={!!props.char?.voice?.service}>
               <Button schema="secondary" class="w-full" onClick={playVoice} alignLeft>
                 <Megaphone size={18} /> Play Voice
-              </Button>
-            </Show>
-            <Show when={!!ctx.chat?.scenarioIds?.length && isOwner()}>
-              <Button schema="secondary" class="w-full" onClick={triggerEvent} alignLeft>
-                <Zap /> Trigger Event
               </Button>
             </Show>
           </Show>
@@ -415,26 +357,16 @@ const InputBar: Component<{
           </Show>
         </div>
       </DropMenu>
-      <Switch>
-        <Match when={user.user?.speechtotext && (text() === '' || listening())}>
-          <div class="flex h-full items-center">
-            <SpeechRecognitionRecorder
-              culture={props.char?.culture}
-              onText={(value) => setText(value)}
-              onSubmit={() => send()}
-              cleared={cleared}
-              listening={setListening}
-              class="h-full bg-[var(--bg-800)]"
-            />
-          </div>
-        </Match>
-
-        <Match when>
-          <Button schema="clear" onClick={send} class="mt-1">
-            <Send class="icon-button" size={18} />
-          </Button>
-        </Match>
-      </Switch>
+      <Button schema="clear" onClick={send} class="mt-1 flex items-center gap-1">
+        <Send class="icon-button" size={18} />
+        <Show when={!props.ooc}>
+          <CreditCost
+            amount={props.chat.mode === 'event' ? EVENT_TURN_COST : MESSAGE_COST}
+            size={12}
+            class="text-xs"
+          />
+        </Show>
+      </Button>
     </div>
   )
 }

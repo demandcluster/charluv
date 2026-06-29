@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from '@solidjs/router'
-import { Check, X } from 'lucide-solid'
+import { Check, X } from '/web/icons'
 import {
   Component,
   createEffect,
@@ -15,14 +15,7 @@ import Select from '../../shared/Select'
 import PersonaAttributes, { getAttributeMap } from '../../shared/PersonaAttributes'
 import TextInput from '../../shared/TextInput'
 import { getStrictForm } from '../../shared/util'
-import {
-  characterStore,
-  chatStore,
-  presetStore,
-  scenarioStore,
-  settingStore,
-  userStore,
-} from '../../store'
+import { characterStore, chatStore, presetStore, settingStore, userStore } from '../../store'
 import CharacterSelect from '../../shared/CharacterSelect'
 import { AutoPreset, getPresetOptions } from '../../shared/adapter'
 import { defaultPresets, isDefaultPreset } from '/common/presets'
@@ -33,8 +26,6 @@ import { Toggle } from '/web/shared/Toggle'
 import Divider from '/web/shared/Divider'
 import PageHeader from '/web/shared/PageHeader'
 import { isLoggedIn } from '/web/store/api'
-import { AppSchema } from '/common/types'
-import { isEligible } from './util'
 import { ADAPTER_LABELS } from '/common/adapters'
 import { Page } from '/web/Layout'
 
@@ -53,12 +44,11 @@ const CreateChatForm: Component<{
   let ref: any
 
   const nav = useNavigate()
-  const scenarios = scenarioStore((s) => s.scenarios)
   const cfg = settingStore()
   const user = userStore((s) => ({
     ...s.user,
     sub: s.sub,
-    userLevel: s.premium ? 10 : s.userLevel,
+    userLevel: s.user?.premium ? 10 : s.userLevel,
   }))
   const state = characterStore((s) => ({
     char: s.editing,
@@ -68,15 +58,6 @@ const CreateChatForm: Component<{
 
   const [selectedId, setSelected] = createSignal<string | undefined>(params.id)
   const [useOverrides, setUseOverrides] = createSignal(false)
-  const [scenario, setScenario] = createSignal<AppSchema.ScenarioBook>()
-
-  const currScenarios = createMemo(() => {
-    if (!scenarios.length) return [{ value: '', label: 'You have no scenarios' }]
-    return [
-      { value: '', label: 'None' },
-      ...scenarios.map((s) => ({ label: s.name, value: s._id })),
-    ]
-  })
 
   createEffect(() => {
     if (props.charId) return
@@ -96,13 +77,7 @@ const CreateChatForm: Component<{
     characterStore.getCharacter(id)
   })
 
-  const setScenarioById = (scenarioId: string) => {
-    setScenario(scenarios.find((s) => s._id === scenarioId))
-  }
-
-  const [presetId, setPresetId] = createSignal(
-    user.defaultPreset ? '' : isEligible() ? 'agnai' : 'horde'
-  )
+  const [presetId, setPresetId] = createSignal(user.defaultPreset ? '' : 'charluv')
   const presets = presetStore((s) => s.presets)
   const presetOptions = createMemo(() => {
     const opts = getPresetOptions(presets, { builtin: true }).filter((pre) => pre.value !== 'chat')
@@ -131,7 +106,7 @@ const CreateChatForm: Component<{
       const eligible = cfg.config.subs.some((sub) => userLevel >= sub.level)
 
       if (eligible) {
-        return defaultPresets.agnai
+        return defaultPresets['charluv-balanced']
       }
 
       return defaultPresets.horde
@@ -181,7 +156,6 @@ const CreateChatForm: Component<{
       ...overrides,
       useOverrides: useOverrides(),
       genPreset: presetId(),
-      scenarioId: scenario()?._id,
     }
     chatStore.createChat(characterId, payload, (id) => nav(`/chat/${id}`))
   }
@@ -202,6 +176,9 @@ const CreateChatForm: Component<{
 
   onMount(() => {
     props.footer?.(footer)
+    // Ensure the user's characters are loaded so the picked character is
+    // selectable and its details populate the form.
+    if (!state.loaded) characterStore.getCharacters()
   })
 
   return (
@@ -246,10 +223,6 @@ const CreateChatForm: Component<{
               label="Chat Mode"
               helperText={
                 <div class="flex flex-col gap-2">
-                  {/* <TitleCard>
-                    <b>ADVENTURE:</b> Adventure mode is currently disabled and will return when
-                    Sagas are out of Preview.
-                  </TitleCard> */}
                   <TitleCard>
                     <b>COMPANION:</b> Everything is permanent. You will not be able to: Edit Chat,
                     Retry Message, Delete Messages, etc.
@@ -291,22 +264,6 @@ const CreateChatForm: Component<{
 
           <Divider />
 
-          <Show when={!state.char?.name !== 'Aiva'}>
-            <Select
-              fieldName="scenarioId"
-              label="Scenario"
-              helperText="The scenario to use for this conversation"
-              items={currScenarios()}
-              value={state.char?.scenarioIds ? state.char?.scenarioIds[0] : ''}
-              onChange={(option) => setScenarioById(option.value)}
-              disabled={scenarios.length === 0 || state.char?.scenarioIds}
-            />
-          </Show>
-          <Show when={state.char?.scenarioIds}>
-            <Card class="text-md text-yellow-100">
-              {state.char?.name} comes with a built-in progressive multi-step Charluv scenario!
-            </Card>
-          </Show>
           <Card>
             <TextInput
               isMultiline

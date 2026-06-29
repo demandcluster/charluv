@@ -1,36 +1,55 @@
 import { assertValid } from '/common/valid'
 import { store } from '../../db'
 import { errors, handle, StatusError } from '../wrap'
+import { classifyRegistration } from '/common/abuse'
 import { OAuthScope, oauthScopes } from '/common/types'
 import { patreon } from './patreon'
 import { getSafeUserConfig } from './settings'
 import { OAuth2Client } from 'google-auth-library'
 import { createAccessToken, toSafeUser } from '/srv/db/user'
+import { config } from '../../config'
 
 const GOOGLE = new OAuth2Client()
 
 export const register = handle(async (req) => {
   assertValid(
-    { handle: 'string', username: 'string', password: 'string', invitecode: 'string' },
+    {
+      handle: 'string',
+      username: 'string',
+      password: 'string',
+      fingerprint: 'string?',
+      consent: 'boolean?',
+    },
     req.body
   )
-  const valid = await store.invitecode.checkInviteCode(req.body.invitecode)
-  //  if (!valid) {
-  //    throw new StatusError('Invalid invite code', 403)
-  //    return
-  //  }
-  const alreadyRegisterd = await store.users.checkIp(req.ip)
 
-  if (alreadyRegisterd) {
-    throw new StatusError('Only 1 account per IP, goto our Discord if you lost your password.', 403)
+  if (req.body.consent !== true) {
+    throw new StatusError('You must accept the identifier policy to register', 400)
   }
 
-  const { profile, token, user } = await store.users.createUser(req.body)
-  if (valid) {
-    await store.invitecode.takeInviteCode(req.body.invitecode, user._id)
+  const fpMatch = await store.users.checkFingerprint(req.body.fingerprint)
+  const ipMatch = await store.users.checkIp(req.ip)
+  const verdict = classifyRegistration({ fpMatch, ipMatch })
+
+  if (verdict === 'block') {
+    throw new StatusError(
+      'Only 1 account per device/IP. Go to our Discord if you lost your password.',
+      403
+    )
   }
 
-  req.log.info({ user: user.username, id: user._id }, 'User registered')
+  const restrictedReason =
+    fpMatch && ipMatch ? 'both' : fpMatch ? 'fingerprint' : ipMatch ? 'ip' : undefined
+
+  const { profile, token, user } = await store.users.createUser(req.body, false, {
+    restricted: verdict === 'restrict',
+    restrictedReason,
+    fingerprint: req.body.fingerprint,
+    ip: req.ip,
+    consentAt: new Date().toISOString(),
+  })
+
+  req.log.info({ user: user.username, id: user._id, verdict }, 'User registered')
   return { profile, token, user }
 })
 
@@ -41,13 +60,14 @@ export const login = handle(async (req) => {
   if (!result) {
     throw new StatusError('Unauthorized', 401)
   }
-  const storeIp = await store.users.updateIp(result.user._id, req.ip)
+  await store.users.updateIp(result.user._id, req.ip)
 
   return result
 })
 
-export const oathGoogleLogin = handle(async ({ log, body }) => {
-  assertValid({ token: 'string' }, body)
+export const oathGoogleLogin = handle(async (req) => {
+  const { body, ip, log } = req
+  assertValid({ token: 'string', fingerprint: 'string?' }, body)
 
   const config = await store.admin.getServerConfiguration().catch(() => undefined)
 
@@ -64,22 +84,127 @@ export const oathGoogleLogin = handle(async ({ log, body }) => {
   if (!payload) throw new StatusError('Could not verify Google token', 401)
   if (!payload.email || !payload.sub) throw new StatusError('Could not verify Google token', 401)
 
+  // Already linked → straight login.
   const existing = await store.users.findByGoogleSub(payload.sub)
   if (existing) {
     await store.users.updateUser(existing._id, { google: payload as any })
-    const token = await createAccessToken(existing.username, existing)
+    const accessToken = await createAccessToken(existing.username, existing)
     const profile = await store.users.getProfile(existing._id)
-    return { user: toSafeUser(existing), token, profile }
+    return { user: toSafeUser(existing), token: accessToken, profile }
   }
 
-  const newuser = await store.users.createUser({
-    username: `google_${payload.sub}`,
-    handle: payload.name || 'You',
-    password: '',
-  })
+  // No linked account: creating one is fine, but it must clear the same
+  // multi-account abuse check as a normal registration. If this device/IP
+  // already owns an account, refuse to spin up a second — point them at their
+  // existing account + the profile link flow instead.
+  const fpMatch = await store.users.checkFingerprint(body.fingerprint)
+  const ipMatch = await store.users.checkIp(ip)
+  const verdict = classifyRegistration({ fpMatch, ipMatch })
+
+  if (verdict === 'block') {
+    throw new StatusError(
+      'An account already exists on this device. Sign in to it, then link Google from your profile to enable Google sign-in.',
+      403
+    )
+  }
+
+  const restrictedReason =
+    fpMatch && ipMatch ? 'both' : fpMatch ? 'fingerprint' : ipMatch ? 'ip' : undefined
+
+  const newuser = await store.users.createUser(
+    {
+      username: `google_${payload.sub}`,
+      handle: payload.name || 'You',
+      password: '',
+    },
+    false,
+    {
+      restricted: verdict === 'restrict',
+      restrictedReason,
+      fingerprint: body.fingerprint,
+      ip,
+      // Implied consent: the login page states that signing in agrees to the
+      // Terms + 18+, mirroring the register flow's consent stamp.
+      consentAt: new Date().toISOString(),
+    }
+  )
   await store.users.updateUser(newuser.user._id, { google: payload as any })
-  log.info({ user: newuser.user.username, id: newuser.user._id }, 'User registered (Google OAuth)')
+  log.info(
+    { user: newuser.user.username, id: newuser.user._id, verdict },
+    'User registered (Google OAuth)'
+  )
   return newuser
+})
+
+/**
+ * Sign in with Patreon. If the Patreon account is already linked, that account
+ * logs in. Otherwise we create one — behind the same multi-account abuse check
+ * as Google login and normal registration — so a device/IP that already owns an
+ * account is told to sign in and link Patreon instead of making a second.
+ */
+export const oauthPatreonLogin = handle(async (req) => {
+  const { body, ip, log } = req
+  assertValid({ code: 'string', fingerprint: 'string?', url: 'string?' }, body)
+
+  if (!config.patreon.client_id) {
+    throw new StatusError('Not allowed', 405)
+  }
+
+  const token = await patreon.authorize(body.code, false, patreonRedirect(body.url))
+  const patron = await patreon.identity(token.access_token)
+
+  // Already linked → straight login.
+  const existing = await store.users.findByPatreonUserId(patron.user.id)
+  if (existing) {
+    const accessToken = await createAccessToken(existing.username, existing)
+    const profile = await store.users.getProfile(existing._id)
+    await store.users.updateIp(existing._id, ip)
+    return { user: toSafeUser(existing), token: accessToken, profile }
+  }
+
+  // No linked account: create one, but only if it clears the abuse check.
+  const fpMatch = await store.users.checkFingerprint(body.fingerprint)
+  const ipMatch = await store.users.checkIp(ip)
+  const verdict = classifyRegistration({ fpMatch, ipMatch })
+
+  if (verdict === 'block') {
+    throw new StatusError(
+      'An account already exists on this device. Sign in to it, then link Patreon from your profile to enable Patreon sign-in.',
+      403
+    )
+  }
+
+  const restrictedReason =
+    fpMatch && ipMatch ? 'both' : fpMatch ? 'fingerprint' : ipMatch ? 'ip' : undefined
+
+  const newuser = await store.users.createUser(
+    {
+      username: `patreon_${patron.user.id}`,
+      handle: patron.user.attributes?.full_name || 'You',
+      password: '',
+    },
+    false,
+    {
+      restricted: verdict === 'restrict',
+      restrictedReason,
+      fingerprint: body.fingerprint,
+      ip,
+      consentAt: new Date().toISOString(),
+    }
+  )
+
+  // Store the Patreon link + premium onto the fresh account (we already hold the
+  // token; the single-use code can't be re-authorized).
+  await patreon.persistPatron(newuser.user._id, token, patron)
+  log.info(
+    { user: newuser.user.username, id: newuser.user._id, verdict },
+    'User registered (Patreon OAuth)'
+  )
+
+  const fresh = (await store.users.getUser(newuser.user._id)) || newuser.user
+  const accessToken = await createAccessToken(fresh.username, fresh)
+  const profile = await store.users.getProfile(fresh._id)
+  return { user: toSafeUser(fresh), token: accessToken, profile }
 })
 
 export const unlinkGoogleAccount = handle(async ({ userId }) => {
@@ -163,10 +288,22 @@ export const resyncPatreon = handle(async (req) => {
   return { user: next, token }
 })
 
+// The token exchange's redirect_uri must exactly match the one the browser used
+// at the authorize step. The client sends the origin it used; accept it only if
+// it's a well-formed `.../oauth/patreon` URL (otherwise fall back to config).
+// Patreon also validates it against the app's registered URIs, so this can't be
+// abused as an open redirect.
+function patreonRedirect(raw?: string) {
+  if (typeof raw === 'string' && /^https?:\/\/[a-z0-9.-]+(:\d+)?\/oauth\/patreon$/i.test(raw)) {
+    return raw
+  }
+  return undefined
+}
+
 export const verifyPatreonOauth = handle(async (req) => {
   const { body } = req
-  assertValid({ code: 'string' }, body)
-  await patreon.initialVerifyPatron(req.userId, body.code)
+  assertValid({ code: 'string', url: 'string?' }, body)
+  await patreon.initialVerifyPatron(req.userId, body.code, patreonRedirect(body.url))
   const user = await getSafeUserConfig(req.userId)
   // Re-issue the JWT so its embedded `premium` flag reflects the newly linked account.
   const token = user ? await createAccessToken(user.username, user) : undefined

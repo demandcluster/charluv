@@ -14,16 +14,15 @@ import {
   Delete,
   X,
   Zap,
-  Split,
   MoreHorizontal,
-} from 'lucide-solid'
+} from '/web/icons'
+import charluvHeart from '../../../charluv512.png?url'
 import {
   Accessor,
   Component,
   createMemo,
   createSignal,
   For,
-  JSX,
   Match,
   onCleanup,
   onMount,
@@ -46,6 +45,7 @@ import {
 } from '../../../store'
 import { markdown } from '../../../shared/markdown'
 import Button, { ButtonSchema } from '/web/shared/Button'
+import CreditCost from '/web/shared/CreditCost'
 import { rootModalStore } from '/web/store/root-modal'
 import { ContextState, useAppContext } from '/web/store/context'
 import { hydrateTemplate, trimSentence } from '/common/util'
@@ -57,7 +57,6 @@ import { DropMenu } from '/web/shared/DropMenu'
 import { ChatTree } from '/common/chat'
 import { Portal } from 'solid-js/web'
 import { UI } from '/common/types'
-import { LucideProps } from 'lucide-solid/dist/types/types'
 import { createStore } from 'solid-js/store'
 import { Spinner } from '/web/shared/Loading'
 
@@ -97,12 +96,13 @@ function getAnonName(entityId: string) {
 }
 
 const Message: Component<MessageProps> = (props) => {
-  let editRef: HTMLDivElement
+  let editRef: HTMLDivElement = undefined!
   let avatarRef: any
 
   const [ctx] = useAppContext()
   const user = userStore()
   const state = chatStore()
+  const msgState = msgStore()
   const [edit, setEdit] = createSignal(false)
   const isBot = !!props.msg.characterId
   const isUser = !!props.msg.userId
@@ -120,6 +120,8 @@ const Message: Component<MessageProps> = (props) => {
 
   onMount(() => obs().observe(avatarRef))
   onCleanup(() => obs().disconnect())
+
+  const isGeneratingImage = createMemo(() => msgState.imagesGenerating.includes(props.msg._id))
 
   const format = createMemo(() => ({ size: user.ui.avatarSize, corners: user.ui.avatarCorners }))
   const content = createMemo(() => {
@@ -197,6 +199,14 @@ const Message: Component<MessageProps> = (props) => {
             >
               <Switch>
                 <Match when={user.ui.avatarSize === 'hide'}>{null}</Match>
+                <Match when={props.msg.event === 'world' && props.msg.meta?.director}>
+                  <img
+                    src={charluvHeart}
+                    class={`avatar-${format().size} shrink-0 rounded-full object-cover`}
+                    title="Director"
+                    alt="Director"
+                  />
+                </Match>
                 <Match when={props.msg.event === 'world' || props.msg.event === 'ooc'}>
                   <div
                     class={`avatar-${format().size} flex shrink-0 items-center justify-center pt-3`}
@@ -207,13 +217,13 @@ const Message: Component<MessageProps> = (props) => {
 
                 <Match when={props.voice === 'generating'}>
                   <div class="animate-pulse cursor-pointer" onClick={msgStore.stopSpeech}>
-                    <AvatarIcon format={format()} Icon={DownloadCloud} />
+                    <AvatarIcon format={format()} Icon={DownloadCloud as any} />
                   </div>
                 </Match>
 
                 <Match when={props.voice === 'playing'}>
                   <div class="animate-pulse cursor-pointer" onClick={msgStore.stopSpeech}>
-                    <AvatarIcon format={format()} Icon={PauseCircle} />
+                    <AvatarIcon format={format()} Icon={PauseCircle as any} />
                   </div>
                 </Match>
 
@@ -230,7 +240,7 @@ const Message: Component<MessageProps> = (props) => {
                 <Match when={!props.msg.characterId}>
                   <AvatarIcon
                     format={format()}
-                    Icon={DownloadCloud}
+                    Icon={DownloadCloud as any}
                     avatarUrl={state.memberIds[props.msg.userId!]?.avatar}
                     anonymize={ctx.anonymize}
                   />
@@ -397,10 +407,12 @@ const Message: Component<MessageProps> = (props) => {
                       )}
                     </For>
                     <div
-                      class="icon-button mx-2 flex items-center"
+                      class="icon-button mx-2 flex items-center gap-1"
                       onClick={() => msgStore.createImage(props.msg._id, true)}
+                      title="Regenerate image"
                     >
                       <PlusCircle size={20} />
+                      <CreditCost amount={25} size={12} class="text-xs" />
                     </div>
                   </div>
                 </Match>
@@ -475,6 +487,31 @@ const Message: Component<MessageProps> = (props) => {
                   ></div>
                 </Match>
               </Switch>
+              {/* For non-image messages (e.g. the native image tool attaches its
+                  result to the assistant reply), render attached `extras` images
+                  below the text, plus a loading spinner while one generates. */}
+              <Show when={props.msg.adapter !== 'image' && !edit()}>
+                <Show when={(props.msg.extras?.length || 0) > 0 || isGeneratingImage()}>
+                  <div class="mt-2 flex flex-wrap items-center gap-2">
+                    <For each={props.msg.extras || []}>
+                      {(src, i) => (
+                        <img
+                          class={'mt-2 max-h-32 max-w-[unset] cursor-pointer rounded-md'}
+                          src={getAssetUrl(src)}
+                          onClick={() =>
+                            settingStore.showImage(src, [
+                              toImageDeleteButton(props.msg._id, i() + 1),
+                            ])
+                          }
+                        />
+                      )}
+                    </For>
+                    <Show when={isGeneratingImage()}>
+                      <Spinner />
+                    </Show>
+                  </div>
+                </Show>
+              </Show>
             </div>
           </div>
           <Show when={!edit()}>{props.last && props.children}</Show>
@@ -550,18 +587,20 @@ const MessageOptions: Component<{
   const open = createMemo(() => props.showMore[0]())
 
   const logic = createMemo(() => {
-    const items: Record<
-      UI.MessageOption,
-      {
-        key: UI.MessageOption
-        outer: { outer: boolean; pos: number }
-        label: string
-        class: string
-        onClick: () => void
-        show: boolean
-        schema?: ButtonSchema
-        icon: (props: LucideProps) => JSX.Element
-      }
+    const items: Partial<
+      Record<
+        UI.MessageOption,
+        {
+          key: UI.MessageOption
+          outer: { outer: boolean; pos: number }
+          label: string
+          class: string
+          onClick: () => void
+          show: boolean
+          schema?: ButtonSchema
+          icon: any
+        }
+      >
     > = {
       prompt: {
         key: 'prompt',
@@ -581,16 +620,6 @@ const MessageOptions: Component<{
         show: props.msg.adapter !== 'image',
         onClick: props.startEdit,
         icon: Pencil,
-      },
-
-      fork: {
-        key: 'fork',
-        label: 'Fork',
-        class: 'fork-btn',
-        show: !props.last,
-        outer: props.ui.msgOptsInline.fork,
-        onClick: () => !props.partial && msgStore.fork(props.msg._id),
-        icon: Split,
       },
 
       regen: {
@@ -624,7 +653,9 @@ const MessageOptions: Component<{
     open()
     logic()
 
+    const defs = logic()
     return Object.entries(props.ui.msgOptsInline)
+      .filter(([key]) => !!defs[key as UI.MessageOption])
       .sort((l, r) => l[1].pos - r[1].pos)
       .map(([key, item]) => ({ key: key as UI.MessageOption, ...item }))
   })
@@ -635,7 +666,7 @@ const MessageOptions: Component<{
 
       <For each={order()}>
         {(item) => {
-          const def = logic()[item.key]
+          const def = logic()[item.key]!
 
           return (
             <MessageOption
@@ -654,11 +685,7 @@ const MessageOptions: Component<{
         }}
       </For>
 
-      <div
-        class="flex items-center"
-        classList={{ 'tour-message-opts': props.index === 0 }}
-        onClick={() => props.showMore[1](true)}
-      >
+      <div class="flex items-center" onClick={() => props.showMore[1](true)}>
         <MoreHorizontal class="icon-button" />
       </div>
 

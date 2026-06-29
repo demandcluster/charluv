@@ -1,4 +1,4 @@
-import { Save, X } from 'lucide-solid'
+import { Save, X } from '/web/icons'
 import { Component, createEffect, createMemo, createSignal, For, JSX, Show } from 'solid-js'
 import { defaultPresets, isDefaultPreset } from '../../../common/presets'
 import { AppSchema } from '../../../common/types/schema'

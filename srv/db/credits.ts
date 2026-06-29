@@ -1,8 +1,6 @@
 import { errors, StatusError } from '../api/wrap'
-import { getChat } from './chats'
 import { db } from './client'
 import { sendOne } from '../api/ws'
-import { AppSchema } from '../../common/types/schema'
 import { getUserSubscriptionTier } from '../../common/util'
 import { getCachedTiers } from './subscriptions'
 
@@ -29,59 +27,23 @@ export async function getFreeCredits() {
   const now = new Date().getTime()
   const nextTime: number = Number(now) + 120000
 
-  // evil anti cheat
-  // check users that have more than one account on the same ip and give them credits accordingly
-
-  const duplicateIPUsers = await db('user')
-    .aggregate([
-      {
-        $match: {
-          kind: 'user',
-          nextCredits: { $lte: now },
-          premium: false,
-          credits: { $lt: 300 },
-        },
-      },
-      {
-        $group: {
-          _id: '$lastIp',
-          userIds: { $push: '$_id' },
-          count: { $sum: 1 },
-        },
-      },
-      {
-        $match: {
-          count: { $gt: 1 },
-        },
-      },
-    ])
-    .toArray()
-
-  for (const { userIds } of duplicateIPUsers) {
-    let groupCreditsToAdd = Math.max(Math.floor(8 / userIds.length), 1)
-
-    for (const userId of userIds) {
-      const user = await db('user').findOne({ kind: 'user', _id: userId })
-      if (user) {
-        const updatedCredits = Math.min(
-          user.credits + groupCreditsToAdd,
-          Math.floor(300 / userIds.length)
-        )
-        if (updatedCredits > user.credits) {
-          const credits = await updateCredits(userId, updatedCredits - user.credits, nextTime)
-          sendOne(userId, { type: 'recharged', amount: groupCreditsToAdd })
-          //sendOne(userId, { type: 'credits-updated', credits })
-        }
-      }
-    }
-  }
-  // end of Ronnies evil
-
   const users = await db('user')
-    .find({ kind: 'user', nextCredits: { $lte: now }, premium: false, credits: { $lt: 300 } })
+    .find({
+      kind: 'user',
+      nextCredits: { $lte: now },
+      premium: false,
+      credits: { $lt: 500 },
+      creditsRestricted: { $ne: true },
+    })
     .toArray()
   const premiumUsers = await db('user')
-    .find({ kind: 'user', nextCredits: { $lte: now }, credits: { $lt: 1500 }, premium: true })
+    .find({
+      kind: 'user',
+      nextCredits: { $lte: now },
+      credits: { $lt: 5000 },
+      premium: true,
+      creditsRestricted: { $ne: true },
+    })
     .toArray()
   const expiredPremium = await db('user')
     .find({
@@ -96,9 +58,9 @@ export async function getFreeCredits() {
     const diff = now - lastCredits
 
     const creditsToAdd = Math.max(Math.floor(diff / 120000), 1) * 5
-    const updatedCredits = Math.min(usr.credits + creditsToAdd, 300)
+    const updatedCredits = Math.min(usr.credits + creditsToAdd, 500)
     if (updatedCredits > usr.credits) {
-      const credits = await updateCredits(usr._id, updatedCredits - usr.credits, nextTime)
+      await updateCredits(usr._id, updatedCredits - usr.credits, nextTime)
       sendOne(usr._id, { type: 'recharged', amount: creditsToAdd })
       // sendOne(usr._id, { type: 'credits-updated', credits })
     }
@@ -111,7 +73,7 @@ export async function getFreeCredits() {
     const updatedCredits = Math.min(usr.credits + creditsToAdd, 5000)
 
     if (updatedCredits > usr.credits) {
-      const credits = await updateCredits(usr._id, updatedCredits - usr.credits, nextTime)
+      await updateCredits(usr._id, updatedCredits - usr.credits, nextTime)
       sendOne(usr._id, { type: 'recharged', amount: creditsToAdd })
       //  sendOne(usr._id, { type: 'credits-updated', credits })
     }

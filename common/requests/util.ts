@@ -42,12 +42,67 @@ export function sanitiseAndTrim(
   const trimmed = trimResponseV2(parsed, char, members, characters, ['END_OF_DIALOG'])
     .split(`${char.name}:`)
     .join('')
-  return trimmed || parsed
+  // Return the trimmed text even when it's empty. An empty trim means the reply
+  // led with another speaker or "Narrator:"/"Director:" — i.e. the model wrote a
+  // foreign turn / a whole scene (common with the chat finetune in event chats).
+  // The old `|| parsed` fallback resurrected that raw multi-speaker screenplay,
+  // which is exactly the off-the-rails output we want to suppress.
+  return trimmed
 }
 
 export function sanitise(generated: string) {
   // If want to support code blocks we need to remove the excess whitespace removal as it breaks indents
   return generated.trim()
+}
+
+/**
+ * Extract a single character's turn from a multi-speaker "screenplay" reply.
+ *
+ * The chat finetune, in an event/group scene, tends to write the whole scene as
+ * one reply — `Narrator: ...`, `Jeremy: ...`, `Julia: ...` — ignoring the "reply
+ * only as X" directive. Rather than drop that (empty bubble) or show it raw (off
+ * the rails), pull out just the elected speaker's FIRST contiguous turn.
+ *
+ * Lines are `Name: text` (tolerating leading markdown). The speaker's own lines
+ * (and unlabeled continuations of them, plus any leading unlabeled text — the
+ * prefilled speaker's words) are kept until another speaker/`Narrator:`/`Director:`
+ * label appears, which ends the turn. Returns '' if the speaker never speaks.
+ */
+export function extractSpeakerTurn(text: string, speakerName: string): string {
+  const speaker = speakerName.trim().toLowerCase()
+  // "Name:" at the start of a line, tolerating leading markdown (* _ > # -).
+  const labelRe = /^[\s*_>#-]*([A-Za-z][A-Za-z0-9 ._'-]{0,29}?)\s*:\s?/
+  const out: string[] = []
+  let started = false
+  let inSpeaker = false
+
+  for (const line of text.split('\n')) {
+    const m = line.match(labelRe)
+    if (m) {
+      const name = m[1].trim().toLowerCase()
+      const rest = line.slice(m[0].length)
+      if (name === speaker) {
+        started = true
+        inSpeaker = true
+        if (rest.trim()) out.push(rest)
+      } else {
+        // Another speaker / Narrator / Director. If we already captured the
+        // speaker's turn, it's over; otherwise keep scanning for them.
+        if (started && out.length) break
+        inSpeaker = false
+      }
+    } else if (inSpeaker) {
+      out.push(line)
+    } else if (!started) {
+      // Leading unlabeled text before any label — the prefilled speaker's own
+      // words. Treat it as theirs.
+      out.push(line)
+      started = true
+      inSpeaker = true
+    }
+  }
+
+  return out.join('\n').trim()
 }
 
 export function trimResponseV2(
@@ -72,6 +127,16 @@ export function trimResponseV2(
       if (bot?._id === char._id) continue
       endTokens.push(`${bot.name}:`)
     }
+  }
+
+  // Scene narration is a separate "Narrator"/"Director" message. Cut a reply that
+  // switches into a narration passage (catches the cases the stop sequence misses:
+  // no leading newline, or text streamed past the stop). Both the tight and the
+  // spaced ("Narrator :") forms, since RP models emit either. Skip if the speaker
+  // is itself the narrator/director.
+  for (const speaker of ['Narrator', 'Director']) {
+    if (char.name === speaker) continue
+    endTokens.push(`${speaker}:`, `${speaker} :`)
   }
 
   let index = -1

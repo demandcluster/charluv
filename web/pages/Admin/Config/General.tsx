@@ -137,14 +137,14 @@ export const General: Component<{ slots: Accessor<string>; setSlots: Setter<stri
         <TextInput
           fieldName="maxGuidanceTokens"
           label="Max Guidance Tokens"
-          helperText="Max number of tokens a saga/guidance template can reques. Set to 0 to disable."
+          helperText="Max number of tokens a guidance template can request. Set to 0 to disable."
           type="number"
           value={state.config?.maxGuidanceTokens ?? 1000}
         />
         <TextInput
           fieldName="maxGuidanceVariables"
           label="Max Guidance Variables"
-          helperText="Max number of variables a saga/guidance template can request. Set to 0 to disable."
+          helperText="Max number of variables a guidance template can request. Set to 0 to disable."
           type="number"
           value={state.config?.maxGuidanceVariables ?? 15}
         />

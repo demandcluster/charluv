@@ -1,9 +1,5 @@
-import { A } from '@solidjs/router'
 import { Component } from 'solid-js'
 import PageHeader from '../../shared/PageHeader'
-import Divider from '../../shared/Divider'
-
-import logo from '../../asset/logo.png'
 
 const ThankYou: Component = () => {
   return (

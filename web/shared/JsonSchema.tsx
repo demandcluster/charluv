@@ -5,7 +5,7 @@ import { Pill, SolidCard } from './Card'
 import Select from './Select'
 import TextInput from './TextInput'
 import { forms } from '../emitter'
-import { ArrowDown, ArrowUp, Eye, EyeOff, Plus, Trash } from 'lucide-solid'
+import { ArrowDown, ArrowUp, Eye, EyeOff, Plus, Trash } from '/web/icons'
 import Button from './Button'
 import { useFormField } from './hooks'
 

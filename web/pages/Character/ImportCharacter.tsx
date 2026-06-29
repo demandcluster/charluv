@@ -1,10 +1,10 @@
-import { Import, X } from 'lucide-solid'
-import { Component, For, Show, createSignal, onMount } from 'solid-js'
+import { Import, X } from '/web/icons'
+import { Component, For, Show, createSignal } from 'solid-js'
 import FileInput, { FileInputResult } from '../../shared/FileInput'
 import Modal from '../../shared/Modal'
-import { characterStore, NewCharacter, toastStore } from '../../store'
+import { characterStore, NewCharacter } from '../../store'
 import AvatarIcon from '/web/shared/AvatarIcon'
-import { SUPPORTED_FORMATS, downloadCharacterHub, importCharacterFile } from './port'
+import { SUPPORTED_FORMATS, importCharacterFile } from './port'
 import Button from '/web/shared/Button'
 
 const MAX_SHOWN_IMPORTS = 3
@@ -13,7 +13,6 @@ const ImportCharacterModal: Component<{
   show: boolean
   close: () => void
   onSave: (chars: NewCharacter[], images: Array<File | undefined>) => void
-  charhubPath?: string
   single?: boolean
 }> = (props) => {
   const state = characterStore()
@@ -21,18 +20,6 @@ const ImportCharacterModal: Component<{
   const [images, setImages] = createSignal<Array<File | undefined>>([])
   const [failed, setFailed] = createSignal<string[]>([])
   const [ready, setReady] = createSignal(false)
-
-  onMount(async () => {
-    if (!props.charhubPath) return
-    try {
-      const { json } = await downloadCharacterHub(props.charhubPath)
-      setImported([json])
-      toastStore.success('Successfully downloaded from Character Hub')
-      setReady(true)
-    } catch (ex: any) {
-      toastStore.error(`Character Hub download failed: ${ex.message}`)
-    }
-  })
 
   const processFiles = async (files: FileInputResult[]) => {
     reset()

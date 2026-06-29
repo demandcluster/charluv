@@ -30,10 +30,19 @@ export type CompletionGenerator = (
 
 export type CompletionItem = { role: ChatRole; content: string; name?: string }
 
+export type ToolCall = {
+  index?: number
+  id?: string
+  type?: string
+  function?: { name?: string; arguments?: string }
+}
+
 export type CompletionContent<T> = Array<
-  { finish_reason: string; index: number } & ({ text: string } | T)
+  { finish_reason: string; index: number } & ({ text: string; tool_calls?: ToolCall[] } | T)
 >
-export type Inference = { message: { content: string; role: ChatRole } }
+export type Inference = {
+  message: { content: string; role: ChatRole; tool_calls?: ToolCall[] }
+}
 export type AsyncDelta = { delta: Partial<Inference['message']> }
 
 export type GenerateRequestV2 = {
@@ -122,6 +131,19 @@ export type AdapterProps = {
   jsonValues: Record<string, any> | undefined
 
   imageData?: string
+  /** Multiple base64 data URLs (e.g. avatar + gallery for moderation). */
+  images?: string[]
+  /**
+   * Leading `system` message (chat-completion only). Overrides the served model's
+   * default chat-template system prompt so utility calls (publish moderation)
+   * aren't answered in-character.
+   */
+  system?: string
+  /**
+   * Route this call to the dedicated moderation endpoint (original vision model)
+   * instead of the user-facing chat model. Set by the publish/edit moderation path.
+   */
+  moderation?: boolean
   guidance?: boolean
   placeholders?: Record<string, string>
   lists?: Record<string, string[]>

@@ -1,5 +1,5 @@
 import logoDark from '../asset/logoDark.png?url'
-import { Menu } from 'lucide-solid'
+import { Menu } from '/web/icons'
 import { Component, Show } from 'solid-js'
 import { A } from '@solidjs/router'
 import { chatStore, settingStore } from '../store'
@@ -12,7 +12,6 @@ const NavBar: Component = () => {
     loaded: s.loaded,
     opts: s.opts,
   }))
-  console.log(logoDark)
   const isChat = isChatPage()
 
   const Title = (
@@ -29,7 +28,7 @@ const NavBar: Component = () => {
     <Show when={!isChat()}>
       <div
         data-header=""
-        class={`bg-900 sm:none flex h-[48px] justify-between gap-4 border-b-2 border-[var(--bg-800)] px-4 py-3 max-sm:p-1 sm:hidden`}
+        class={`sm:none flex h-[48px] justify-between gap-4 border-b-2 border-[var(--bg-800)] bg-[var(--menu-bg)] px-4 py-3 max-sm:p-1 sm:hidden`}
       >
         <div class="flex w-full max-w-5xl items-center justify-between gap-2 font-semibold sm:justify-start">
           <div class={`w-8 sm:hidden`} onClick={() => settingStore.menu()}>

@@ -18,7 +18,7 @@ const MetricsPage: Component = () => {
   const [confirm, setConfirm] = createSignal(false)
 
   onMount(() => {
-    adminStore.getShared()
+    adminStore.getReports()
     adminStore.getMetrics()
   })
   const sendAll = () => {
@@ -43,8 +43,8 @@ const MetricsPage: Component = () => {
           <Button onClick={adminStore.getMetrics}>Refresh</Button>
         </div>
         <div class="mb-4 flex gap-4">
-          <a href="/admin/shared">
-            <Button>Shared Characters Management</Button>
+          <a href="/admin/moderation">
+            <Button>Moderation</Button>
           </a>
         </div>
       </div>
@@ -81,9 +81,9 @@ const MetricsPage: Component = () => {
 
         <FormLabel fieldName="services" label="Services" helperText={state.metrics?.each.length} />
         <FormLabel
-          fieldName="shared"
-          label="Shared Characters"
-          helperText={state?.shared?.length || '...'}
+          fieldName="reports"
+          label="Open Reports"
+          helperText={state?.reports?.length || '0'}
         />
         <Card>
           <form ref={refForm} class="flex flex-col gap-1">

@@ -41,7 +41,10 @@ export async function toChatCompletionPayload(
   maxTokens: number
 ): Promise<CompletionItem[]> {
   if (opts.kind === 'plain') {
-    return [{ role: 'system', content: opts.prompt }]
+    // One-off utility prompts (inference/CYOA/summary/image-prompt) are a single
+    // blob. Send as `user` not `system`: the self-hosted endpoint rejects
+    // requests with no user-role message ("No user query found in messages").
+    return [{ role: 'user', content: opts.prompt }]
   }
 
   const { lines, gen, replyAs } = opts
@@ -166,7 +169,28 @@ export async function toChatCompletionPayload(
   if (!addedAllInserts) {
     await addRemainingInserts()
   }
-  return messages.concat(history.reverse())
+
+  const final = messages.concat(history.reverse())
+
+  // The self-hosted endpoint rejects requests with no user-role message ("No user
+  // query found in messages"). An event scene that opens on director/world
+  // narration alone (the human hasn't spoken yet) has none — the narration line
+  // is now labelled "Narrator:/Director:" (its own speaker) rather than "You:",
+  // so it no longer classifies as the user turn. Promote the most recent
+  // narration line to the user turn so the scene still sets up the reply.
+  if (!final.some((m) => m.role === 'user')) {
+    const narration = [...final]
+      .reverse()
+      .find(
+        (m) =>
+          m.role !== 'system' &&
+          typeof m.content === 'string' &&
+          /^(Narrator|Director):/.test(m.content)
+      )
+    if (narration) narration.role = 'user'
+  }
+
+  return final
 }
 
 export async function splitSampleChat(opts: SplitSampleChatProps, counter: TokenCounter) {
@@ -272,7 +296,15 @@ async function getPostInstruction(
 
     case 'retry':
     case 'send':
-    case 'request': {
+    case 'request':
+    // Event character replies (the director elected this speaker) are normal
+    // character turns: they MUST get the trailing "<Name>:" assistant cue + UJB,
+    // exactly like a 'send'. Without these cases they fell through the switch to
+    // no cue at all, so the model picked its own speaker ("Narrator:") and
+    // narrated the whole scene instead of replying as the elected character.
+    case 'send-event:world':
+    case 'send-event:character':
+    case 'send-event:hidden': {
       const appendName = opts.gen.prefixNameAppend ?? true
       const messages: CompletionItem[] = [
         {

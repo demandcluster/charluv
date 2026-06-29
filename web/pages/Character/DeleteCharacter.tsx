@@ -1,4 +1,4 @@
-import { Archive, Trash, X } from 'lucide-solid'
+import { Archive, Trash, X } from '/web/icons'
 import { Component, Show } from 'solid-js'
 import { AppSchema } from '../../../common/types/schema'
 import { CharacterAvatar } from '../../shared/AvatarIcon'

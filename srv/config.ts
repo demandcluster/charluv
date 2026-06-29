@@ -109,7 +109,7 @@ export const config = {
   hordeKeyPremium: env('HORDE_KEY_PREMIUM', ''),
   hordeKeyImages: env('HORDE_KEY_IMAGES', ''),
   elevenLabsPremium: env('ELEVENLABS_PREMIUM', ''),
-  adapters: env('ADAPTERS', 'horde')
+  adapters: env('ADAPTERS', 'charluv')
     .split(',')
     .filter((i) => !!i && i in ADAPTER_LABELS) as AIAdapter[],
   storage: {
@@ -142,12 +142,73 @@ export const config = {
 
   inference: {
     flatChatCompletion: !!env('SIMPLE_COMPLETION', ''),
+    /**
+     * Self-hosted, OpenAI-compatible text endpoint. When `textUrl` is set the
+     * `openai` adapter will target it (with `textApiKey` as the bearer) without
+     * requiring a per-user OpenAI key. Base URL should be the root that exposes
+     * `/v1/chat/completions` (the `/v1` suffix is added if absent).
+     */
+    textUrl: env('INFERENCE_TEXT_URL', ''),
+    textApiKey: env('INFERENCE_TEXT_KEY', ''),
+    textModel: env('INFERENCE_TEXT_MODEL', ''),
+    /**
+     * Dedicated moderation endpoint. Publish/edit moderation runs on the original
+     * (vision-capable) model, kept separate from the user-facing chat model on
+     * `textUrl` — so the chat model can be swapped for a less-censored one without
+     * weakening the safety check. When unset these fall back to the `text*`
+     * values, so existing single-endpoint deployments are unchanged. Base URL is
+     * the root exposing `/v1/chat/completions` (`/v1` is added if absent).
+     */
+    modUrl: env('INFERENCE_MOD_URL', ''),
+    modApiKey: env('INFERENCE_MOD_KEY', ''),
+    modModel: env('INFERENCE_MOD_MODEL', ''),
+    /**
+     * The self-hosted text endpoint runs speculative decoding, which vLLM does
+     * not yet support alongside `min_p` / `logit_bias` (it aborts the response:
+     * "min_p and logit_bias sampling parameters are not yet supported with
+     * speculative decoding"). When true (default) we omit those two fields.
+     * Set INFERENCE_SPEC_DECODING=false if the endpoint ever drops spec-decoding.
+     */
+    specDecoding: env('INFERENCE_SPEC_DECODING', 'true') !== 'false',
+    /**
+     * Self-hosted Z-Image backend (separate from text). Does text-to-image and
+     * character-consistent generation via i2L: encode a character's reference
+     * images once into a stored LoRA (POST <imageUrl>/v1/encode), then generate
+     * that character forever (POST <imageUrl>/v1/generate with lora_name).
+     * Auth is an `X-API-Key` header. When set, all image generation routes here
+     * regardless of a chat/user's stored image `type`. No data migration.
+     */
+    imageUrl: env('ZIMAGE_BASE_URL', env('INFERENCE_IMAGE_URL', '')),
+    imageApiKey: env('ZIMAGE_API_KEY', env('INFERENCE_IMAGE_KEY', '')),
+    // Speed/quality knobs (steps is linear, size is quadratic in gen time).
+    // Gallery/avatar is tuned for speed; chat keeps its higher-quality defaults.
+    imageSteps: +env('INFERENCE_IMAGE_STEPS', '14'), // gallery / avatar
+    imageSize: +env('INFERENCE_IMAGE_SIZE', '640'), // gallery / avatar
+    imageChatSteps: +env('INFERENCE_IMAGE_CHAT_STEPS', '20'), // in-chat images
+    imageChatSize: +env('INFERENCE_IMAGE_CHAT_SIZE', '512'), // in-chat images
+    /**
+     * Server-wide negative prompt applied to EVERY image generation. The per-user
+     * negative field is no longer editable (legacy), so this env-configured value
+     * is the authoritative negative; any legacy stored negative is appended after
+     * it (deduped). Comma-separated tokens.
+     */
+    imageNegative: env(
+      'INFERENCE_IMAGE_NEGATIVE',
+      'bad anatomy, bad composition, bad lighting, distorted face, extra limbs, low quality, out of focus, overexposed, plastic, poor symmetry, signature, watermark, ugly'
+    ),
+  },
+  queue: {
+    global: +env('INFERENCE_GLOBAL_CONCURRENCY', '10'),
+    image: +env('IMAGE_CONCURRENCY', '4'),
+    textHardCap: +env('TEXT_HARD_CAP', '16'),
+    metricsUrl: env('VLLM_METRICS_URL', ''),
+    waitingThreshold: +env('VLLM_WAITING_THRESHOLD', '1'),
+    pollMs: +env('VLLM_METRICS_POLL_MS', '1500'),
   },
   keys: {
     REPLICATE: env('REPLICATE_KEY', ''),
   },
   pipelineProxy: !!env('PIPELINE_PROXY', ''),
-  publicTunnel: !!env('PUBLIC_TUNNEL', ''),
 }
 
 insertInject()

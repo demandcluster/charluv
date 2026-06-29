@@ -1,11 +1,12 @@
 import { Router } from 'express'
-import { loggedIn, isPremium } from '../auth'
+import { loggedIn } from '../auth'
 import {
   changePassword,
   createApiKey,
   linkGoogleAccount,
   login,
   oathGoogleLogin,
+  oauthPatreonLogin,
   register,
   remoteLogin,
   resyncPatreon,
@@ -47,11 +48,13 @@ import {
   removeProfileAvatar,
 } from './settings'
 import { deleteUserAccount } from './delete-user'
+import { redeemPromoCode } from './promo'
 
 const router = Router()
 
 router.post('/login/callback', loggedIn, remoteLogin)
 router.post('/login/google', oathGoogleLogin)
+router.post('/login/patreon', oauthPatreonLogin)
 router.post('/link-google', loggedIn, linkGoogleAccount)
 router.post('/unlink-google', loggedIn, unlinkGoogleAccount)
 router.post('/login', login)
@@ -95,6 +98,7 @@ router.post('/presets/:id', loggedIn, updateUserPreset)
 router.post('/templates', loggedIn, createTemplate)
 router.post('/templates/:id', loggedIn, updateTemplate)
 router.delete('/templates/:id', loggedIn, deleteTemplate)
+router.post('/promo/redeem', loggedIn, redeemPromoCode)
 router.get('/:id', loggedIn, getProfile)
 
 export default router

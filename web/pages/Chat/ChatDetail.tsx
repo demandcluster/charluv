@@ -12,34 +12,33 @@ import {
 import { useNavigate, useParams } from '@solidjs/router'
 import ChatExport from './ChatExport'
 import Button from '../../shared/Button'
-import { getAssetUrl, setComponentPageTitle, sticky } from '../../shared/util'
-import { characterStore, chatStore, settingStore, userStore } from '../../store'
+import { setComponentPageTitle, sticky } from '../../shared/util'
+import { characterStore, chatStore, toastStore, userStore } from '../../store'
 import { msgStore } from '../../store'
+import { charsApi } from '../../store/data/chars'
 import Message from './components/Message'
 import PromptModal from './components/PromptModal'
 import DeleteMsgModal from './DeleteMsgModal'
 import { devCycleAvatarSettings, isDevCommand } from './dev-util'
-import ForcePresetModal from './ForcePreset'
 import DeleteChatModal from './components/DeleteChat'
 import { useEffect, usePaneManager } from '/web/shared/hooks'
 import { emptyMsg, LoadMore, insertImageMessages, SwipeMessage } from './helpers'
 import { useAutoExpression } from '/web/shared/Avatar/hooks'
 import AvatarContainer from '/web/shared/Avatar/Container'
-import { eventStore } from '/web/store/event'
 import ChatPanes, { useValidChatPane } from './components/ChatPanes'
 import { useAppContext } from '/web/store/context'
-import { embedApi } from '/web/store/embeddings'
 import { ModeDetail } from '/web/shared/Mode/Detail'
 import { ChatMenu } from './ChatMenu'
 import { ChatFooter } from './ChatFooter'
 import { ConfirmModal } from '/web/shared/Modal'
 import { TitleCard } from '/web/shared/Card'
-import { ChatGraphModal } from './components/GraphModal'
 import { EVENTS, events } from '/web/emitter'
 import { AppSchema } from '/common/types'
-import { startTour } from '/web/tours'
 
 export { ChatDetail as default }
+
+// Characters whose legacy memory book we've already migrated this session.
+const migratedBooks = new Set<string>()
 
 const ChatDetail: Component = () => {
   const { updateTitle } = setComponentPageTitle('Chat')
@@ -77,6 +76,7 @@ const ChatDetail: Component = () => {
     retrying: s.retrying,
     inference: s.lastInference,
     textBeforeGenMore: s.textBeforeGenMore,
+    queuePosition: s.queuePosition,
   }))
 
   const showPane = useValidChatPane()
@@ -99,7 +99,6 @@ const ChatDetail: Component = () => {
 
   const isGreetingOnlyMsg = createMemo(() => msgs.msgs.length === 1)
 
-  let [evented, setEvented] = createSignal(false)
   const retries = createMemo(() => {
     const last = msgs.msgs.slice(-1)[0]
     if (!last && !isGreetingOnlyMsg()) return
@@ -151,22 +150,17 @@ const ChatDetail: Component = () => {
     events.emit('chat-closed')
   })
 
+  // One-time migration: fold a legacy embedded memory book into the character's
+  // long-term memory, then drop the old book. Only the owner can migrate.
   createEffect(() => {
-    // On Connect Events
-    if (evented() || !chats.chat || !chats.char || !chars.ready || !chats.ready) return
-    setEvented(true)
-
-    const messages = msgs.msgs
-    const isNonEvent = !msgs.msgs[0]?.event
-    if (isNonEvent && messages.length <= 1) {
-      eventStore.onGreeting(chats.chat)
-    } else {
-      eventStore.onChatOpened(chats.chat, new Date(messages[messages.length - 1].createdAt))
-    }
-
-    if (chats.chat.userEmbedId) {
-      embedApi.loadDocument(chats.chat.userEmbedId)
-    }
+    const c = chats.char
+    if (!c?._id || !isOwner() || migratedBooks.has(c._id)) return
+    migratedBooks.add(c._id)
+    charsApi.migrateBook(c._id).then((res) => {
+      const n = res.result?.migrated
+      if (n)
+        toastStore.success(`Imported ${n} memor${n === 1 ? 'y' : 'ies'} from the old memory book`)
+    })
   })
 
   const descriptionText = createMemo(() => {
@@ -181,7 +175,8 @@ const ChatDetail: Component = () => {
     )
   })
   const isOwner = createMemo(() => chats.chat?.userId === user.user?._id)
-  const tts = createMemo(() => (user.user?.texttospeech?.enabled ?? true) && !!chats.char?.voice)
+  // Voice/TTS is disabled platform-wide — never surface the voice UI.
+  const tts = createMemo(() => false)
 
   const waitingMsg = createMemo(() => {
     if (!msgs.waiting) return
@@ -254,15 +249,8 @@ const ChatDetail: Component = () => {
     updateTitle(charName ? `Chat with ${charName}` : 'Chat')
 
     if (!params.id) {
-      if (!chats.lastId) return nav('/character/list')
+      if (!chats.lastId) return nav('/mine')
       return nav(`/chat/${chats.lastId}`)
-    }
-
-    if (charName) {
-      settingStore.menu(true)
-      setTimeout(() => {
-        startTour('chat')
-      }, 500)
     }
 
     events.emit(EVENTS.chatOpened, params.id)
@@ -287,8 +275,16 @@ const ChatDetail: Component = () => {
       }
     }
 
-    // If the number of active bots is 1 or fewer then always request a response
-    const kind = ooc ? 'ooc' : chats.replyAs || ctx.activeBots.length <= 1 ? 'send' : 'send-noreply'
+    // Event chats are director-driven: always 'send' so the server elects the
+    // speaker(s). Otherwise, if the number of active bots is 1 or fewer (or a
+    // reply-as is pinned) always request a response; else create the user
+    // message without a reply (group chat, user picks who speaks).
+    const isEvent = chats.chat?.mode === 'event'
+    const kind = ooc
+      ? 'ooc'
+      : isEvent || chats.replyAs || ctx.activeBots.length <= 1
+      ? 'send'
+      : 'send-noreply'
     if (!ooc) setSwipe(0)
     msgStore.send(chats.chat?._id!, message, kind, onSuccess)
     return
@@ -325,6 +321,22 @@ const ChatDetail: Component = () => {
   const generateFirst = () => {
     msgStore.retry(chats.chat?._id!)
   }
+
+  // Event chats open with a neutral scene line and no character has spoken yet.
+  // Auto-trigger the director once so it elects who opens the scene. Guarded so it
+  // fires a single time per mount and never after a character has already replied.
+  const [eventOpened, setEventOpened] = createSignal(false)
+  createEffect(() => {
+    if (chats.chat?.mode !== 'event') return
+    if (!chats.loaded || eventOpened()) return
+    if (msgs.waiting) return
+    const loaded = chatMsgs()
+    // Wait for the scene narration to load; bail once any bot has spoken.
+    if (!loaded.length) return
+    if (loaded.some((m) => m.characterId && !m.userId)) return
+    setEventOpened(true)
+    msgStore.request(chats.chat._id, chats.char!._id)
+  })
 
   const characterPills = createMemo(() => {
     const bots = ctx.activeBots.filter((bot) => {
@@ -363,11 +375,6 @@ const ChatDetail: Component = () => {
         }
       }
 
-      if (ev.key === 'i') {
-        ev.preventDefault()
-        settingStore.toggleImpersonate(true)
-      }
-
       if (ev.key === 'a') {
         ev.preventDefault()
         const last = indexOfLastRPMessage()
@@ -375,11 +382,6 @@ const ChatDetail: Component = () => {
         if (!msg?.characterId) return
 
         msgStore.request(msg.chatId, msg.characterId)
-      }
-
-      if (ev.key === 'g') {
-        ev.preventDefault()
-        chatStore.option({ options: false, modal: 'graph' })
       }
 
       if (ev.key === 'p') {
@@ -427,6 +429,16 @@ const ChatDetail: Component = () => {
     <>
       <ChatMenu ctx={ctx} isOwner={isOwner()} />
       <ModeDetail
+        header={
+          <Show when={chats.chat?.mode === 'event' && chats.chat?.event}>
+            <div class="rounded-md border border-[var(--bg-700)] bg-[var(--bg-800)] px-4 py-2 text-center">
+              <div class="text-xs font-bold uppercase tracking-wide text-[var(--text-500)]">
+                Event · {chats.chat?.event?.location}
+              </div>
+              <div class="text-sm text-[var(--text-700)]">{chats.chat?.event?.description}</div>
+            </div>
+          </Show>
+        }
         footer={
           <ChatFooter
             ctx={ctx}
@@ -449,7 +461,14 @@ const ChatDetail: Component = () => {
           ref={sticky.monitor}
         >
           <div id="chat-messages" class="flex w-full flex-col gap-2">
-            <Show when={chats.loaded && chatMsgs().length < 2 && chats.char?.description}>
+            <Show
+              when={
+                chats.chat?.mode !== 'event' &&
+                chats.loaded &&
+                chatMsgs().length < 2 &&
+                chats.char?.description
+              }
+            >
               <div class="mb-4 flex flex-col items-center text-[var(--text-500)]">
                 <div class="font-bold">Notes from the creator of {chats.char?.name}</div>
                 {descriptionText()}
@@ -516,6 +535,9 @@ const ChatDetail: Component = () => {
                 )}
               </For>
             </Show>
+            <Show when={msgs.waiting && msgs.queuePosition}>
+              <div class="text-500 text-xs opacity-70">Queued #{msgs.queuePosition}</div>
+            </Show>
           </div>
         </section>
       </ModeDetail>
@@ -524,32 +546,12 @@ const ChatDetail: Component = () => {
         <ChatExport show={true} close={clearModal} />
       </Show>
 
-      <Show when={chats.opts.modal === 'graph'}>
-        <ChatGraphModal
-          tree={ctx.chatTree}
-          show
-          close={clearModal}
-          leafId={chatMsgs().slice(-1)[0]?._id || ''}
-        />
-      </Show>
-
       <Show when={chats.opts.modal === 'delete'}>
         <DeleteChatModal show={true} chat={chats.chat!} redirect={true} close={clearModal} />
       </Show>
 
       <Show when={!!removeId()}>
         <DeleteMsgModal show={!!removeId()} messageId={removeId()} close={() => setRemoveId('')} />
-      </Show>
-
-      <Show
-        when={
-          chats.chat &&
-          !chats.chat.genPreset &&
-          !chats.chat.genSettings &&
-          !user.user?.defaultPreset
-        }
-      >
-        <ForcePresetModal chat={chats.chat!} show={true} close={() => {}} />
       </Show>
 
       <PromptModal />

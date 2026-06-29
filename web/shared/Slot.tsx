@@ -45,6 +45,15 @@ type SlotId =
   | 'charluv-leaderboard-lg'
   | 'charluv-leaderboard-xl'
   | 'charluv-video-sm'
+  | 'agn-menu-sm'
+  | 'agn-menu-lg'
+  | 'agn-video-sm'
+  | 'agn-leaderboard-sm'
+  | 'agn-leaderboard-lg'
+  | 'agn-leaderboard-xl'
+  | 'agn-header'
+  | 'agn-rail-lhs'
+  | 'agn-rail-rhs'
 
 type SlotSpec = { size: string; id: SlotId; fallbacks?: string[]; fuseId: string }
 type SlotDef = {

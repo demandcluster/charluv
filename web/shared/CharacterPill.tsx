@@ -1,4 +1,4 @@
-import { Radio } from 'lucide-solid'
+import { Radio } from '/web/icons'
 import { createMemo, Show } from 'solid-js'
 import { Component } from 'solid-js'
 import { AppSchema } from '../../common/types/schema'

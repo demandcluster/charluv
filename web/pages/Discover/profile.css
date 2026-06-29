@@ -1,0 +1,268 @@
+/* Discover Profile — same "warm dusk" aesthetic as discover.css.
+   Scoped under .dpf-root so it never bleeds into the legacy theme. */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&display=swap');
+
+.dpf-root {
+  --dpf-bg: oklch(0.18 0.03 350);
+  --dpf-bg-2: oklch(0.23 0.04 348);
+  --dpf-surface: oklch(0.27 0.045 345);
+  --dpf-cream: oklch(0.94 0.02 75);
+  --dpf-muted: oklch(0.72 0.03 350);
+  --dpf-line: oklch(0.4 0.05 345 / 0.5);
+  --dpf-green: oklch(0.74 0.11 165);
+  --dpf-green-deep: oklch(0.64 0.12 165);
+
+  min-height: 100%;
+  background: radial-gradient(120% 80% at 85% -10%, oklch(0.3 0.08 350 / 0.6), transparent 60%),
+    radial-gradient(90% 60% at -10% 110%, oklch(0.28 0.06 165 / 0.35), transparent 55%),
+    var(--dpf-bg);
+  color: var(--dpf-cream);
+  padding: clamp(1.25rem, 4vw, 3.5rem) clamp(1rem, 5vw, 4rem) 5rem;
+  font-family: 'Lato', system-ui, sans-serif;
+}
+
+.dpf-loading {
+  display: grid;
+  place-items: center;
+  min-height: 50vh;
+}
+
+.dpf-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: clamp(1.5rem, 4vw, 3rem);
+  align-items: start;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+@media (max-width: 820px) {
+  .dpf-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- main image ---- */
+.dpf-main-btn {
+  display: block;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+  width: 100%;
+  line-height: 0;
+}
+/* Sticky is a TWO-COLUMN (desktop) enhancement only: the image holds position
+   while you read the detail column beside it. In the single-column mobile layout
+   the image stacks ABOVE the text, so sticky would pin it (a positioned element)
+   over the text as you scroll and make the copy unreadable — keep it static there. */
+@media (min-width: 821px) {
+  .dpf-main-btn {
+    position: sticky;
+    top: 1.5rem;
+  }
+}
+.dpf-main-btn:focus-visible {
+  outline: 2px solid var(--dpf-green, #4ade80);
+  outline-offset: 3px;
+  border-radius: 16px;
+}
+.dpf-main {
+  width: 100%;
+  border-radius: 16px;
+  object-fit: cover;
+  aspect-ratio: 3 / 4;
+  max-height: 78vh;
+  border: 1px solid var(--dpf-line);
+  background: linear-gradient(160deg, var(--dpf-surface), var(--dpf-bg-2));
+}
+
+/* ---- thumbnail strip (under the profile text) ---- */
+.dpf-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.dpf-thumb {
+  appearance: none;
+  padding: 0;
+  margin: 0;
+  border: 2px solid transparent;
+  background: none;
+  cursor: pointer;
+  border-radius: 12px;
+  line-height: 0;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+.dpf-thumb img {
+  width: clamp(3.25rem, 8vw, 4.5rem);
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 10px;
+  display: block;
+}
+.dpf-thumb:hover {
+  transform: translateY(-2px);
+}
+.dpf-thumb.active {
+  border-color: var(--dpf-green);
+}
+.dpf-thumb:focus-visible {
+  outline: 2px solid var(--dpf-green);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dpf-thumb {
+    transition: none;
+  }
+}
+.dpf-ph {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 3 / 4;
+  border-radius: 16px;
+  border: 1px solid var(--dpf-line);
+  font-family: 'Fraunces', serif;
+  font-size: 5rem;
+  color: oklch(0.55 0.06 350);
+  background: linear-gradient(150deg, oklch(0.32 0.07 350), oklch(0.26 0.05 165));
+}
+
+/* ---- detail column ---- */
+.dpf-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.dpf-title {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: clamp(2.4rem, 6vw, 3.75rem);
+  line-height: 1.02;
+  letter-spacing: -0.01em;
+  margin: 0;
+  color: var(--dpf-text, #fff);
+}
+.dpf-title-age {
+  color: var(--dsc-green);
+  font-weight: 500;
+}
+.dpf-creator {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  color: var(--dpf-muted);
+}
+.dpf-age {
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dpf-muted);
+}
+.dpf-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.dpf-field label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--dpf-muted);
+}
+.dpf-desc {
+  white-space: pre-wrap;
+  line-height: 1.6;
+  color: var(--dpf-cream);
+  font-size: clamp(0.95rem, 1.4vw, 1.05rem);
+}
+
+.dpf-facets {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  border-top: 1px solid var(--dpf-line);
+  padding-top: 1.25rem;
+}
+.dpf-facet {
+  display: flex;
+  gap: 0.6rem;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+.dpf-facet dt {
+  flex: 0 0 6.5rem;
+  color: var(--dpf-muted);
+  text-transform: capitalize;
+}
+.dpf-facet dd {
+  margin: 0;
+  color: var(--dpf-cream);
+}
+
+/* ---- actions ---- */
+.dpf-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+.dpf-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 12px;
+  padding: 0.7rem 1.4rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+.dpf-btn.danger {
+  border: 1px solid var(--dpf-line);
+  background: transparent;
+  color: var(--dpf-muted, #b99);
+}
+.dpf-btn.danger:hover {
+  border-color: var(--dpf-wine, #b35);
+  color: var(--dpf-cream);
+}
+.dpf-public-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.7rem 1.2rem;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--dpf-green);
+  background: color-mix(in oklch, var(--dpf-green) 16%, transparent);
+}
+.dpf-btn:focus-visible {
+  outline: 2px solid var(--dpf-green);
+  outline-offset: 2px;
+}
+.dpf-btn.primary {
+  border: none;
+  background: var(--dpf-green);
+  color: oklch(0.2 0.03 350);
+}
+.dpf-btn.primary:hover {
+  background: var(--dpf-green-deep);
+  transform: translateY(-2px);
+}
+.dpf-btn.ghost {
+  border: 1px solid var(--dpf-line);
+  background: transparent;
+  color: var(--dpf-cream);
+}
+.dpf-btn.ghost:hover {
+  border-color: var(--dpf-green);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dpf-btn {
+    transition: none;
+  }
+}

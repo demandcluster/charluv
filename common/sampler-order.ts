@@ -1,17 +1,6 @@
 import { AIAdapter } from './adapters'
 
 export const samplerServiceMap: { [adapter in AIAdapter]?: Record<string, number> } = {
-  novel: {
-    temp: 0,
-    topK: 1,
-    topP: 2,
-    tailFreeSampling: 3,
-    topA: 4,
-    typicalP: 5,
-    cfgScale: 6,
-    topG: 7,
-    mirostatTau: 8,
-  },
   horde: {
     topK: 0,
     topA: 1,

@@ -27,7 +27,7 @@ export const Images: Component<{ models: Signal<AppSchema.ImageModel[]> }> = (pr
           </>
         }
         value={state.config?.imagesHost}
-        classList={{ hidden: !settings.adapters.includes('agnaistic') }}
+        classList={{ hidden: !settings.adapters.includes('charluv') }}
       />
 
       <ImageModels signal={props.models} />

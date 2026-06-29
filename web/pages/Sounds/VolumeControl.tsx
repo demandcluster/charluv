@@ -1,6 +1,6 @@
 import { Component, Show, JSX, createMemo } from 'solid-js'
 import { markdown } from '../../shared/markdown'
-import { Volume2, VolumeX } from 'lucide-solid'
+import { Volume2, VolumeX } from '/web/icons'
 import { AudioTrackId, audioStore } from '../../store'
 
 const VolumeControl: Component<{

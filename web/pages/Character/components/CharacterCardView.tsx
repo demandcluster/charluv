@@ -13,10 +13,12 @@ import {
   Pencil,
   Star,
   Trash,
-  VenetianMask,
-} from 'lucide-solid'
+  User,
+  MaskHappy,
+} from '/web/icons'
 import { DropMenu } from '/web/shared/DropMenu'
 import Button from '/web/shared/Button'
+import { startChat } from '/web/store'
 
 export const CharacterCardView: Component<ViewProps> = (props) => {
   return (
@@ -95,7 +97,7 @@ const Character: Component<CardProps> = (props) => {
               href={`/character/${props.char._id}/chats`}
               class="bg-700 flex h-32 w-full items-center justify-center rounded-lg rounded-b-none"
             >
-              <VenetianMask size={24} />
+              <MaskHappy size={24} />
             </A>
           </Match>
         </Switch>
@@ -138,10 +140,7 @@ const Character: Component<CardProps> = (props) => {
             </Match>
 
             <Match when={!props.char.chat}>
-              <button
-                onClick={() => nav(`/chats/create/${props.char._id}`)}
-                aria-label="Open Character Chats"
-              >
+              <button onClick={() => startChat(props.char, nav)} aria-label="Open Character Chats">
                 <ArrowRight size={size} />
               </button>
             </Match>
@@ -172,7 +171,11 @@ const Character: Component<CardProps> = (props) => {
             customPosition="right-[9px] top-[6px]"
           >
             <div class="flex flex-col gap-2 p-2">
-              <Button alignLeft onClick={() => nav(`/chats/create/${props.char._id}`)} size="sm">
+              <Button
+                alignLeft
+                onClick={() => startChat(props.char, nav, { forceNew: true })}
+                size="sm"
+              >
                 <MessageCirclePlus size={size} /> New Chat
               </Button>
 

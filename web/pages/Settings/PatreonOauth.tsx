@@ -22,7 +22,25 @@ const PatreonOauth: Component = () => {
         { url: `${location.origin}/oauth/patreon` }
       )
 
-    userStore.verifyPatreon(result, (error) => {
+    // `state=login` means this came from "Sign in with Patreon" on the login
+    // page (the user is not signed in yet); otherwise it's a link/verify from
+    // the profile of an already-signed-in user.
+    if (result.state === 'login') {
+      userStore.loginPatreon(result.code, (error?: string) => {
+        if (error) {
+          setMessage(error)
+          setState('error')
+          return
+        }
+
+        setState('success')
+        userStore.getConfig()
+        setTimeout(() => nav('/dashboard'), 1500)
+      })
+      return
+    }
+
+    userStore.verifyPatreon(result, (error?: any) => {
       if (error) {
         setMessage(error)
         setState('error')
@@ -72,8 +90,10 @@ export const PatreonControls: Component = () => {
       <div class="flex w-full justify-center">
         <Show when={!state.user?.patreon}>
           <div class="flex flex-col items-center gap-1">
-            <Pill type="green">Link your Patreon account to receive subscriber benefits</Pill>
-            <Button class="w-fit" onClick={authorizePatreon}>
+            <Pill type="green">
+              Link your Patreon for subscriber benefits and to sign in with Patreon
+            </Pill>
+            <Button class="w-fit" onClick={() => authorizePatreon('link')}>
               Link Patreon Account
             </Button>
           </div>
@@ -95,16 +115,22 @@ export const PatreonControls: Component = () => {
 
 export default PatreonOauth
 
-function authorizePatreon() {
+// `state` is echoed back to /oauth/patreon so the callback knows whether this
+// was a login (from the login page) or a link (from the signed-in profile).
+// Build the query with URLSearchParams so every value — especially redirect_uri
+// — is properly percent-encoded. (The old hand-rolled `encodeURI` left `:` and
+// `/` raw, so appending `&state=` after the unencoded redirect_uri broke
+// Patreon's redirect_uri match and the token exchange 400'd.)
+export function authorizePatreon(state?: 'login' | 'link') {
   const { config } = settingStore.getState()
   const scopes = ['identity', 'identity.memberships', 'identity[email]']
-  const redir = `${location.origin}/oauth/patreon`
-  const params = [
-    `response_type=code`,
-    `client_id=${config.patreonAuth?.clientId}`,
-    `scope=${scopes.join(' ')}`,
-    `redirect_uri=${redir}`,
-  ]
-  const url = `https://www.patreon.com/oauth2/authorize?${encodeURI(params.join('&'))}`
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: config.patreonAuth?.clientId || '',
+    scope: scopes.join(' '),
+    redirect_uri: `${location.origin}/oauth/patreon`,
+    state: state || 'link',
+  })
+  const url = `https://www.patreon.com/oauth2/authorize?${params.toString()}`
   window.open(url, '_self')
 }

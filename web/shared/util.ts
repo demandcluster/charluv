@@ -712,7 +712,7 @@ export function isUsableService(
   user?: AppSchema.User
 ) {
   switch (service) {
-    case 'agnaistic': {
+    case 'charluv': {
       const level = user?.admin ? Infinity : user?.sub?.level ?? -1
       const match = config.subs.some((sub) => sub.level <= level)
       return match
@@ -722,47 +722,14 @@ export function isUsableService(
       return !!user?.claudeApiKeySet || !!user?.claudeApiKey
     }
 
-    case 'goose': {
-      return !!user?.adapterConfig?.goose?.apiKeySet || !!user?.adapterConfig?.goose?.apiKey
-    }
-
-    case 'mancer': {
-      return !!user?.adapterConfig?.mancer?.apiKeySet || !!user?.adapterConfig?.mancer?.apiKey
-    }
-
-    case 'novel': {
-      return !!user?.novelVerified || !!user?.novelApiKey
-    }
-
     case 'openai': {
       return !!user?.oaiKeySet || !!user?.oaiKey
     }
 
-    case 'openrouter': {
-      return (
-        !!user?.adapterConfig?.openrouter?.apiKeySet || !!user?.adapterConfig?.openrouter?.apiKey
-      )
-    }
-
-    case 'replicate': {
-      return (
-        !!user?.adapterConfig?.replicate?.apiTokenSet || !!user?.adapterConfig?.replicate?.apiToken
-      )
-    }
-
-    case 'scale': {
-      return !!user?.scaleApiKeySet || !!user?.scaleApiKey
-    }
-
     case 'horde':
     case 'kobold':
-    case 'ooba':
-    case 'petals': {
+    case 'ooba': {
       return true
-    }
-
-    case 'venus': {
-      return !!user?.adapterConfig?.venus?.apiKeySet
     }
   }
 
@@ -859,7 +826,7 @@ function setProperty(obj: any, path: string, value: any): any {
 }
 
 export const sticky = {
-  interval: null as any as NodeJS.Timer,
+  interval: null as any,
   monitor: (ref: HTMLElement) => {
     let bottom = true
 
@@ -885,36 +852,22 @@ export const sticky = {
 export const adapterSettings: {
   [key in keyof PresetAISettings]: Array<AIAdapter | ThirdPartyFormat>
 } = {
-  temp: [
-    'kobold',
-    'novel',
-    'ooba',
-    'horde',
-    'openai',
-    'scale',
-    'claude',
-    'goose',
-    'agnaistic',
-    'aphrodite',
-    'tabby',
-    'mistral',
-    'openrouter',
-  ],
-  tempLast: ['agnaistic', 'tabby', 'exllamav2'],
-  dynatemp_range: ['kobold', 'ooba', 'tabby', 'agnaistic', 'aphrodite', 'ollama'],
-  dynatemp_exponent: ['kobold', 'aphrodite', 'ooba', 'tabby', 'agnaistic', 'ollama'],
-  smoothingFactor: ['kobold', 'aphrodite', 'ooba', 'tabby', 'agnaistic'],
+  temp: ['kobold', 'ooba', 'horde', 'openai', 'claude', 'charluv', 'aphrodite', 'tabby', 'mistral'],
+  tempLast: ['charluv', 'tabby', 'exllamav2'],
+  dynatemp_range: ['kobold', 'ooba', 'tabby', 'charluv', 'aphrodite', 'ollama'],
+  dynatemp_exponent: ['kobold', 'aphrodite', 'ooba', 'tabby', 'charluv', 'ollama'],
+  smoothingFactor: ['kobold', 'aphrodite', 'ooba', 'tabby', 'charluv'],
   smoothingCurve: ['kobold', 'aphrodite'],
-  maxTokens: AI_ADAPTERS.slice(),
-  maxContextLength: AI_ADAPTERS.slice(),
-  antiBond: ['openai', 'scale'],
+  maxTokens: AI_ADAPTERS.slice() as AIAdapter[],
+  maxContextLength: AI_ADAPTERS.slice() as AIAdapter[],
+  antiBond: ['openai'],
   prefixNameAppend: ['openai', 'claude'],
 
   swipesPerGeneration: ['aphrodite'],
   epsilonCutoff: ['aphrodite'],
   etaCutoff: ['aphrodite'],
 
-  prefill: ['claude', 'openrouter'],
+  prefill: ['claude'],
 
   topP: [
     'horde',
@@ -922,74 +875,39 @@ export const adapterSettings: {
     'claude',
     'ooba',
     'openai',
-    'novel',
-    'agnaistic',
+    'charluv',
     'exllamav2',
     'openai-chat',
     'aphrodite',
     'tabby',
     'mistral',
-    'openrouter',
   ],
   localRequests: ['openai', 'openai-chat'],
   repetitionPenalty: [
     'horde',
-    'novel',
     'kobold',
     'ooba',
-    'agnaistic',
-    'exllamav2',
-    'aphrodite',
-    'tabby',
-    'ollama',
-    'openrouter',
-  ],
-  repetitionPenaltyRange: ['horde', 'novel', 'kobold', 'ooba', 'agnaistic', 'tabby', 'ollama'],
-  repetitionPenaltySlope: ['horde', 'novel', 'kobold'],
-  tailFreeSampling: ['horde', 'novel', 'kobold', 'ooba', 'agnaistic', 'aphrodite', 'tabby'],
-  minP: [
-    'llamacpp',
-    'kobold',
-    'koboldcpp',
-    'exllamav2',
-    'ooba',
-    'agnaistic',
-    'aphrodite',
-    'tabby',
-    'openrouter',
-  ],
-  topA: ['horde', 'novel', 'kobold', 'ooba', 'agnaistic', 'aphrodite', 'tabby', 'openrouter'],
-  topK: [
-    'horde',
-    'novel',
-    'kobold',
-    'ooba',
-    'claude',
-    'agnaistic',
-    'exllamav2',
-    'aphrodite',
-    'tabby',
-    'openrouter',
-  ],
-  typicalP: [
-    'horde',
-    'novel',
-    'kobold',
-    'ooba',
-    'agnaistic',
+    'charluv',
     'exllamav2',
     'aphrodite',
     'tabby',
     'ollama',
   ],
+  repetitionPenaltyRange: ['horde', 'kobold', 'ooba', 'charluv', 'tabby', 'ollama'],
+  repetitionPenaltySlope: ['horde', 'kobold'],
+  tailFreeSampling: ['horde', 'kobold', 'ooba', 'charluv', 'aphrodite', 'tabby'],
+  minP: ['llamacpp', 'kobold', 'koboldcpp', 'exllamav2', 'ooba', 'charluv', 'aphrodite', 'tabby'],
+  topA: ['horde', 'kobold', 'ooba', 'charluv', 'aphrodite', 'tabby'],
+  topK: ['horde', 'kobold', 'ooba', 'claude', 'charluv', 'exllamav2', 'aphrodite', 'tabby'],
+  typicalP: ['horde', 'kobold', 'ooba', 'charluv', 'exllamav2', 'aphrodite', 'tabby', 'ollama'],
 
   mirostatToggle: ['aphrodite', 'tabby', 'ollama'],
-  mirostatLR: ['novel', 'ooba', 'agnaistic', 'llamacpp', 'aphrodite', 'tabby', 'ollama'],
-  mirostatTau: ['novel', 'ooba', 'agnaistic', 'llamacpp', 'aphrodite', 'tabby', 'ollama'],
-  cfgScale: ['novel', 'ooba', 'tabby'],
-  cfgOppose: ['novel', 'ooba', 'tabby'],
-  phraseRepPenalty: ['novel'],
-  phraseBias: ['novel'],
+  mirostatLR: ['ooba', 'charluv', 'llamacpp', 'aphrodite', 'tabby', 'ollama'],
+  mirostatTau: ['ooba', 'charluv', 'llamacpp', 'aphrodite', 'tabby', 'ollama'],
+  cfgScale: ['ooba', 'tabby'],
+  cfgOppose: ['ooba', 'tabby'],
+  phraseRepPenalty: [],
+  phraseBias: [],
 
   thirdPartyUrl: ['kobold', 'ooba'],
   thirdPartyFormat: ['kobold'],
@@ -997,49 +915,27 @@ export const adapterSettings: {
   thirdPartyKey: ['kobold', 'aphrodite', 'tabby', 'openai', 'openai-chat'],
 
   claudeModel: ['claude'],
-  novelModel: ['novel'],
+  novelModel: [],
   mistralModel: ['mistral'],
   oaiModel: ['openai', 'openai-chat'],
-  frequencyPenalty: [
-    'openai',
-    'kobold',
-    'novel',
-    'agnaistic',
-    'openai-chat',
-    'aphrodite',
-    'tabby',
-    'openrouter',
-  ],
-  presencePenalty: [
-    'openai',
-    'kobold',
-    'novel',
-    'openai-chat',
-    'aphrodite',
-    'tabby',
-    'ollama',
-    'openrouter',
-  ],
+  frequencyPenalty: ['openai', 'kobold', 'charluv', 'openai-chat', 'aphrodite', 'tabby'],
+  presencePenalty: ['openai', 'kobold', 'openai-chat', 'aphrodite', 'tabby', 'ollama'],
   streamResponse: [
     'openai',
     'kobold',
-    'novel',
     'claude',
     'ooba',
-    'agnaistic',
+    'charluv',
     'openai-chat',
     'aphrodite',
     'tabby',
     'mistral',
     'ollama',
-    'openrouter',
   ],
-  openRouterModel: ['openrouter'],
+  openRouterModel: [],
   stopSequences: [
     'ooba',
-    'agnaistic',
-    'novel',
-    'mancer',
+    'charluv',
     'llamacpp',
     'horde',
     'exllamav2',
@@ -1047,22 +943,21 @@ export const adapterSettings: {
     'aphrodite',
     'tabby',
     'ollama',
-    'openrouter',
   ],
   trimStop: ['koboldcpp'],
 
-  addBosToken: ['ooba', 'agnaistic', 'tabby'],
+  addBosToken: ['ooba', 'charluv', 'tabby'],
   banEosToken: ['ooba', 'aphrodite', 'tabby'],
-  tokenHealing: ['agnaistic', 'exllamav2', 'ooba', 'tabby'],
+  tokenHealing: ['charluv', 'exllamav2', 'ooba', 'tabby'],
   doSample: ['ooba'],
   encoderRepitionPenalty: ['ooba'],
   penaltyAlpha: ['ooba'],
   earlyStopping: ['ooba'],
   numBeams: ['ooba'],
 
-  replicateModelName: ['replicate'],
-  replicateModelVersion: ['replicate'],
-  replicateModelType: ['replicate'],
+  replicateModelName: [],
+  replicateModelVersion: [],
+  replicateModelType: [],
 
   skipSpecialTokens: ['ooba', 'kobold'],
 }

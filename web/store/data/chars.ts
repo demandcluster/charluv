@@ -6,22 +6,86 @@ import { loadItem, localApi } from './storage'
 import { appendFormOptional, strictAppendFormOptional } from '/web/shared/util'
 import { getImageData } from './image'
 import { replace } from '/common/util'
-import { TickHandler } from '/common/prompt'
-import { rootModalStore } from '../root-modal'
-import { genApi } from './inference'
 
 export const charsApi = {
   getCharacterDetail,
   getCharacters,
+  getDraft,
   removeAvatar,
   editAvatar,
   deleteCharacter,
+  resetCharacter,
   editCharacter,
   editPartialCharacter,
   createCharacter,
+  importCharacter,
   getImageBuffer: getFileBuffer,
   setFavorite,
   publishCharacter,
+  getPublishStatus,
+  reportCharacter,
+  migrateBook,
+  addGalleryImage,
+  removeGalleryImage,
+  setCover,
+  encodeLora,
+  deleteLora,
+  listMemories,
+  addMemory,
+  deleteMemory,
+}
+
+/** A stored long-term memory (the new "remember" system), without its vector. */
+export type CharacterMemory = {
+  _id: string
+  userId: string
+  characterId: string
+  text: string
+  source: 'tool' | 'auto' | 'manual'
+  createdAt: string
+}
+
+async function listMemories(charId: string) {
+  return api.get<{ memories: CharacterMemory[] }>(`/character/${charId}/memories`)
+}
+
+async function addMemory(charId: string, text: string) {
+  return api.post<{ memories: CharacterMemory[] }>(`/character/${charId}/memories`, { text })
+}
+
+async function deleteMemory(charId: string, memId: string) {
+  return api.method<{ memories: CharacterMemory[] }>(
+    'delete',
+    `/character/${charId}/memories/${memId}`
+  )
+}
+
+/** Add an image (base64 data url) to a saved character's reference gallery. */
+async function addGalleryImage(charId: string, image: string) {
+  return api.post<{ gallery: string[] }>(`/character/${charId}/gallery`, { image })
+}
+
+async function removeGalleryImage(charId: string, url: string) {
+  return api.method<{ gallery: string[] }>('delete', `/character/${charId}/gallery`, { url })
+}
+
+/** Set a saved character's cover (avatar) to one of its existing images. */
+async function setCover(charId: string, url: string) {
+  return api.post<{ avatar: string }>(`/character/${charId}/cover`, { url })
+}
+
+/** Encode 1-4 reference images (base64 data urls) into a stored character LoRA. */
+async function encodeLora(charId: string, images: string[]) {
+  return api.post<{ loraName: string }>(`/character/${charId}/encode-lora`, { images })
+}
+
+/**
+ * Delete a character's stored image LoRA. Clears the association locally and
+ * removes it from the image server unless another character (e.g. a clone) shares
+ * the same LoRA.
+ */
+async function deleteLora(charId: string) {
+  return api.method<{ success: boolean }>('delete', `/character/${charId}/lora`)
 }
 
 async function getCharacterDetail(charId: string) {
@@ -40,25 +104,47 @@ async function getCharacterDetail(charId: string) {
   }
 }
 
-async function publishCharacter(
-  char: Partial<AppSchema.Character>,
-  image: string | undefined,
-  onTick: TickHandler
-) {
+/**
+ * Kick off publishing a saved character. The HTTP call only starts the
+ * (streamed) moderation; the accept/reject verdict arrives over the socket as a
+ * `publish-response` keyed by the returned requestId.
+ */
+async function publishCharacter(characterId: string, image?: string) {
   const requestId = v4()
+  const res = await api.post('/character/publish', { characterId, imageData: image, requestId })
+  return { res, requestId }
+}
 
-  genApi.subscribe(requestId, (body, state, output) => {
-    onTick(body, state, output)
-    const info = Object.entries(output).reduce((prev, [key, value]) => {
-      prev.push(`\`${key}\`\n${value}`)
-      return prev
-    }, [] as string[])
+export type PublishStatus = {
+  enabled: boolean
+  cap: number
+  used: number
+  remaining: number
+  exempt?: boolean
+  reward: number
+  guidelines: string
+  mins: { greeting: number; description: number; scenario: number; personality: number }
+}
 
-    rootModalStore.info('Moderation', info.join('\n***\n'))
-  })
+/** Remaining publishes today + caps/reward, for the Make-Public modal. */
+async function getPublishStatus() {
+  return api.get<PublishStatus>('/character/publish/status')
+}
 
-  const res = await api.post('/character/publish', { character: char, imageData: image, requestId })
-  return res
+/** Report a published character. One report per user per character. */
+async function reportCharacter(charId: string, reason: string, note?: string) {
+  return api.post(`/character/${charId}/report`, { reason, note })
+}
+
+/** Migrate a legacy embedded memory book into the character's long-term memory. */
+async function migrateBook(charId: string) {
+  return api.post<{ migrated: number }>(`/character/${charId}/migrate-book`)
+}
+
+// Fetch the user's unfinished wizard draft (or null) so Create can resume it.
+export async function getDraft() {
+  if (!isLoggedIn()) return localApi.result({ character: null })
+  return api.get<{ character: AppSchema.Character | null }>('/character/draft')
 }
 
 export async function getCharacters() {
@@ -148,6 +234,35 @@ export async function deleteCharacter(charId: string) {
   return { result: true, error: undefined }
 }
 
+/**
+ * Reset a character to a clean slate: delete its chats, zero XP, wipe memories.
+ * The character (persona, gallery, progression config) is kept.
+ */
+export async function resetCharacter(charId: string) {
+  if (isLoggedIn()) {
+    return api.post(`/character/${charId}/reset`)
+  }
+
+  // Guests have no server-side memories; clear local chats and reset XP.
+  const chats = await loadItem('chats')
+  const nextChats = chats.filter((ch) => {
+    if (ch.characterId !== charId) return true
+    localApi.deleteChatMessages(ch._id)
+    return false
+  })
+  await localApi.saveChats(nextChats)
+
+  const chars = await loadItem('characters')
+  const prev = chars.find((ch) => ch._id === charId)
+  if (!prev) {
+    return localApi.error(`Character not found`)
+  }
+  const next = chars.map((ch) => (ch._id === charId ? { ...ch, xp: 0 } : ch))
+  await localApi.saveChars(next)
+
+  return localApi.result({ success: true })
+}
+
 export async function editPartialCharacter(charId: string, update: Partial<AppSchema.Character>) {
   if (isLoggedIn()) {
     const res = await api.post<AppSchema.Character>(`/character/${charId}/update`, update)
@@ -178,10 +293,17 @@ export async function editCharacter(
     strictAppendFormOptional(form, 'greeting', char.greeting)
     strictAppendFormOptional(form, 'scenario', char.scenario)
     appendFormOptional(form, 'appearance', char.appearance)
-    appendFormOptional(form, 'match', char.match)
     appendFormOptional(form, 'xp', char.xp)
     appendFormOptional(form, 'premium', char.premium)
     appendFormOptional(form, 'share', char.share)
+    appendFormOptional(form, 'progression', JSON.stringify((char as any).progression))
+    appendFormOptional(form, 'gender', (char as any).gender)
+    appendFormOptional(form, 'artStyle', (char as any).artStyle)
+    appendFormOptional(form, 'ageRange', (char as any).ageRange)
+    appendFormOptional(form, 'category', (char as any).category || [], JSON.stringify)
+    appendFormOptional(form, 'nsfw', (char as any).nsfw)
+    appendFormOptional(form, 'loraName', (char as any).loraName)
+    appendFormOptional(form, 'imageSeed', (char as any).imageSeed)
 
     appendFormOptional(form, 'persona', JSON.stringify(char.persona))
     strictAppendFormOptional(form, 'description', char.description || '')
@@ -249,44 +371,51 @@ export async function setFavorite(charId: string, favorite: boolean) {
   return { result: nextChar, error: undefined }
 }
 
-export async function createCharacter(char: NewCharacter) {
-  if (isLoggedIn()) {
-    const form = new FormData()
-    form.append('name', char.name)
-    form.append('greeting', char.greeting)
-    form.append('scenario', char.scenario)
-    form.append('sampleChat', char.sampleChat)
-    appendFormOptional(form, 'persona', char.persona, JSON.stringify)
-    appendFormOptional(form, 'description', char.description)
-    appendFormOptional(form, 'appearance', char.appearance)
-    appendFormOptional(form, 'culture', char.culture)
-    appendFormOptional(form, 'voice', char.voice, JSON.stringify)
-    appendFormOptional(form, 'tags', char.tags, JSON.stringify)
-    appendFormOptional(form, 'avatar', char.avatar)
-    appendFormOptional(form, 'xp', char.xp)
-    appendFormOptional(form, 'match', char.match)
-    appendFormOptional(form, 'premium', char.premium)
-    appendFormOptional(form, 'share', char.share)
-    appendFormOptional(form, 'originalAvatar', char.originalAvatar)
-    appendFormOptional(form, 'visualType', char.visualType)
-    appendFormOptional(form, 'sprite', JSON.stringify(char.sprite))
-    appendFormOptional(form, 'imageSettings', JSON.stringify(char.imageSettings))
-    appendFormOptional(form, 'json', JSON.stringify(char.json))
+function buildCharacterForm(char: NewCharacter) {
+  const form = new FormData()
+  form.append('name', char.name)
+  form.append('greeting', char.greeting)
+  form.append('scenario', char.scenario)
+  form.append('sampleChat', char.sampleChat)
+  appendFormOptional(form, 'persona', char.persona, JSON.stringify)
+  appendFormOptional(form, 'description', char.description)
+  appendFormOptional(form, 'appearance', char.appearance)
+  appendFormOptional(form, 'culture', char.culture)
+  appendFormOptional(form, 'voice', char.voice, JSON.stringify)
+  appendFormOptional(form, 'tags', char.tags, JSON.stringify)
+  appendFormOptional(form, 'avatar', char.avatar)
+  appendFormOptional(form, 'xp', char.xp)
+  appendFormOptional(form, 'premium', char.premium)
+  appendFormOptional(form, 'share', char.share)
+  appendFormOptional(form, 'draft', (char as any).draft)
+  appendFormOptional(form, 'progression', JSON.stringify((char as any).progression))
+  appendFormOptional(form, 'gender', (char as any).gender)
+  appendFormOptional(form, 'artStyle', (char as any).artStyle)
+  appendFormOptional(form, 'ageRange', (char as any).ageRange)
+  appendFormOptional(form, 'category', (char as any).category || [], JSON.stringify)
+  appendFormOptional(form, 'nsfw', (char as any).nsfw)
+  appendFormOptional(form, 'loraName', (char as any).loraName)
+  appendFormOptional(form, 'imageSeed', (char as any).imageSeed)
+  appendFormOptional(form, 'originalAvatar', char.originalAvatar)
+  appendFormOptional(form, 'visualType', char.visualType)
+  appendFormOptional(form, 'sprite', JSON.stringify(char.sprite))
+  appendFormOptional(form, 'imageSettings', JSON.stringify(char.imageSettings))
+  appendFormOptional(form, 'json', JSON.stringify(char.json))
 
-    // v2 fields start here
-    appendFormOptional(form, 'alternateGreetings', char.alternateGreetings, JSON.stringify)
-    appendFormOptional(form, 'characterBook', char.characterBook, JSON.stringify)
-    appendFormOptional(form, 'extensions', char.extensions, JSON.stringify)
-    appendFormOptional(form, 'insert', char.insert, JSON.stringify)
-    appendFormOptional(form, 'systemPrompt', char.systemPrompt)
-    appendFormOptional(form, 'postHistoryInstructions', char.postHistoryInstructions)
-    appendFormOptional(form, 'creator', char.creator)
-    appendFormOptional(form, 'characterVersion', char.characterVersion)
-    appendFormOptional(form, 'voiceDisabled', char.voiceDisabled)
-    const res = await api.upload<AppSchema.Character>(`/character`, form)
-    return res
-  }
+  // v2 fields start here
+  appendFormOptional(form, 'alternateGreetings', char.alternateGreetings, JSON.stringify)
+  appendFormOptional(form, 'characterBook', char.characterBook, JSON.stringify)
+  appendFormOptional(form, 'extensions', char.extensions, JSON.stringify)
+  appendFormOptional(form, 'insert', char.insert, JSON.stringify)
+  appendFormOptional(form, 'systemPrompt', char.systemPrompt)
+  appendFormOptional(form, 'postHistoryInstructions', char.postHistoryInstructions)
+  appendFormOptional(form, 'creator', char.creator)
+  appendFormOptional(form, 'characterVersion', char.characterVersion)
+  appendFormOptional(form, 'voiceDisabled', char.voiceDisabled)
+  return form
+}
 
+async function createCharacterLocal(char: NewCharacter) {
   const { avatar: file, ...props } = char
   const avatar = file
     ? await getImageData(file)
@@ -301,6 +430,23 @@ export async function createCharacter(char: NewCharacter) {
   await localApi.saveChars(next)
 
   return { result: newChar, error: undefined }
+}
+
+export async function createCharacter(char: NewCharacter) {
+  if (isLoggedIn()) {
+    return api.upload<AppSchema.Character>(`/character`, buildCharacterForm(char))
+  }
+  return createCharacterLocal(char)
+}
+
+// Imports go to a distinct server route that never charges the creation fee.
+// The no-charge decision is the route itself — not a client-supplied flag — so
+// it can't be abused to dodge the charge on a generated character.
+export async function importCharacter(char: NewCharacter) {
+  if (isLoggedIn()) {
+    return api.upload<AppSchema.Character>(`/character/import`, buildCharacterForm(char))
+  }
+  return createCharacterLocal(char)
 }
 
 export async function getFileBuffer(file?: File) {

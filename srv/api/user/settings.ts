@@ -1,6 +1,4 @@
 import { assertValid } from '/common/valid'
-import needle from 'needle'
-import { NOVEL_BASEURL } from '../../adapter/novel'
 import { store } from '../../db'
 import { AppSchema } from '../../../common/types/schema'
 import { encryptText } from '../../db/util'
@@ -17,11 +15,10 @@ import { config } from '/srv/config'
 import { toArray } from '/common/util'
 import { UI } from '/common/types'
 
-import { getLanguageModels } from '/srv/adapter/replicate'
 import { getUser, toSafeUser } from '/srv/db/user'
 
 export const getInitialLoad = handle(async ({ userId }) => {
-  const replicate = await getLanguageModels()
+  const replicate: any[] = []
   if (config.ui.maintenance) {
     const appConfig = await getAppConfig()
     return { config: appConfig, replicate }
@@ -385,7 +382,11 @@ export const removeProfileAvatar = handle(async (req) => {
 })
 
 export const updateProfile = handle(async (req) => {
-  const form = handleForm(req, { handle: 'string' } as const)
+  const form = handleForm(req, {
+    handle: 'string',
+    persona: 'string?',
+    description: 'string?',
+  } as const)
   const filename = await entityUpload(
     'profile',
     v4(),
@@ -400,6 +401,11 @@ export const updateProfile = handle(async (req) => {
   const update: Partial<AppSchema.Profile> = {
     handle: form.handle,
   }
+
+  // Only touch the self-persona fields when the Your Character tab submits them,
+  // so saving the plain Profile tab doesn't wipe them.
+  if (form.persona !== undefined) update.persona = form.persona.slice(0, 4000)
+  if (form.description !== undefined) update.description = form.description.slice(0, 1000)
 
   if (filename) {
     update.avatar = filename
@@ -434,14 +440,9 @@ async function verifyKobldUrl(user: AppSchema.User, incomingUrl?: string) {
   return url[0]
 }
 
-export async function verifyNovelKey(key: string) {
-  const res = await needle('get', `${NOVEL_BASEURL}/user/data`, {
-    headers: { Authorization: `Bearer ${key}` },
-    json: true,
-    response_timeout: 5000,
-  })
-
-  return res.statusCode && res.statusCode <= 400
+export async function verifyNovelKey(_key: string) {
+  // NovelAI support retired; treat as unverified.
+  return false
 }
 
 async function verifyHordeKey(key: string) {

@@ -23,7 +23,6 @@ export const ToggleSettings: Component<
 > = (props) => {
   return (
     <div class="flex flex-col gap-4" classList={{ hidden: props.tab !== 'Toggles' }}>
-      
       <Card class="flex flex-col gap-4">
         <TextInput
           fieldName="cfgOppose"
@@ -264,7 +263,7 @@ const SamplerOrder: Component<{
         }}
       />
 
-      <Card hide={props.service !== 'novel'}>
+      <Card hide={true}>
         <FormLabel
           fieldName="disabledSamplers"
           label="Enabled Samplers"

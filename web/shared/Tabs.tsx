@@ -25,7 +25,7 @@ const Tabs: Component<{
         {(tab, i) => (
           <div
             onClick={() => props.select(i())}
-            class={`flex min-w-max cursor-pointer items-center justify-center rounded-t-md border-b-2 px-4 py-2`}
+            class={`flex min-w-max flex-1 cursor-pointer items-center justify-center rounded-t-md border-b-2 px-4 py-2`}
             classList={{
               'bg-[var(--hl-800)] border-[var(--hl-500)] hover:border-[var(--hl-400)]':
                 props.selected() === i(),

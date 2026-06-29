@@ -1,7 +1,7 @@
 import { v4 } from 'uuid'
 import { AppSchema } from '../../common/types/schema'
 import { EVENTS, events } from '../emitter'
-import { createDebounce, getAssetUrl } from '../shared/util'
+import { getAssetUrl } from '../shared/util'
 import { isLoggedIn } from './api'
 import { createStore, getStore } from './create'
 import { publish, subscribe } from './socket'
@@ -15,7 +15,6 @@ import { voiceApi } from './data/voice'
 import { VoiceSettings, VoiceWebSynthesisSettings } from '../../common/types/texttospeech-schema'
 import { defaultCulture } from '../shared/CultureCodes'
 import { createSpeech, isNativeSpeechSupported, stopSpeech } from '../shared/Audio/speech'
-import { eventStore } from './event'
 import { exclude, findOne, replace } from '/common/util'
 import {
   ChatTree,
@@ -25,27 +24,21 @@ import {
   toChatGraph,
   updateChatTreeNode,
 } from '/common/chat'
-import { embedApi } from './embeddings'
 import { JsonField, TickHandler } from '/common/prompt'
 import { HordeCheck } from '/common/horde-gen'
 import { botGen, GenerateOpts } from './data/bot-generate'
 
 const SOFT_PAGE_SIZE = 20
 
+/** Platform-wide voice/TTS kill switch. Typed `boolean` so the disabled code paths
+ * stay type-checked. Flip to false to re-enable the feature. */
+const VOICE_DISABLED: boolean = true
+
 type ChatId = string
 
 export type VoiceState = 'generating' | 'playing'
 
-type SendModes =
-  | 'send'
-  | 'ooc'
-  | 'send-event:world'
-  | 'send-event:character'
-  | 'send-event:hidden'
-  | 'send-event:ooc'
-  | 'retry'
-  | 'self'
-  | 'send-noreply'
+type SendModes = 'send' | 'ooc' | 'retry' | 'self' | 'send-noreply'
 
 export type ChatMessageExt = AppSchema.ChatMessage & { voiceUrl?: string }
 
@@ -68,6 +61,11 @@ export type MsgState = {
   }
   nextLoading: boolean
   imagesSaved: boolean
+  /**
+   * Message ids that currently have a tool/in-chat image generating. Used to show
+   * a loading spinner in the message's images area until the image is attached.
+   */
+  imagesGenerating: string[]
   speaking: { messageId: string; status: VoiceState } | undefined
   lastInference?: {
     requestId: string
@@ -94,6 +92,8 @@ export type MsgState = {
     tree: ChatTree
     root: string
   }
+  /** 1-based queue position while waiting for inference admission; undefined when admitted or idle */
+  queuePosition?: number
 }
 
 const initState: MsgState = {
@@ -104,6 +104,7 @@ const initState: MsgState = {
   images: {},
   nextLoading: false,
   imagesSaved: false,
+  imagesGenerating: [],
   waiting: undefined,
   partial: undefined,
   retrying: undefined,
@@ -116,16 +117,13 @@ const initState: MsgState = {
     tree: {},
     root: '',
   },
+  queuePosition: undefined,
 }
 
 export const msgStore = createStore<MsgState>(
   'messages',
   initState
 )(() => {
-  embedApi.onCaptionReady(() => {
-    msgStore.setState({ canImageCaption: true })
-  })
-
   events.on('logged-out', () => {
     msgStore.setState(initState)
   })
@@ -170,8 +168,6 @@ export const msgStore = createStore<MsgState>(
         msgs: recent,
         graph,
       })
-
-      embedApi.embedChat(data.chatId, data.messages)
     }
   )
 
@@ -554,11 +550,7 @@ export const msgStore = createStore<MsgState>(
 
         case 'send':
         case 'ooc':
-        case 'send-event:world':
-        case 'send-event:character':
-        case 'send-event:hidden':
         case 'send-noreply':
-        case 'send-event:ooc':
           res = await botGen
             .generate({ kind: mode, text: message })
             .catch((err) => ({ error: err.message, result: undefined }))
@@ -652,6 +644,12 @@ export const msgStore = createStore<MsgState>(
     ) {
       stopSpeech()
 
+      // Voice/TTS is disabled platform-wide. Never request or play voice.
+      if (VOICE_DISABLED) {
+        yield { speaking: undefined }
+        return
+      }
+
       if (!voice.service) {
         yield { speaking: undefined }
         return
@@ -692,21 +690,6 @@ export const msgStore = createStore<MsgState>(
       }
     },
 
-    async *createSummary(
-      { msgs, activeChatId, activeCharId, waiting },
-      messageId?: string,
-      append?: boolean
-    ) {
-      if (waiting) return
-
-      yield { waiting: { chatId: activeChatId, mode: 'send', characterId: activeCharId } }
-
-      const res = await msgsApi.getChatSummary()
-      if (res?.error) {
-        toastStore.error(`Failed to request summary: ${res.error}`)
-      }
-      msgStore.setState({ partial: undefined, waiting: undefined })
-    },
     async *createImage(
       { msgs, activeChatId, activeCharId, waiting, graph },
       messageId?: string,
@@ -748,17 +731,6 @@ setInterval(() => {
   publish({ type: 'message-ready', messageId: id, updatedAt: retrying?.updatedAt })
 }, 4000)
 
-const [debouncedEmbed] = createDebounce((chatId: string, history: AppSchema.ChatMessage[]) => {
-  embedApi.embedChat(chatId, history)
-}, 250)
-
-msgStore.subscribe((state) => {
-  if (state.partial) return
-  if (!state.activeChatId) return
-  if (!state.msgs.length) return
-  debouncedEmbed(state.activeChatId, state.messageHistory.concat(state.msgs))
-})
-
 function processQueue() {
   const state = msgStore.getState()
   const queue = state.queue
@@ -771,8 +743,19 @@ function processQueue() {
   msgStore.send(first.chatId, first.message, first.mode, () => processQueue())
 }
 
-async function handleSummary() {
-  msgStore.setState({ waiting: undefined })
+function startImageSpinner(messageId: string) {
+  const { imagesGenerating } = msgStore.getState()
+  if (imagesGenerating.includes(messageId)) return
+  msgStore.setState({ imagesGenerating: imagesGenerating.concat(messageId) })
+}
+
+function stopImageSpinner(messageId?: string) {
+  const { imagesGenerating } = msgStore.getState()
+  if (!imagesGenerating.length) return
+  if (messageId && !imagesGenerating.includes(messageId)) return
+  msgStore.setState({
+    imagesGenerating: messageId ? imagesGenerating.filter((id) => id !== messageId) : [],
+  })
 }
 
 /**
@@ -913,7 +896,7 @@ subscribe(
     chatId: 'string',
     message: 'string',
     continue: 'boolean?',
-    adapter: 'string',
+    adapter: 'string?',
     extras: ['string?'],
     meta: 'any?',
     retries: ['string?'],
@@ -932,6 +915,12 @@ subscribe(
 
     const prev = msgs.find((msg) => msg._id === body.messageId)
     const char = prev?.characterId ? characters.map[prev?.characterId] : undefined
+
+    // An image attached to an existing message (e.g. the native image tool) arrives
+    // via `extras` on a message-retry. Stop the spinner for that message.
+    if (body.extras?.length) {
+      stopImageSpinner(body.messageId)
+    }
 
     msgStore.setState({
       partial: undefined,
@@ -1090,28 +1079,11 @@ async function onMessageReceived(body: {
   if (speech && !isUserMsg) {
     msgStore.textToSpeech(msg._id, msg.msg, speech.voice, speech?.culture)
   }
-
-  onCharacterMessageReceived(msg)
-}
-
-function onCharacterMessageReceived(msg: AppSchema.ChatMessage) {
-  if (!msg.characterId || msg.event || msg.ooc) return
-  const { msgs } = msgStore.getState()
-  // TODO: Not that expensive, but it would be nice not to loop every time
-  let messagesSinceLastEvent = 0
-  for (let i = msgs.length - 1; i >= 0; i--) {
-    const msg = msgs[i]
-    if (msg.event) break
-
-    if (!msg.event && !msg.userId) {
-      messagesSinceLastEvent++
-    }
-  }
-
-  eventStore.onCharacterMessageReceived(chatStore.getState().active?.chat!, messagesSinceLastEvent)
 }
 
 function getMessageSpeechInfo(msg: AppSchema.ChatMessage, user: AppSchema.User | undefined) {
+  // Voice/TTS disabled platform-wide — no speech info, no generating indicator.
+  if (VOICE_DISABLED) return
   if (msg.adapter === 'image' || !msg.characterId || msg.userId) return
   const { characters } = getStore('character').getState()
   const char = characters.map[msg.characterId]
@@ -1137,7 +1109,20 @@ subscribe('chat-query', { requestId: 'string', response: 'string' }, (body) => {
   queryCallbacks.delete(body.requestId)
 })
 
+subscribe(
+  'image-generation-started',
+  { chatId: 'string?', messageId: 'string?', requestId: 'string?' },
+  (body) => {
+    const { activeChatId } = msgStore.getState()
+    if (!body.messageId) return
+    if (body.chatId && body.chatId !== activeChatId) return
+    startImageSpinner(body.messageId)
+  }
+)
+
 subscribe('image-failed', { chatId: 'string', error: 'string' }, (body) => {
+  const { activeChatId } = msgStore.getState()
+  if (body.chatId === activeChatId) stopImageSpinner()
   msgStore.setState({ waiting: undefined })
   toastStore.error(body.error)
 })
@@ -1146,6 +1131,8 @@ subscribe(
   'image-generated',
   { chatId: 'string', image: 'string', messageId: 'string?' },
   (body) => {
+    const { activeChatId } = msgStore.getState()
+    if (body.chatId === activeChatId) stopImageSpinner(body.messageId)
     handleImage(body.chatId, body.image, body.messageId)
   }
 )
@@ -1181,6 +1168,10 @@ subscribe('message-error', { error: 'any', chatId: 'string' }, (body) => {
   toastStore.error(`Failed to generate response: ${body.error}`)
 
   msgStore.setState({ partial: undefined, waiting: undefined, retrying: undefined })
+})
+
+subscribe('queue-position', { position: 'number', kind: 'string' }, (body) => {
+  msgStore.setState({ queuePosition: body.position > 0 ? body.position : undefined })
 })
 
 subscribe('message-warning', { warning: 'string' }, (body) => {
@@ -1377,8 +1368,6 @@ subscribe(
     })
 
     if (speech) msgStore.textToSpeech(msg._id, msg.msg, speech.voice, speech?.culture)
-
-    onCharacterMessageReceived(msg)
   }
 )
 

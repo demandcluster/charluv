@@ -4,6 +4,7 @@ import character from './character'
 import classify from './classify'
 import user from './user'
 import admin from './admin'
+import promo from './promo'
 import subscriptions from './subscriptions'
 import horde from './horde'
 import settings from './settings'
@@ -18,30 +19,26 @@ import { inferenceApi, inferenceModels } from './chat/inference'
 
 import freeCredits from './freecredits'
 
-import charImport from './charimport'
-
 import match from './match'
 
-import cart from './cart'
 import paypalcheck from './paypal'
 
 const router = Router()
 const keyedRouter = Router()
 
-router.use('/charimport', charImport)
 router.use('/user', user)
 router.use('/chat', chat)
 router.use('/character', character)
 router.use('/classify', classify)
 router.use('/admin', subscriptions)
 router.use('/admin', admin)
+router.use('/admin', promo)
 router.use('/horde', horde)
 router.use('/settings', settings)
 router.use('/memory', memory)
 router.use('/scenario', scenario)
 router.use('/voice', voice)
 router.use('/freecredits', freeCredits)
-router.use('/shop', cart)
 router.use('/match', match)
 router.use('/announce', announcements)
 router.use('/paypalcheck', paypalcheck)

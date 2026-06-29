@@ -1,0 +1,28 @@
+/* Shared "warm dusk" editorial palette + page background for Charluv's
+   modern pages (Discover, Blog). Scoped to page roots so it never bleeds
+   into the legacy theme. Keep the --dsc- prefix: it is the shared palette. */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&display=swap');
+
+.dsc-root,
+.blg-root {
+  /* warm plum dusk, never pure black */
+  --dsc-bg: oklch(0.18 0.03 350);
+  --dsc-bg-2: oklch(0.23 0.04 348);
+  --dsc-surface: oklch(0.27 0.045 345);
+  --dsc-cream: oklch(0.94 0.02 75);
+  --dsc-muted: oklch(0.72 0.03 350);
+  --dsc-line: oklch(0.4 0.05 345 / 0.5);
+  /* Charluv logo green */
+  --dsc-green: oklch(0.74 0.11 165);
+  --dsc-green-deep: oklch(0.64 0.12 165);
+  --dsc-wine: oklch(0.55 0.16 5);
+  /* progression marker — plum, distinct from the green type/level badges */
+  --dsc-plum: oklch(0.55 0.15 330);
+
+  min-height: 100%;
+  background: radial-gradient(120% 80% at 85% -10%, oklch(0.3 0.08 350 / 0.6), transparent 60%),
+    radial-gradient(90% 60% at -10% 110%, oklch(0.28 0.06 165 / 0.35), transparent 55%),
+    var(--dsc-bg);
+  color: var(--dsc-cream);
+  font-family: 'Lato', system-ui, sans-serif;
+}

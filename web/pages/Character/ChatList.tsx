@@ -1,8 +1,8 @@
 import { A, useNavigate, useParams } from '@solidjs/router'
 import { Component, createEffect, createMemo, createSignal, For, onMount, Show } from 'solid-js'
-import { AllChat, characterStore, chatStore } from '../../store'
+import { AllChat, characterStore, chatStore, startChat } from '../../store'
 import PageHeader from '../../shared/PageHeader'
-import { Edit, Import, Plus, Trash, SortAsc, SortDesc } from 'lucide-solid'
+import { Edit, Import, Plus, Trash, SortAsc, SortDesc } from '/web/icons'
 import ImportChatModal from './ImportChat'
 import { setComponentPageTitle, toDuration } from '../../shared/util'
 import { ConfirmModal } from '../../shared/Modal'
@@ -134,6 +134,24 @@ const CharacterChats: Component = () => {
     chatStore.getAllChats()
   })
 
+  const startNewChat = () => {
+    const id = params.id
+    // Generic hub (no character context) keeps the create-chat form.
+    if (!id) {
+      nav(`/chats/create`)
+      return
+    }
+
+    const char = chars.list.find((c) => c._id === id)
+    if (!char) {
+      nav(`/chats/create/${id}`)
+      return
+    }
+
+    // Per-character "New" always creates a fresh chat (never resumes).
+    startChat(char, nav, { forceNew: true })
+  }
+
   const Options = () => (
     <>
       <button
@@ -145,7 +163,7 @@ const CharacterChats: Component = () => {
 
       <button
         class={`btn-primary w-full items-center justify-start py-2 sm:w-fit sm:justify-center`}
-        onClick={() => nav(`/chats/create/${params.id || ''}`)}
+        onClick={startNewChat}
       >
         <Plus /> <span class="hidden sm:inline">New</span>
       </button>
@@ -247,6 +265,24 @@ const Chats: Component<{
   charId?: string
 }> = (props) => {
   const [showDelete, setDelete] = createSignal('')
+  const [editingId, setEditingId] = createSignal('')
+  const [editName, setEditName] = createSignal('')
+
+  const startRename = (chat: ChatLine) => {
+    setEditName(chat.name || '')
+    setEditingId(chat._id)
+  }
+
+  const cancelRename = () => {
+    setEditingId('')
+    setEditName('')
+  }
+
+  const saveRename = (chatId: string) => {
+    const name = editName().trim()
+    chatStore.editChat(chatId, { name }, false)
+    cancelRename()
+  }
 
   const groups = createMemo(() => {
     const chars = props.charId ? props.chars.filter((ch) => ch._id === props.charId) : props.chars
@@ -272,56 +308,95 @@ const Chats: Component<{
               </Show>
               <For each={chats}>
                 {(chat) => (
-                  <div class="flex w-full justify-between gap-2 rounded-lg bg-[var(--bg-800)] p-1 hover:bg-[var(--bg-700)]">
-                    <A
-                      class="flex w-10/12 cursor-pointer gap-2 sm:w-11/12"
-                      href={`/chat/${chat._id}`}
-                    >
-                      <div class="ml-4 flex items-center">
-                        <div class="relative flex-shrink-0">
-                          <For each={chat.characters.slice(0, 3).reverse()}>
-                            {(ch, i) => {
-                              const positionStyle = getAvatarPositionStyle(chat, i)
-                              if (positionStyle === undefined) return
-
-                              return (
-                                <div
-                                  class={`absolute top-1/2 -translate-y-1/2 transform ${positionStyle}`}
-                                >
-                                  <CharacterAvatar
-                                    char={props.allChars[ch._id]}
-                                    surround
-                                    zoom={1.75}
-                                    format={{ size: 'md', corners: 'circle' }}
-                                  />
-                                </div>
-                              )
+                  <Show
+                    when={editingId() !== chat._id}
+                    fallback={
+                      <div class="flex w-full items-center gap-2 rounded-lg bg-[var(--bg-800)] p-1">
+                        <div class="grow">
+                          <TextInput
+                            fieldName={`rename-${chat._id}`}
+                            placeholder="Chat name"
+                            value={editName()}
+                            onInputText={setEditName}
+                            onKeyUp={(ev) => {
+                              if (ev.key === 'Enter') saveRename(chat._id)
+                              if (ev.key === 'Escape') cancelRename()
                             }}
-                          </For>
+                          />
                         </div>
+                        <Button size="sm" onClick={() => saveRename(chat._id)}>
+                          Save
+                        </Button>
+                        <Button size="sm" schema="secondary" onClick={cancelRename}>
+                          Cancel
+                        </Button>
                       </div>
+                    }
+                  >
+                    <div class="flex w-full justify-between gap-2 rounded-lg bg-[var(--bg-800)] p-1 hover:bg-[var(--bg-700)]">
+                      <A
+                        class="flex w-10/12 cursor-pointer gap-2 sm:w-11/12"
+                        href={`/chat/${chat._id}`}
+                      >
+                        <div class="ml-4 flex items-center">
+                          <div class="relative flex-shrink-0">
+                            <For each={chat.characters.slice(0, 3).reverse()}>
+                              {(ch, i) => {
+                                const positionStyle = getAvatarPositionStyle(chat, i)
+                                if (positionStyle === undefined) return
 
-                      <div class="flex max-w-[90%] flex-col justify-center gap-0 pl-14">
-                        <div class="overflow-hidden text-ellipsis whitespace-nowrap font-bold leading-5">
-                          {chat.characters.map((c) => c.name).join(', ')}
+                                return (
+                                  <div
+                                    class={`absolute top-1/2 -translate-y-1/2 transform ${positionStyle}`}
+                                  >
+                                    <CharacterAvatar
+                                      char={props.allChars[ch._id]}
+                                      surround
+                                      zoom={1.75}
+                                      format={{ size: 'md', corners: 'circle' }}
+                                    />
+                                  </div>
+                                )
+                              }}
+                            </For>
+                          </div>
                         </div>
-                        <div class="flex gap-2 overflow-hidden text-ellipsis whitespace-nowrap text-sm leading-4">
-                          <Show when={chat.name}>
-                            <span>{chat.name || ''} </span>
-                          </Show>
-                          <span class="flex text-xs italic text-[var(--text-600)]">
-                            {toDuration(new Date(chat.updatedAt))} ago
-                            <Show when={chat.messageCount !== undefined}>
-                              &nbsp;({chat.messageCount})
+
+                        <div class="flex max-w-[90%] flex-col justify-center gap-0 pl-14">
+                          <div class="overflow-hidden text-ellipsis whitespace-nowrap font-bold leading-5">
+                            {chat.characters.map((c) => c.name).join(', ')}
+                          </div>
+                          <div class="flex gap-2 overflow-hidden text-ellipsis whitespace-nowrap text-sm leading-4">
+                            <Show when={chat.name}>
+                              <span>{chat.name || ''} </span>
                             </Show>
-                          </span>
+                            <span class="flex text-xs italic text-[var(--text-600)]">
+                              {toDuration(new Date(chat.updatedAt))} ago
+                              <Show when={chat.messageCount !== undefined}>
+                                &nbsp;({chat.messageCount})
+                              </Show>
+                            </span>
+                          </div>
                         </div>
+                      </A>
+                      <div class="flex items-center gap-1 px-2">
+                        <button
+                          type="button"
+                          aria-label={`Rename chat ${chat.name || ''}`.trim()}
+                          onClick={() => startRename(chat)}
+                        >
+                          <Edit size={20} class="icon-button" />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Delete chat ${chat.name || ''}`.trim()}
+                          onClick={() => setDelete(chat._id)}
+                        >
+                          <Trash size={20} class="icon-button" />
+                        </button>
                       </div>
-                    </A>
-                    <div class="flex items-center px-2" onClick={() => setDelete(chat._id)}>
-                      <Trash size={20} class="icon-button" />
                     </div>
-                  </div>
+                  </Show>
                 )}
               </For>
             </div>

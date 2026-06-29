@@ -1,6 +1,5 @@
 import * as horde from '../../common/horde-gen'
 import { ImageAdapter } from './types'
-import { decryptText } from '../db/util'
 import { HORDE_GUEST_KEY } from '../api/horde'
 import { config } from '../config'
 import { HordeCheck } from '../../common/horde-gen'

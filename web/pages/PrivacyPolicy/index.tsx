@@ -101,7 +101,11 @@ Our Service is not directed to children who are under the age of 18. Agnaistic d
 
 The Service may contain links to other websites not operated or controlled by Agnaistic, including social media services ("Third Party Sites"). The information that you share with Third Party Sites will be governed by the specific privacy policies and terms of service of the Third Party Sites and not by this Privacy Policy. By providing these links we do not imply that we endorse or have reviewed these sites. Please contact the Third Party Sites directly for information on their privacy practices and policies. 
 
-## 8. Security and Retention
+## 8. Device Identifiers and Abuse Prevention
+
+To prevent fraud and abuse — such as creating multiple accounts to obtain additional free credits — we collect and store your IP address and a device identifier derived from your browser and device characteristics. You consent to this collection when you register. We process this information to protect the fairness and security of the service (our legitimate interest and with your consent) and retain it for the life of your account.
+
+## 9. Security and Retention
 
 We implement commercially reasonable technical, administrative, and organizational measures to protect Personal Information both online and offline from loss, misuse, and unauthorized access, disclosure, alteration, or destruction. However, no Internet or email transmission is ever fully secure or error free. In particular, email sent to or from us may not be secure. Therefore, you should take special care in deciding what information you send to us via the Service or email. In addition, we are not responsible for circumvention of any privacy settings or security measures contained on the Service, or third party websites.
 
@@ -109,7 +113,7 @@ We'll retain your Personal Information for only as long as we need in order to p
 
 We may also anonymize or de-identify your Personal Information (so that it can no longer be associated with you) for research or statistical purposes, as described above, in which case we may use this information indefinitely without further notice to you.
 
-## 9. International users
+## 10. International users
 
 By using our Service, you understand and acknowledge that your Personal Information will be transferred from your location to our facilities and servers in the United States.
 
@@ -124,15 +128,15 @@ If you feel we have not adequately addressed an issue, you have the right to lod
 
 Data Transfers. Where required, we will use appropriate safeguards for transferring Personal Information outside of the EEA, Switzerland, and the UK. We will only transfer Personal Information pursuant to a legally valid transfer mechanism.
 
-## 10. Your choices
+## 11. Your choices
 
 If you choose not to provide Personal Information that is needed to use some features of our Service, you may be unable to use those features.
 
-## 11. Changes to the privacy policy
+## 12. Changes to the privacy policy
 
 We may change this Privacy Policy at any time. When we do, we will post an updated version on this page, unless another type of notice is required by applicable law. By continuing to use our Service or providing us with Personal Information after we have posted an updated Privacy Policy, or notified you by other means, you consent to the revised Privacy Policy.
 
-## 12. How to contact us
+## 13. How to contact us
 Please contact us on our [discord server ("https://discord.agnai.chat")](https://discord.agnai.chat) if you have any questions or concerns not already addressed in this Privacy Policy.
 `
 

@@ -4,6 +4,7 @@ import { encryptPassword } from './util'
 import { AppSchema } from '../../common/types/schema'
 import { domain } from '../domains'
 import { config } from '../config'
+import { PUBLISH_DEFAULTS, PUBLISH_MIN } from '../../common/publish'
 
 type UsersOpts = {
   username?: string
@@ -13,9 +14,6 @@ type UsersOpts = {
 }
 
 export async function getServerConfiguration() {
-  const cfg = await db('configuration').findOne({ kind: 'configuration' })
-  if (cfg) return cfg
-
   const next: AppSchema.Configuration = {
     kind: 'configuration',
     apiAccess: 'off',
@@ -41,12 +39,27 @@ export async function getServerConfiguration() {
     googleEnabled: false,
     charlibPublish: 'off',
     charlibGuidelines: '',
+    publishDailyFree: PUBLISH_DEFAULTS.dailyFree,
+    publishDailyPremium: PUBLISH_DEFAULTS.dailyPremium,
+    publishReward: PUBLISH_DEFAULTS.reward,
+    publishMinGreeting: PUBLISH_MIN.greeting,
+    publishMinDescription: PUBLISH_MIN.description,
+    publishMinScenario: PUBLISH_MIN.scenario,
+    publishMinPersonality: PUBLISH_MIN.personality,
     modFieldPrompt: '',
     modPresetId: '',
     modPrompt: '',
     modSchema: [],
     actionCalls: [],
     lockSeconds: 0,
+  }
+
+  const cfg = await db('configuration').findOne({ kind: 'configuration' })
+  if (cfg) {
+    // Backfill any field added in a newer version so an older stored config
+    // still exposes every field (the admin form needs them all to save).
+    // Existing values win; only missing keys fall back to defaults. No migration.
+    return { ...next, ...cfg }
   }
 
   await db('configuration').insertOne(next)
@@ -97,25 +110,41 @@ export async function changePassword(opts: { userId: string; password: string })
   return true
 }
 
+/** Resolve `p`, but fall back to `value` if it doesn't settle within `ms`. */
+function withTimeout<T>(p: Promise<T>, ms: number, value: T): Promise<T> {
+  return Promise.race([
+    p.catch(() => value),
+    new Promise<T>((resolve) => setTimeout(() => resolve(value), ms)),
+  ])
+}
+
 export async function getUserInfo(userId: string) {
-  const billing = await db('user').findOne(
-    { _id: userId },
-    {
-      projection: {
-        username: 1,
-        sub: 1,
-        manualSub: 1,
-        billing: 1,
-        patreon: 1,
-        stripeSessions: 1,
-        google: 1,
-      },
-    }
-  )
-  const profile = await db('profile').findOne({ userId })
-  const chats = await db('chat').countDocuments({ userId })
-  const characters = await db('character').countDocuments({ userId })
-  const state = await domain.subscription.getAggregate(userId)
+  // Run everything in parallel and bound the slow pieces so the admin info
+  // request can never hang (Cloudflare 524). The subscription aggregate replays
+  // the user's full billing event stream (Stripe/PayPal/Patreon) and the counts
+  // scan large collections — any one of these can be slow for a heavy account.
+  const [billing, profile, chats, characters, state] = await Promise.all([
+    db('user').findOne(
+      { _id: userId },
+      {
+        projection: {
+          username: 1,
+          sub: 1,
+          manualSub: 1,
+          billing: 1,
+          patreon: 1,
+          stripeSessions: 1,
+          google: 1,
+          creditsRestricted: 1,
+          restrictedReason: 1,
+        },
+      }
+    ),
+    db('profile').findOne({ userId }),
+    withTimeout(db('chat').countDocuments({ userId }), 8000, -1),
+    withTimeout(db('character').countDocuments({ userId }), 8000, -1),
+    withTimeout(domain.subscription.getAggregate(userId), 8000, undefined as any),
+  ])
 
   return {
     userId,

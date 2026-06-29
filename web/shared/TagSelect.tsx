@@ -1,7 +1,7 @@
 import { Component, JSX, For, createSignal, Show } from 'solid-js'
 import { DropMenu } from './DropMenu'
 import Button from './Button'
-import { CheckSquare, ChevronDown, Square, X, XSquare } from 'lucide-solid'
+import { CheckSquare, ChevronDown, Square, X, XSquare } from '/web/icons'
 import { FormLabel } from './FormLabel'
 import { tagStore } from '../store'
 

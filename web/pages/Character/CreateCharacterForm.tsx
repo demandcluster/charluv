@@ -8,22 +8,9 @@ import {
   Show,
   Switch,
 } from 'solid-js'
-import {
-  MinusCircle,
-  Plus,
-  Save,
-  X,
-  Import,
-  Download,
-  ArrowLeft,
-  Trash,
-  ArrowRight,
-  WandSparkles,
-  SlidersVertical,
-  Dices,
-  BookPlus,
-} from 'lucide-solid'
+import { MinusCircle, Plus, Save, X, Trash, WandSparkles, Dices } from '/web/icons'
 import Button from '../../shared/Button'
+import CreditCost from '../../shared/CreditCost'
 import PageHeader from '../../shared/PageHeader'
 import TextInput, { ButtonInput } from '../../shared/TextInput'
 import { FormLabel } from '../../shared/FormLabel'
@@ -32,65 +19,34 @@ import {
   characterStore,
   tagStore,
   toastStore,
-  memoryStore,
   chatStore,
-  userStore,
   settingStore,
+  userStore,
 } from '../../store'
-import { useNavigate, useSearchParams } from '@solidjs/router'
-import PersonaAttributes from '../../shared/PersonaAttributes'
-import AvatarIcon from '../../shared/AvatarIcon'
-import Select, { Option } from '../../shared/Select'
+import { useNavigate } from '@solidjs/router'
+import Select from '../../shared/Select'
 import TagInput from '../../shared/TagInput'
-import { CultureCodes } from '../../shared/CultureCodes'
-import VoicePicker from './components/VoicePicker'
 import { AppSchema } from '../../../common/types/schema'
 import Loading from '/web/shared/Loading'
 import { JSX, For } from 'solid-js'
-import { BUNDLED_CHARACTER_BOOK_ID, emptyBookWithEmptyEntry } from '/common/memory'
 import { Card, SolidCard, TitleCard } from '../../shared/Card'
-import { usePane, useRootModal } from '../../shared/hooks'
-import Modal, { RootModal } from '/web/shared/Modal'
-import EditMemoryForm, { EntrySort, getBookUpdate } from '../Memory/EditMemory'
-import { Toggle, ToggleButtons } from '../../shared/Toggle'
-import AvatarBuilder from '../../shared/Avatar/Builder'
-import { FullSprite } from '/common/types/sprite'
-import { getRandomBody } from '../../asset/sprite'
-import AvatarContainer from '../../shared/Avatar/Container'
+import { usePane } from '../../shared/hooks'
+import Modal, { ConfirmModal } from '/web/shared/Modal'
+import { ToggleButtons } from '../../shared/Toggle'
 import { CharEditor, useCharEditor } from './editor'
-import { downloadCharacterHub, jsonToCharacter } from './port'
-import { DownloadModal } from './DownloadModal'
-import ImportCharacterModal from './ImportCharacter'
-import Tabs, { useTabs } from '/web/shared/Tabs'
-import RangeInput from '/web/shared/RangeInput'
+import { ARCHETYPES, getArchetypeLabel } from '/common/progression'
 import { rootModalStore } from '/web/store/root-modal'
 import { getAssetUrl, random } from '/web/shared/util'
 import { ImageSettings } from '../Settings/Image/ImageSettings'
-import { v4 } from 'uuid'
 import { imageApi } from '/web/store/data/image'
 import { Page } from '/web/Layout'
-import { ModeGenSettings } from '/web/shared/Mode/ModeGenSettings'
 import { charsApi } from '/web/store/data/chars'
 import Tooltip from '/web/shared/Tooltip'
-import { CharacterSchema } from './CharacterSchema'
-import { canStartTour, startTour } from '/web/tours'
-
-const formatOptions = [
-  { value: 'attributes', label: 'Attributes (Key: value)' },
-  { value: 'text', label: 'Plain Text' },
-]
-
-const backupFormats: any = {
-  sbf: { value: 'sbf', label: 'SBF' },
-  wpp: { value: 'wpp', label: 'W++' },
-  boostyle: { value: 'boostyle', label: 'Boostyle' },
-}
 
 export const CreateCharacterForm: Component<{
   chat?: AppSchema.Chat
   editId?: string
   duplicateId?: string
-  import?: string
   children?: JSX.Element
   temp?: boolean
   noTitle?: boolean
@@ -99,27 +55,22 @@ export const CreateCharacterForm: Component<{
   onSuccess?: (char: AppSchema.Character) => void
 }> = (props) => {
   let personaRef: any
-  const [search, setSearch] = useSearchParams()
   const nav = useNavigate()
-  const user = userStore()
 
   const isPage = props.close === undefined
 
   const paneOrPopup = usePane()
   const cancel = () => {
     if (isPage) {
-      nav('/character/list')
+      nav('/mine')
     } else {
       props.close?.()
     }
   }
-  const query = { import: props.import }
   const [forceNew, setForceNew] = createSignal<boolean>(false)
 
   const srcId = createMemo(() => props.editId || props.duplicateId || '')
   const [image, setImage] = createSignal<string | undefined>()
-  const [openPreset, setOpenPreset] = createSignal(false)
-  const [presetFooter, setPresetFooter] = createSignal<JSX.Element>()
 
   const editor = useCharEditor()
 
@@ -137,6 +88,13 @@ export const CreateCharacterForm: Component<{
     }
   })
 
+  const user = userStore()
+
+  // A character carrying a custom system_prompt is a power/safety-sensitive
+  // definition (e.g. imported jailbreak-style cards). It is read-only for
+  // everyone but admins/moderators — the server rejects the edit too.
+  const locked = createMemo(() => !!state.edit?.systemPrompt && !user.user?.admin)
+
   const [imgUrl, setImageUrl] = createSignal<string>()
 
   const [tokens, setTokens] = createSignal({
@@ -145,18 +103,6 @@ export const CreateCharacterForm: Component<{
     greeting: 0,
     persona: 0,
     sample: 0,
-  })
-
-  const [showBuilder, setShowBuilder] = createSignal(false)
-  const [converted, setConverted] = createSignal<AppSchema.Character>()
-  const [showImport, setImport] = createSignal(false)
-
-  const personaFormats = createMemo(() => {
-    const options = formatOptions.slice()
-    if (editor.state.personaKind in backupFormats) {
-      options.push(backupFormats[editor.state.personaKind])
-    }
-    return options
   })
 
   const totalTokens = createMemo(() => {
@@ -173,35 +119,8 @@ export const CreateCharacterForm: Component<{
     characterStore.clearGeneratedAvatar()
     characterStore.clearCharacter()
 
-    if (canStartTour('char')) {
-      settingStore.closeMenu()
-    }
-
-    startTour('char')
-
     if (srcId()) {
       characterStore.getCharacter(srcId(), props.chat)
-    }
-
-    /* Character importing from CharacterHub */
-    if (!query.import) return
-    try {
-      const { file, json } = await downloadCharacterHub(query.import)
-      const imageData = await imageApi.getImageData(file)
-      const char = jsonToCharacter(json)
-      editor.load(char)
-      editor.update({
-        book: json.characterBook,
-        alternateGreetings: json.alternateGreetings || [],
-        avatar: file,
-        personaKind: 'text',
-      })
-      editor.receiveAvatar(file)
-
-      setImage(imageData)
-      toastStore.success(`Successfully downloaded from Char Archive`)
-    } catch (ex: any) {
-      toastStore.error(`Char Archive download failed: ${ex.message}`)
     }
   })
 
@@ -243,20 +162,14 @@ export const CreateCharacterForm: Component<{
     props.footer?.(footer)
   })
 
-  const updateFile = async (files: FileInputResult[]) => {
-    if (!files.length) {
-      editor.update('avatar', undefined)
-      setImage(state.edit?.avatar)
+  const onSubmit = async (ev: Event) => {
+    if (locked()) {
+      toastStore.warn(
+        `This character has a custom system prompt and can only be edited by an admin.`
+      )
       return
     }
-
-    const file = files[0].file
-    const data = await editor.receiveAvatar(file)
-    setImage(data)
-  }
-
-  const onSubmit = async (ev: Event) => {
-    const payload = editor.payload(true)
+    const payload = editor.payload(true) as any
 
     if (props.temp && props.chat) {
       if (editor.state.avatar) {
@@ -269,6 +182,17 @@ export const CreateCharacterForm: Component<{
       })
     } else if (!forceNew() && props.editId) {
       characterStore.editFullCharacter(props.editId, payload, () => {
+        // This chat froze the character's definition in chat.overrides (the old
+        // per-chat override feature, whose "Edit Chat → disable" UI was removed).
+        // Clear it so this edit — and future edits — apply to the chat. Skip
+        // event chats: they reuse chat.overrides as the event scenario carrier.
+        if (
+          props.chat?.overrides &&
+          props.chat.characterId === props.editId &&
+          props.chat.mode !== 'event'
+        ) {
+          chatStore.editChat(props.chat._id, {}, false)
+        }
         if (isPage) {
           nav(`/character/${props.editId}/chats`)
         } else if (paneOrPopup() === 'popup') {
@@ -283,60 +207,21 @@ export const CreateCharacterForm: Component<{
     }
   }
 
-  const onPublish = async () => {
-    const char = editor.payload(false)
-    const image = editor.state.avatar ? await imageApi.getImageData(editor.state.avatar) : undefined
-    charsApi.publishCharacter(char, image, (response) => {})
-  }
-
   const footer = (
     <>
-      <Show when={user?.user?.admin}>
-        <ToggleButtons
-          label="Match"
-          fieldName="match"
-          items={[
-            { value: true, label: 'Public' },
-            { value: false, label: 'Private' },
-          ]}
-          onChange={(opt) => editor.update('match', opt.value)}
-          selected={editor.state.match}
-        />
-
-        <ToggleButtons
-          label="Premium"
-          fieldName="premium"
-          items={[
-            { value: false, label: 'FREE' },
-            { value: true, label: 'SUBS' },
-          ]}
-          onChange={(opt) => editor.update('premium', opt.value)}
-          selected={editor.state.premium}
-        />
-      </Show>
       <Button onClick={cancel} schema="secondary">
         <X />
         {props.close ? 'Close' : 'Cancel'}
       </Button>
-      <Button onClick={onSubmit} disabled={state.creating}>
-        <Save />
-        {props.editId && !forceNew() ? 'Update' : 'Create'}
-      </Button>
-      <Show when={user.user?.admin}>
-        <Button onClick={onPublish}>
-          <BookPlus /> Publish
+      <Show when={!locked()}>
+        <Button onClick={onSubmit} disabled={state.creating}>
+          <Save />
+          {props.editId && !forceNew() ? 'Update' : 'Create'}
+          <CreditCost amount={props.editId && !forceNew() ? 30 : 100} class="ml-1" />
         </Button>
       </Show>
     </>
   )
-
-  const showWarning = createMemo(
-    () => !!props.chat?.overrides && props.chat.characterId === props.editId
-  )
-
-  const tabs = useTabs(['Persona', 'Voice', 'Advanced'], +(search.char_tab || '0'))
-
-  let spriteRef: any
 
   return (
     <Page>
@@ -352,9 +237,6 @@ export const CreateCharacterForm: Component<{
                   {totalTokens()} tokens, {totalPermanentTokens()} permanent
                 </em>
               </div>
-              <Button size="pill" class="w-fit" onClick={() => startTour('char', true)}>
-                AI Character Generation Guide
-              </Button>
             </>
           }
         />
@@ -368,16 +250,18 @@ export const CreateCharacterForm: Component<{
           editor.prepare(form)
         }}
       >
-        <div class="flex flex-col gap-4">
+        <Show when={locked()}>
+          <div class="mb-3">
+            <TitleCard type="rose">
+              This character has a custom system prompt and is locked. It can only be edited by an
+              admin or moderator. You can still chat with it.
+            </TitleCard>
+          </div>
+        </Show>
+
+        <div class="flex flex-col gap-4" classList={{ 'pointer-events-none opacity-60': locked() }}>
           <Show when={!isPage}>
             <div> {props.children} </div>
-          </Show>
-
-          <Show when={showWarning()}>
-            <SolidCard bg="orange-600">
-              <b>Warning!</b> Your chat currently overrides your character definitions. These
-              changes won't affect your current chat until you disable them in the "Edit Chat" menu.
-            </SolidCard>
           </Show>
 
           <div class={`flex grow flex-col justify-between gap-2 pl-2 pr-3 `}>
@@ -396,42 +280,8 @@ export const CreateCharacterForm: Component<{
               </TitleCard>
             </Show>
 
-            <div class="flex justify-end gap-2 text-[1em]">
-              <Button onClick={() => setOpenPreset(true)} class="tour-preset">
-                <SlidersVertical size={24} /> Preset
-              </Button>
-              <Button onClick={() => setImport(true)}>
-                <Import /> Import
-              </Button>
-
-              <Button onClick={() => setConverted(editor.convert())}>
-                <Download /> Export
-              </Button>
-
-              <Show when={state.edit}>
-                <Button
-                  onClick={() => {
-                    setForceNew(true)
-                    editor.clear()
-                  }}
-                >
-                  <Plus />
-                  New
-                </Button>
-              </Show>
-            </div>
-
-            <Tabs
-              select={(id) => {
-                tabs.select(id)
-                setSearch({ char_tab: id })
-              }}
-              selected={tabs.selected}
-              tabs={tabs.tabs}
-            />
-
-            <div class="flex flex-col gap-2" classList={{ hidden: tabs.current() !== 'Persona' }}>
-              <Card class="tour-prefields">
+            <div class="flex flex-col gap-2">
+              <Card>
                 <ButtonInput
                   fieldName="name"
                   required
@@ -450,12 +300,13 @@ export const CreateCharacterForm: Component<{
                 </ButtonInput>
 
                 <FormLabel
-                  label="Description / Creator's notes"
+                  label="Description (public bio)"
                   helperText={
                     <div class="flex flex-col">
                       <span>
-                        A description, label, or notes for your character. This is will not
-                        influence your character in any way.
+                        Shown as the “About” bio on this character's profile. {`{{char}}`} and{' '}
+                        {`{{user}}`} are rendered. It does not influence chat behaviour — the
+                        personality below does that.
                       </span>
                     </div>
                   }
@@ -482,103 +333,62 @@ export const CreateCharacterForm: Component<{
                 />
               </Card>
 
-              <Card class="flex w-full flex-col gap-4 sm:flex-row">
-                <div class="flex flex-col items-center gap-1">
-                  <Switch>
-                    <Match when={editor.state.visualType === 'sprite'}>
-                      <div class="flex h-24 w-full justify-center sm:w-24" ref={spriteRef}>
-                        <AvatarContainer body={editor.state.sprite} container={spriteRef} />
-                      </div>
-                    </Match>
-                    <Match when={!state.avatar.loading}>
-                      <div class="flex flex-col items-center gap-1">
-                        <div
-                          class="flex items-baseline"
-                          style={{ cursor: state.avatar.image || image() ? 'pointer' : 'unset' }}
-                          onClick={() => setImageUrl(editor.avatar() || image())}
-                        >
-                          <AvatarIcon
-                            format={{ corners: 'sm', size: '3xl' }}
-                            avatarUrl={editor.avatar() || image()}
-                          />
-                        </div>
-                      </div>
-                    </Match>
-                    <Match when={state.avatar.loading}>
-                      <div class="flex w-[80px] flex-col items-center justify-center">
-                        <Loading type="windmill" />
-                        <Show when={state.status && state.status.wait_time > 0}>
-                          <span class="text-500 text-xs italic">{state.status?.wait_time}s</span>
-                        </Show>
-                      </div>
-                    </Match>
-                  </Switch>
-                  <ReelControl editor={editor} loading={state.avatar.loading} />
-                </div>
-                <div class="flex w-full flex-col gap-2">
-                  <ToggleButtons
-                    items={[
-                      { value: 'avatar', label: 'Avatar' },
-                      { value: 'sprite', label: 'Sprite' },
-                    ]}
-                    onChange={(opt) => editor.update('visualType', opt.value)}
-                    selected={editor.state.visualType}
-                  />
-
-                  <Switch>
-                    <Match when={editor.state.visualType === 'avatar'}>
-                      <FileInput
-                        class="w-full"
-                        fieldName="avatar"
-                        label={
-                          <div class="flex gap-2">
-                            <div>Avatar</div>
-                          </div>
-                        }
-                        accept="image/png,image/jpeg,image/apng,image/gif,image/webp"
-                        onUpdate={updateFile}
+              <Card class="flex w-full flex-col gap-2">
+                <TextInput
+                  isMultiline
+                  parentClass="w-full"
+                  fieldName="appearance"
+                  label={
+                    <>
+                      Appearance{' '}
+                      <Regenerate
+                        field={'appearance'}
+                        editor={editor}
+                        allowed={editor.canGuidance}
                       />
-                      <div class="flex w-full flex-col gap-2 sm:flex-row">
-                        <TextInput
-                          isMultiline
-                          parentClass="w-full"
-                          fieldName="appearance"
-                          label={
-                            <>
-                              <Regenerate
-                                field={'appearance'}
-                                editor={editor}
-                                allowed={editor.canGuidance}
-                              />
-                            </>
-                          }
-                          helperText={`Leave the prompt empty to use your character's persona "looks" / "appearance" attributes`}
-                          placeholder="Appearance Prompt (used for Avatar Generation)"
-                          value={editor.state.appearance}
-                        />
-                      </div>
-                    </Match>
-                    <Match when={true}>
-                      <Button class="w-fit" onClick={() => setShowBuilder(true)}>
-                        Open Character Builder
-                      </Button>
-                    </Match>
-                  </Switch>
-                  <div></div>
+                    </>
+                  }
+                  helperText="Describes how your character looks. This drives image generation for the cover and gallery."
+                  placeholder="Appearance Prompt (used for Image Generation)"
+                  value={editor.state.appearance}
+                />
+              </Card>
+
+              <Card class="flex flex-col gap-1">
+                <div class="flex items-center justify-between gap-2">
+                  <FormLabel
+                    label="Base look seed"
+                    helperText="Locks this character's look so generated images stay consistent. (Chat images ignore it.)"
+                  />
+                  <Button size="sm" schema="secondary" onClick={() => editor.rerollSeed()}>
+                    <Dices size={14} /> Reroll
+                  </Button>
+                </div>
+                <div class="text-600 text-xs">
+                  Seed <span class="font-mono">{editor.state.imageSeed}</span> — rerolling changes
+                  your character's base appearance. Only reroll if the look isn't what you wanted;
+                  already-saved images are unaffected.
                 </div>
               </Card>
+
+              <CharacterGallery
+                editor={editor}
+                charId={props.editId}
+                initial={state.edit?.gallery}
+                avatarUrl={editor.avatar() || image()}
+                avatarLoading={state.avatar.loading}
+                onCoverChange={(url) => {
+                  setImage(url)
+                  editor.applyCover(url)
+                }}
+              />
 
               <Card>
                 <TextInput
                   fieldName="scenario"
                   label={
                     <>
-                      <Regenerate
-                        field={'scenario'}
-                        editor={editor}
-                        allowed={editor.canGuidance}
-                        class="tour-gen-field"
-                      />
+                      <Regenerate field={'scenario'} editor={editor} allowed={editor.canGuidance} />
                       Scenario{' '}
                     </>
                   }
@@ -591,47 +401,264 @@ export const CreateCharacterForm: Component<{
               </Card>
 
               <Card class="flex flex-col gap-3">
-                <div>
-                  <FormLabel
-                    label={
-                      <div class="flex items-center gap-1">
-                        <Show when={editor.state.personaKind === 'text'}>
-                          <Regenerate
-                            field={'persona'}
-                            editor={editor}
-                            allowed={editor.canGuidance}
-                          />
-                        </Show>
-                        Personality
-                      </div>
-                    }
-                    helperText={
-                      <>
-                        <p>If you do not know what this mean, you can leave this as-is.</p>
-                        <p class="font-bold">
-                          WARNING: "Plain Text" and "Non-Plain Text" schemas are not compatible.
-                          Changing between them will cause data loss.
-                        </p>
-                        <p>Format to use for the character's format</p>
-                      </>
-                    }
+                <FormLabel
+                  label="Relationship & Discovery"
+                  helperText="How this companion appears in Discover and how the relationship progresses. Progression injects the LEVEL(stage) the model is trained on."
+                />
+                <Select
+                  fieldName="progression"
+                  label="Progression archetype"
+                  items={[
+                    { label: 'None (fixed)', value: '' },
+                    ...ARCHETYPES.map((a) => ({
+                      label: `${getArchetypeLabel(a.id, editor.state.gender)} — ${a.description}`,
+                      value: a.id,
+                    })),
+                  ]}
+                  value={editor.state.archetype ?? ''}
+                  onChange={(opt) => editor.update('archetype', opt.value)}
+                />
+                <Select
+                  fieldName="progressionSpeed"
+                  label="Progression speed"
+                  helperText="How fast the relationship advances (XP gained per message)."
+                  items={[
+                    { label: 'Slow', value: 'slow' },
+                    { label: 'Normal', value: 'normal' },
+                    { label: 'Fast', value: 'fast' },
+                  ]}
+                  value={editor.state.progressionSpeed ?? 'normal'}
+                  onChange={(opt) => editor.update('progressionSpeed', opt.value)}
+                />
+                <div class="flex flex-wrap gap-3">
+                  <Select
+                    fieldName="gender"
+                    label="Gender"
+                    items={[
+                      { label: 'Unset', value: '' },
+                      { label: 'Female', value: 'female' },
+                      { label: 'Male', value: 'male' },
+                      { label: 'Trans', value: 'trans' },
+                    ]}
+                    value={editor.state.gender ?? ''}
+                    onChange={(opt) => editor.update('gender', opt.value || undefined)}
                   />
                   <Select
-                    fieldName="kind"
-                    class="tour-persona"
-                    items={personaFormats()}
-                    value={editor.state.personaKind}
+                    fieldName="artStyle"
+                    label="Art style"
+                    items={[
+                      { label: 'Unset', value: '' },
+                      { label: 'Realistic', value: 'realistic' },
+                      { label: 'Anime', value: 'anime' },
+                    ]}
+                    value={editor.state.artStyle ?? ''}
+                    onChange={(opt) => editor.update('artStyle', opt.value || undefined)}
+                  />
+                  <Select
+                    fieldName="ageRange"
+                    label="Age"
+                    items={[
+                      { label: 'Unset', value: '' },
+                      { label: '18–21', value: '18-21' },
+                      { label: '22–29', value: '22-29' },
+                      { label: '30–39', value: '30-39' },
+                      { label: '40+', value: '40+' },
+                    ]}
+                    value={editor.state.ageRange ?? ''}
+                    onChange={(opt) => editor.update('ageRange', opt.value || undefined)}
+                  />
+                  <Select
+                    fieldName="category"
+                    label="Category"
+                    items={[
+                      { label: 'Unset', value: '' },
+                      { label: 'Romantic', value: 'Romantic' },
+                      { label: 'Playful', value: 'Playful' },
+                      { label: 'Casual', value: 'Casual' },
+                      { label: 'Submissive', value: 'Submissive' },
+                      { label: 'Dominant', value: 'Dominant' },
+                      { label: 'Fantasy', value: 'Fantasy' },
+                    ]}
+                    value={editor.state.categoryValue ?? ''}
+                    onChange={(opt) => editor.update('categoryValue', opt.value)}
                   />
                 </div>
-
-                <PersonaAttributes
-                  value={editor.state.persona.attributes}
-                  schema={editor.state.personaKind}
-                  tokenCount={(v) => setTokens((prev) => ({ ...prev, persona: v }))}
-                  form={personaRef}
-                  editor={editor}
+                <ToggleButtons
+                  items={[
+                    { value: 'false', label: 'SFW' },
+                    { value: 'true', label: 'NSFW (18+)' },
+                  ]}
+                  onChange={(opt) => editor.update('nsfw', opt.value === 'true')}
+                  selected={String(editor.state.nsfw ?? false)}
                 />
               </Card>
+
+              <Card class="flex flex-col gap-3">
+                <FormLabel
+                  label="Personality & Traits"
+                  helperText="The core traits that define your character (saved as the W++ persona). Gender, Appearance and Art style are set in the cards above."
+                />
+                <TextInput
+                  isMultiline
+                  fieldName="traitDescription"
+                  label="Description"
+                  placeholder="The main description of who your character is, how they act, their situation and quirks."
+                  value={editor.state.traitDescription ?? ''}
+                  onChange={(ev) => editor.update('traitDescription', ev.currentTarget.value)}
+                  tokenCount={(v) => setTokens((prev) => ({ ...prev, persona: v }))}
+                />
+                <TextInput
+                  isMultiline
+                  fieldName="traitPersonality"
+                  label="Personality"
+                  placeholder="e.g. shy, caring, introspective, sensitive, reserved, kind"
+                  value={editor.state.traitPersonality ?? ''}
+                  onChange={(ev) => editor.update('traitPersonality', ev.currentTarget.value)}
+                />
+                <TextInput
+                  isMultiline
+                  fieldName="traitMind"
+                  label="Mind"
+                  placeholder="How your character thinks, their worldview, intelligence, quirks"
+                  value={editor.state.traitMind ?? ''}
+                  onChange={(ev) => editor.update('traitMind', ev.currentTarget.value)}
+                />
+                <div class="flex flex-wrap gap-3">
+                  <TextInput
+                    parentClass="grow"
+                    fieldName="traitSpecies"
+                    label="Species"
+                    placeholder="e.g. human"
+                    value={editor.state.traitSpecies ?? ''}
+                    onChange={(ev) => editor.update('traitSpecies', ev.currentTarget.value)}
+                  />
+                  <TextInput
+                    parentClass="grow"
+                    fieldName="traitAge"
+                    label="Age"
+                    placeholder="e.g. 18 years old"
+                    value={editor.state.traitAge ?? ''}
+                    onChange={(ev) => editor.update('traitAge', ev.currentTarget.value)}
+                  />
+                </div>
+                <div class="flex flex-wrap gap-3">
+                  <TextInput
+                    parentClass="grow"
+                    fieldName="traitJob"
+                    label="Job"
+                    placeholder="e.g. babysitter"
+                    value={editor.state.traitJob ?? ''}
+                    onChange={(ev) => editor.update('traitJob', ev.currentTarget.value)}
+                  />
+                  <TextInput
+                    parentClass="grow"
+                    fieldName="traitZodiac"
+                    label="Zodiac"
+                    placeholder="e.g. virgo"
+                    value={editor.state.traitZodiac ?? ''}
+                    onChange={(ev) => editor.update('traitZodiac', ev.currentTarget.value)}
+                  />
+                </div>
+                <TextInput
+                  fieldName="traitSexuality"
+                  label="Sexuality"
+                  placeholder="e.g. heterosexual, straight"
+                  value={editor.state.traitSexuality ?? ''}
+                  onChange={(ev) => editor.update('traitSexuality', ev.currentTarget.value)}
+                />
+                {/* "Loves" is hidden — it's auto-filled as an exact copy of
+                    "Likes" on save (reinforces the same preferences). */}
+                <TextInput
+                  fieldName="traitLikes"
+                  label="Likes"
+                  placeholder="e.g. drawing, playing with her cat"
+                  value={editor.state.traitLikes ?? ''}
+                  onChange={(ev) => editor.update('traitLikes', ev.currentTarget.value)}
+                />
+                <TextInput
+                  fieldName="traitHates"
+                  label="Hates"
+                  placeholder="e.g. rude people, loud noises"
+                  value={editor.state.traitHates ?? ''}
+                  onChange={(ev) => editor.update('traitHates', ev.currentTarget.value)}
+                />
+                <div class="flex flex-wrap gap-3">
+                  <TextInput
+                    parentClass="grow"
+                    fieldName="traitCountry"
+                    label="Country"
+                    placeholder="e.g. England"
+                    value={editor.state.traitCountry ?? ''}
+                    onChange={(ev) => editor.update('traitCountry', ev.currentTarget.value)}
+                  />
+                  <TextInput
+                    parentClass="grow"
+                    fieldName="traitBody"
+                    label="Body"
+                    placeholder="e.g. slim, 5'2&quot;, petite"
+                    value={editor.state.traitBody ?? ''}
+                    onChange={(ev) => editor.update('traitBody', ev.currentTarget.value)}
+                  />
+                </div>
+                <TextInput
+                  fieldName="traitOutfit"
+                  label="Outfit"
+                  placeholder="e.g. a fitted blazer over a silk blouse"
+                  value={editor.state.traitOutfit ?? ''}
+                  onChange={(ev) => editor.update('traitOutfit', ev.currentTarget.value)}
+                />
+
+                <Show when={Object.keys(editor.state.personaExtras ?? {}).length > 0}>
+                  <SolidCard type="bg" class="border-[1px] border-[var(--orange-600)] text-sm">
+                    <div class="font-bold text-[var(--orange-500)]">
+                      Extra attributes (will be removed on save)
+                    </div>
+                    <div class="text-600 mb-2">
+                      This character has non-standard W++ attributes that aren't part of the trait
+                      set. They're shown here for reference only and will be dropped the next time
+                      you save.
+                    </div>
+                    <div class="flex flex-col gap-1">
+                      <For each={Object.entries(editor.state.personaExtras ?? {})}>
+                        {([key, values]) => (
+                          <div class="flex gap-2">
+                            <span class="font-mono font-bold">{key}:</span>
+                            <span class="text-700">{(values as string[]).join(', ')}</span>
+                          </div>
+                        )}
+                      </For>
+                    </div>
+                  </SolidCard>
+                </Show>
+              </Card>
+
+              <Show when={user.user?.admin}>
+                <Card class="flex flex-col gap-3 border-[1px] border-[var(--rose-600)]">
+                  <FormLabel
+                    label="System prompt (admin only)"
+                    helperText="Power/safety-sensitive override. A character with a system prompt is locked from non-admin editing. Clear this field to unlock it for the owner."
+                  />
+                  <TextInput
+                    isMultiline
+                    fieldName="systemPrompt"
+                    placeholder="Custom system instruction injected after the Charluv 18+ safeguard."
+                    value={editor.state.systemPrompt ?? ''}
+                    onChange={(ev) => editor.update('systemPrompt', ev.currentTarget.value)}
+                    class="h-40"
+                  />
+                  <TextInput
+                    isMultiline
+                    fieldName="postHistoryInstructions"
+                    label="Post-history instructions"
+                    placeholder="Instruction injected after the chat history (e.g. response length)."
+                    value={editor.state.postHistoryInstructions ?? ''}
+                    onChange={(ev) =>
+                      editor.update('postHistoryInstructions', ev.currentTarget.value)
+                    }
+                  />
+                </Card>
+              </Show>
+
               <Card class="flex flex-col gap-3">
                 <TextInput
                   isMultiline
@@ -682,46 +709,10 @@ export const CreateCharacterForm: Component<{
               </Card>
             </div>
 
-            <div class="flex flex-col gap-2" classList={{ hidden: tabs.current() !== 'Voice' }}>
-              <Card class="flex flex-col gap-3">
-                <h4 class="text-md font-bold">Voice</h4>
-                <Toggle
-                  fieldName="voiceDisabled"
-                  value={editor.state.voiceDisabled}
-                  label="Disable Character's Voice"
-                  helperText="Toggle on to disable this character from automatically speaking"
-                />
-                <div classList={{ hidden: !user.user?.admin }}>
-                  <VoicePicker
-                    value={editor.state.voice}
-                    culture={editor.state.culture}
-                    onChange={(voice) => editor.update('voice', voice)}
-                  />
-
-                  <Select
-                    fieldName="culture"
-                    label="Language"
-                    helperText={`The language this character speaks and understands.${
-                      editor.state.culture.startsWith('en') ?? true
-                        ? ''
-                        : ' NOTE: You need to also translate the preset gaslight to use a non-english language.'
-                    }`}
-                    value={editor.state.culture}
-                    items={CultureCodes}
-                    onChange={(option) => editor.update('culture', option.value)}
-                  />
-                </div>
-              </Card>
-            </div>
-
-            <div
-              class={`flex flex-col gap-2`}
-              classList={{ hidden: tabs.current() !== 'Advanced' }}
-            >
-              <AdvancedOptions editor={editor} />
-            </div>
-
-            <div class={`flex flex-col gap-2`} classList={{ hidden: tabs.current() !== 'xImages' }}>
+            {/* Image generation settings are no longer user-editable here, but the
+                form fields are required by the editor payload. Keep them mounted
+                (hidden) so existing values pass through on save. */}
+            <div class="hidden">
               <ImageSettings cfg={editor.state.imageSettings} inherit />
             </div>
 
@@ -731,59 +722,7 @@ export const CreateCharacterForm: Component<{
           </div>
         </div>
       </form>
-      <Show when={showBuilder()}>
-        <SpriteModal
-          body={editor.state.sprite}
-          onChange={(body) => {
-            editor.update('sprite', body)
-            setShowBuilder(false)
-          }}
-          show={showBuilder()}
-          close={() => setShowBuilder(false)}
-        />
-      </Show>
-
-      <Show when={converted()}>
-        <DownloadModal
-          show
-          close={() => setConverted(undefined)}
-          char={converted()!}
-          charId={converted()!._id}
-        />
-      </Show>
-      <ImportCharacterModal
-        show={showImport()}
-        close={() => setImport(false)}
-        onSave={(char, imgs) => {
-          editor.load(char[0])
-          editor.receiveAvatar(imgs[0]!)
-          setImage(imgs[0] as any)
-          setImport(false)
-        }}
-        single
-      />
-
       <AvatarModal url={imgUrl()} close={() => setImageUrl('')} />
-
-      <Show when={openPreset()}>
-        <RootModal
-          title="Update Preset"
-          show
-          close={() => setOpenPreset(false)}
-          maxWidth="half"
-          maxHeight
-          footer={presetFooter()}
-        >
-          <sub>This preset used for character generation</sub>
-          <ModeGenSettings
-            presetId={user.user?.chargenPreset || user.user?.defaultPreset}
-            onPresetChanged={(id) => userStore.updatePartialConfig({ chargenPreset: id })}
-            close={() => setOpenPreset(false)}
-            hideTabs={['Memory', 'Prompt']}
-            footer={setPresetFooter}
-          />
-        </RootModal>
-      </Show>
     </Page>
   )
 }
@@ -884,283 +823,322 @@ const AlternateGreetingsInput: Component<{
   )
 }
 
-const SpriteModal: Component<{
-  body?: FullSprite
-  onChange: (body: FullSprite) => void
-  show: boolean
-  close: () => void
+const GALLERY_MAX = 10
+const LORA_MAX = 4
+
+const CharacterGallery: Component<{
+  editor: CharEditor
+  charId?: string
+  initial?: string[]
+  /** The current cover/avatar — a stored asset URL or a freshly generated/
+   * uploaded data url. Rendered as the first ("Cover") tile. */
+  avatarUrl?: string
+  avatarLoading?: boolean
+  /** Called when the cover changes (Make cover) so the parent can update its
+   * displayed avatar. */
+  onCoverChange?: (url: string) => void
 }> = (props) => {
-  let ref: any
+  const [gallery, setGallery] = createSignal<string[]>(props.initial || [])
+  const [selected, setSelected] = createSignal<string[]>([])
 
-  const [original, setOriginal] = createSignal(props.body)
-  const [body, setBody] = createSignal(props.body || getRandomBody())
+  // The character (and its saved gallery) loads async after the editor mounts,
+  // so re-seed when props.initial arrives/changes. Local add/remove update the
+  // signal directly and don't touch props.initial, so they're preserved.
+  createEffect(() => setGallery(props.initial || []))
+  const [busy, setBusy] = createSignal(false)
+  // Gallery generation shares the global avatar `generate.loading` flag, which
+  // would otherwise spin the cover tile. Track it separately so the spinner
+  // lands in its own reserved tile instead of the main cover/profile slot.
+  const [genLoading, setGenLoading] = createSignal(false)
+  // Derive from the editor state (the source of truth) rather than snapshotting
+  // it once — on edit the character hydrates asynchronously after this component
+  // mounts, so a one-time signal would miss an existing LoRA and hide the delete.
+  const loraName = () => props.editor.state.loraName || ''
+  const [confirmDeleteLora, setConfirmDeleteLora] = createSignal(false)
 
-  createEffect(() => {
-    if (props.body && !original()) {
-      setOriginal(props.body)
+  const full = () => gallery().length >= GALLERY_MAX
+  const isSelected = (url: string) => selected().includes(url)
+
+  const toggleSelected = (url: string) => {
+    if (!url) return
+    if (isSelected(url)) {
+      setSelected(selected().filter((u) => u !== url))
+      return
     }
-  })
-
-  const handleChange = () => {
-    props.onChange(body())
+    if (selected().length >= LORA_MAX) {
+      toastStore.warn(`Pick at most ${LORA_MAX} images for the LoRA`)
+      return
+    }
+    setSelected([...selected(), url])
   }
 
-  useRootModal({
-    id: 'sprite-modal',
-    element: (
-      <Modal
-        show={props.show}
-        close={props.close}
-        fixedHeight
-        maxWidth="half"
-        footer={
-          <>
-            <Button onClick={() => props.onChange(original()!)} schema="secondary">
-              Cancel
-            </Button>
-            <Button onClick={handleChange}>Confirm</Button>
-          </>
-        }
-      >
-        <PageHeader title="Character Designer" />
-        <div class="h-[28rem] w-full text-sm sm:h-[42rem]" ref={ref}>
-          <AvatarBuilder body={body()} onChange={(body) => setBody(body)} bounds={ref} noHeader />
-        </div>
-      </Modal>
-    ),
-  })
-
-  return null
-}
-
-const MemoryBookPicker: Component<{
-  bundledBook: AppSchema.MemoryBook | undefined
-  setBundledBook: (newVal: AppSchema.MemoryBook | undefined) => void
-}> = (props) => {
-  const memory = memoryStore()
-  const [isModalShown, setIsModalShown] = createSignal(false)
-  const [entrySort, setEntrySort] = createSignal<EntrySort>('creationDate')
-  const updateEntrySort = (item: Option<string>) => {
-    if (item.value === 'creationDate' || item.value === 'alpha') {
-      setEntrySort(item.value)
+  const makeCover = async (url: string) => {
+    if (!props.charId) {
+      toastStore.warn('Save the character first to set a cover')
+      return
+    }
+    setBusy(true)
+    const res = await charsApi.setCover(props.charId, url)
+    setBusy(false)
+    if (res.result && 'avatar' in res.result) {
+      props.onCoverChange?.(res.result.avatar)
+      toastStore.success('Cover updated')
+    } else if (res.error) {
+      toastStore.error(`Could not set cover: ${res.error}`)
     }
   }
 
-  const NONE_VALUE = '__none_character_book__'
-  const internalMemoryBookOptions = createMemo(() => [
-    { label: 'Import Memory Book', value: NONE_VALUE },
-    ...memory.books.list.map((book) => ({ label: book.name, value: book._id })),
-  ])
-  const pickInternalMemoryBook = (option: Option) => {
-    const newBook = memory.books.list.find((book) => book._id === option.value)
-    props.setBundledBook(newBook ? { ...newBook, _id: BUNDLED_CHARACTER_BOOK_ID } : undefined)
-  }
-  const initBlankCharacterBook = () => {
-    props.setBundledBook(emptyBookWithEmptyEntry())
-  }
-  const deleteBook = () => {
-    props.setBundledBook(undefined)
-  }
-  const ModalFooter = () => (
-    <>
-      <Button schema="secondary" onClick={() => setIsModalShown(false)}>
-        Close
-      </Button>
-      <Button type="submit">
-        <Save />
-        Save Character Book
-      </Button>
-    </>
-  )
-  const onSubmitCharacterBookChanges = (ev: Event) => {
-    ev.preventDefault()
-    const update = getBookUpdate(ev)
-    if (props.bundledBook) {
-      props.setBundledBook({ ...props.bundledBook, ...update })
+  const add = async (base64?: string) => {
+    if (!props.charId) {
+      toastStore.warn('Save the character first to build its gallery')
+      return
     }
-    setIsModalShown(false)
-  }
-
-  const BookModal = (
-    <Modal
-      title="Character Memory"
-      show={isModalShown()}
-      close={() => setIsModalShown(false)}
-      footer={<ModalFooter />}
-      onSubmit={onSubmitCharacterBookChanges}
-      maxWidth="half"
-      fixedHeight
-    >
-      <div class="text-sm">
-        <EditMemoryForm
-          hideSave
-          book={props.bundledBook!}
-          entrySort={entrySort()}
-          updateEntrySort={updateEntrySort}
-        />
-      </div>
-    </Modal>
-  )
-
-  useRootModal({ id: 'memoryBook', element: BookModal })
-
-  return (
-    <div>
-      <h4 class="flex gap-1 text-lg">
-        <div>Character Book</div>
-        <Button size="sm" onClick={initBlankCharacterBook}>
-          Create New Book
-        </Button>
-      </h4>
-      <Show when={!props.bundledBook}>
-        <span class="text-sm"> This character doesn't have a Character Book. </span>
-        <div class="flex flex-col gap-3 sm:flex-row">
-          <Select
-            fieldName="memoryBook"
-            value={NONE_VALUE}
-            items={internalMemoryBookOptions()}
-            onChange={pickInternalMemoryBook}
-          />
-        </div>
-      </Show>
-      <Show when={props.bundledBook}>
-        <span class="text-sm">This character has a Character Book.</span>
-        <div class="mt-2 flex gap-3">
-          <Button onClick={() => setIsModalShown(true)}>Edit Book</Button>
-          <Button onClick={deleteBook}>Delete Book</Button>
-        </div>
-      </Show>
-    </div>
-  )
-}
-
-const AdvancedOptions: Component<{ editor: CharEditor }> = (props) => {
-  return (
-    <>
-      <Card class="flex flex-col gap-2">
-        <CharacterSchema
-          characterId={props.editor.state.editId}
-          update={(next) => props.editor.update('json', next)}
-        />
-        <TextInput
-          isMultiline
-          fieldName="systemPrompt"
-          label="Character System Prompt (optional)"
-          helperText={
-            <span>
-              {`System prompt to bundle with your character. You can use the {{original}} placeholder to include the user's own system prompt, if you want to supplement it instead of replacing it.`}
-            </span>
-          }
-          placeholder="Enter roleplay mode. You will write {{char}}'s next reply in a dialogue between {{char}} and {{user}}. Do not decide what {{user}} says or does. Use Internet roleplay style, e.g. no quotation marks, and write user actions in italic in third person like: *example*. You are allowed to use markdown. Be proactive, creative, drive the plot and conversation forward. Write at least one paragraph, up to four. Always stay in character. Always keep the conversation going. (Repetition is highly discouraged)"
-          value={props.editor.state.systemPrompt}
-        />
-        <TextInput
-          isMultiline
-          fieldName="postHistoryInstructions"
-          label="Character Jailbreak (optional)"
-          helperText={
-            <span>
-              {`Prompt to bundle with your character, used at the bottom of the prompt. You can use the {{original}} placeholder to include the user's jailbreak (UJB), if you want to supplement it instead of replacing it.`}
-            </span>
-          }
-          placeholder="Write at least four paragraphs."
-          value={props.editor.state.postHistoryInstructions}
-        />
-        <TextInput
-          isMultiline
-          class="min-h-[80px]"
-          fieldName="insertPrompt"
-          label="Insert / Depth Prompt"
-          helperMarkdown={`A.k.a. Author's note. Prompt to be placed near the bottom of the chat history, **Insert Depth** messages from the bottom.`}
-          placeholder={`E.g. ### Instruction: Write like James Joyce.`}
-          value={props.editor.state.insert?.prompt}
-        />
-        <RangeInput
-          fieldName="insertDepth"
-          label="Insert Depth"
-          helperText={
-            <>
-              The number of messages that should exist below the <b>Insert Prompt</b>. Between 1 and
-              5 is recommended.
-            </>
-          }
-          min={0}
-          max={10}
-          step={1}
-          value={props.editor.state.insert?.depth ?? 3}
-        />
-      </Card>
-      <Card>
-        <MemoryBookPicker
-          setBundledBook={(book) => props.editor.update('book', book)}
-          bundledBook={props.editor.state.book}
-        />
-      </Card>
-      <Card>
-        <TextInput
-          fieldName="creator"
-          label="Creator (optional)"
-          placeholder="e.g. John1990"
-          value={props.editor.state.creator}
-        />
-      </Card>
-      <Card>
-        <TextInput
-          fieldName="characterVersion"
-          label="Character Version (optional)"
-          placeholder="any text e.g. 1, 2, v1, v1fempov..."
-          value={props.editor.state.characterVersion}
-        />
-      </Card>
-    </>
-  )
-}
-
-const ReelControl: Component<{ editor: CharEditor; loading: boolean }> = (props) => {
-  const createAvatar = async () => {
-    const base64 = await props.editor.createAvatar()
     if (!base64) return
+    if (full()) {
+      toastStore.warn(`Gallery is full (max ${GALLERY_MAX} images)`)
+      return
+    }
 
-    await props.editor.imageCache.addImage(base64, `${v4()}.png`)
+    setBusy(true)
+    const res = await charsApi.addGalleryImage(props.charId, base64)
+    setBusy(false)
+    if (res.result && 'gallery' in res.result) setGallery(res.result.gallery)
+    else if (res.error) toastStore.error(`Could not add image: ${res.error}`)
   }
 
-  const size = 14
+  const generate = async () => {
+    setBusy(true)
+    setGenLoading(true)
+    // createGalleryImage generates WITHOUT replacing the character's avatar.
+    const base64 = await props.editor.createGalleryImage().catch(() => undefined)
+    const before = gallery()
+    await add(base64 || undefined)
+    setGenLoading(false)
+    setBusy(false)
+    // Gallery thumbnails are small and have no large view here, so pop the
+    // freshly generated image in the lightbox once so it can be inspected.
+    const fresh = gallery().find((u) => !before.includes(u))
+    if (fresh) settingStore.showImage(getAssetUrl(fresh))
+  }
+
+  const upload = async (files: FileInputResult[]) => {
+    const file = files[0]?.file
+    if (!file) return
+    const base64 = await imageApi.getImageData(file)
+    await add(base64)
+  }
+
+  const remove = async (url: string) => {
+    if (!props.charId) return
+    setSelected(selected().filter((u) => u !== url))
+    setBusy(true)
+    const res = await charsApi.removeGalleryImage(props.charId, url)
+    setBusy(false)
+    if (res.result && 'gallery' in res.result) setGallery(res.result.gallery)
+  }
+
+  const buildLora = async () => {
+    if (!props.charId) return
+    const picks = selected()
+    if (!picks.length) {
+      toastStore.warn('Select 1-4 images for the LoRA')
+      return
+    }
+
+    setBusy(true)
+    // Send the stored gallery URLs; the server resolves them to base64
+    // (browsers can't fetch the cross-origin CDN assets — CORS).
+    const res = await charsApi.encodeLora(props.charId, picks)
+    setBusy(false)
+    if (res.result && 'loraName' in res.result) {
+      props.editor.update('loraName', res.result.loraName)
+      toastStore.success(`LoRA built: ${res.result.loraName}`)
+    } else if (res.error) {
+      toastStore.error(`Could not build LoRA: ${res.error}`)
+    }
+  }
+
+  const deleteLora = async () => {
+    if (!props.charId || !loraName()) return
+    setBusy(true)
+    const res = await charsApi.deleteLora(props.charId)
+    setBusy(false)
+    if (res.error) {
+      toastStore.error(`Could not delete LoRA: ${res.error}`)
+      return
+    }
+    props.editor.update('loraName', undefined)
+    toastStore.success('LoRA deleted')
+  }
+
+  const tileClass = (url: string) => `relative h-24 w-24 shrink-0 cursor-pointer rounded-md`
+
+  const selectionBadge = (url: string) => (
+    <Show when={isSelected(url)}>
+      <div class="absolute left-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--hl-500)] text-xs font-bold text-white">
+        {selected().indexOf(url) + 1}
+      </div>
+    </Show>
+  )
 
   return (
-    <div class="flex flex-col items-center gap-1">
-      <div class="flex w-fit gap-2">
-        <Button
-          size="sm"
-          disabled={props.editor.imageCache.state.images.length <= 1 || props.loading}
-          onClick={props.editor.imageCache.prev}
-        >
-          <ArrowLeft size={size} />
-        </Button>
+    <Card class="flex flex-col gap-3">
+      <FormLabel
+        label="Images"
+        helperText={`The first tile is the cover (avatar). Add up to ${GALLERY_MAX} more images of the same character. Click any image (including the cover) to pick up to ${LORA_MAX} (3-4 recommended) as the reference set for the character's image LoRA.`}
+      />
 
-        <Button
-          size="sm"
-          disabled={props.editor.imageCache.state.imageId === '' || props.loading}
-          onClick={() => props.editor.imageCache.removeImage(props.editor.imageCache.state.imageId)}
-        >
-          <Trash size={size} />
-        </Button>
+      <Show when={!props.charId}>
+        <div class="text-600 text-sm italic">
+          You can set a cover below. Save the character first to add gallery images and build a
+          LoRA.
+        </div>
+      </Show>
 
+      <div class="flex flex-wrap gap-2">
+        {/* Cover / avatar tile — always first, click-to-select, not removable.
+            Only spin for an actual cover regeneration, not gallery generation
+            (which shares the global loading flag but gets its own tile below). */}
+        <Show
+          when={!props.avatarLoading || genLoading()}
+          fallback={
+            <div class="flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded-md border border-[var(--bg-700)]">
+              <Loading type="windmill" />
+            </div>
+          }
+        >
+          <Show
+            when={props.avatarUrl}
+            fallback={
+              <div class="flex h-24 w-24 shrink-0 items-center justify-center rounded-md border border-[var(--bg-700)] text-center text-xs text-[var(--text-600)]">
+                No cover yet
+              </div>
+            }
+          >
+            <div
+              class={tileClass(props.avatarUrl!)}
+              classList={{ 'ring-2 ring-[var(--hl-500)]': isSelected(props.avatarUrl!) }}
+              onClick={() => toggleSelected(props.avatarUrl!)}
+              title={
+                isSelected(props.avatarUrl!) ? 'Selected for LoRA' : 'Click to select for LoRA'
+              }
+            >
+              <img src={getAssetUrl(props.avatarUrl!)} class="h-24 w-24 rounded-md object-cover" />
+              {selectionBadge(props.avatarUrl!)}
+              <div class="absolute bottom-1 left-1 rounded bg-[var(--hl-700)] px-1 text-[10px] font-bold text-white">
+                Cover
+              </div>
+            </div>
+          </Show>
+        </Show>
+
+        {/* Gallery tiles — removable + can be promoted to cover. */}
+        <For each={gallery()}>
+          {(url) => (
+            <div
+              class={tileClass(url)}
+              classList={{ 'ring-2 ring-[var(--hl-500)]': isSelected(url) }}
+              onClick={() => toggleSelected(url)}
+              title={isSelected(url) ? 'Selected for LoRA' : 'Click to select for LoRA'}
+            >
+              <img src={getAssetUrl(url)} class="h-24 w-24 rounded-md object-cover" />
+              {selectionBadge(url)}
+              <Button
+                size="pill"
+                schema="red"
+                class="absolute right-1 top-1"
+                onClick={(ev) => {
+                  ev.stopPropagation()
+                  remove(url)
+                }}
+                disabled={busy()}
+              >
+                <Trash size={12} />
+              </Button>
+              <Button
+                size="pill"
+                class="absolute bottom-1 left-1"
+                onClick={(ev) => {
+                  ev.stopPropagation()
+                  makeCover(url)
+                }}
+                disabled={busy()}
+              >
+                Make cover
+              </Button>
+            </div>
+          )}
+        </For>
+
+        {/* Reserved generation tile — spinner lives here, never on the cover. */}
+        <Show when={genLoading()}>
+          <div class="flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded-md border border-dashed border-[var(--bg-700)]">
+            <Loading type="windmill" />
+          </div>
+        </Show>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <Button size="sm" onClick={generate} disabled={busy() || full() || !props.charId}>
+          Generate <CreditCost amount={25} class="ml-1" />
+        </Button>
+        <FileInput
+          fieldName="galleryUpload"
+          accept="image/png,image/jpeg,image/webp"
+          onUpdate={upload}
+        />
         <Button
           size="sm"
-          disabled={props.editor.imageCache.state.images.length <= 1 || props.loading}
-          onClick={props.editor.imageCache.next}
+          schema="success"
+          onClick={buildLora}
+          disabled={busy() || !selected().length || !props.charId}
         >
-          <ArrowRight size={size} />
+          Build LoRA ({selected().length}/{LORA_MAX}) <CreditCost amount={300} class="ml-1" />
         </Button>
+        <span class="text-600 text-sm">
+          {gallery().length}/{GALLERY_MAX} images · {selected().length}/{LORA_MAX} picked
+        </span>
       </div>
-      <div class="flex w-fit gap-2">
-        {/* <Button size="sm" >
-          <RotateCcw size={size} />
-        </Button> */}
-        <Button size="sm" onClick={createAvatar} disabled={props.loading}>
-          Generate Image
-        </Button>
-      </div>
-    </div>
+
+      <Show when={props.charId}>
+        <div class="text-600 text-xs italic">
+          Generate uses the Appearance prompt with the locked seed, so the same prompt produces the
+          same image. Tweak the Appearance prompt (pose, outfit, setting, expression) between
+          generations to get varied reference shots — keep the core looks the same for a consistent
+          LoRA.
+        </div>
+      </Show>
+
+      <Show when={!props.charId}>
+        <div class="text-600 text-sm italic">
+          Save the character first to generate, upload, or build a LoRA.
+        </div>
+      </Show>
+
+      <Show when={props.charId && loraName()}>
+        <div class="text-600 flex items-center gap-3 text-sm">
+          <span>
+            Current LoRA: <span class="text-700 font-mono">{loraName()}</span>
+          </span>
+          <Button
+            schema="red"
+            size="sm"
+            onClick={() => setConfirmDeleteLora(true)}
+            disabled={busy()}
+          >
+            <Trash size={14} /> Delete LoRA
+          </Button>
+        </div>
+      </Show>
+
+      <ConfirmModal
+        show={confirmDeleteLora()}
+        close={() => setConfirmDeleteLora(false)}
+        confirm={deleteLora}
+        message={
+          "Delete this character's image LoRA?\n\nGenerated images will no longer keep a consistent appearance, and rebuilding a LoRA costs 300 credits. This can't be undone."
+        }
+      />
+    </Card>
   )
 }

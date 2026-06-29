@@ -1,12 +1,10 @@
 import { Router } from 'express'
-import { assertValid } from 'frisker'
 import { store } from '../db'
-import { isAdmin, loggedIn } from './auth'
+import { loggedIn } from './auth'
 import { handle } from './wrap'
 import { AppSchema } from '../../common/types/schema'
 import { now } from '../db/util'
 import { v4 } from 'uuid'
-import needle, { NeedleOptions, NeedleResponse } from 'needle'
 import { sendOne } from './ws'
 import { config } from '../config'
 import paypal from 'paypal-rest-sdk'
@@ -22,19 +20,8 @@ paypal.configure({
   client_secret: paypalSecret,
 })
 
-interface PaypalItem {
-  name: string
-  description: string
-  price: number
-  quantity: number
-  category?: 'DIGITAL_GOODS'
-}
 const paypalLogin = () => {
   return new Promise((resolve, reject) => {
-    const data = {
-      grant_type: 'client_credentials',
-    }
-
     const options = {
       method: 'POST',
       hostname: 'api-m.paypal.com',
@@ -177,7 +164,7 @@ const giveOrder = async (order: AppSchema.ShopOrder) => {
     premiumUntil: newPremiumUntil,
   })
   order.status = 'completed'
-  const updateOrder = await store.shop.updateShopOrder(order)
+  await store.shop.updateShopOrder(order)
   sendOne(userId, { type: 'credits-updated', newCredits })
   sendOne(userId, {
     type: 'admin-notification',
@@ -187,7 +174,6 @@ const giveOrder = async (order: AppSchema.ShopOrder) => {
 const checkOut = handle(async ({ body, userId, user, ip }) => {
   const items = await store.shop.getItems()
   const cart = JSON.parse(body.cart) || []
-  const service = body.service || null
   const itemsToCheckout: any = []
   cart.forEach((itemId: string) => {
     const item = items.find((item) => item._id === itemId)

@@ -1,18 +1,35 @@
 import { createAppearancePrompt } from '../../common/image-prompt'
 import { AppSchema } from '../../common/types/schema'
 import { EVENTS, events } from '../emitter'
-import { createStore } from './create'
+import { createStore, getStore } from './create'
 import { subscribe } from './socket'
 import { toastStore } from './toasts'
 import { charsApi } from './data/chars'
 import { imageApi } from './data/image'
-import { getAssetUrl, storage, toMap } from '../shared/util'
+import { getAssetUrl, toMap } from '../shared/util'
 import { toCharacterMap } from '../pages/Character/util'
 import { getUserId } from './api'
-import { getStoredValue, setStoredValue } from '../shared/hooks'
 import { HordeCheck } from '/common/horde-gen'
 
-const IMPERSONATE_KEY = 'agnai-impersonate'
+/** Build the throwaway self-persona used to represent {{user}} in chats from
+ * the profile's Your Character fields. A temp- id keeps it out of the DB and
+ * membership lists (the server/prompt pipeline special-cases temp- ids). */
+function buildSelfImpersonate(profile?: AppSchema.Profile): AppSchema.Character | undefined {
+  if (!profile) return undefined
+  const text = [profile.description, profile.persona]
+    .map((s) => (s || '').trim())
+    .filter(Boolean)
+    .join('\n\n')
+  if (!text) return undefined
+  return {
+    _id: 'temp-self',
+    kind: 'character',
+    userId: profile.userId,
+    name: profile.handle || 'You',
+    avatar: profile.avatar,
+    persona: { kind: 'text', attributes: { text: [text] } },
+  } as AppSchema.Character
+}
 
 type CharacterState = {
   loading?: boolean
@@ -53,11 +70,9 @@ export type NewCharacter = UpdateCharacter &
     | 'postHistoryInstructions'
     | 'creator'
     | 'characterVersion'
-    | 'match'
     | 'premium'
     | 'xp'
     | 'parent'
-    | 'shared'
     | 'insert'
   > & {
     originalAvatar: any
@@ -193,39 +208,29 @@ export const characterStore = createStore<CharacterState>(
       }
     },
 
-    async impersonate({ activeChatId }, char?: AppSchema.Character) {
-      if (!activeChatId) {
-        storage.localSetItem(IMPERSONATE_KEY, char?._id || '')
-      } else {
-        setStoredValue(`${activeChatId}-impersonate`, char?._id || '')
-      }
-      return { impersonating: char || undefined }
-    },
-
-    async loadImpersonate({
-      activeChatId,
-      chatChars: { list },
-      characters: { list: allList },
-      impersonating: current,
-    }) {
-      const fallback = storage.localGetItem(IMPERSONATE_KEY) || ''
-      let id = activeChatId ? getStoredValue(`${activeChatId}-impersonate`, fallback) : fallback
-
-      if (!id) return
-
-      const impersonating = id ? allList.concat(list).find((ch) => ch._id === id) : current
-      return { impersonating }
+    // The user's "self as a character" is now fixed on their profile (the
+    // Your Character tab) rather than a per-chat character pick. Derive a
+    // throwaway temp- impersonation from it so the chat/prompt pipeline (which
+    // already special-cases temp- ids) injects it as {{user}}'s persona.
+    loadImpersonate(_, profile?: AppSchema.Profile) {
+      const p = profile || getStore('user').getState().profile
+      return { impersonating: buildSelfImpersonate(p) }
     },
 
     async *createCharacter(
       { creating, characters: { list, loaded } },
       char: NewCharacter,
-      onSuccess?: (result: AppSchema.Character) => void
+      onSuccess?: (result: AppSchema.Character) => void,
+      // Imports hit a distinct, charge-free server route. The billing decision is
+      // server-side (the route) — this only picks which endpoint to call.
+      imported?: boolean
     ) {
       if (creating) return
 
       yield { creating: true }
-      const res = await charsApi.createCharacter(char)
+      const res = imported
+        ? await charsApi.importCharacter(char)
+        : await charsApi.createCharacter(char)
       yield { creating: false }
       if (res.error) toastStore.error(`Failed to create character: ${res.error}`)
       if (res.result) {
@@ -308,26 +313,30 @@ export const characterStore = createStore<CharacterState>(
       }
     },
     setFavorite: async (
-      { characters: { list, map, loaded } },
+      { characters: { list, map, loaded }, editing },
       characterId: string,
       favorite: boolean
     ) => {
       const res = await charsApi.setFavorite(characterId, favorite)
       if (res.error) return toastStore.error(`Failed to set favorite character`)
       if (res.result) {
+        // The profile page renders `editing` (the fetched detail), so update it
+        // too — otherwise the star/label won't change until a reload.
         const prev = list.find((ch) => ch._id === characterId)
-        if (!prev) return
+        const base = prev || (editing?._id === characterId ? editing : undefined)
+        if (!base) return
 
-        const nextChar = { ...prev }
-        nextChar.favorite = favorite
+        const nextChar = { ...base, favorite }
         events.emit('character-updated', nextChar, 'updated')
-        return {
+        const result: Partial<CharacterState> = {
           characters: {
-            list: list.map((ch) => (ch._id === characterId ? nextChar : ch)),
+            list: list.map((ch) => (ch._id === characterId ? { ...ch, favorite } : ch)),
             map: replace(map, characterId, { favorite }),
             loaded,
           },
         }
+        if (editing?._id === characterId) result.editing = { ...editing, favorite }
+        return result
       }
     },
     async *editAvatar({ characters: { list, map, loaded } }, characterId: string, file: File) {
@@ -380,6 +389,27 @@ export const characterStore = createStore<CharacterState>(
         }
       }
     },
+    resetCharacter: async (
+      { characters: { list, map, loaded }, editing },
+      charId: string,
+      onSuccess?: () => void
+    ) => {
+      const res = await charsApi.resetCharacter(charId)
+      if (res.error) return toastStore.error(`Failed to reset character: ${res.error}`)
+      if (res.result) {
+        toastStore.success('Character reset: chats, XP and memories cleared')
+        const result: Partial<CharacterState> = {
+          characters: {
+            list: list.map((ch) => (ch._id === charId ? { ...ch, xp: 0 } : ch)),
+            map: replace(map, charId, { xp: 0 }),
+            loaded,
+          },
+        }
+        if (editing?._id === charId) result.editing = { ...editing, xp: 0 }
+        onSuccess?.()
+        return result
+      }
+    },
     clearGeneratedAvatar() {
       return { generate: { image: null, loading: false, blob: null } }
     },
@@ -387,7 +417,9 @@ export const characterStore = createStore<CharacterState>(
       { generate: prev },
       user: AppSchema.User,
       persona: AppSchema.Persona | string,
-      onDone?: (err: any, image?: File) => void
+      onDone?: (err: any, image?: File) => void,
+      seed?: number,
+      noCharge?: boolean
     ) {
       try {
         let prompt =
@@ -401,6 +433,8 @@ export const characterStore = createStore<CharacterState>(
         const res = await imageApi.generateImageWithPrompt({
           prompt,
           source: 'avatar',
+          seed,
+          noCharge,
           onTick: (status) => {
             set({ hordeStatus: status })
           },

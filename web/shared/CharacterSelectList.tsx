@@ -1,7 +1,7 @@
 import { Component, For, Show, createMemo, createSignal } from 'solid-js'
 import { AppSchema } from '../../common/types/schema'
 import { CharacterAvatar } from './AvatarIcon'
-import { Star, Users } from 'lucide-solid'
+import { Star, Users } from '/web/icons'
 import TextInput from './TextInput'
 import { chatStore } from '../store'
 import { toMap } from './util'

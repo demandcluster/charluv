@@ -57,9 +57,13 @@ export async function generateImage({ chatId, messageId, onDone, ...opts }: Gene
     return summary
   }
   const charType = entities.char?.tags?.includes('anime')
-    ? '(anime style:0.9) '
-    : '(realistic style:0.9) '
-  const prompt = summary.result.response
+    ? 'early-2000s anime hybrid cel/digital look, bright saturated colors high quality art of '
+    : 'Photorealistic image of '
+  // Always lead with the character's appearance prompt (the look saved at
+  // creation) so chat images stay consistent regardless of what the scene caption
+  // happened to describe. It's first so the token trim below keeps it.
+  const appearance = entities.char?.appearance?.trim()
+  const prompt = [appearance, summary.result.response].filter(Boolean).join(', ')
 
   const characterId = entities.messages.reduceRight((id, msg) => id || msg.characterId)
 
@@ -68,7 +72,7 @@ export async function generateImage({ chatId, messageId, onDone, ...opts }: Gene
     .then((tokens) => tokens.slice(0, max - 15))
     .then(decode)
 
-  const newPrompt = charType + trimmed + ' ' + charType
+  const newPrompt = charType + trimmed
 
   if (!isLoggedIn()) {
     return { error: "Sorry, members only.. don't worry it is free!" }
@@ -91,6 +95,10 @@ export async function generateImage({ chatId, messageId, onDone, ...opts }: Gene
 export async function generateImageWithPrompt(opts: {
   prompt: string
   source: string
+  seed?: number
+  /** Skip the image credit charge (e.g. the create wizard's first portrait,
+   * which is bundled into the creation fee). Server validates eligibility. */
+  noCharge?: boolean
   onDone: (result: { image: string; file: File; data?: string }) => void
   onTick?: (status: horde.HordeCheck) => void
 }) {
@@ -127,6 +135,8 @@ export async function generateImageWithPrompt(opts: {
     user,
     ephemeral: true,
     source,
+    seed: opts.seed,
+    noCharge: opts.noCharge,
   })
 
   return res
@@ -219,15 +229,12 @@ subscribe('image-failed', { requestId: 'string', error: 'string' }, (body) => {
 })
 
 const SUMMARY_BACKENDS: { [key in AIAdapter]?: (opts: PromptEntities) => boolean } = {
+  charluv: () => true,
   openai: () => true,
-  novel: () => true,
   horde: () => true,
   ooba: () => true,
   kobold: () => true,
-  openrouter: () => true,
   claude: () => true,
-  mancer: () => true,
-  agnaistic: () => true,
 }
 
 async function createSummarizedImagePrompt(opts: PromptEntities) {
@@ -273,31 +280,18 @@ async function getChatSummary(settings: Partial<AppSchema.GenSettings>, summaryP
 
 function getSummaryTemplate(service: AIAdapter, summaryPrompt?: string) {
   switch (service) {
-    case 'novel': {
-      const prompt =
-        summaryPrompt ||
-        `Write a detailed image caption of the current scene with a description of each character's appearance`
-      return neat`
-      {{char}}'s personality: {{personality}}
-      [ Style: chat ]
-      ***
-      {{history}}
-      { ${prompt} }`
-    }
-
+    case 'charluv':
     case 'openai':
-    case 'openrouter':
-    case 'claude':
-    case 'scale': {
+    case 'claude': {
       const prompt =
         summaryPrompt ||
         `Write an image caption of the current scene including the character's appearance`
       return neat`
       {{personality}}
-      
+
       (System note: Start of conversation)
       {{history}}
-      
+
       {{ujb}}
       (System: ${prompt})
       Image caption:`
@@ -305,8 +299,7 @@ function getSummaryTemplate(service: AIAdapter, summaryPrompt?: string) {
 
     case 'ooba':
     case 'kobold':
-    case 'horde':
-    case 'agnaistic': {
+    case 'horde': {
       const prompt =
         summaryPrompt ||
         `Write an image caption of the current scene using physical descriptions without names.`

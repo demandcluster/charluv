@@ -8,22 +8,16 @@ import { ContextState } from '/web/store/context'
 import { useSubNav } from '/web/subnav'
 import { Nav, UserProfile } from '/web/Navigation'
 import {
-  Book,
-  Palette,
+  Brain,
   Settings,
-  Sliders,
+  SlidersHorizontal,
   Users,
-  Map,
   Download,
-  VenetianMask,
+  MaskHappy,
   Trash,
   RotateCcw,
-  ChevronLeft,
   Pencil,
-  Info,
-} from 'lucide-solid'
-import { AgnaisticModel } from '/web/shared/PresetSettings/Agnaistic'
-import { startTour } from '/web/tours'
+} from '/web/icons'
 
 type NavProps = {
   ctx: ContextState
@@ -76,60 +70,24 @@ const ChatNav: Component<NavProps> = (props) => {
     () => props.ctx.chat?.userId === props.ctx.user?._id && props.ctx.chat?.mode !== 'companion'
   )
 
-  const canModel = createMemo(() => props.ctx.preset?.service === 'agnaistic')
-
   const size = 20
 
   return (
     <>
       <UserProfile />
 
-      <Nav.DoubleItem>
-        <Nav.Item class="min-h-8" href={`/character/list`}>
-          <ChevronLeft size={16} /> Matches
-        </Nav.Item>
-
-        <Nav.Item class="min-h-8" href={`/character/${props.ctx.char?._id}/chats`}>
-          <ChevronLeft size={16} /> Chats
-        </Nav.Item>
-      </Nav.DoubleItem>
-
-      <Nav.DoubleItem class="tour-participants">
-        <Nav.Item onClick={() => props.togglePane('participants')}>
-          <Users size={size} /> Participants
-        </Nav.Item>
-      </Nav.DoubleItem>
-
-      <Nav.Item onClick={() => props.togglePane('chat-settings')}>
-        <Settings size={size} /> Edit Chat
+      <Nav.Item onClick={() => props.togglePane('participants')}>
+        <Users size={size} /> Participants
       </Nav.Item>
 
-      <Nav.Item onClick={() => props.togglePane('preset')}>
-        <Sliders class="min-w-[24px]" width={'24px'} size={size} />
-        <span class="min-w-fit">Preset </span>
-        <span class="text-500 ellipsis text-xs italic">{props.adapterLabel}</span>
+      <Nav.Item onClick={() => props.togglePane('chat-settings')}>
+        <SlidersHorizontal size={size} /> Reply Style
       </Nav.Item>
 
       <Show when={isOwner()}>
         <Nav.Item onClick={() => props.togglePane('memory')}>
-          <Book size={size} /> Memory
+          <Brain size={size} /> Memory
         </Nav.Item>
-      </Show>
-
-      <Nav.Item onClick={() => props.togglePane('ui')} class="tour-ui">
-        <Palette size={size} /> UI
-      </Nav.Item>
-
-      <Show when={isOwner()}>
-        <Nav.Item onClick={() => props.setModal('graph')} class="tour-chat-graph">
-          <Map size={size} /> Chat Graph
-        </Nav.Item>
-      </Show>
-
-      <Show when={canModel()}>
-        <div class="flex w-full justify-center">
-          <AgnaisticModel inherit={props.ctx.preset} />
-        </div>
       </Show>
 
       <div class="flex flex-wrap justify-center gap-1 text-sm">
@@ -141,7 +99,7 @@ const ChatNav: Component<NavProps> = (props) => {
           <Settings size={size} aria-hidden="true" />
         </Nav.Item>
         <Nav.Item onClick={() => settingStore.toggleAnonymize()} tooltip="Anonymize">
-          <VenetianMask size={size} />
+          <MaskHappy size={size} />
         </Nav.Item>
         <Nav.Item onClick={() => props.setModal('export')} tooltip="Download Chat">
           <Download size={size} />
@@ -152,9 +110,6 @@ const ChatNav: Component<NavProps> = (props) => {
         <Nav.Item onClick={() => props.setModal('delete')} tooltip="Delete Chat">
           <Trash size={size} />
         </Nav.Item>
-        <Nav.Item onClick={() => startTour('chat', true)} tooltip="Chat Guide">
-          <Info size={size} />
-        </Nav.Item>
       </div>
     </>
   )
@@ -163,10 +118,14 @@ const ChatMenuTitle: Component<NavProps> = (props) => {
   return (
     <div
       onClick={() => props.togglePane('character')}
-      class="bg-700 hover:bg-600 tour-edit-char flex h-8 max-w-[80%] cursor-pointer items-center gap-2 rounded-md px-2"
+      class="bg-700 hover:bg-600 flex h-8 max-w-[80%] cursor-pointer items-center gap-2 rounded-md px-2"
     >
       <Pencil size={16} color="var(--bg-500)" class="min-h-[12px] min-w-[12px]" />
-      <span class="ellipsis text-md">{props.ctx.char?.name}</span>
+      <span class="ellipsis text-md">
+        {props.ctx.chat?.mode === 'event'
+          ? props.ctx.chat?.event?.location || 'Event'
+          : props.ctx.char?.name}
+      </span>
     </div>
   )
 }

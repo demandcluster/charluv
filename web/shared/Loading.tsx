@@ -1,4 +1,4 @@
-import { LoaderCircle } from 'lucide-solid'
+import { LoaderCircle } from '/web/icons'
 import { Component } from 'solid-js'
 
 type Dot =

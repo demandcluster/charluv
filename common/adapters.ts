@@ -44,7 +44,7 @@ export const PERSONA_LABELS: { [key in PersonaFormat]: string } = {
 }
 
 export const JSON_SCHEMA_SUPPORTED: { [key in AIAdapter | ThirdPartyFormat]?: boolean } = {
-  agnaistic: true,
+  charluv: true,
   llamacpp: true,
   tabby: true,
 }
@@ -81,25 +81,10 @@ export const THIRDPARTY_FORMATS = [
   'vllm',
 ] as const
 
-export const AI_ADAPTERS = [
-  'agnaistic',
-  'kobold',
-  'novel',
-  'ooba',
-  'horde',
-  'openai',
-  'scale',
-  'claude',
-  'goose',
-  'replicate',
-  'openrouter',
-  'mancer',
-  'petals',
-  'venus',
-] as const
+export const AI_ADAPTERS = ['charluv', 'kobold', 'ooba', 'horde', 'openai', 'claude'] as const
 export const CHAT_ADAPTERS = ['default', ...AI_ADAPTERS] as const
 
-export const MULTI_TENANT_ADAPTERS = ['novel', 'chai', 'kobold'] as const
+export const MULTI_TENANT_ADAPTERS = ['kobold'] as const
 
 export type NovelModel = keyof typeof NOVEL_MODELS
 
@@ -306,29 +291,17 @@ export type HordeWorker = {
 export const ADAPTER_LABELS: { [key in AIAdapter]: string } = {
   horde: 'Charluv Horde',
   kobold: 'CharluvAI',
-  novel: 'NovelAI',
   ooba: 'Textgen',
   openai: 'OpenAI',
-  scale: 'Scale',
   claude: 'Claude',
-  goose: 'Goose AI',
-  replicate: 'Replicate',
-  openrouter: 'OpenRouter',
-  mancer: 'Mancer',
-  petals: 'Petals',
-  agnaistic: 'Agnaistic',
-  venus: 'Venus',
+  charluv: 'Charluv',
 }
 
 export const INSTRUCT_SERVICES: { [key in AIAdapter]?: boolean } = {
   openai: true,
-  openrouter: true,
   claude: true,
-  scale: true,
   horde: true,
-  novel: true,
-  agnaistic: true,
-  mancer: true,
+  charluv: true,
   kobold: true,
   ooba: true,
 }
@@ -435,16 +408,6 @@ export const settingLabels: { [key in keyof PresetAISettings]: string } = {
 
 export const samplerOrders: { [key in AIAdapter]?: Array<keyof PresetAISettings> } = {
   kobold: ['topK', 'topA', 'topP', 'tailFreeSampling', 'typicalP', 'temp', 'repetitionPenalty'],
-  novel: [
-    'temp',
-    'topK',
-    'topP',
-    'tailFreeSampling',
-    'topA',
-    'typicalP',
-    'cfgScale',
-    'mirostatTau',
-  ],
 }
 
 export type AIAdapter = (typeof AI_ADAPTERS)[number]

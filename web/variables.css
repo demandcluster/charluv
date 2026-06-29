@@ -9,15 +9,20 @@
   --tooltip-x: 0;
   --tooltip-y: 0;
 
-  --hl-100: #e0f2fe;
-  --hl-200: #bae6fd;
-  --hl-300: #7dd3fc;
-  --hl-400: #38bdf8;
-  --hl-500: #0ea5e9;
-  --hl-600: #0284c7;
-  --hl-700: #0369a1;
-  --hl-800: #075985;
-  --hl-900: #0c4a6e;
+  /* Chrome (drawer + top bars): a deeper plum than the Discover "dusk" content
+     so the nav rail anchors the page and cards visually float above it. */
+  --menu-bg: oklch(0.14 0.04 350);
+
+  /* Charluv green accent (logo: #55b89c) */
+  --hl-100: #e6f7f1;
+  --hl-200: #c2ebde;
+  --hl-300: #93dcc6;
+  --hl-400: #6bccae;
+  --hl-500: #55b89c;
+  --hl-600: #3f9d83;
+  --hl-700: #2f7d68;
+  --hl-800: #265f50;
+  --hl-900: #1e3f37;
 
   --green-100: #dcfce7;
   --green-200: #bbf7d0;
@@ -224,6 +229,18 @@
   --coolgray-800: #1f2937;
   --coolgray-900: #111827;
   --coolgray-1000: #0b111f;
+
+  /* Charluv "warm dusk" — plum-tinted neutrals (matches the Discover gallery) */
+  --plum-100: #f5eef2;
+  --plum-200: #e9dde4;
+  --plum-300: #d4c2cd;
+  --plum-400: #a98fa1;
+  --plum-500: #7d6374;
+  --plum-600: #5a4453;
+  --plum-700: #3e2d3a;
+  --plum-800: #2a1c26;
+  --plum-900: #1a1016;
+  --plum-1000: #140c11;
 
   --highlight: rgb(14 165 233);
 

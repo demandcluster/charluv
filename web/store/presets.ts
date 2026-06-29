@@ -262,9 +262,9 @@ subscribe(
     const { presets } = presetStore.getState()
 
     const next = presets.map((pre) => {
-      if (pre.registered?.agnaistic?.subscriptionId !== body.subscriptionId) return pre
+      if (pre.registered?.charluv?.subscriptionId !== body.subscriptionId) return pre
       const preset = { ...pre }
-      preset.registered!.agnaistic!.subscriptionId = body.replacementId
+      preset.registered!.charluv!.subscriptionId = body.replacementId
       return preset
     })
 

@@ -2,27 +2,15 @@ import { ADAPTER_LABELS } from '../../../common/adapters'
 import { presetStore, settingStore, userStore } from '../../store'
 import Tabs from '../../shared/Tabs'
 import HordeAISettings from './components/HordeAISettings'
-import {
-  Component,
-  For,
-  Match,
-  Show,
-  Switch,
-  createEffect,
-  createMemo,
-  createSignal,
-} from 'solid-js'
+import { Component, For, Show, createEffect, createMemo, createSignal } from 'solid-js'
 import OpenAISettings from './components/OpenAISettings'
-import ScaleSettings from './components/ScaleSettings'
-import NovelAISettings from './components/NovelAISettings'
 import KoboldAISettings from './components/KoboldAISettings'
 import OobaAISettings from './components/OobaAISettings'
 import ClaudeSettings from './components/ClaudeSettings'
 import { AutoPreset, getPresetOptions } from '../../shared/adapter'
 import RegisteredSettings from './components/RegisteredSettings'
 import { useSearchParams } from '@solidjs/router'
-import OpenRouterOauth from './OpenRouterOauth'
-import { SolidCard, TitleCard } from '/web/shared/Card'
+import { SolidCard } from '/web/shared/Card'
 import { PresetSelect } from '/web/shared/PresetSelect'
 import TextInput from '/web/shared/TextInput'
 import Button from '/web/shared/Button'
@@ -45,13 +33,13 @@ const AISettings: Component<{
   const [apiKey, setApiKey] = createSignal(state.user?.apiKey || '')
 
   const revealKey = () => {
-    userStore.revealApiKey((key) => {
+    userStore.revealApiKey((key: string) => {
       setApiKey(key)
     })
   }
 
   const generateKey = () => {
-    userStore.generateApiKey((key) => {
+    userStore.generateApiKey((key: string) => {
       setApiKey(key)
     })
   }
@@ -205,14 +193,6 @@ const AISettings: Component<{
         <OpenAISettings />
       </div>
 
-      <div class={currentTab() === ADAPTER_LABELS.scale ? tabClass : 'hidden'}>
-        <ScaleSettings />
-      </div>
-
-      <div class={currentTab() === ADAPTER_LABELS.novel ? tabClass : 'hidden'}>
-        <NovelAISettings />
-      </div>
-
       <div class={currentTab() === ADAPTER_LABELS.claude ? tabClass : 'hidden'}>
         <ClaudeSettings />
       </div>
@@ -220,23 +200,6 @@ const AISettings: Component<{
       <For each={cfg.config.registered}>
         {(each) => (
           <div class={currentTab() === ADAPTER_LABELS[each.name] ? tabClass : 'hidden'}>
-            {/** Optionally show adapter specific information for registered adapters */}
-            <Switch>
-              <Match when={each.name === 'openrouter'}>
-                <OpenRouterOauth />
-              </Match>
-
-              <Match when={each.name === 'replicate'}>
-                <TitleCard>
-                  Head to{' '}
-                  <a class="link" target="_blank" href="https://replicate.com/">
-                    Replicate.com
-                  </a>{' '}
-                  to get started.
-                </TitleCard>
-              </Match>
-            </Switch>
-
             <RegisteredSettings service={each} />
           </div>
         )}

@@ -21,6 +21,14 @@ const ColorPicker: Component<{
     props.onChange?.(ev.currentTarget.value)
   }
 
+  // `<input type="color">` only accepts a 7-char #rrggbb value; anything else
+  // (empty, an unresolved CSS var, or an #rrggbbaa with alpha) makes the browser
+  // log "does not conform to the required format". Fall back to black.
+  const safeColor = createMemo(() => {
+    const color = getSettingColor(props.value || '')
+    return /^#[0-9a-fA-F]{6}$/.test(color) ? color : '#000000'
+  })
+
   return (
     <div class="">
       <Show when={!!props.label || !!props.helperText}>
@@ -37,7 +45,7 @@ const ColorPicker: Component<{
         ref={ref}
         type="color"
         class="rounded-sm"
-        value={getSettingColor(props.value || '')}
+        value={safeColor()}
         onChange={onChange}
         onInput={(ev) => props.onInput?.(ev.currentTarget.value)}
         disabled={props.disabled}

@@ -1,13 +1,7 @@
 import { v4 } from 'uuid'
-import {
-  InferenceState,
-  createPromptParts,
-  getChatPreset,
-  getLinesForPrompt,
-  buildPromptParts,
-  resolveScenario,
-} from '../../../common/prompt'
+import { InferenceState, getChatPreset } from '../../../common/prompt'
 import { AppSchema } from '../../../common/types/schema'
+import { AIAdapter } from '../../../common/adapters'
 import { api, isLoggedIn } from '../api'
 import { chatStore } from '../chat'
 import { userStore } from '../user'
@@ -22,6 +16,14 @@ import { botGen } from './bot-generate'
 import { getEncoder } from '../../../common/tokenize'
 import { getStore } from '../create'
 import { TemplateOpts, parseTemplate } from '/common/template-parser'
+import { getUserPreset } from '/web/shared/adapter'
+
+type InferenceOpts = {
+  prompt: string
+  service?: AIAdapter | 'default'
+  settings?: Partial<AppSchema.GenSettings>
+  maxTokens?: number
+}
 
 export const msgsApi = {
   swapMessage,
@@ -266,7 +268,8 @@ async function getChatSummary() {
     encoder: await getEncoder(),
   }
   // check for previous summary
-  let resultCheck = opts.lines.join('\n')
+  const lines = opts.lines || []
+  let resultCheck = lines.join('\n')
   const checkWord = 'Summary of Facts:'
   const lastSummary = resultCheck.lastIndexOf(checkWord)
   console.log('length of result', resultCheck.length)
@@ -274,16 +277,16 @@ async function getChatSummary() {
     resultCheck = resultCheck.substring(lastSummary - 4)
     console.log('new length of result', resultCheck.length)
   }
-  opts.lines = opts.lines.reverse()
+  opts.lines = lines.reverse()
 
-  const tokenCount = opts.limit.encoder(resultCheck)
+  const tokenCount = await Promise.resolve(opts.limit.encoder(resultCheck))
 
   if (tokenCount < 1500) {
     const needCount = 1500 - tokenCount
     return { error: `Need at least ${needCount} more tokens to generate a summary.` }
   }
 
-  const { active, chatProfiles: members } = getStore('chat').getState()
+  const { active } = getStore('chat').getState()
   if (!active) return
 
   const { profile, user } = getStore('user').getState()
@@ -293,8 +296,11 @@ async function getChatSummary() {
 
   const settings = getAuthGenSettings(chat, user)!
 
-  const template = getChatSummaryTemplate('horde')
-  if (!template) throw new Error(`No chat summary template available for horde`)
+  // Use the chat's actual service (charluv -> self-hosted vLLM), not the legacy
+  // hardcoded horde, which is demoted and no longer the text backend.
+  const service = settings.service || 'charluv'
+  const template = getChatSummaryTemplate(service)
+  if (!template) throw new Error(`No chat summary template available for ${service}`)
 
   const parse = await parseTemplate(template, opts)
   const prompt = parse.parsed
@@ -306,7 +312,7 @@ async function getChatSummary() {
   const values = await msgsApi.guidance<{ summary: string }>({
     prompt,
     settings,
-    service: 'horde',
+    service,
     maxTokens: 200,
   })
 
@@ -314,11 +320,11 @@ async function getChatSummary() {
     kind: 'summary',
     text: `(OOC Summary of Facts: ${values.summary})`,
   })
-  if (result!.result!.error) {
-    throw new Error(result!.error)
+  if (result?.error) {
+    throw new Error(result.error)
   }
 
-  return result.result!.values
+  return result?.result
 }
 
 /**

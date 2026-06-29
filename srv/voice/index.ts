@@ -21,6 +21,10 @@ import { AppSchema } from '../../common/types/schema'
 import { textModeration } from './moderation'
 import { agnaiTtsHandler } from './agnai'
 
+/** Platform-wide voice/TTS kill switch. Typed `boolean` so downstream code stays
+ * type-checked. Flip to false to re-enable the feature. */
+const VOICE_DISABLED: boolean = true
+
 export async function getVoicesList(
   { user, ttsService }: VoicesListRequest,
   log: AppLog,
@@ -101,6 +105,11 @@ export async function generateVoice(
   log: AppLog,
   guestId?: string
 ) {
+  // Voice/TTS is disabled platform-wide. Hard kill switch: never run voice
+  // inference regardless of caller, character voice config, or client request.
+  // Typed `boolean` (not `true`) so the rest stays type-checked but dead.
+  if (VOICE_DISABLED) return { output: undefined }
+
   const service = getVoiceService(voice.service)
   if (!service) return { output: undefined }
 

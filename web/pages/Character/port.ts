@@ -2,11 +2,8 @@ import { extractCardData } from './card-utils'
 import { formatCharacter } from '/common/characters'
 import { characterBookToNative } from '/common/memory'
 import { AppSchema } from '/common/types'
-import { slugify } from '/common/util'
 import { FileInputResult, getFileAsString } from '/web/shared/FileInput'
 import { NewCharacter, toastStore } from '/web/store'
-import { CHUB_URL } from '/web/store/chub'
-import { api } from '../../store/api'
 
 type ImportFormat = 'tavern' | 'tavernV2' | 'ooba' | 'agnai'
 
@@ -66,7 +63,7 @@ export function jsonToCharacter(json: any): NewCharacter {
       sampleChat: json.example_dialogue,
       scenario: json.world_scenario,
       originalAvatar: undefined,
-    }
+    } as NewCharacter
   }
 
   if (format === 'tavern') {
@@ -84,7 +81,7 @@ export function jsonToCharacter(json: any): NewCharacter {
       sampleChat: json.mes_example,
       scenario: json.scenario,
       originalAvatar: undefined,
-    }
+    } as NewCharacter
   }
 
   /**
@@ -127,33 +124,14 @@ export function jsonToCharacter(json: any): NewCharacter {
     voice: json.data.extensions.agnai?.voice,
     insert: json.data.extensions.depth_prompt,
     json: json.data.extensions.agnai?.json,
-  }
-}
-
-/**
- * @param path Character `fullPath`
- */
-export async function downloadCharacterHub(path: string) {
-  if (!path.startsWith(CHUB_URL)) {
-    throw new Error(`Invalid path: ${path} does not start with ${CHUB_URL}`)
-  }
-  const imgPath = path.replace(CHUB_URL, '').split('?')[0].split('/').pop()
-  // const card = await fetch(`/api/charimport`, {
-  //   method: 'post',
-  //   headers: { 'Content-Type': 'application/json' },
-  //   body: JSON.stringify({ path: path }),
-  // }).then((res) => res.blob())
-  const card = await api.post('/charimport', { path: path }, { responseType: 'blob' })
-  console.log(card)
-  if (card.error) {
-    toastStore.error(card.error)
-    throw new Error(`Failed to download image`)
-  }
-  const file = new File([card.result], `${imgPath}.png`, { type: 'image/png' })
-  const data = await extractCardData(file)
-  const json = jsonToCharacter(data)
-  json.avatar = file
-  return { card, file, json }
+    // Charluv metadata round-tripped via extensions.charluv
+    progression: json.data.extensions.charluv?.progression,
+    gender: json.data.extensions.charluv?.gender,
+    artStyle: json.data.extensions.charluv?.artStyle,
+    ageRange: json.data.extensions.charluv?.ageRange,
+    category: json.data.extensions.charluv?.category,
+    nsfw: json.data.extensions.charluv?.nsfw,
+  } as NewCharacter
 }
 
 function getImportFormat(obj: any): ImportFormat {

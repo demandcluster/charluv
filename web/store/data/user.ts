@@ -113,7 +113,11 @@ export async function deleteApiKey(kind: string) {
   return localApi.result({ success: true })
 }
 
-export async function updateProfile(handle: string, file?: File) {
+export async function updateProfile(
+  handle: string,
+  file?: File,
+  extra?: { persona?: string; description?: string }
+) {
   if (!isLoggedIn()) {
     const avatar = await getImageData(file)
     const prev = await localApi.loadItem('profile')
@@ -121,6 +125,8 @@ export async function updateProfile(handle: string, file?: File) {
       ...prev,
       handle,
       avatar: avatar || prev.avatar,
+      persona: extra?.persona ?? prev.persona,
+      description: extra?.description ?? prev.description,
     }
 
     await localApi.saveProfile(next)
@@ -129,6 +135,8 @@ export async function updateProfile(handle: string, file?: File) {
 
   const form = new FormData()
   form.append('handle', handle)
+  if (extra?.persona !== undefined) form.append('persona', extra.persona)
+  if (extra?.description !== undefined) form.append('description', extra.description)
   if (file) form.append('avatar', file)
 
   const res = await api.upload<AppSchema.Profile>('/user/profile', form)

@@ -17,15 +17,15 @@ import { getEncoder } from '/common/tokenize'
 import { AppSchema } from '/common/types'
 import { UserEmbed } from '/common/types/memory'
 import { GenerateRequestV2 } from '/srv/adapter/type'
-import { GenerateEntities, getPromptEntities, PromptEntities } from './common'
-import { embedApi } from '../embeddings'
+import { GenerateEntities, getPromptEntities } from './common'
 import { ChatState } from '../chat'
 import { replaceTags } from '/common/presets/templates'
 import { getServiceTempConfig } from '/web/shared/adapter'
 import { getActiveBots } from '/web/pages/Chat/util'
 import iconv from 'iconv-lite'
+import * as stream from 'stream'
 
-iconv.enableStreamingAPI(require('stream'))
+iconv.enableStreamingAPI(stream)
 
 export const botGen = {
   generate: generateResponse,
@@ -178,7 +178,12 @@ async function getActivePromptOptions(
   const props = await getGenerateProps(opts, active)
   const entities = props.entities
 
-  const resolvedScenario = resolveScenario(entities.chat, entities.char, entities.scenarios || [])
+  const resolvedScenario = resolveScenario(
+    entities.chat,
+    entities.char,
+    entities.scenarios || [],
+    props.replyAs
+  )
 
   const encoder = await getEncoder()
 
@@ -235,18 +240,15 @@ async function createActiveChatPrompt(
   const props = await getGenerateProps(opts, active)
   const entities = props.entities
 
-  const resolvedScenario = resolveScenario(entities.chat, entities.char, entities.scenarios || [])
+  const resolvedScenario = resolveScenario(
+    entities.chat,
+    entities.char,
+    entities.scenarios || [],
+    props.replyAs
+  )
 
   const chatEmbeds: UserEmbed<{ name: string }>[] = []
   const userEmbeds: UserEmbed[] = []
-
-  const text =
-    opts.kind === 'send' ||
-    opts.kind === 'send-event:world' ||
-    opts.kind === 'send-event:character' ||
-    opts.kind === 'send-event:hidden'
-      ? opts.text
-      : entities.lastMessage?.msg
 
   const encoder = await getEncoder()
   const prompt = await createPromptParts(
@@ -279,69 +281,14 @@ async function createActiveChatPrompt(
     prompt.template.parsed = replaceTags(prompt.template.parsed, entities.settings.modelFormat)
   }
 
-  const embedLines = (prompt.template.history || prompt.lines).slice()
-
-  const { users, chats } = await getRetrievalBreakpoint(text, entities, props.messages, embedLines)
-
-  if (chats?.messages.length) {
-    for (const chat of chats.messages) {
-      const name =
-        entities.chatBots.find((b) => b._id === chat.entityId)?.name ||
-        entities.members.find((m) => m._id === chat.entityId)?.handle ||
-        'You'
-
-      chatEmbeds.push({ date: '', distance: chat.similarity, text: chat.msg, name, id: '' })
-    }
-  }
-
-  if (users?.messages.length) {
-    for (const chat of users.messages) {
-      userEmbeds.push({ date: '', distance: chat.similarity, text: chat.msg, id: '' })
-    }
-  }
+  // Client-side embedding retrieval (chat/user RAG) is retired — long-term
+  // memory is handled server-side now. chatEmbeds/userEmbeds stay empty.
 
   if (opts.kind === 'chat-query') {
     prompt.lines.push(`Chat Query: ${opts.text}`)
   }
 
   return { prompt, props, entities, chatEmbeds, userEmbeds }
-}
-
-async function getRetrievalBreakpoint(
-  text: string | undefined,
-  { settings, chat }: PromptEntities,
-  messages: AppSchema.ChatMessage[],
-  lines: string[]
-) {
-  if (!text) return { users: undefined, chats: undefined }
-
-  const encoder = await getEncoder()
-  let removed = 0
-  let count = 0
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[lines.length - 1 - i]
-    const size = await encoder(line)
-    removed += size
-    count++
-
-    if (removed > settings.maxContextLength!) break
-  }
-
-  const users = text && chat.userEmbedId ? await embedApi.query(chat.userEmbedId, text) : undefined
-
-  const bp = messages[messages.length - count - 1]
-  if (!bp) return { users, chats: undefined }
-
-  const chats = settings.memoryChatEmbedLimit
-    ? await embedApi.queryChat(
-        chat._id,
-        text,
-        bp.createdAt,
-        messages.map((m) => m._id)
-      )
-    : undefined
-  return { users, chats }
 }
 
 export type GenerateProps = {
@@ -475,7 +422,11 @@ async function getGenerateProps(
       // If the chat is a single-user chat, it is always in 'auto-reply' mode
       // Ensure the autoReplyAs parameter is set for single-bot chats
       const isMulti = getActiveBots(entities.chat, entities.characters).length > 1
-      if (!isMulti) entities.autoReplyAs = entities.char._id
+      // Event chats are director-driven on the server: it elects the speaker(s)
+      // and ignores the passed replyAs. A replyAs is still structurally required
+      // to build the request, so default it to the main char.
+      const isEvent = entities.chat.mode === 'event'
+      if (!isMulti || isEvent) entities.autoReplyAs = entities.char._id
 
       if (!entities.autoReplyAs) throw new Error(`No character selected to reply with`)
       props.impersonate = entities.impersonating

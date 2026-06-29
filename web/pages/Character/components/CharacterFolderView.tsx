@@ -18,7 +18,7 @@ import {
   MoreHorizontal,
   Star,
   Trash,
-} from 'lucide-solid'
+} from '/web/icons'
 import { CharacterAvatar } from '/web/shared/AvatarIcon'
 import { A, useNavigate, useSearchParams } from '@solidjs/router'
 import Button from '/web/shared/Button'
@@ -26,7 +26,7 @@ import { DropMenu } from '/web/shared/DropMenu'
 import { HelpModal, RootModal } from '/web/shared/Modal'
 import TextInput from '/web/shared/TextInput'
 import { on } from 'solid-js'
-import { characterStore, chatStore } from '/web/store'
+import { characterStore, chatStore, startChat } from '/web/store'
 import { ManualPaginate, usePagination } from '/web/shared/Paginate'
 import Divider from '/web/shared/Divider'
 import { useResizeObserver } from '/web/shared/hooks'
@@ -391,7 +391,7 @@ const CharacterListOptions: Component<{
               <Star /> Favorite
             </Show>
           </Button>
-          <Button onClick={() => nav(`/chats/create/${props.char._id}`)} alignLeft size="sm">
+          <Button onClick={() => startChat(props.char, nav)} alignLeft size="sm">
             <MessageCircle /> Chat
           </Button>
           <Button alignLeft onClick={props.download} size="sm">

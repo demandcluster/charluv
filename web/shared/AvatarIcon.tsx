@@ -1,9 +1,9 @@
-import { Bot, VenetianMask } from 'lucide-solid'
+import { Bot, MaskHappy } from '/web/icons'
 import { Component, createEffect, createSignal, JSX, Match, Show, Switch } from 'solid-js'
 import { settingStore } from '../store'
 import { getAssetUrl } from './util'
 import './avatar.css'
-import { LucideProps } from 'lucide-solid/dist/types/types'
+import type { LucideProps } from '/web/icons'
 import { AppSchema, UI } from '/common/types'
 import AvatarContainer from './Avatar/Container'
 import { FullSprite } from '/common/types/sprite'
@@ -181,7 +181,7 @@ const AvatarIcon: Component<Props> = (props) => {
             aria-hidden="true"
           >
             <Show when={!props.bot}>
-              <VenetianMask data-user-icon />
+              <MaskHappy data-user-icon />
             </Show>
             <Show when={props.bot}>
               <Show when={props.Icon}>{props.Icon && <props.Icon data-bot-icon />}</Show>

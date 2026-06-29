@@ -3,11 +3,9 @@ import { store } from '../../db'
 import { errors, handle, StatusError } from '../wrap'
 import { findUser } from '../horde'
 import { decryptText, encryptText } from '/srv/db/util'
-import { getLanguageModels } from '/srv/adapter/replicate'
 import { AIAdapter } from '/common/adapters'
 import { getRegisteredAdapters } from '/srv/adapter/register'
 import { getSafeUserConfig, verifyNovelKey } from './settings'
-import { getOpenRouterModels } from '/srv/adapter/openrouter'
 import needle from 'needle'
 
 export const novelLogin = handle(async ({ userId, body }) => {
@@ -71,14 +69,13 @@ export const hordeStats = handle(async ({ userId, body }) => {
   }
 })
 
+// Retired services — endpoints kept as no-ops for route compatibility.
 export const openRouterModels = handle(async () => {
-  const models = await getOpenRouterModels()
-  return { models }
+  return { models: [] }
 })
 
-export const replicateModels = handle(async ({ userId, body }) => {
-  const models = await getLanguageModels()
-  return models
+export const replicateModels = handle(async () => {
+  return []
 })
 
 export const updateService = handle(async ({ userId, body, params }) => {

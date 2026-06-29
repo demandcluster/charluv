@@ -4,11 +4,23 @@ import { createChatStream, getResponseEntities } from '../../adapter/generate'
 import { AppRequest, StatusError, errors, handle } from '../wrap'
 import { sendGuest, sendMany, sendOne } from '../ws'
 import { obtainLock, releaseLock } from './lock'
+import { generateImage } from '../../image'
+import { getXpPerMessage } from '/common/progression'
+import { rememberFact, extractAndStoreMemories } from '../../memory/store'
 import { AppSchema } from '../../../common/types/schema'
 import { v4 } from 'uuid'
 import { Response } from 'express'
 import { getScenarioEventType } from '/common/scenario'
-import { HydratedJson, jsonHydrator, parsePartialJson } from '/common/util'
+import { HydratedJson, jsonHydrator, parsePartialJson, escapeRegex } from '/common/util'
+import {
+  EVENT_TURN_COST,
+  EVENT_MAX_REPLIES,
+  DIRECTOR_EVENT_CHANCE,
+  DirectorFrequency,
+} from '../../../common/event'
+import { electSpeaker, proposeDirectorEvent } from '../../adapter/director'
+import { resolveScenario, getLinesForPrompt, getAdapter } from '../../../common/prompt'
+import { getTokenCounter } from '../../tokenize'
 
 type GenRequest = UnwrapBody<typeof genValidator>
 
@@ -77,6 +89,23 @@ const genValidator = {
   jsonValues: 'any?',
   response: 'string?',
 } as const
+
+/** Reply kinds that should trigger automatic long-term memory extraction: fresh
+ * character replies only. Retries/continues re-cover an already-seen turn, and
+ * ooc/summary/chat-query aren't in-character exchanges worth mining. */
+/** Re-rolls of a single event speaker's reply before the scene gives up. The chat
+ * finetune intermittently produces a whole-scene/Narrator output that gets dropped
+ * to empty; retrying the same speaker usually lands a clean in-character turn. */
+const EVENT_REPLY_RETRIES = 2
+
+const AUTO_MEMORY_KINDS = new Set<GenRequest['kind']>([
+  'send',
+  'request',
+  'self',
+  'send-event:world',
+  'send-event:character',
+  'send-event:hidden',
+])
 
 export const getMessages = handle(async ({ userId, params, query }) => {
   const chatId = params.id
@@ -158,6 +187,14 @@ export const generateMessageV2 = handle(async (req, res) => {
   const chat = await store.chats.getChatOnly(chatId)
   if (!chat) throw errors.NotFound
 
+  // Event turns cost a flat EVENT_TURN_COST; reject early (before the ack) so the
+  // client gets a clean MissingCredits instead of a silently-swallowed throw.
+  // 'request' is the director auto-open trigger (no user message); it costs a turn too.
+  const isEventTurn = chat.mode === 'event' && (body.kind === 'send' || body.kind === 'request')
+  if (isEventTurn && body.user && body.user.credits < EVENT_TURN_COST) {
+    throw errors.MissingCredits
+  }
+
   if (body.kind === 'request' && chat.userId !== userId) {
     throw errors.Forbidden
   }
@@ -197,6 +234,18 @@ export const generateMessageV2 = handle(async (req, res) => {
       parent: body.parent,
       name: impersonate?.name,
     })
+
+    // Measure sustained engagement: a real user message rolls up to the public
+    // template (the clone's parent, or the template itself). OOC chatter and
+    // retries/swipes are excluded. `replyAs` is already loaded, so no extra read.
+    if (body.kind === 'send' && !replyAs._id.startsWith('temp-')) {
+      await store.matches.incrementEngagement(
+        replyAs._id,
+        'messages',
+        1,
+        replyAs.parent || replyAs._id
+      )
+    }
 
     sendMany(members, { type: 'message-created', msg: userMsg, chatId })
   } else if (body.kind.startsWith('send-event:')) {
@@ -242,6 +291,303 @@ export const generateMessageV2 = handle(async (req, res) => {
     })
   }
 
+  res.json({ requestId, success: true, generating: true, message: 'Generating message', messageId })
+
+  if (isEventTurn) {
+    try {
+      // Flat fee covers the whole turn (director calls + every reply). Applies to
+      // both a user 'send' and the 'request' auto-open (director opens the scene).
+      await store.credits.updateCredits(userId!, -EVENT_TURN_COST)
+
+      const roster = await getEventRoster(chat)
+
+      // Server-side prompt deps (mirror the client's createActiveChatPrompt).
+      const entities = await getResponseEntities(chat, body.sender.userId, body.settings)
+      const { adapter, model } = getAdapter(chat, entities.user, entities.gen)
+      const encoder = getTokenCounter(adapter, model)
+      const memberIds = Array.from(new Set([chat.userId, ...chat.memberIds]))
+      const profiles = await store.users.getProfiles(chat.userId, memberIds)
+      const senderProfile = await store.users.getProfile(userId!)
+
+      const repliedThisTurn: string[] = []
+      // Set when the previous reply directly addressed a present character who
+      // hasn't spoken yet — a deterministic fallback for when the director model
+      // declines an obviously-warranted continuation (see detectAddressedSpeaker).
+      let addressed: string | undefined
+
+      for (let i = 0; i < EVENT_MAX_REPLIES; i++) {
+        const msgs = await store.msgs.getMessages(chatId)
+        const recent = msgs
+          .slice()
+          .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
+          .slice(-8)
+          .map((m) => ({
+            name: m.name || (m.userId ? senderProfile?.handle || 'You' : 'Unknown'),
+            text: m.msg,
+          }))
+
+        let speakerId = await electSpeaker({
+          user: body.user!,
+          log,
+          event: chat.event!,
+          roster: roster.map((r) => ({ id: r.id, name: r.name, hook: r.hook })),
+          recent,
+          repliedThisTurn,
+          // The user is present in the scene (with their self-persona), so the
+          // director treats them as a known participant — not a stranger.
+          present: {
+            name: senderProfile?.handle || 'You',
+            hook: (senderProfile?.description || '').slice(0, 120),
+          },
+        })
+
+        // The opening/user turn MUST produce a reply: a user 'send' always
+        // deserves a response and the 'request' auto-open has to open the scene.
+        // electSpeaker returns 'none' both when the director genuinely declines
+        // AND on any model/parse failure (it swallows errors → 'none'), so on the
+        // first election fall back to the main character instead of breaking with
+        // zero replies — otherwise the client hangs forever on `waiting`.
+        // Subsequent declines (someone already spoke) are legitimate: stop there.
+        if (speakerId === 'none') {
+          if (repliedThisTurn.length > 0) {
+            // Director declined a continuation. If the previous reply directly
+            // addressed a present character who hasn't spoken (named them + asked
+            // a question), let them answer anyway — the small director model
+            // reliably under-triggers this case even when prompted to.
+            if (addressed) speakerId = addressed
+            else break
+          } else {
+            speakerId = replyAs._id
+          }
+        }
+        // Consumed (or irrelevant because the director picked someone): clear so a
+        // stale value can't leak into a later iteration.
+        addressed = undefined
+
+        const picked = roster.find((r) => r.id === speakerId)
+        if (!picked) break
+        // The roster contains {id, name, hook} only; load the full character to
+        // generate as. Reuse the already-loaded main char on the fallback path.
+        const eventReplyAs =
+          speakerId === replyAs._id ? replyAs : await store.characters.getCharacterById(speakerId)
+        if (!eventReplyAs) break
+
+        // History the model sees, with this speaker's identity resolved.
+        // getLinesForPrompt returns time-DESCENDING (newest first); createChatStream
+        // (via assemblePrompt's `order: 'asc'`) expects time-ASCENDING. The client
+        // reverses inside createPromptParts before sending request.lines, so we must
+        // do the same here — otherwise the history is reversed and every character
+        // replies to the opening message.
+        const lines = (
+          await getLinesForPrompt(
+            {
+              kind: body.kind,
+              settings: entities.gen,
+              members: profiles,
+              messages: msgs,
+              char: entities.char,
+              characters: body.characters,
+              sender: senderProfile!,
+              replyAs: eventReplyAs,
+              impersonate,
+              chat,
+              user: entities.user,
+              book: entities.book,
+              lastMessage: '',
+              chatEmbeds: [],
+              userEmbeds: [],
+              resolvedScenario: '',
+              jsonValues: undefined,
+            },
+            encoder
+          )
+        ).reverse()
+
+        // Reuse one request id across retries so the client sees a single reply
+        // slot. The first turn keeps the original requestId for client correlation.
+        const slotRequestId = i === 0 ? requestId : v4()
+        const genReply = () =>
+          generateOneReply({
+            req,
+            body,
+            chat,
+            replyAs: eventReplyAs,
+            impersonate,
+            members,
+            userMsg,
+            requestId: slotRequestId,
+            eventTurn: true,
+            lines,
+            // chat.overrides is set on event chats, so scenario text = chat.scenario
+            // (the event block); the 4th arg makes the stage token + meta the speaker's.
+            resolvedScenario: resolveScenario(chat, eventReplyAs, [], eventReplyAs),
+          })
+
+        // A failed reply is usually the chat finetune going off the rails (a
+        // whole-scene / Narrator-led output that gets dropped to empty). That's
+        // random, so re-roll the same speaker a few times before giving up instead
+        // of stalling the scene — the only workaround was a manual resend.
+        let result = await genReply()
+        for (let attempt = 0; !result.ok && attempt < EVENT_REPLY_RETRIES; attempt++) {
+          log.warn(
+            { speaker: eventReplyAs.name, attempt: attempt + 1 },
+            'event: reply failed, retrying'
+          )
+          result = await genReply()
+        }
+        if (!result.ok) break
+        repliedThisTurn.push(eventReplyAs._id)
+        addressed = detectAddressedSpeaker(result.text, roster, new Set(repliedThisTurn))
+      }
+
+      // Director events: after the characters have replied, the director may add an
+      // unprompted world beat (announcement, arrival, environment shift) to drive
+      // the story. Frequency gates how often we *consider* it; the model still
+      // decides whether a beat is warranted (it can decline → empty). Narration
+      // only — the director never speaks or acts for a character or the user. It's
+      // attributed to a Charluv-heart "Director" avatar via meta.director.
+      const directorFreq = (chat.event?.directorEvents as DirectorFrequency) || 'none'
+      const chance = DIRECTOR_EVENT_CHANCE[directorFreq] ?? 0
+      if (repliedThisTurn.length > 0 && chance > 0 && Math.random() < chance) {
+        try {
+          const msgs = await store.msgs.getMessages(chatId)
+          const recent = msgs
+            .slice()
+            .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
+            .slice(-8)
+            .map((m) => ({
+              name: m.name || (m.userId ? senderProfile?.handle || 'You' : 'Unknown'),
+              text: m.msg,
+            }))
+          const narration = await proposeDirectorEvent({
+            user: body.user!,
+            log,
+            event: chat.event!,
+            roster: roster.map((r) => ({ name: r.name, hook: r.hook })),
+            recent,
+          })
+          if (narration) {
+            const beat = await store.msgs.createChatMessage({
+              chatId,
+              message: narration,
+              ooc: false,
+              event: 'world',
+              name: 'Director',
+              meta: { director: true },
+            })
+            sendMany(members, { type: 'message-created', msg: beat, chatId })
+          }
+        } catch (err) {
+          log.warn({ err }, 'director: world-beat injection failed')
+        }
+      }
+
+      // Safety net: a turn that produced no reply at all (e.g. the fallback char
+      // failed to load, or generateOneReply bailed before emitting its own
+      // message-error) must still tell the client to stop waiting — the
+      // `generating: true` ack already put it into the waiting state.
+      if (repliedThisTurn.length === 0) {
+        sendMany(members, {
+          type: 'message-error',
+          requestId,
+          error: 'The scene director could not continue the scene. Please try again.',
+          chatId,
+        })
+      }
+    } finally {
+      await releaseLock(chatId)
+    }
+    return
+  }
+
+  await generateOneReply({
+    req,
+    body,
+    chat,
+    replyAs,
+    impersonate,
+    members,
+    userMsg,
+    requestId,
+    eventTurn: false,
+  })
+
+  await releaseLock(chatId)
+  return
+})
+
+/**
+ * When a just-generated reply directly addresses another present character who
+ * hasn't spoken this turn — naming them AND asking a question — return that
+ * character's id so the loop can let them respond. Deterministic safety net for
+ * the director under-triggering continuations. Conservative on purpose: requires
+ * both a whole-word name match and a question mark, and picks the most recently
+ * named candidate (closest to the question).
+ */
+function detectAddressedSpeaker(
+  text: string,
+  roster: Array<{ id: string; name: string }>,
+  replied: Set<string>
+): string | undefined {
+  if (!text || !text.includes('?')) return undefined
+  let best: { id: string; idx: number } | undefined
+  for (const r of roster) {
+    if (replied.has(r.id) || !r.name) continue
+    const match = new RegExp(`\\b${escapeRegex(r.name)}\\b`, 'i').exec(text)
+    if (match && (!best || match.index > best.idx)) best = { id: r.id, idx: match.index }
+  }
+  return best?.id
+}
+
+// Present characters in the event, with a one-line persona hook for the director.
+async function getEventRoster(chat: AppSchema.Chat) {
+  const ids = Object.entries(chat.characters || {})
+    .filter(([, on]) => on)
+    .map(([id]) => id)
+  const chars = await store.characters.getCharacterList(ids)
+  return chars.map((char) => ({
+    id: char._id as string,
+    name: char.name as string,
+    hook: ((char.description as string) || '').slice(0, 120),
+  }))
+}
+
+/**
+ * Generate ONE bot reply as `ctx.replyAs` and persist it. Streams partials over
+ * WS, assembles the response, pulls native image/memory tool output, persists the
+ * message, and charges credits + advances XP. Returns `ok: false` on a stream
+ * error (the caller is responsible for releasing the lock).
+ *
+ * The lock, the single `res.json` ack, and `releaseLock` are owned by the caller.
+ */
+async function generateOneReply(ctx: {
+  req: AppRequest
+  body: GenRequest
+  chat: AppSchema.Chat
+  replyAs: AppSchema.Character
+  impersonate: AppSchema.Character | undefined
+  members: string[]
+  userMsg: AppSchema.ChatMessage | undefined
+  requestId: string
+  // True when this reply is part of an already-paid event turn (Task 5b): the
+  // per-reply −10 credit is then skipped (the flat fee was charged at turn start).
+  eventTurn: boolean
+  // Event mode: per-speaker overrides. When omitted, the existing body-derived
+  // values are used (non-event path is unchanged).
+  lines?: string[]
+  resolvedScenario?: string
+}): Promise<{ ok: boolean; text: string; speakerId: string }> {
+  const { req, body, chat, replyAs, impersonate, members, userMsg, requestId } = ctx
+  const { userId, log } = req
+  const chatId = chat._id
+
+  const messageId =
+    body.kind === 'retry'
+      ? body.replacing?._id ?? requestId
+      : body.kind === 'continue'
+      ? body.continuing?._id
+      : requestId
+
   if (body.kind !== 'chat-query') {
     sendMany(members, {
       type: 'message-creating',
@@ -252,9 +598,12 @@ export const generateMessageV2 = handle(async (req, res) => {
     })
   }
 
-  res.json({ requestId, success: true, generating: true, message: 'Generating message', messageId })
-
   const entities = await getResponseEntities(chat, body.sender.userId, body.settings)
+  // Event mode: use this speaker's resolved scenario (stage token + meta) so the
+  // prompt createChatStream rebuilds reflects the elected character, not the main char.
+  if (ctx.resolvedScenario !== undefined) {
+    entities.resolvedScenario = ctx.resolvedScenario
+  }
   const schema = entities.gen.jsonSource === 'character' ? replyAs.json : entities.gen.json
   const hydrator = entities.gen.jsonEnabled && schema ? jsonHydrator(schema) : undefined
 
@@ -271,6 +620,10 @@ export const generateMessageV2 = handle(async (req, res) => {
     const { stream, ...metadata } = await createChatStream(
       {
         ...body,
+        // Event mode passes a per-speaker history (built via getLinesForPrompt with
+        // this speaker's identity resolved); it overrides body.lines. Non-event
+        // callers omit ctx.lines, so body.lines is used unchanged.
+        lines: ctx.lines ?? body.lines,
         chat,
         replyAs,
         impersonate,
@@ -369,9 +722,8 @@ export const generateMessageV2 = handle(async (req, res) => {
       }
     }
 
-    await releaseLock(chatId)
     if (error) {
-      return
+      return { ok: false, text: '', speakerId: replyAs._id }
     }
   }
 
@@ -385,9 +737,67 @@ export const generateMessageV2 = handle(async (req, res) => {
 
   let treeLeafId = ''
 
-  const credits = await store.credits.updateCredits(userId!, -10)
-  await store.scenario.updateCharXp(chat.characterId!, +1)
-  //sendOne(userId!, { type: 'credits-updated', credits })
+  // Native image tool: the model may have requested an image. Pull it out of the
+  // transient meta so it isn't persisted on the message; we fire generation after
+  // the message is created (see below).
+  const imageTool: { prompt?: string } | undefined = (meta as any).imageTool
+  delete (meta as any).imageTool
+
+  // Native memory tool: facts the model chose to remember. Pull out of meta (not
+  // persisted on the message) and store them in long-term memory, scoped to the
+  // SPEAKING character (replyAs) — NOT chat.characterId. In a multi-char/event
+  // chat the speaker isn't the main char, so keying on chat.characterId would
+  // dump every participant's facts onto the main character (the memory pane would
+  // then show "all characters'" memories). In a 1:1 chat replyAs === main char.
+  const rememberFacts: string[] | undefined = (meta as any).rememberFacts
+  delete (meta as any).rememberFacts
+  if (rememberFacts?.length && replyAs._id && !chat.memoryDisabled) {
+    for (const fact of rememberFacts) {
+      rememberFact(userId!, replyAs._id, fact, 'tool').catch((err) =>
+        log.error({ err }, 'Failed to store long-term memory')
+      )
+    }
+  }
+
+  // Auto memory extraction: the roleplay model rarely emits the inline <remember>
+  // marker on its own, so a separate background pass pulls durable facts out of
+  // this exchange and stores them (source 'auto'). Fired AFTER the reply (not
+  // awaited) so it adds zero user-facing latency; the marker path above still runs
+  // as a second source. Only on fresh character replies — not retries/continues
+  // (which re-cover the same turn) or utility kinds (summary, chat-query).
+  if (
+    AUTO_MEMORY_KINDS.has(body.kind) &&
+    replyAs._id &&
+    userId &&
+    !chat.memoryDisabled &&
+    responseText.trim()
+  ) {
+    const userName = body.sender?.handle || 'User'
+    const transcript = [
+      userMsg?.msg ? `${userName}: ${userMsg.msg}` : '',
+      `${replyAs.name}: ${responseText}`,
+    ]
+      .filter(Boolean)
+      .join('\n')
+    extractAndStoreMemories(userId, replyAs._id, userName, replyAs.name, transcript).catch((err) =>
+      log.error({ err }, 'Failed to auto-extract long-term memory')
+    )
+  }
+
+  // Summaries are a cheap utility generation (no user-facing message); don't
+  // charge credits or advance relationship XP for them.
+  if (body.kind !== 'summary') {
+    // Event replies are paid once per turn at turn start (Task 5b); don't
+    // re-charge per reply. Normal replies still cost 10 each.
+    if (!ctx.eventTurn) {
+      await store.credits.updateCredits(userId!, -10)
+    }
+    // XP advances the character that REPLIED (replyAs), not the chat's main char.
+    // (Correct for multi-character chats generally; identical to before in 1:1
+    // chats where replyAs === the main char.)
+    const xpGain = getXpPerMessage(replyAs.progression)
+    if (xpGain > 0) await store.scenario.updateCharXp(replyAs._id, xpGain)
+  }
 
   switch (body.kind) {
     case 'summary': {
@@ -437,6 +847,33 @@ export const generateMessageV2 = handle(async (req, res) => {
         json: hydration,
       })
       treeLeafId = requestId
+
+      // Native image tool requested an image: generate it via Z-Image using the
+      // replying character's LoRA and attach it to the just-created reply message
+      // (in its `extras`, below the text) so it behaves like the in-chat image
+      // generation — spinner on the reply, then the image attached. Fire-and-forget;
+      // it broadcasts a `message-retry` over WS and persists for refresh.
+      if (imageTool?.prompt) {
+        // An auto-generated image costs the same 25 credits as an explicit one,
+        // on top of the message charge. Fire-and-forget like the generation.
+        if (userId && userId !== 'anon') {
+          store.credits.updateCredits(userId, -25).catch(() => {})
+        }
+        generateImage(
+          {
+            user: body.user!,
+            prompt: imageTool.prompt,
+            chatId,
+            characterId: replyAs._id,
+            source: 'tool',
+            requestId: v4(),
+            messageId: requestId,
+            append: true,
+            parentId: undefined,
+          },
+          log
+        ).catch((err) => log.error({ err }, 'Image tool generation failed'))
+      }
       break
     }
 
@@ -527,7 +964,9 @@ export const generateMessageV2 = handle(async (req, res) => {
   } else {
     await store.chats.update(chatId, { updatedAt })
   }
-})
+
+  return { ok: true, text: responseText, speakerId: replyAs._id }
+}
 
 async function handleGuestGenerate(body: GenRequest, req: AppRequest, res: Response) {
   const chatId = req.params.id

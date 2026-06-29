@@ -11,6 +11,7 @@ export type AllChat = AppSchema.Chat & { character?: { name: string } }
 
 export const chatsApi = {
   createChat,
+  createEventChat,
   createNewChat,
   editChat,
   getAllChats,
@@ -166,6 +167,19 @@ export async function createChat(characterId: string, props: NewChat) {
 
   if (msg) await localApi.saveMessages(chat._id, [msg])
   return localApi.result(chat)
+}
+
+export async function createEventChat(input: {
+  location: string
+  description: string
+  characterIds: string[]
+  memoryDisabled?: boolean
+  when?: string
+  vibe?: string
+  directorEvents?: string
+  note?: string
+}) {
+  return api.post<AppSchema.Chat>('/chat/event', input)
 }
 
 export async function importChat(characterId: string, props: ImportChat) {
@@ -360,6 +374,7 @@ export async function upsertTempCharacter(
 
   if (!chat) return localApi.error(`Chat not found`)
   const newchar: AppSchema.Character = {
+    premium: false,
     ...char,
     _id: char._id || `temp-${v4().slice(0, 8)}`,
     userId: 'anon',

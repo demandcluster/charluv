@@ -11,20 +11,16 @@ import {
 } from 'solid-js'
 import { characterStore, chatStore, toastStore } from '/web/store'
 import Convertible from '../../../shared/Mode/Convertible'
-import { A, useParams, useSearchParams } from '@solidjs/router'
+import { useParams, useSearchParams } from '@solidjs/router'
 import { getActiveBots } from '../util'
 import { AppSchema } from '/common/types'
 import { CreateCharacterForm } from '../../Character/CreateCharacterForm'
 import Loading from '/web/shared/Loading'
-import { ModeGenSettings } from '../../../shared/Mode/ModeGenSettings'
 import MemberModal from '../MemberModal'
-import Button from '/web/shared/Button'
-import UISettings from '../../Settings/UISettings'
 import { wait } from '/common/util'
 import CharacterSelect from '/web/shared/CharacterSelect'
 import ChatSettings from '../ChatSettings'
-import ChatMemoryModal from './MemoryModal'
-import { getClientPreset } from '/web/shared/adapter'
+import LongTermMemory from './LongTermMemory'
 import { usePaneManager } from '/web/shared/hooks'
 
 export { ChatPanes as default }
@@ -34,10 +30,9 @@ export const useValidChatPane = () => {
 
   const isValidPane = createMemo(() => {
     switch (search.pane) {
+      // 'preset' pane removed — reply style now lives in Chat Settings.
       case 'character':
-      case 'preset':
       case 'participants':
-      case 'ui':
       case 'chat-settings':
       case 'memory':
       case 'other':
@@ -69,8 +64,6 @@ const ChatPanes: Component<{}> = (props) => {
       tempBots: Object.values(s.active?.chat?.tempCharacters! || {}),
     }
   })
-
-  const clientPreset = createMemo(() => getClientPreset(chats.chat)?.preset)
 
   const [paneFooter, setPaneFooter] = createSignal<JSX.Element>()
   const [editId, setEditId] = createSignal<string>()
@@ -114,6 +107,28 @@ const ChatPanes: Component<{}> = (props) => {
     return editableCharcters().find((ch) => ch._id === editId())
   })
 
+  // Characters whose memories the owner can view in the memory pane. Like the
+  // editor list but excludes the impersonated self (the owner has no memories).
+  const memoryChars = createMemo(() => {
+    const ids = new Map<string, AppSchema.Character>()
+
+    if (chats.char) {
+      ids.set(chats.char._id, chats.char)
+    }
+
+    for (const bot of chats.activeBots) {
+      if (bot.deletedAt) continue
+      if (bot._id.startsWith('temp-') && bot.favorite === false) continue
+      ids.set(bot._id, bot)
+    }
+
+    for (const bot of Object.values(chats.chat?.tempCharacters || {})) {
+      ids.set(bot._id, bot)
+    }
+
+    return Array.from(ids.values())
+  })
+
   const changeEditingChar = async (char: AppSchema.Character | undefined) => {
     const prev = editId()
     if (prev === char?._id) return
@@ -133,13 +148,6 @@ const ChatPanes: Component<{}> = (props) => {
   const closeCharEditor = (search?: boolean) => {
     closePane(search)
     setEditId(chats.char?._id || '')
-  }
-
-  const onPresetChanged = (presetId: string) => {
-    if (!chats.chat) return
-    chatStore.editChatGenPreset(chats.chat._id, presetId, () => {
-      toastStore.success('Chat preset changed')
-    })
   }
 
   return (
@@ -176,28 +184,14 @@ const ChatPanes: Component<{}> = (props) => {
           </Convertible>
         </Match>
 
-        <Match when={pane.pane() === 'preset'}>
-          <Convertible close={closePane} footer={paneFooter()}>
-            <ModeGenSettings
-              presetId={clientPreset()?._id}
-              onPresetChanged={onPresetChanged}
+        <Match when={pane.pane() === 'memory'}>
+          <Convertible close={closePane} footer={paneFooter()} title="Memory">
+            <LongTermMemory
+              chat={chats.chat!}
+              chars={memoryChars()}
               close={closePane}
               footer={setPaneFooter}
             />
-          </Convertible>
-        </Match>
-
-        <Match when={pane.pane() === 'memory'}>
-          <Convertible
-            close={closePane}
-            footer={paneFooter()}
-            title={
-              <A class="link" href="/guides/memory">
-                Memory Guide
-              </A>
-            }
-          >
-            <ChatMemoryModal chat={chats.chat!} close={closePane} footer={setPaneFooter} />
           </Convertible>
         </Match>
 
@@ -205,18 +199,8 @@ const ChatPanes: Component<{}> = (props) => {
           <MemberModal show chat={chats.chat!} charId={chats?.char?._id!} close={closePane} />
         </Match>
 
-        <Match when={pane.pane() === 'ui'}>
-          <Convertible
-            close={closePane}
-            title="UI Settings"
-            footer={<Button onClick={() => closePane()}>Close</Button>}
-          >
-            <UISettings />
-          </Convertible>
-        </Match>
-
         <Match when={pane.pane() === 'chat-settings'}>
-          <Convertible close={closePane} title="Chat Settings" footer={paneFooter()}>
+          <Convertible close={closePane} title="Reply Style" footer={paneFooter()}>
             <ChatSettings footer={setPaneFooter} close={closePane} />
           </Convertible>
         </Match>

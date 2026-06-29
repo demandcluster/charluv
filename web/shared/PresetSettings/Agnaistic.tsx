@@ -1,22 +1,22 @@
 import { Component, Show, createEffect, createMemo, createSignal, on } from 'solid-js'
 import { AIAdapter } from '/common/adapters'
-import { chatStore, presetStore, settingStore, userStore } from '/web/store'
+import { settingStore, userStore } from '/web/store'
 import { AppSchema } from '/common/types'
-import { CustomOption, CustomSelect } from '../CustomSelect'
+import { CustomSelect } from '../CustomSelect'
 import { getSubscriptionModelLimits } from '/common/util'
 import { SubscriptionModelLevel, SubscriptionModelOption } from '/common/types/presets'
 import { forms } from '/web/emitter'
-import { ChevronDown } from 'lucide-solid'
 import { SubCTA } from '/web/Navigation'
 import { createEmitter } from '../util'
-import { isDefaultPreset } from '/common/presets'
 
 export const AgnaisticSettings: Component<{
   service: AIAdapter
   onSave: () => void
   inherit?: Partial<AppSchema.UserGenPreset>
 }> = (props) => {
-  const [selected, setSelected] = createSignal(props.inherit?.registered?.agnaistic?.subscriptionId)
+  const [selected, setSelected] = createSignal(
+    (props.inherit?.registered as any)?.agnaistic?.subscriptionId
+  )
   const opts = useModelOptions()
 
   forms.useSub((field, value) => {
@@ -26,7 +26,7 @@ export const AgnaisticSettings: Component<{
 
   createEffect(
     on(
-      () => props.inherit?.registered?.agnaistic?.subscriptionId,
+      () => (props.inherit?.registered as any)?.agnaistic?.subscriptionId,
       (id) => {
         setSelected(id)
       }
@@ -50,7 +50,7 @@ export const AgnaisticSettings: Component<{
   })
 
   return (
-    <Show when={props.service === 'agnaistic'}>
+    <Show when={(props.service as string) === 'agnaistic'}>
       <CustomSelect
         size="sm"
         buttonLabel={label()}
@@ -66,95 +66,8 @@ export const AgnaisticSettings: Component<{
         helperText={<span class="text-500">Available: {opts().length}</span>}
         options={opts()}
         onSelect={props.onSave}
-        value={props.inherit?.registered?.agnaistic?.subscriptionId}
+        value={(props.inherit?.registered as any)?.agnaistic?.subscriptionId}
         fieldName="registered.agnaistic.subscriptionId"
-        selected={selected()}
-        emitter={emitter.on}
-      />
-    </Show>
-  )
-}
-
-export const AgnaisticModel: Component<{ inherit?: AppSchema.UserGenPreset }> = (props) => {
-  const [selected, setSelected] = createSignal(props.inherit?.registered?.agnaistic?.subscriptionId)
-  const opts = useModelOptions()
-
-  createEffect(
-    on(
-      () => props.inherit?.registered?.agnaistic?.subscriptionId,
-      (id) => {
-        setSelected(id)
-      }
-    )
-  )
-
-  forms.useSub((field, value) => {
-    if (field !== 'agnaistic_modelId') return
-    setSelected(value)
-  })
-
-  const onSave = (opt: CustomOption) => {
-    const chat = chatStore.getState().active
-
-    if (isDefaultPreset(props.inherit?._id)) {
-      const create = {
-        ...props.inherit,
-        name: `My Preset`,
-        service: 'norde' as const,
-        chatId: chat?.chat._id,
-        registered: {
-          agnaistic: {
-            subscriptionId: opt.value,
-          },
-        },
-      }
-
-      presetStore.createPreset(create, (preset) => {
-        if (!chat?.chat._id) return
-        chatStore.setChat(chat.chat._id, { genPreset: preset._id, genSettings: undefined })
-      })
-      return
-    }
-
-    presetStore.updatePreset(props.inherit?._id!, {
-      registered: { ...props.inherit?.registered, agnaistic: { subscriptionId: opt.value } },
-    })
-  }
-
-  const label = createMemo(() => {
-    const id = selected()
-    let opt = opts().find((v) => v.value === id)
-
-    if (!opt) {
-      opt = opts().find((v) => v.sub.preset.isDefaultSub)
-    }
-
-    return (
-      <>
-        <span class="font-bold">Model:</span> {opt?.sub.name || 'Default'} <ChevronDown size={12} />
-      </>
-    )
-  })
-
-  const emitter = createEmitter('close')
-
-  return (
-    <Show when={props.inherit} fallback={null}>
-      <CustomSelect
-        size="sm"
-        buttonLabel={label()}
-        modalTitle={
-          <div class="flex w-full flex-col">
-            <div>Select a Model</div>
-            <div class="flex justify-center">
-              <SubCTA onClick={emitter.emit.close}>Subscribe for higher quality models</SubCTA>
-            </div>
-          </div>
-        }
-        options={opts()}
-        onSelect={onSave}
-        value={props.inherit?.registered?.agnaistic?.subscriptionId}
-        fieldName="agnaistic_modelId"
         selected={selected()}
         emitter={emitter.on}
       />
@@ -167,7 +80,7 @@ function useModelOptions() {
     user: s.user,
     tiers: s.tiers,
     sub: s.sub,
-    userLevel: s.premium ? 10 : s.userLevel,
+    userLevel: s.userLevel,
   }))
   const settings = settingStore()
 

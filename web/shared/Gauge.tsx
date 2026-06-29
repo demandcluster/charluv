@@ -1,14 +1,15 @@
 import { createSignal, Show } from 'solid-js'
-import { Heart } from 'lucide-solid'
+import { Heart } from '/web/icons'
 
 interface Props {
   currentXP: number
+  showBar?: boolean
 }
 const baseXP = 30
 const xpMultiplier = 1.1
 const xpNeededForFirstLevel = 10
 
-function calculateTotalXPNeededForLevel(level) {
+function calculateTotalXPNeededForLevel(level: number): number {
   if (level === 0) {
     return xpNeededForFirstLevel
   } else {
@@ -31,18 +32,19 @@ function xpNeededForLevelUp(currentXP: number) {
 }
 
 const Gauge = (props: Props) => {
-  const { currentXP, showBar } = props
+  const { currentXP } = props
+  const showBar = props.showBar
   const xpNeeded = xpNeededForLevelUp(currentXP).xp
   const level = xpNeededForLevelUp(currentXP).lvl
   const levelXP = calculateTotalXPNeededForLevel(level)
   let percentFilled = Math.min((currentXP - levelXP) / xpNeeded, 1) * 100
 
-  const [color, setColor] = createSignal('bg-red-500')
+  const [, setColor] = createSignal('bg-red-500')
   const xpadjust = showBar ? -15 : 1
   const highbox = 25 - Math.round(percentFilled / 4)
   const highboxtop = xpadjust - Math.round(percentFilled / 4)
   if (level == 0) {
-    percentFilled = '0'
+    percentFilled = 0
   }
   // Change the color based on the percentage filled
   if (percentFilled >= 50) {

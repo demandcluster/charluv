@@ -2,35 +2,25 @@ import { A, useLocation, useSearchParams } from '@solidjs/router'
 import {
   Activity,
   Bell,
-  Book,
   ChevronLeft,
   ChevronRight,
-  Coins,
+  Compass,
   Heart,
   HeartHandshake,
   HelpCircle,
-  Info,
   LogIn,
   MailQuestion,
+  Megaphone,
   Menu,
   MessageCircle,
-  ShoppingCart,
-  Moon,
-  Bot,
-  Star,
-  Plus,
-  Users,
-  Power,
+  Sparkles,
   Settings,
-  Signal,
-  ShoppingBag,
-  Sliders,
   Speaker,
-  Sun,
   Volume2,
   VolumeX,
-  Wand2,
-} from 'lucide-solid'
+  IconContext,
+  DiscordLogo,
+} from '/web/icons'
 import {
   Component,
   createEffect,
@@ -42,12 +32,11 @@ import {
   Show,
   Switch,
 } from 'solid-js'
-import AvatarIcon, { CharacterAvatar } from './shared/AvatarIcon'
+import AvatarIcon from './shared/AvatarIcon'
 import {
   UserState,
   announceStore,
   audioStore,
-  characterStore,
   inviteStore,
   settingStore,
   toastStore,
@@ -55,9 +44,7 @@ import {
 } from './store'
 import Slot from './shared/Slot'
 
-import logo from './asset/logo.png'
 import logoDark from './asset/logoDark.png'
-import logoIcon from './charluv192.png'
 import {
   isChatPage,
   useEffect,
@@ -66,16 +53,12 @@ import {
   useResizeObserver,
   useWindowSize,
 } from './shared/hooks'
-import WizardIcon from './icons/WizardIcon'
 import { soundEmitter } from './shared/Audio/playable-events'
 import Tooltip from './shared/Tooltip'
-import { DiscordDarkIcon, DiscordLightIcon } from './icons/DiscordIcon'
 import { Badge } from './shared/Card'
 import { navStore } from './subnav'
 import { getRgbaFromVar } from './shared/colors'
 import { CallToAction } from './shared/CallToAction'
-import Button from './shared/Button'
-import { clearTours } from './tours'
 
 const Navigation: Component = () => {
   let parent: any
@@ -113,8 +96,6 @@ const Navigation: Component = () => {
       settingStore.menu(true)
     }
   })
-
-  const suffix = createMemo(() => (user.user?.premium ? '+' : ''))
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -159,7 +140,7 @@ const Navigation: Component = () => {
       </Show>
       <div
         ref={parent}
-        class={`drawer bg-800 flex flex-col gap-2 pt-2`}
+        class={`drawer flex flex-col gap-2 bg-[var(--menu-bg)] pt-2`}
         classList={{
           flex: !state.showMenu,
           'drawer--hide': dismissable() && !state.showMenu,
@@ -192,54 +173,51 @@ const Navigation: Component = () => {
                 aria-label="Charluv main page"
               >
                 <div
-                  classList={{
-                    'flex p-4 h-8 w-full items-center justify-center rounded-lg font-bold': true,
-                    'bg-[#55b89c]': user.ui?.mode === 'light',
-                    'bg-[#1f4439]': user.ui?.mode !== 'light',
-                  }}
+                  class="flex h-8 w-full items-center justify-center rounded-lg bg-[#55b89c] p-4 font-bold"
                   aria-hidden="true"
                 >
-                  <img
-                    width="180px"
-                    alt="Charluv"
-                    src={user.ui?.mode === 'light' ? logoDark : logo}
-                  />
-                  {suffix()}
+                  <img width="180px" alt="Charluv" src={logoDark} />
                 </div>
               </A>
             </Show>
 
-            <div class="flex w-2/12 justify-end">
-              <Switch>
-                <Match when={nav.body && subnav()}>
-                  <div class="icon-button tour-main-menu" onClick={() => setSubnav(false)}>
-                    <ChevronLeft />
-                  </div>
-                </Match>
-                <Match when={nav.body && !subnav()}>
-                  <div class="icon-button" onClick={() => setSubnav(true)}>
-                    <ChevronRight />
-                  </div>
-                </Match>
-              </Switch>
+            <div class="flex justify-end">
+              <Show when={nav.body && subnav()}>
+                <div
+                  class="icon-button flex items-center gap-1 whitespace-nowrap text-sm"
+                  onClick={() => setSubnav(false)}
+                  role="button"
+                  aria-label="Show the main menu"
+                >
+                  <ChevronLeft size={18} aria-hidden="true" /> Menu
+                </div>
+              </Show>
             </div>
           </div>
 
-          <Switch>
-            <Match when={subnav() && !!nav.body}>
-              <Show when={nav.title}>
-                <div class="text-500 flex w-full justify-center text-xs">{nav.title}</div>
-              </Show>
-              {nav.body}
-              <Slots />
-            </Match>
-            <Match when={user.loggedIn}>
-              <UserNavigation />
-            </Match>
-            <Match when>
-              <GuestNavigation />
-            </Match>
-          </Switch>
+          {/* Menu rows lead with a Phosphor icon at the global 1em, but the
+              profile row leads with a 1.5rem avatar. Bump the row icons to
+              1.5rem here so every label aligns to the same column as the
+              username. */}
+          <IconContext.Provider
+            value={{ weight: 'duotone', size: '1.5rem', color: 'var(--hl-500)', mirrored: false }}
+          >
+            <Switch>
+              <Match when={subnav() && !!nav.body}>
+                <Show when={nav.title}>
+                  <div class="text-500 flex w-full justify-center text-xs">{nav.title}</div>
+                </Show>
+                {nav.body}
+                <Slots />
+              </Match>
+              <Match when={user.loggedIn}>
+                <UserNavigation />
+              </Match>
+              <Match when>
+                <GuestNavigation />
+              </Match>
+            </Switch>
+          </IconContext.Provider>
         </div>
 
         <div
@@ -255,7 +233,7 @@ const Navigation: Component = () => {
           <Show when={state.config.policies || true}>
             <div class="text-500 flex w-full justify-center gap-4 text-xs">
               <div>
-                <A href="/terms">Term of Service</A>
+                <A href="/terms">Terms of Use</A>
               </div>
               <div>
                 <A href="/privacy">Privacy Policy</A>
@@ -274,33 +252,6 @@ const Navigation: Component = () => {
 const UserNavigation: Component = () => {
   const user = userStore()
   const menu = settingStore()
-  const [secLeft, setSecLeft] = createSignal(false)
-  const maxPremium = 1000
-  const maxRegular = 200
-
-  useEffect(() => {
-    const recharge = setInterval(() => {
-      const recharged = user.user?.recharged || 0
-      if (recharged) {
-        const now = new Date().getTime()
-        const diff = recharged + 120000 - now
-
-        if (diff > 0) {
-          setSecLeft(Math.floor(diff / 1000))
-        }
-      }
-    }, 425)
-
-    return () => clearInterval(recharge)
-  })
-
-  const guidance = createMemo(() => {
-    const usable = menu.config.subs.some((sub) => sub.guidance)
-    if (!usable) return false
-
-    const access = !!menu.config.guidanceAccess || !!user.user?.admin
-    return access
-  })
 
   return (
     <>
@@ -313,71 +264,24 @@ const UserNavigation: Component = () => {
       </div> */}
       <UserProfile />
       <Show when={user.loggedIn}>
-        <MultiItem>
-          <Item class="tour-credits" href="/premium">
-            <Coins />
-            <div class="min-w-32">{user.user?.credits || 0}</div>
-            <Show when={user.user?.premium ? user.user?.credits < 1000 : user.user?.credits < 200}>
-              <span
-                classList={{
-                  'text-sm text-gray-400': true,
-                  'text-yellow-600': secLeft() === 1 || secLeft() === 0,
-                }}
-              >
-                recharge in {secLeft() !== false ? secLeft() : '<120'}s
-              </span>
-            </Show>
-          </Item>
-          <Show when={user.user?.premium || false}>
-            <EndItem>
-              <span class="text-xs text-yellow-600">
-                {' '}
-                <Star />
-              </span>
-            </EndItem>
-          </Show>
-        </MultiItem>
-
-        <Item class="tour-likes" href="/likes/list">
-          <Users /> Likes
+        <Item href="/discover" ariaLabel="Discover companions">
+          <Compass aria-hidden="true" /> Discover
         </Item>
-        <CharacterLink />
-      </Show>
-      <Show when={menu.flags.chub}>
-        <Item href="/chub" ariaLabel="Character hub">
-          <ShoppingBag aria-hidden="true" />
-          CHUB
+        <Item href="/mine" ariaLabel="My AI companions">
+          <Heart aria-hidden="true" /> My AI
         </Item>
       </Show>
       <ChatLink />
-
-      <Show when={guidance() && user.user?.premium}>
-        <MultiItem>
-          <Item href="/saga" ariaLabel="Sagas Preview">
-            <Wand2 aria-hidden="true" />
-            Sagas Preview
-          </Item>
-          <EndItem>
-            <span class="text-xs text-yellow-600">
-              {' '}
-              <Star />
-            </span>
-          </EndItem>
-        </MultiItem>
+      <Show when={user.loggedIn}>
+        <Item href="/event" ariaLabel="Start an event">
+          <Sparkles aria-hidden="true" /> Event
+        </Item>
       </Show>
 
-      <Library />
-      <MultiItem>
-        <Item href="/presets" ariaLabel="Presets">
-          <Sliders aria-hidden="true" />
-          <span aria-hidden="true">Presets</span>
-        </Item>
-        <EndItem>
-          <A class="icon-button" href="/presets/new" role="button" aria-label="Add a new preset">
-            <Plus aria-hidden="true" />
-          </A>
-        </EndItem>
-      </MultiItem>
+      <Item href="/blog" ariaLabel="News and updates">
+        <Megaphone aria-hidden="true" /> News
+      </Item>
+
       <Show when={menu.flags.sounds}>
         <Sounds />
       </Show>
@@ -394,11 +298,17 @@ const UserNavigation: Component = () => {
           <SubItem href="/admin/users" parent="/" ariaLabel="Users">
             Users
           </SubItem>
+          <SubItem href="/admin/moderation" parent="/" ariaLabel="Moderation">
+            Moderation
+          </SubItem>
           <SubItem href="/admin/subscriptions" parent="/" ariaLabel="Subscriptions">
             Subscriptions
           </SubItem>
           <SubItem href="/admin/announcements" parent="/" ariaLabel="Announcements">
             Announcements
+          </SubItem>
+          <SubItem href="/admin/promo" parent="/" ariaLabel="Promo Codes">
+            Promo Codes
           </SubItem>
         </SubMenu>
       </Show>
@@ -408,7 +318,6 @@ const UserNavigation: Component = () => {
         patreon={menu.config.patreon}
         user={user}
         showMenu={menu.showMenu}
-        mode={user.ui.mode}
       />
 
       <Slots />
@@ -432,7 +341,6 @@ const GuestNavigation: Component = () => {
           href="/login"
           ariaLabel="Login to the application"
           onClick={() => soundEmitter.emit('menu-item-clicked', 'login')}
-          class="tour-register"
         >
           <LogIn /> Login
         </Item>
@@ -441,45 +349,22 @@ const GuestNavigation: Component = () => {
       <Show when={menu.guest}>
         <UserProfile />
 
-        <CharacterLink />
-
-        <Show when={menu.flags.chub}>
-          <Item href="/chub" ariaLabel="Character hub">
-            <ShoppingBag aria-hidden="true" />
-            CHUB
-          </Item>
-        </Show>
-
         <ChatLink />
-
-        <Library />
-
-        <MultiItem>
-          <Item
-            href="/presets"
-            ariaLabel="Presets"
-            onClick={() => soundEmitter.emit('menu-item-clicked', 'presets')}
-          >
-            <Sliders /> Presets
-          </Item>
-          <EndItem>
-            <A class="icon-button" href="/presets/new" role="button" aria-label="Add a new preset">
-              <Plus aria-hidden="true" />
-            </A>
-          </EndItem>
-        </MultiItem>
 
         <Show when={menu.flags.sounds}>
           <Sounds />
         </Show>
       </Show>
 
+      <Item href="/blog" ariaLabel="News and updates">
+        <Megaphone aria-hidden="true" /> News
+      </Item>
+
       <NavIcons
         supportEmail={menu.config.serverConfig?.supportEmail}
         patreon={menu.config.patreon}
         user={user}
         showMenu={menu.showMenu}
-        mode={user.ui.mode}
       />
 
       <Slots />
@@ -492,7 +377,6 @@ const NavIcons: Component<{
   supportEmail?: string
   user: UserState
   showMenu: boolean
-  mode: 'light' | 'dark'
 }> = (props) => {
   const invites = inviteStore()
   const toasts = toastStore()
@@ -508,8 +392,13 @@ const NavIcons: Component<{
   })
 
   return (
-    <>
-      <div class="flex flex-wrap justify-center gap-[2px] text-sm">
+    // The bottom utility icons are icon-only buttons, not labelled rows. Sized a
+    // touch larger than the old 1em so they're comfortable tap targets (still
+    // under the 1.5rem labelled-row icons). All green for a consistent footer.
+    <IconContext.Provider
+      value={{ weight: 'duotone', size: '1.35rem', color: 'var(--hl-500)', mirrored: false }}
+    >
+      <div class="flex flex-wrap items-center justify-center gap-[2px] text-sm">
         <Show when={!!props.supportEmail}>
           <ExternalLink href={`mailto:${props.supportEmail}`} newtab ariaLabel="Email Support">
             <Tooltip position="top" tip={`${props.supportEmail}`}>
@@ -527,17 +416,6 @@ const NavIcons: Component<{
         </Item>
 
         <Item
-          ariaLabel="Toggle between light and dark mode"
-          onClick={() => {
-            userStore.saveUI({ mode: props.user.ui.mode === 'light' ? 'dark' : 'light' })
-          }}
-        >
-          <Show when={props.user.ui.mode === 'dark'} fallback={<Sun />}>
-            <Moon aria-hidden="true" />
-          </Show>
-        </Item>
-
-        <Item
           onClick={() => {
             if (props.showMenu) settingStore.closeMenu()
             toastStore.modal(true)
@@ -551,7 +429,7 @@ const NavIcons: Component<{
                 role="status"
                 aria-label={`Status: You have ${count()} new notifications`}
               >
-                <Bell fill="var(--bg-100)" aria-hidden="true" />
+                <Bell weight="fill" color="var(--rose-600)" aria-hidden="true" />
                 <span class="absolute bottom-[-0.5rem] right-[-0.5rem]" aria-hidden="true">
                   <Badge type="rose">{count() > 9 ? '9+' : count()}</Badge>
                 </span>
@@ -559,12 +437,11 @@ const NavIcons: Component<{
             </Match>
 
             <Match when={!count()}>
-              <Bell color="var(--bg-500)" role="status" aria-label="Status: No new notifications" />
+              <Bell role="status" aria-label="Status: No new notifications" />
             </Match>
           </Switch>
         </Item>
-      </div>
-      <div class="flex flex-wrap justify-center gap-[2px] text-sm">
+
         <Show when={props.patreon}>
           <ExternalLink href="https://patreon.com/charluv" newtab ariaLabel="Patreon">
             <HeartHandshake aria-hidden="true" />
@@ -572,26 +449,10 @@ const NavIcons: Component<{
         </Show>
 
         <ExternalLink href="https://charluv.com/discord" newtab ariaLabel="Discord">
-          <Show when={props.mode === 'dark'}>
-            <DiscordLightIcon />
-          </Show>
-          <Show when={props.mode === 'light'}>
-            <DiscordDarkIcon />
-          </Show>
+          <DiscordLogo aria-hidden="true" />
         </ExternalLink>
-
-        <Item
-          onClick={() => {
-            clearTours()
-            window.location.href = location.origin
-          }}
-        >
-          <Tooltip tip="Show Welcome Tours" position="top">
-            <Info />
-          </Tooltip>
-        </Item>
       </div>
-    </>
+    </IconContext.Provider>
   )
 }
 
@@ -698,21 +559,6 @@ const ExternalLink: Component<{
   </a>
 )
 
-const Library: Component<{}> = (props) => {
-  return (
-    <div class="grid w-full gap-2" style={{ 'grid-template-columns': '1fr 30px' }}>
-      <Item
-        href="/memory"
-        ariaLabel="Library"
-        onClick={() => soundEmitter.emit('menu-item-clicked', 'library')}
-      >
-        <Book aria-hidden="true" />
-        <span aria-hidden="true"> Library </span>
-      </Item>
-    </div>
-  )
-}
-
 const Sounds: Component<{}> = (props) => {
   const audioSettings = audioStore()
 
@@ -735,103 +581,35 @@ const Sounds: Component<{}> = (props) => {
   )
 }
 
-const CharacterLink = () => {
-  const user = userStore()
-  return (
-    <MultiItem>
-      <Item
-        href="/character/list"
-        ariaLabel="Matches"
-        onClick={() => soundEmitter.emit('menu-item-clicked', 'characters')}
-        class="tour-character"
-      >
-        <Heart aria-hidden="true" />
-        <span aria-hidden="true"> Matches </span>
-      </Item>
-      <EndItem>
-        <A class="icon-button" href="/editor" role="button" aria-label="Add a new character">
-          <Plus aria-hidden="true" />
-        </A>
-      </EndItem>
-    </MultiItem>
-  )
-}
-
 const ChatLink = () => {
   return (
-    <MultiItem>
-      <Item
-        href="/chats"
-        ariaLabel="Chats"
-        onClick={() => soundEmitter.emit('menu-item-clicked', 'chats')}
-      >
-        <MessageCircle fill="var(--bg-100)" aria-hidden="true" />
-        <span aria-hidden="true"> Chats </span>
-      </Item>
-      <EndItem>
-        <A class="icon-button" href="/chats/create" role="button" aria-label="Create a new chat">
-          <Plus aria-hidden="true" />
-        </A>
-      </EndItem>
-    </MultiItem>
+    <Item
+      href="/chats"
+      ariaLabel="Chats"
+      onClick={() => soundEmitter.emit('menu-item-clicked', 'chats')}
+    >
+      <MessageCircle fill="var(--bg-100)" aria-hidden="true" />
+      <span aria-hidden="true"> Chats </span>
+    </Item>
   )
 }
 
 export const UserProfile = () => {
-  const chars = characterStore()
   const user = userStore()
   const menu = settingStore()
 
   return (
-    <>
-      <div
-        class="tour-user-profile grid w-full items-center justify-between gap-2"
-        style={{
-          'grid-template-columns': '1fr max-content',
-        }}
-      >
-        <Item
-          ariaLabel="Edit user profile"
-          onClick={() => {
-            if (menu.showMenu) settingStore.closeMenu()
-            soundEmitter.emit('menu-item-clicked', 'profile')
-            userStore.modal(true)
-          }}
-        >
-          <Switch>
-            <Match when={chars?.impersonating}>
-              <CharacterAvatar
-                char={chars.impersonating!}
-                format={{ corners: 'circle', size: 'xs' }}
-              />
-            </Match>
-
-            <Match when>
-              <AvatarIcon
-                avatarUrl={chars.impersonating?.avatar || user.profile?.avatar}
-                format={{ corners: 'circle', size: 'xs' }}
-              />
-            </Match>
-          </Switch>
-          <span aria-hidden="true">{chars.impersonating?.name || user.profile?.handle}</span>
-        </Item>
-        <div class="flex items-center">
-          <Button
-            class="text-600 text-xs"
-            schema="secondary"
-            size="sm"
-            aria-label="Open impersonation menu"
-            onClick={() => {
-              settingStore.toggleImpersonate(true)
-              if (menu.showMenu) settingStore.closeMenu()
-            }}
-          >
-            Persona
-            {/* <VenetianMask aria-hidden="true" /> */}
-          </Button>
-        </div>
-      </div>
-    </>
+    <Item
+      ariaLabel="Edit user profile"
+      onClick={() => {
+        if (menu.showMenu) settingStore.closeMenu()
+        soundEmitter.emit('menu-item-clicked', 'profile')
+        userStore.modal(true)
+      }}
+    >
+      <AvatarIcon avatarUrl={user.profile?.avatar} format={{ corners: 'circle', size: 'xs' }} />
+      <span aria-hidden="true">{user.profile?.handle}</span>
+    </Item>
   )
 }
 

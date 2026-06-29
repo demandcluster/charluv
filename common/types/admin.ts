@@ -129,6 +129,17 @@ export interface Configuration {
   charlibPublish: 'off' | 'users' | 'subscribers' | 'moderators' | 'admins'
   charlibGuidelines: string
 
+  /** Daily successful-publish caps and the one-time publish reward (credits). */
+  publishDailyFree: number
+  publishDailyPremium: number
+  publishReward: number
+
+  /** Minimum character-count thresholds a character must meet to be published. */
+  publishMinGreeting: number
+  publishMinDescription: number
+  publishMinScenario: number
+  publishMinPersonality: number
+
   actionCalls: ActionCall[]
 }
 

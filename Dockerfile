@@ -1,4 +1,4 @@
-FROM node:22.14.0-bullseye-slim
+FROM node:22-bookworm-slim
 
 WORKDIR /app
 VOLUME [ "/app/db" ]
@@ -12,8 +12,15 @@ ARG SHA=unknown
 
 ADD package.json pnpm-lock.yaml ./
 RUN pnpm i --frozen-lockfile
+# pnpm v10 does not run dependency install scripts (even via `pnpm rebuild`), so
+# sharp's native binary — pulled in by @xenova/transformers for long-term memory
+# embeddings — is never fetched. Run sharp's own install script directly to
+# download the prebuilt binary for this platform.
+RUN for d in /app/node_modules/.pnpm/sharp@*/node_modules/sharp; do \
+      if [ -d "$d" ]; then echo "Installing sharp binary in $d"; (cd "$d" && npm run install); fi; \
+    done
 
-ADD tailwind.config.js tsconfig.json .babelrc .postcssrc .parcelrc .prettierrc srv.tsconfig.json ./
+ADD tailwind.config.js tsconfig.json .babelrc .postcssrc .prettierrc srv.tsconfig.json vite.config.ts ./
 ADD common/ ./common/
 ADD srv/ ./srv/
 ADD web/ ./web

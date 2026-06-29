@@ -54,14 +54,7 @@ export type ChatState = {
   promptHistory: Record<string, any>
 }
 
-export type ChatRightPane =
-  | 'character'
-  | 'preset'
-  | 'participants'
-  | 'ui'
-  | 'chat-settings'
-  | 'memory'
-  | 'other'
+export type ChatRightPane = 'character' | 'participants' | 'chat-settings' | 'memory' | 'other'
 
 export type ImportChat = {
   name: string
@@ -402,6 +395,28 @@ export const chatStore = createStore<ChatState>('chat', {
       }
     },
 
+    async *createEvent(
+      { allChats },
+      input: {
+        location: string
+        description: string
+        characterIds: string[]
+        memoryDisabled?: boolean
+        when?: string
+        vibe?: string
+        directorEvents?: string
+        note?: string
+      },
+      onSuccess?: (id: string) => void
+    ) {
+      const res = await chatsApi.createEventChat(input)
+      if (res.error) toastStore.error(`Failed to create event: ${res.error}`)
+      if (res.result) {
+        yield { allChats: [res.result, ...allChats] }
+        onSuccess?.(res.result._id)
+      }
+    },
+
     async inviteUser(_, chatId: string, userId: string, onSuccess?: () => void) {
       const res = await api.post(`/chat/${chatId}/invite`, { userId })
       if (res.error) return toastStore.error(`Failed to invite user: ${res.error}`)
@@ -620,6 +635,49 @@ subscribe('chat-deleted', { chatId: 'string' }, (body) => {
 
 function sortDesc(left: { updatedAt: string }, right: { updatedAt: string }): number {
   return left.updatedAt > right.updatedAt ? -1 : left.updatedAt === right.updatedAt ? 0 : 1
+}
+
+/**
+ * Start or resume a chat for a character and navigate straight into it.
+ *
+ * - If `forceNew` is falsey and the character already has chats, navigate to
+ *   the most-recently-updated one (`/chat/:chatId`).
+ * - Otherwise create a fresh default chat (name = char.name, greeting/scenario/
+ *   sampleChat from the char, `useOverrides: false`) and navigate to it on
+ *   success.
+ *
+ * This replaces the per-character `/chats/create/:id` form for "open a
+ * character" actions so opening a character drops the user directly into chat.
+ */
+export async function startChat(
+  char: AppSchema.Character,
+  navigate: (url: string) => void,
+  opts: { forceNew?: boolean } = {}
+) {
+  if (!opts.forceNew) {
+    const res = await chatsApi.getBotChats(char._id)
+    const result = res.result as { chats?: AppSchema.Chat[] } | undefined
+    const existing = result?.chats
+    if (existing?.length) {
+      const recent = [...existing].sort(sortDesc)[0]
+      if (recent?._id) {
+        navigate(`/chat/${recent._id}`)
+        return
+      }
+    }
+  }
+
+  chatStore.createChat(
+    char._id,
+    {
+      name: char.name,
+      greeting: char.greeting,
+      scenario: char.scenario,
+      sampleChat: char.sampleChat,
+      useOverrides: false,
+    },
+    (chatId: string) => navigate(`/chat/${chatId}`)
+  )
 }
 
 subscribe('member-removed', { memberId: 'string', chatId: 'string' }, (body) => {

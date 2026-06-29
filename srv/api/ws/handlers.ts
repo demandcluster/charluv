@@ -3,6 +3,7 @@ import { AppSocket } from './types'
 import { assertValid } from '../../../common/valid'
 import { store } from '../../db'
 import { verifyJwt } from '../../db/user'
+import { markPresent, clearPresent } from '../../queue/presence'
 
 export type WebMessage =
   | { type: 'login'; token: string }
@@ -11,6 +12,7 @@ export type WebMessage =
   | { type: 'ping' }
   | { type: 'pong' }
   | { type: 'message-ready'; messageId: string; updatedAt?: string }
+  | { type: 'notification-ack'; ids: string[] }
 
 type Handlers = {
   [key in WebMessage['type']]: (
@@ -20,7 +22,7 @@ type Handlers = {
 }
 
 export const handlers: Handlers = {
-  login: (client: AppSocket, data: any) => {
+  login: async (client: AppSocket, data: any) => {
     assertValid({ token: 'string' }, data)
     try {
       if (client.userId) {
@@ -34,7 +36,26 @@ export const handlers: Handlers = {
       const sockets = userSockets.get(client.userId) || []
       sockets.push(client)
       userSockets.set(client.userId, sockets)
+      markPresent({ userId: client.userId }, client.uid)
       client.dispatch({ type: 'login', success: true })
+
+      // Replay any per-user notifications raised while the user was offline, then
+      // mark them delivered so a later reconnect doesn't re-toast the same ones.
+      const pending = await store.notifications.getUndelivered(client.userId)
+      if (pending.length) {
+        for (const n of pending) {
+          client.dispatch({
+            type: 'admin-notification',
+            id: n._id,
+            message: n.message,
+            level: n.level,
+          })
+        }
+        await store.notifications.markDelivered(
+          client.userId,
+          pending.map((n) => n._id)
+        )
+      }
     } catch (ex) {
       client.dispatch({ type: 'login', success: false })
     }
@@ -43,6 +64,7 @@ export const handlers: Handlers = {
     allSockets.delete(client.uid)
     if (!client.userId) return
     const userId = client.userId
+    clearPresent({ userId }, client.uid)
     const sockets = userSockets.get(userId) || []
 
     client.userId = ''
@@ -94,5 +116,10 @@ export const handlers: Handlers = {
       msg,
       retry: !!data.updatedAt,
     })
+  },
+  'notification-ack': async (client: AppSocket, data) => {
+    if (!client.userId) return
+    assertValid({ ids: ['string'] }, data)
+    await store.notifications.markDelivered(client.userId, data.ids)
   },
 }

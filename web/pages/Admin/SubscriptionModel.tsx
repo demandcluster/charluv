@@ -1,5 +1,5 @@
 import { A, useNavigate, useParams, useSearchParams } from '@solidjs/router'
-import { Edit, Plus, Save, Trash, X } from 'lucide-solid'
+import { Edit, Plus, Save, Trash, X } from '/web/icons'
 import {
   Component,
   createEffect,
@@ -34,7 +34,7 @@ import { FormLabel } from '/web/shared/FormLabel'
 
 const emptyPreset: AppSchema.GenSettings = {
   ...defaultPresets.basic,
-  ...defaultPresets.agnai,
+  ...defaultPresets.charluv,
   name: '',
   temp: 0.85,
   topK: 0,

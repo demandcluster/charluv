@@ -1,5 +1,5 @@
-import { AlertTriangle } from 'lucide-solid'
-import { LucideProps } from 'lucide-solid/dist/types/types'
+import { AlertTriangle } from '/web/icons'
+import type { LucideProps } from '/web/icons'
 import { Component, JSX, createMemo } from 'solid-js'
 
 type AlertSchema = 'error'
@@ -9,7 +9,7 @@ const schemaToClasses: Record<AlertSchema, string> = {
 }
 
 const schemaToIcon: Record<AlertSchema, (props: LucideProps) => JSX.Element> = {
-  error: AlertTriangle,
+  error: AlertTriangle as (props: LucideProps) => JSX.Element,
 }
 
 const Alert: Component<{

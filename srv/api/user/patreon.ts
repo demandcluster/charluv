@@ -6,19 +6,24 @@ import { getCachedTiers } from '../../db/subscriptions'
 import { store } from '../../db'
 import { command } from '../../domains'
 import { sendOne } from '../ws'
+import { logger } from '../../middleware'
 
 export const patreon = {
   authorize,
   identity,
   revalidatePatron,
   initialVerifyPatron,
+  persistPatron,
   getCampaignTiers,
 }
 
-async function authorize(code: string, refresh?: boolean) {
+async function authorize(code: string, refresh?: boolean, redirectUri?: string) {
   const form = new URLSearchParams()
   form.append('code', code)
-  form.append('redirect_uri', config.patreon.redirect)
+  // The token exchange's redirect_uri MUST be identical to the one the browser
+  // used at the authorize step. Prefer the caller-supplied value (derived from
+  // the actual site origin); fall back to the configured default.
+  form.append('redirect_uri', redirectUri || config.patreon.redirect)
   form.append('client_id', config.patreon.client_id)
   form.append('client_secret', config.patreon.client_secret)
   form.append('grant_type', refresh ? 'refresh_token' : 'authorization_code')
@@ -34,7 +39,17 @@ async function authorize(code: string, refresh?: boolean) {
   })
 
   if (result.statusCode && result.statusCode > 200) {
-    throw new StatusError(`Unable to verify Patreon account`, 400)
+    // Surface Patreon's actual error (e.g. invalid_grant, redirect_uri mismatch)
+    // instead of swallowing it — both in the logs and the message.
+    logger.error(
+      { statusCode: result.statusCode, body: result.body },
+      'Patreon token exchange failed'
+    )
+    const detail =
+      result.body && typeof result.body === 'object'
+        ? result.body.error_description || result.body.error
+        : undefined
+    throw new StatusError(`Unable to verify Patreon account${detail ? `: ${detail}` : ''}`, 400)
   }
 
   const user: Patreon.Authorize = result.body
@@ -198,8 +213,8 @@ function getPatronSubscriptionTier(contrib: number) {
   return sub
 }
 
-async function initialVerifyPatron(userId: string, code: string) {
-  const token = await patreon.authorize(code)
+async function initialVerifyPatron(userId: string, code: string, redirectUri?: string) {
+  const token = await patreon.authorize(code, false, redirectUri)
   const patron = await identity(token.access_token)
 
   const existing = await store.users.findByPatreonUserId(patron.user.id)
@@ -207,6 +222,20 @@ async function initialVerifyPatron(userId: string, code: string) {
     throw new StatusError(`This Patreon account is already attributed to another user`, 400)
   }
 
+  return persistPatron(userId, token, patron)
+}
+
+/**
+ * Persist a verified Patreon authorization onto a user and grant premium for an
+ * active patron. Shared by the link flow (`initialVerifyPatron`) and the
+ * Patreon login-that-creates-an-account flow, which has already exchanged the
+ * single-use code for a token and can't authorize again.
+ */
+async function persistPatron(
+  userId: string,
+  token: Patreon.Authorize,
+  patron: Awaited<ReturnType<typeof identity>>
+) {
   const expires = new Date(Date.now() + token.expires_in * 1000).toISOString()
 
   /**

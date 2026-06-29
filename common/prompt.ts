@@ -1,15 +1,18 @@
 import type { GenerateRequestV2 } from '../srv/adapter/type'
 import type { AppSchema, TokenCounter } from './types'
-import { AIAdapter, NOVEL_MODELS, OPENAI_CONTEXTS, THIRDPARTY_HANDLERS } from './adapters'
+import { AIAdapter, OPENAI_CONTEXTS, THIRDPARTY_HANDLERS } from './adapters'
 import { formatCharacter } from './characters'
 import { defaultTemplate } from './mode-templates'
-import { buildMemoryPrompt } from './memory'
 import { defaultPresets, getFallbackPreset, isDefaultPreset } from './presets'
+import { charluvPresets, DEFAULT_CHARLUV_PRESET } from './presets/charluv'
 import { parseTemplate } from './template-parser'
 import { getMessageAuthor, getBotName, trimSentence, neat } from './util'
 import { Memory } from './types'
 import { promptOrderToTemplate } from './prompt-order'
 import { ModelFormat, replaceTags } from './presets/templates'
+import { getCharacterLevel } from './xplevel'
+import { CHARLUV_SAFEGUARD_PROMPT, formatStageToken, resolveStage } from './progression'
+import { buildEventCharacterPrompt } from './event'
 
 export type TickHandler<T = any> = (response: string, state: InferenceState, json?: T) => void
 
@@ -138,6 +141,60 @@ const defaultFieldPrompt = neat`
 {{prop}}:
 {{value}}
 `
+
+/**
+ * Built-in moderation prompt + schema used when no custom ones are configured.
+ * Publishing runs this against the local vision LLM — no preset needed. A field
+ * set to `true` means the violation is present (reject + flag); all-false passes.
+ */
+export const DEFAULT_MOD_PROMPT = neat`
+You are a strict content-safety reviewer for Charluv, an adults-only (18+) AI companion platform. A user has submitted a public character. Review its text fields AND its images, then report the following.
+
+Character:
+{{fields}}
+
+Set a field to true only when the character — in appearance, description, or intended behaviour — depicts or strongly implies it:
+- underage: appears or is described as under 18, a minor, or childlike.
+- violence: gratuitous violence, gore, or glorified non-consensual harm.
+- noncon: non-consent, coercion, or rape presented approvingly.
+- incest: sexual content involving family members.
+- illegal: any other clearly illegal content.
+- nudity: explicit nudity or overtly sexual imagery/content. This is PERMITTED on this adult platform — report it honestly; it only marks the character as NSFW and is NOT a violation on its own.
+
+Be strict about underage: if the character looks or reads as a minor (and when in doubt), flag it. Underage is never acceptable, to be safe, flag anyone under age of 21.
+`
+
+/**
+ * System message for the publish-moderation call. Sent as a leading `system`
+ * message so it OVERRIDES the served model's default chat-template system prompt
+ * (the Charluv companion/LEVEL preamble). Without it the model inherits that
+ * preamble and answers the moderation prompt in-character (a roleplay reply)
+ * instead of returning the verdict — which fail-closes every publish to review.
+ */
+export const DEFAULT_MOD_SYSTEM = neat`
+You are a content-safety classifier, not a character. Do not role-play, narrate, or write any in-character or conversational text. Read the submitted character and respond ONLY with the requested JSON verdict.
+`
+
+const modBool = (name: string, description: string): JsonField => ({
+  name,
+  disabled: false,
+  type: { type: 'bool', valid: 'false', description },
+})
+
+export const DEFAULT_MOD_SCHEMA: JsonField[] = [
+  modBool(
+    'underage',
+    'The character appears or is described as possibly under 18, a minor, or childlike.'
+  ),
+  modBool('violence', 'Gratuitous violence, gore, or glorified non-consensual harm.'),
+  modBool('noncon', 'Non-consent, coercion, or rape presented approvingly.'),
+  modBool('incest', 'Sexual content involving family members.'),
+  modBool('illegal', 'Other clearly illegal content.'),
+  modBool(
+    'nudity',
+    'Explicit nudity or overtly sexual content. Allowed (marks the character 18+) — not a violation.'
+  ),
+]
 export function buildModPrompt(opts: {
   prompt: string
   fields: string
@@ -340,8 +397,7 @@ export async function injectPlaceholders(template: string, inject: InjectOpts) {
     const next = hist.lines.filter((line) => !line.includes(SAMPLE_CHAT_MARKER))
 
     const svc = opts.settings?.service
-    const postSample =
-      svc === 'openai' || svc === 'openrouter' || svc === 'scale' ? SAMPLE_CHAT_MARKER : '<START>'
+    const postSample = svc === 'openai' ? SAMPLE_CHAT_MARKER : '<START>'
 
     const msg = `${SAMPLE_CHAT_PREAMBLE}\n${sampleChat}\n${postSample}`
       .replace(BOT_REPLACE, opts.replyAs.name)
@@ -419,6 +475,10 @@ type PromptPartsOptions = Pick<
   | 'resolvedScenario'
 >
 
+/** Utility generations that are not in-character replies — the Charluv level
+ * preamble is skipped for these so it doesn't pollute the system task. */
+const NON_ROLEPLAY_KINDS = new Set(['summary', 'chat-query', 'plain'])
+
 export async function buildPromptParts(
   opts: PromptPartsOptions,
   lines: string[],
@@ -495,16 +555,37 @@ export async function buildPromptParts(
     post.unshift(`${char.name}: ${opts.continue}`)
   }
 
-  const linesForMemory = [...lines].reverse()
-  const books: AppSchema.MemoryBook[] = []
-  if (replyAs.characterBook) books.push(replyAs.characterBook)
-  if (opts.book) books.push(opts.book)
-
-  parts.memory = await buildMemoryPrompt({ ...opts, books, lines: linesForMemory }, encoder)
+  // Legacy keyword memory books are disabled — long-term memory (RAG) replaces
+  // them and fills the {{memory}} slot server-side at generation time.
+  parts.memory = undefined
 
   const supplementary = getSupplementaryParts(opts, replyAs)
   parts.ujb = supplementary.ujb
-  parts.systemPrompt = supplementary.system
+  // Charluv 18+ safeguard, before the preset/character system prompt — present on
+  // every actual character reply so it can't be dropped by a custom preset. The
+  // relationship-level lore is pre-trained into the model, so only the guardrail is
+  // prepended now. Skipped for utility generations (summary, chat-query, plain)
+  // where this roleplay framing would only confuse the system task.
+  const systemKind = NON_ROLEPLAY_KINDS.has(opts.kind as string)
+  parts.systemPrompt =
+    !systemKind && supplementary.system
+      ? `${CHARLUV_SAFEGUARD_PROMPT}\n\n${supplementary.system}`
+      : !systemKind
+      ? CHARLUV_SAFEGUARD_PROMPT
+      : supplementary.system
+
+  // Event chats: keep each elected speaker in their own voice instead of narrating
+  // the whole scene (the scene context otherwise frames every reply as prose). The
+  // directive goes in BOTH the system prompt (framing) and the UJB/post-history
+  // slot — the latter sits right before the "<Name>:" reply cue, the most-obeyed
+  // position, so the model can't drift into a "Narrator:" passage.
+  if (!systemKind && opts.chat.mode === 'event') {
+    const directive = buildEventCharacterPrompt(replyAs.name)
+    parts.systemPrompt = parts.systemPrompt ? `${parts.systemPrompt}\n\n${directive}` : directive
+
+    const ujbDirective = `(OOC: Reply ONLY as ${replyAs.name} — only ${replyAs.name}'s own dialogue and actions. Do NOT begin with "Narrator:" or narrate the room, the host, or any other person; another narrator handles all scene description.)`
+    parts.ujb = parts.ujb ? `${parts.ujb}\n\n${ujbDirective}` : ujbDirective
+  }
 
   parts.post = post.map(replace)
 
@@ -750,52 +831,20 @@ function sortMessagesDesc(l: AppSchema.ChatMessage, r: AppSchema.ChatMessage) {
 
 export function getChatPreset(
   chat: AppSchema.Chat,
-  user: AppSchema.User,
-  userPresets: AppSchema.UserGenPreset[]
+  _user: AppSchema.User,
+  _userPresets: AppSchema.UserGenPreset[]
 ): Partial<AppSchema.UserGenPreset> {
-  /**
-   * Order of precedence:
-   * 1. chat.genPreset
-   * 2. chat.genSettings (Deprecated)
-   * 3. user.defaultPreset
-   * 4. user.servicePreset -- Deprecated: Service presets are completely removed apart from users that already have them.
-   * 5. built-in fallback preset (horde)
-   */
+  // Charluv runs exclusively on its built-in reply-style presets (Precise /
+  // Balanced / Creative / Wild — they differ only in sampling). The full Agnai
+  // preset editor is gone, so custom user presets, deprecated inline
+  // `chat.genSettings`, and legacy default ids (e.g. 'horde') are no longer
+  // honoured: anything that isn't one of ours falls back to our default style.
+  // The stored `chat.genPreset` id is simply re-interpreted here at
+  // prompt-build time, so no data migration is needed.
+  const id =
+    chat.genPreset && chat.genPreset in charluvPresets ? chat.genPreset : DEFAULT_CHARLUV_PRESET
 
-  // #1
-  if (chat.genPreset) {
-    if (isDefaultPreset(chat.genPreset))
-      return { _id: chat.genPreset, ...defaultPresets[chat.genPreset] }
-
-    const preset = userPresets.find((preset) => preset._id === chat.genPreset)
-    if (preset) return preset
-  }
-
-  // #2
-  if (chat.genSettings) {
-    return chat.genSettings
-  }
-
-  // #3
-  const defaultId = user.defaultPreset
-  if (defaultId) {
-    if (isDefaultPreset(defaultId)) return { _id: defaultId, ...defaultPresets[defaultId] }
-    const preset = userPresets.find((preset) => preset._id === defaultId)
-    if (preset) return preset
-  }
-
-  // #4
-  const { adapter, isThirdParty } = getAdapter(chat, user, undefined)
-  const fallbackId = user.defaultPresets?.[isThirdParty ? 'kobold' : adapter]
-
-  if (fallbackId) {
-    if (isDefaultPreset(fallbackId)) return { _id: fallbackId, ...defaultPresets[fallbackId] }
-    const preset = userPresets.find((preset) => preset._id === fallbackId)
-    if (preset) return preset
-  }
-
-  // #5
-  return getFallbackPreset(adapter || 'horde')
+  return { _id: id, ...defaultPresets[id as keyof typeof defaultPresets] }
 }
 
 /**
@@ -819,16 +868,17 @@ export function getAdapter(
     adapter = THIRDPARTY_HANDLERS[user.thirdPartyFormat]
   }
 
+  // Charluv is openai-endpoint-only. Route any other/legacy text service
+  // (horde, kobold, ooba, claude, unset) to the charluv meta-adapter,
+  // which gates via the subscription model and delegates to the openai endpoint.
+  // This keeps legacy live data working (it just generates via openai) with no
+  // data migration. `openai` stays direct.
+  if (adapter !== 'openai') {
+    adapter = 'charluv'
+  }
+
   let model = ''
   let presetName = 'Fallback Preset'
-
-  if (adapter === 'replicate') {
-    model = preset?.replicateModelType || 'llama'
-  }
-
-  if (adapter === 'novel') {
-    model = user.novelModel
-  }
 
   if (adapter === 'openai') {
     model = preset?.thirdPartyModel || preset?.oaiModel || defaultPresets.openai.oaiModel
@@ -876,60 +926,28 @@ export function getContextLimit(
   const configuredMax =
     gen?.maxContextLength || getFallbackPreset(adapter)?.maxContextLength || 4096
 
-
   if (gen?.service === 'kobold' || gen?.service === 'ooba') return configuredMax - genAmount
 
   switch (adapter) {
-    case 'agnaistic': {
+    case 'charluv': {
       const stratMax = _strategy(user, gen)
       const max = Math.min(configuredMax, stratMax?.context ?? configuredMax)
       return max - genAmount
     }
 
     // Any LLM could be used here so don't max any assumptions
-    case 'petals':
     case 'kobold':
     case 'horde':
     case 'ooba':
       return configuredMax - genAmount
-
-    case 'novel': {
-      if (model === NOVEL_MODELS.clio_v1 || model === NOVEL_MODELS.kayra_v1) {
-        return Math.min(8000, configuredMax) - genAmount
-      }
-
-      return configuredMax - genAmount
-    }
 
     case 'openai': {
       const limit = OPENAI_CONTEXTS[model] || 128000
       return Math.min(configuredMax, limit) - genAmount
     }
 
-    case 'replicate':
-      return configuredMax - genAmount
-
-    case 'scale':
-      return configuredMax - genAmount
-
     case 'claude':
       return configuredMax - genAmount
-
-    case 'goose':
-      return Math.min(configuredMax, 2048) - genAmount
-
-    case 'openrouter':
-      if (gen?.openRouterModel) {
-        return Math.min(gen.openRouterModel.context_length, configuredMax) - genAmount
-      }
-
-      return Math.min(configuredMax, 4096) - genAmount
-
-    case 'mancer':
-      return Math.min(configuredMax, 8000) - genAmount
-
-    case 'venus':
-      return Math.min(configuredMax, 7800) - genAmount
   }
 }
 
@@ -975,26 +993,48 @@ export async function trimTokens(opts: TrimOpts) {
 export function resolveScenario(
   chat: AppSchema.Chat,
   mainChar: AppSchema.Character,
-  books: AppSchema.ScenarioBook[]
+  books: AppSchema.ScenarioBook[],
+  replyAs?: AppSchema.Character
 ) {
-  if (chat.overrides) return chat.scenario || ''
+  // Attached scenario books are disabled — relationship progression (the LEVEL
+  // token) replaces the event/state-machine scenarios. Only the character's
+  // initial scenario remains (or the chat's overridden scenario).
+  const result = chat.overrides ? chat.scenario || '' : mainChar.scenario || ''
 
-  let result = mainChar.scenario
+  // The stage token and Charluv meta describe whoever is *speaking*. In a
+  // multi-character event that's `replyAs`; in a 1:1 it equals the main char.
+  const speaker = replyAs || mainChar
 
-  for (const book of books) {
-    if (book.overwriteCharacterScenario) {
-      result = book.text || ''
-      break
-    }
-  }
+  return prependCharluvMeta(prependProgressionStage(result.trim(), speaker), speaker)
+}
 
-  for (const book of books) {
-    if (!book.overwriteCharacterScenario) {
-      result += `\n${book.text}`
-    }
-  }
+/**
+ * Inject Charluv metadata facets (gender, age range) into the prompt so the model
+ * sees them on chat. These live on the character document (not the W++ persona),
+ * so they would otherwise be invisible to the model.
+ */
+export function prependCharluvMeta(scenario: string, mainChar: AppSchema.Character) {
+  const parts: string[] = []
+  if (mainChar.gender) parts.push(`${mainChar.name} is ${mainChar.gender}`)
+  if (mainChar.ageRange) parts.push(`age range ${mainChar.ageRange}`)
+  if (!parts.length) return scenario
+  const line = parts.join(', ') + '.'
+  return scenario ? `${line}\n${scenario}` : line
+}
 
-  return result.trim()
+/**
+ * Prepend the live relationship stage token (e.g. `LEVEL("LOVER") ...`) the LLM
+ * is trained on, derived from the character copy's XP-level and progression
+ * archetype. This replaces the legacy per-character scenario-event state-machine.
+ */
+export function prependProgressionStage(scenario: string, mainChar: AppSchema.Character) {
+  // Opt-in: only characters configured with a progression archetype/map advance
+  // through relationship stages. Plain characters are left untouched.
+  if (!mainChar.progression) return scenario
+  const step = resolveStage(getCharacterLevel(mainChar.xp), mainChar.progression)
+  if (!step) return scenario
+  const token = formatStageToken(step)
+  return scenario ? `${token}\n${scenario}` : token
 }
 
 export type JsonType = { title?: string; description?: string; valid?: string } & (
@@ -1074,8 +1114,8 @@ export function toJsonSchema(body: JsonField[]): JsonSchema | undefined {
     if (type.type === 'bool') {
       props[name].type = 'enum'
 
-      // @ts-ignore
-      props[key].enum = ['true', 'false', 'yes', 'no']
+      // @ts-ignore — JsonType union doesn't carry `enum` until narrowed to the enum variant
+      props[name].enum = ['true', 'false', 'yes', 'no']
     }
     schema.required.push(name)
   }
@@ -1101,7 +1141,11 @@ export function fromJsonResponse(schema: JsonField[], response: any, output: any
 
     output[key] = value
     if (def.type.type === 'bool') {
-      output[key] = value.trim() === 'true' || value.trim() === 'yes'
+      // Tolerate both real JSON booleans and string forms ("True", "YES", "1").
+      // Calling .trim() on a boolean throws, so type-check first.
+      output[key] =
+        value === true ||
+        (typeof value === 'string' && ['true', 'yes', '1'].includes(value.trim().toLowerCase()))
     }
   }
 
@@ -1126,6 +1170,17 @@ export function tryJsonParseResponse(res: string) {
       return json
     }
   } catch (ex) {}
+
+  // Models often wrap JSON in ```json fences or surrounding prose. Extract the
+  // first balanced {...} object and parse that. Without this, any non-bare-JSON
+  // verdict parses to {} — which fail-open moderation would treat as "clean".
+  const start = res.indexOf('{')
+  const end = res.lastIndexOf('}')
+  if (start !== -1 && end > start) {
+    try {
+      return JSON.parse(res.slice(start, end + 1))
+    } catch (ex) {}
+  }
 
   return {}
 }

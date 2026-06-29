@@ -11,6 +11,26 @@ import { isLoggedIn } from '/web/store/api'
 import { TitleCard } from '/web/shared/Card'
 import { Page } from '/web/Layout'
 import { useGoogleReady } from '/web/shared/hooks'
+import { getVisitorId } from '/web/shared/fingerprint'
+import { authorizePatreon } from '../Settings/PatreonOauth'
+
+// A `?return=` value is only honoured if it's a same-origin internal path, so
+// it can't be abused as an open-redirect to another site.
+const internalReturn = (p?: string | string[]) => {
+  if (typeof p !== 'string') return ''
+  if (!p.startsWith('/') || p.startsWith('//') || p.startsWith('/\\')) return ''
+  return p
+}
+
+// Shown before each social sign-in option: signing in with Google/Patreon
+// creates a NEW account if none is linked, so existing users must link from
+// their profile instead of registering a duplicate (which the abuse check
+// blocks anyway).
+const LinkFirstWarning: Component = () => (
+  <p class="text-center text-xs text-[var(--orange-500)]">
+    Already have an account? Don't create a new one — sign in, then link it from your profile.
+  </p>
+)
 
 const LoginPage: Component = () => {
   setComponentPageTitle('Login')
@@ -18,7 +38,6 @@ const LoginPage: Component = () => {
   const cfg = settingStore()
 
   const [register, setRegister] = createSignal(false)
-  const [inviteCode, setInviteCode] = createSignal('')
   const location = useLocation()
 
   const pathname = createMemo(() => location.pathname)
@@ -31,24 +50,8 @@ const LoginPage: Component = () => {
 
     return 'Something went wrong.'
   })
-  const utmSource = createMemo(() => new URLSearchParams(window.location.search).get('source'))
 
   createEffect(() => {
-    console.log('Path:', pathname())
-    console.log('UTM Source:', utmSource())
-
-    if (pathname() === '/register') {
-      setRegister(true)
-      setComponentPageTitle('Register')
-    }
-
-    if (utmSource() && utmSource().toLowerCase() === 'viewgrabber') {
-      console.log('Setting invite code to viewgrabber24')
-      setInviteCode('VIEWGRABBER24')
-    }
-  })
-
-  createEffect(async () => {
     if (pathname() === '/register') {
       setRegister(true)
       setComponentPageTitle('Register')
@@ -75,7 +78,7 @@ const LoginPage: Component = () => {
       />
       <div class="w-full max-w-sm">
         <Show when={register()}>
-          <RegisterForm isLoading={store.loading} setInviteCode inviteCode={inviteCode()} />
+          <RegisterForm isLoading={store.loading} />
         </Show>
         <Show when={!register()}>
           <LoginForm isLoading={store.loading} />
@@ -117,18 +120,6 @@ const LoginPage: Component = () => {
         </Show>
         <Show when={register()}>
           <p class="flex justify-center text-xl text-[var(--hl-400)]">
-            Why do I need an access code?
-          </p>
-
-          <div class="mx-4 flex flex-col items-center text-center ">
-            <p>
-              We need to have some sort of control on the amount of people joining since we do not
-              require an email for registration (we find privacy more important). You can join our
-              Discord, check our Twitter or try <b>AIVO8592094</b>{' '}
-              <span class="text-sm">(this code could run out)</span>
-            </p>
-          </div>
-          <p class="flex justify-center text-xl text-[var(--hl-400)]">
             Do not register more than one account!
           </p>
 
@@ -148,30 +139,36 @@ export default LoginPage
 
 type FormProps = {
   isLoading: boolean
-  inviteCode: string
-  setInviteCode: (code: string) => void
 }
 
 const RegisterForm: Component<FormProps> = (props) => {
   const navigate = useNavigate()
+  const [query] = useSearchParams()
+  const [consent, setConsent] = createSignal(false)
 
-  const ecu = userStore.getECU()
-  const register = (evt: Event) => {
-    const { username, password, confirm, handle, invitecode } = getStrictForm(evt, {
+  const register = async (evt: Event) => {
+    const { username, password, confirm, handle } = getStrictForm(evt, {
       handle: 'string',
       username: 'string',
       password: 'string',
       confirm: 'string',
-      invitecode: 'string',
     })
 
-    if (!handle || !username || !password || !invitecode) return
+    if (!handle || !username || !password) return
     if (password !== confirm) {
       toastStore.warn('Passwords do not match', 2)
       return
     }
+    if (!consent()) {
+      toastStore.warn('Please accept the identifier policy to register', 3)
+      return
+    }
 
-    userStore.register({ handle, username, password, invitecode }, () => navigate('/profile'))
+    const fingerprint = await getVisitorId()
+    // Return the user to where they came from (e.g. the create wizard) when a
+    // safe internal `?return=` path was supplied; otherwise land on the profile.
+    const dest = internalReturn(query.return) || '/profile'
+    userStore.register({ handle, username, password }, fingerprint, true, () => navigate(dest))
   }
 
   return (
@@ -200,27 +197,26 @@ const RegisterForm: Component<FormProps> = (props) => {
           autocomplete="new-password"
           required
         />
-        <TextInput
-          label="Invite code"
-          fieldName="invitecode"
-          value={props.inviteCode}
-          onInput={(e) => props.setInviteCode(e.currentTarget.value)}
-          placeholder="Check below for a code!"
-          required
-        />
-        <Show when={props.inviteCode === 'VIEWGRABBER24'}>
-          <blockquote class="text-gray-500 dark:text-gray-400">
-            Coming from ViewGrabber you get a free bonus. <br />
-            Some even get a huge bonus!
-            <br />
-            <p>"Have fun, the free tier is very generous."</p>
-          </blockquote>
-        </Show>
 
-        <div></div>
+        <label class="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            class="mt-1"
+            checked={consent()}
+            onChange={(e) => setConsent(e.currentTarget.checked)}
+          />
+          <span>
+            I agree to Charluv storing device and account identifiers to prevent abuse and the
+            creation of multiple accounts. See our{' '}
+            <A class="link" href="/privacy">
+              Privacy Policy
+            </A>
+            .
+          </span>
+        </label>
       </div>
 
-      <Button type="submit" disabled={props.isLoading}>
+      <Button type="submit" disabled={props.isLoading || !consent()}>
         {props.isLoading ? 'Registering...' : 'Register'}
       </Button>
     </form>
@@ -277,7 +273,7 @@ const LoginForm: Component<FormProps> = (props) => {
   )
 
   const handleLogin = () => {
-    userStore.remoteLogin((token) => {
+    userStore.remoteLogin((token: string) => {
       location.href = `${query.callback}?access_token=${token}`
     })
   }
@@ -287,6 +283,12 @@ const LoginForm: Component<FormProps> = (props) => {
     if (!username || !password) return
 
     userStore.login(username, password, () => {
+      const ret = internalReturn(query.return)
+      if (ret) {
+        navigate(ret)
+        return
+      }
+
       if (query.callback) {
         handleLogin()
         return
@@ -323,17 +325,29 @@ const LoginForm: Component<FormProps> = (props) => {
         {props.isLoading ? 'Logging in...' : 'Login'}
       </Button>
 
-      <div
-        class="flex justify-center"
-        ref={(ref) => {
-          refGoogle = ref
-        }}
-        id="g_id_onload"
-        data-context="signin"
-        data-ux_mode="popup"
-        data-login_uri={`${location.origin}/oauth/google`}
-        data-itp_support="true"
-      ></div>
+      <div class="flex flex-col items-center gap-1">
+        <LinkFirstWarning />
+        <div
+          class="flex justify-center"
+          ref={(ref) => {
+            refGoogle = ref
+          }}
+          id="g_id_onload"
+          data-context="signin"
+          data-ux_mode="popup"
+          data-login_uri={`${location.origin}/oauth/google`}
+          data-itp_support="true"
+        ></div>
+      </div>
+
+      <Show when={state.config.patreonAuth}>
+        <div class="flex flex-col items-center gap-1">
+          <LinkFirstWarning />
+          <Button schema="secondary" onClick={() => authorizePatreon('login')}>
+            Sign in with Patreon
+          </Button>
+        </div>
+      </Show>
     </form>
   )
 }

@@ -3,7 +3,7 @@ import { createStore } from 'solid-js/store'
 import { AppSchema, VoiceSettings } from '/common/types'
 import { FullSprite } from '/common/types/sprite'
 import { defaultCulture } from '/web/shared/CultureCodes'
-import { ADAPTER_LABELS, PERSONA_FORMATS } from '/common/adapters'
+import { ADAPTER_LABELS } from '/common/adapters'
 import { getStrictForm, setFormField } from '/web/shared/util'
 import { getAttributeMap } from '/web/shared/PersonaAttributes'
 import {
@@ -20,6 +20,7 @@ import { generateField } from './generate-char'
 import { BaseImageSettings, baseImageValid } from '/common/types/image-schema'
 import { useImageCache } from '/web/shared/hooks'
 import { imageApi } from '/web/store/data/image'
+import { genApi } from '/web/store/data/inference'
 import { v4 } from 'uuid'
 import { forms } from '/web/emitter'
 import { ResponseSchema } from '/common/types/library'
@@ -46,10 +47,51 @@ type EditState = {
   systemPrompt: string
 
   xp?: string
-  match?: string
   share?: string
   premium?: string
   visualType: string
+
+  // charluv: progression + Discover facets. archetype/categoryValue are flat
+  // string fields bound to the editor Selects (Solid's store setState only
+  // updates reactively for primitives, not object/array values). The object
+  // (progression) and array (category) are assembled in getPayload.
+  archetype?: string
+  progressionSpeed?: string
+  gender?: string
+  artStyle?: string
+  ageRange?: string
+  categoryValue?: string
+  nsfw?: boolean
+  // Z-Image stored LoRA name (temp/manual for testing i2L Mode A generation).
+  loraName?: string
+  // Locked seed for the character's base look — used for editor image gen so all
+  // generated images stay consistent. Rerollable; ignored in chat generation.
+  imageSeed?: number
+
+  // charluv: fixed W++ persona traits. Like archetype/gender these are FLAT
+  // string fields bound to TextInputs (Solid's store setState only updates
+  // reactively for primitives, not nested object/array values). The persona
+  // object is assembled from these (plus appearance/gender/ageRange) in
+  // getPayload, and hydrated from char.persona.attributes in load()/reset().
+  // The canonical Charluv W++ keys (gender lives in metadata, appearance reuses
+  // the appearance field; both are handled outside these inputs).
+  traitSpecies?: string
+  traitMind?: string
+  traitPersonality?: string
+  traitAge?: string
+  traitJob?: string
+  traitDescription?: string
+  traitSexuality?: string
+  traitLikes?: string
+  traitLoves?: string
+  traitZodiac?: string
+  traitHates?: string
+  traitCountry?: string
+  traitBody?: string
+  traitOutfit?: string
+  // Backward-compat: non-standard W++ attributes from existing characters.
+  // Shown read-only; not editable and dropped on save.
+  personaExtras?: Record<string, string[]>
 
   avatar?: File
   originalAvatar?: any
@@ -68,58 +110,52 @@ type EditState = {
 }
 
 const newCharGuard = {
-  kind: PERSONA_FORMATS,
   name: 'string',
   description: 'string?',
   appearance: 'string?',
-  culture: 'string',
+  // No culture input in the single-page editor; keep optional and default it in
+  // getPayload from state (otherwise getStrictForm rejects: ".culture is undefined").
+  culture: 'string?',
   greeting: 'string',
   scenario: 'string',
   sampleChat: 'string',
   xp: 'string?',
   share: 'string?',
-  match: 'string?',
   premium: 'string?',
-  systemPrompt: 'string',
-  postHistoryInstructions: 'string',
-  insertPrompt: 'string',
-  insertDepth: 'number',
-  creator: 'string',
-  characterVersion: 'string',
+  // The following fields no longer have form inputs (Voice/Advanced tabs removed).
+  // Kept optional so existing values pass through load()/getPayload unchanged.
+  systemPrompt: 'string?',
+  postHistoryInstructions: 'string?',
+  insertPrompt: 'string?',
+  insertDepth: 'number?',
+  creator: 'string?',
+  characterVersion: 'string?',
   voiceDisabled: 'boolean?',
-  jsonSchemaEnabled: 'boolean',
+  jsonSchemaEnabled: 'boolean?',
   ...baseImageValid,
 } as const
 
+// Only fields backed by an actual uncontrolled form input belong here — reset()
+// uses setFormField to populate them, and getPayload reads them back via
+// getStrictForm. Everything else (systemPrompt, postHistoryInstructions, tags,
+// creator, characterVersion, match, xp, share, premium…) is read from `state`,
+// which reset() hydrates directly from the character, so listing them here only
+// produced "Element not found" warnings for inputs the Charluv editor dropped.
 const fieldMap: Map<CharKey, GuardKey | 'tags'> = new Map([
   ['name', 'name'],
   ['appearance', 'appearance'],
   ['description', 'description'],
   ['greeting', 'greeting'],
   ['sampleChat', 'sampleChat'],
-  ['creator', 'creator'],
-  ['characterVersion', 'characterVersion'],
-  ['postHistoryInstructions', 'postHistoryInstructions'],
   ['scenario', 'scenario'],
-  ['systemPrompt', 'systemPrompt'],
-  ['tags', 'tags'],
-  ['name', 'name'],
-  ['match', 'match'],
-  ['xp', 'xp'],
-  ['share', 'share'],
-  ['premium', 'premium'],
-  ['description', 'description'],
-  ['scenario', 'scenario'],
-  ['greeting', 'greeting'],
-  ['creator', 'creator'],
-  ['characterVersion', 'characterVersion'],
-  ['postHistoryInstructions', 'postHistoryInstructions'],
-  ['systemPrompt', 'systemPrompt'],
 ])
+
+/** Random seed for the character's locked base look. */
+const makeSeed = () => Math.floor(Math.random() * 1_000_000_000)
 
 const initState: EditState = {
   name: '',
-  personaKind: 'text',
+  personaKind: 'wpp',
   sampleChat: '',
   description: '',
   appearance: '',
@@ -135,17 +171,44 @@ const initState: EditState = {
   },
   systemPrompt: '',
   xp: '0',
-  match: 'false',
   share: 'private',
   premium: 'false',
   visualType: 'avatar',
+  // charluv: progression + Discover facets. Concrete (non-undefined) defaults so
+  // the Solid store creates reactive signals for them (an undefined initial
+  // value isn't tracked, so the Selects would revert).
+  archetype: '',
+  progressionSpeed: 'normal',
+  gender: '',
+  artStyle: '',
+  ageRange: '',
+  categoryValue: '',
+  nsfw: false,
+  loraName: '',
+  imageSeed: undefined,
+  // Fixed W++ persona traits (flat string fields; assembled in getPayload).
+  personaExtras: {},
+  traitSpecies: '',
+  traitMind: '',
+  traitPersonality: '',
+  traitAge: '',
+  traitJob: '',
+  traitDescription: '',
+  traitSexuality: '',
+  traitLikes: '',
+  traitLoves: '',
+  traitZodiac: '',
+  traitHates: '',
+  traitCountry: '',
+  traitBody: '',
+  traitOutfit: '',
   tags: [],
   alternateGreetings: [],
   culture: defaultCulture,
   voice: { service: undefined },
   sprite: undefined,
   book: undefined,
-  persona: { kind: 'text', attributes: { text: [''] } },
+  persona: { kind: 'wpp', attributes: {} },
   imageSettings: {
     type: 'sd',
     width: 512,
@@ -173,6 +236,17 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
 
   const [original, setOriginal] = createSignal(editing)
   const [state, setState] = createStore<EditState>({ ...initState })
+  // Every character gets a locked base-look seed (new chars too, before load()).
+  if (!state.imageSeed) setState('imageSeed', makeSeed())
+  const rerollSeed = () => setState('imageSeed', makeSeed())
+
+  // Set the displayed cover to an existing image URL (Make-cover). Updates the
+  // avatar display immediately and clears any staged avatar File so the next save
+  // doesn't re-upload over the cover (which Make-cover already saved server-side).
+  const applyCover = (url: string) => {
+    setImageData(url)
+    setState('avatar', undefined)
+  }
   const [imageData, setImageData] = createSignal<string>()
   const [form, setForm] = createSignal<any>()
   const [generating, setGenerating] = createSignal(false)
@@ -207,12 +281,12 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
 
     const opts: Option[] = []
 
-    if (preset?.service && preset.service !== 'agnaistic') {
-      opts.push({ label: `Default (${ADAPTER_LABELS[preset.service!]})`, value: 'default' })
+    if (preset?.service) {
+      opts.push({ label: `Default (${ADAPTER_LABELS[preset.service]})`, value: 'default' })
     }
 
     {
-      const premiumLevel = user.premium ? 10 : -1
+      const premiumLevel = user.sub?.level ? 10 : -1
       const subs = settings.config.subs.filter(
         (s) => user.user?.admin || s.level <= premiumLevel || s.level <= user.userLevel
       )
@@ -282,13 +356,89 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
   }
 
   const createAvatar = async () => {
-    const current = payload()
-    const attributes = getAttributeMap(form())
-    const desc = current.appearance || (attributes?.appeareance || attributes?.looks)?.join(', ')
-    const avatar = await generateAvatar(desc || '')
+    const prompt = await craftImagePrompt(buildImagePrompt())
+    const avatar = await generateAvatar(prompt, state.imageSeed)
     if (!avatar) return
 
     return receiveAvatar(avatar)
+  }
+
+  // Like createAvatar but returns the image as base64 WITHOUT setting it as the
+  // character's avatar (used to populate the gallery).
+  const createGalleryImage = async () => {
+    const prompt = await craftImagePrompt(buildImagePrompt())
+    const file = await generateAvatar(prompt, state.imageSeed)
+    if (!file) return
+    return imageApi.getImageData(file)
+  }
+
+  // The raw appearance traits make a weak image prompt (bare comma-joined tags).
+  // Mirror the create wizard's craftPrompt: a quick LLM pass turns whatever the
+  // user typed into "appearance" into one vivid, natural-language portrait prompt
+  // before the actual image generation. Falls back to the raw traits if the model
+  // is unavailable or returns nothing.
+  const craftImagePrompt = async (traits: string): Promise<string> => {
+    if (!traits.trim()) return traits
+    // Art style is derived from tags first (anime/realistic), falling back to the
+    // manual facet — mirrors how the save payload resolves artStyle.
+    const artStyle = state.tags?.includes('anime')
+      ? 'anime'
+      : state.tags?.includes('realistic')
+      ? 'realistic'
+      : state.artStyle
+    // zimage has no style-weight syntax, so lead the prompt with an explicit style
+    // sentence — without it every character renders realistic regardless of the
+    // chosen art style.
+    const stylePrefix =
+      artStyle === 'anime'
+        ? 'early-2000s anime hybrid cel/digital look, bright saturated colors high quality art of '
+        : 'Photorealistic image of '
+    const instruction =
+      `Write ONE vivid, natural-language image prompt for a character portrait. ` +
+      `Use descriptive sentences, NOT comma-separated tags or keyword lists. ` +
+      `Lead with the subject and their appearance, then pose and expression, clothing, setting, and lighting. ` +
+      `Weave in concrete texture and realism cues (skin texture, fabric detail, soft natural light) to avoid a plastic, airbrushed look. ` +
+      `Keep it under 60 words. No names, no preamble. ` +
+      `Base it on these traits: ${traits}. Reply with only the prompt.`
+    try {
+      const res = await genApi.basicInference({
+        prompt: instruction,
+        settings: defaultPresets['charluv-balanced'],
+        overrides: { maxTokens: 300, temp: 0.6, streamResponse: false },
+      })
+      const text =
+        res && 'result' in res ? ((res.result as any)?.response as string | undefined) : ''
+      const clean = (text || '').replace(/^["'\s]+|["'\s]+$/g, '').trim()
+      return stylePrefix + (clean || traits)
+    } catch {
+      return stylePrefix + traits
+    }
+  }
+
+  // Compose a real image-generation prompt from the assembled persona. W++
+  // attributes moved to fixed flat trait fields, so the old appeareance/looks
+  // lookup is empty now. Pull the visually-relevant traits + the appearance
+  // field, falling back to the character name so we never send an empty prompt.
+  const buildImagePrompt = () => {
+    const current = payload()
+    const attributes = (current.persona?.attributes ?? {}) as Record<string, string[] | undefined>
+    const join = (key: string) => {
+      const value = attributes[key]
+      return Array.isArray(value) ? value.filter((v) => !!v?.trim()).join(', ') : ''
+    }
+
+    const parts = [
+      current.appearance,
+      join('appearance'),
+      join('body'),
+      join('species'),
+      join('age'),
+    ]
+      .map((p) => p?.trim())
+      .filter((p) => !!p)
+
+    const desc = parts.join(', ').trim()
+    return desc || current.name || ''
   }
 
   const genField = async (field: string, trait?: string) => {
@@ -336,14 +486,15 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
       const char = original()
       setState({ ...initState })
 
-      const personaKind = char?.persona.kind || state.personaKind
+      // Persona format is locked to W++ regardless of the source character's
+      // stored format. Existing data is migrated into the fixed trait fields below.
+      const personaKind = 'wpp'
       for (const [key, field] of fieldMap.entries()) {
         if (!char) setFormField(form(), field, '')
         else setFormField(form(), field, char[key] || '')
       }
 
       setState('personaKind', personaKind)
-      setFormField(form(), 'kind', personaKind)
 
       if (char?.originalAvatar) {
         // Intentionally do this in a separate tick
@@ -361,7 +512,7 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
 
       // We set fields that aren't properly managed by form elements
       setState({
-        ...char,
+        ...(char as unknown as Partial<EditState>),
         personaKind,
         alternateGreetings: char?.alternateGreetings || [],
         book: char?.characterBook,
@@ -370,20 +521,33 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
         visualType: char?.visualType || 'avatar',
         culture: char?.culture || defaultCulture,
         insert: char?.insert ? { prompt: char.insert.prompt, depth: char.insert.depth } : undefined,
+        // Flat fields bound to the Selects; concrete so the store signals exist.
+        archetype: (char as any)?.progression?.archetype ?? '',
+        progressionSpeed: (char as any)?.progression?.speed ?? 'normal',
+        gender: (char as any)?.gender ?? '',
+        artStyle: (char as any)?.artStyle ?? '',
+        ageRange: (char as any)?.ageRange ?? '',
+        categoryValue: (char as any)?.category?.[0] ?? '',
+        nsfw: (char as any)?.nsfw ?? false,
+        loraName: (char as any)?.loraName ?? '',
+        imageSeed: (char as any)?.imageSeed ?? makeSeed(),
+        // Hydrate the fixed W++ trait fields from the source persona (any format).
+        // appearance/gender/ageRange already hydrate via existing code above.
+        ...hydratePersonaTraits((char as any)?.persona),
       })
     })
   }
 
   const clear = () => {
     setImageData()
-    load({ ...initState, originalAvatar: undefined })
+    load({ ...initState, originalAvatar: undefined } as unknown as NewCharacter)
   }
 
   const load = (char: NewCharacter | AppSchema.Character) => {
     batch(() => {
       if ('_id' in char) {
         const { avatar, ...incoming } = char
-        setOriginal({ ...incoming, originalAvatar: avatar })
+        setOriginal({ ...incoming, originalAvatar: avatar } as NewCharacter & { _id?: string })
         reset()
         return
       }
@@ -418,9 +582,9 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
       userId: '',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      ...payload,
+      ...(payload as any),
       avatar: imageData(),
-    }
+    } as AppSchema.Character
   }
 
   const updateKind = (kind: EditState['personaKind']) => {
@@ -454,6 +618,9 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
     clear,
     genOptions,
     createAvatar,
+    createGalleryImage,
+    rerollSeed,
+    applyCover,
     receiveAvatar,
     avatar: imageData,
     generating,
@@ -466,20 +633,119 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
   }
 }
 
+// Maps an existing character's persona (of ANY stored format) into the six flat
+// trait fields used by the locked W++ editor. Each trait joins its string[] with
+// ', '. Existing 'text'-format characters keep their content via a fallback into
+// the Background field so nothing is lost.
+/**
+ * The canonical Charluv W++ keys the editor manages. `gender`/`appearance` are
+ * handled via the Gender facet / appearance field, but are still "consumed" here
+ * so they aren't flagged as removable extras.
+ */
+const FIXED_TRAIT_KEYS = [
+  'species',
+  'mind',
+  'personality',
+  'age',
+  'job',
+  'description',
+  'sexuality',
+  'likes',
+  'loves',
+  'zodiac',
+  'hates',
+  'country',
+  'body',
+  'outfit',
+  'appearance',
+  'gender',
+]
+
+function hydratePersonaTraits(persona?: AppSchema.Persona) {
+  const attrs = persona?.attributes ?? {}
+  const join = (key: string) => {
+    const value = (attrs as Record<string, string[] | undefined>)[key]
+    return Array.isArray(value) ? value.join(', ') : ''
+  }
+
+  const traits = {
+    traitSpecies: join('species'),
+    traitMind: join('mind'),
+    traitPersonality: join('personality'),
+    traitAge: join('age'),
+    traitJob: join('job'),
+    traitDescription: join('description'),
+    traitSexuality: join('sexuality'),
+    traitLikes: join('likes'),
+    traitLoves: join('loves'),
+    traitZodiac: join('zodiac'),
+    traitHates: join('hates'),
+    traitCountry: join('country'),
+    traitBody: join('body'),
+    traitOutfit: join('outfit'),
+  }
+
+  // Fallback: a plain-text persona has no per-trait keys; preserve its content.
+  if (persona?.kind === 'text' && !traits.traitDescription) {
+    traits.traitDescription = (attrs as Record<string, string[] | undefined>).text?.join(' ') ?? ''
+  }
+
+  // Backward-compat: surface any W++ attributes that aren't part of the fixed
+  // trait set so the user can see them. They're read-only and dropped on save.
+  const consumed = new Set([...FIXED_TRAIT_KEYS, 'text'])
+  const personaExtras: Record<string, string[]> = {}
+  for (const [key, value] of Object.entries(attrs as Record<string, string[] | undefined>)) {
+    if (consumed.has(key)) continue
+    if (Array.isArray(value) && value.some((v) => !!v?.trim())) personaExtras[key] = value
+  }
+
+  return { ...traits, personaExtras }
+}
+
 function getPayload(ev: any, state: EditState, original?: NewCharacter) {
   const body = getStrictForm(ev, newCharGuard)
-  const attributes = getAttributeMap(ev)
+
+  // Build the fixed W++ persona from the flat trait fields. appearance/gender/age
+  // are reused from their existing form/Discover fields. Each trait is omitted if
+  // empty/whitespace so we never persist [''].
+  const wppAttributes: Record<string, string[]> = {}
+  const addTrait = (key: string, value?: string) => {
+    const trimmed = value?.trim()
+    if (trimmed) wppAttributes[key] = [trimmed]
+  }
+  addTrait('species', state.traitSpecies)
+  addTrait('mind', state.traitMind)
+  addTrait('personality', state.traitPersonality)
+  addTrait('age', state.traitAge)
+  addTrait('job', state.traitJob)
+  addTrait('description', state.traitDescription)
+  addTrait('sexuality', state.traitSexuality)
+  addTrait('likes', state.traitLikes)
+  // "Loves" is no longer a separate field — it mirrors "Likes" exactly to
+  // reinforce the same preferences in the persona.
+  addTrait('loves', state.traitLikes)
+  addTrait('zodiac', state.traitZodiac)
+  addTrait('hates', state.traitHates)
+  addTrait('country', state.traitCountry)
+  addTrait('body', state.traitBody)
+  addTrait('outfit', state.traitOutfit)
+  addTrait('appearance', body.appearance)
+  // gender is intentionally NOT a persona attribute — it lives in the charluv
+  // metadata (char.gender) and is injected into the prompt at chat time.
 
   const payload = {
     name: body.name,
     description: body.description,
-    culture: body.culture,
+    culture: body.culture || state.culture || defaultCulture,
     tags: state.tags,
     scenario: body.scenario,
     appearance: body.appearance,
-    visualType: state.visualType,
+    // Sprite editing has been removed from the UI. Always treat the character as
+    // an avatar visual type, but forward the original sprite through unchanged so
+    // existing characters don't lose their sprite data on save.
+    visualType: 'avatar',
     avatar: state.avatar ?? (null as any),
-    sprite: state.sprite ?? (null as any),
+    sprite: original?.sprite ?? state.sprite ?? (null as any),
     greeting: body.greeting,
     sampleChat: body.sampleChat,
     originalAvatar: original?.originalAvatar,
@@ -487,23 +753,46 @@ function getPayload(ev: any, state: EditState, original?: NewCharacter) {
     voice: state.voice,
 
     // charluv fields
-    match: state.match?.toString() === 'true' || false,
     premium: state.premium?.toString() === 'true' || false,
     xp: 0,
     share: state.share ?? 'private',
+    progression:
+      state.archetype || state.progressionSpeed
+        ? {
+            archetype: state.archetype || undefined,
+            speed: (state.progressionSpeed as any) || undefined,
+          }
+        : undefined,
+    gender: state.gender || undefined,
+    // Art style is derived from tags (anime/realistic); fall back to the manual
+    // facet if no matching tag is present.
+    artStyle:
+      (state.tags?.includes('anime')
+        ? 'anime'
+        : state.tags?.includes('realistic')
+        ? 'realistic'
+        : state.artStyle) || undefined,
+    ageRange: state.ageRange || undefined,
+    category: state.categoryValue ? [state.categoryValue] : undefined,
+    nsfw: state.nsfw || undefined,
+    loraName: state.loraName?.trim() || undefined,
+    imageSeed: state.imageSeed,
 
-    // New fields start here
-    systemPrompt: body.systemPrompt ?? '',
-    postHistoryInstructions: body.postHistoryInstructions ?? '',
-    insert: { prompt: body.insertPrompt, depth: body.insertDepth },
+    // These fields no longer have form inputs; pass through existing values so a
+    // save doesn't clobber data set elsewhere. creator/characterVersion are now
+    // managed server-side (ignored there), but we still forward existing values.
+    systemPrompt: state.systemPrompt ?? '',
+    postHistoryInstructions: state.postHistoryInstructions ?? '',
+    insert: state.insert,
     alternateGreetings: state.alternateGreetings ?? [],
     characterBook: state.book,
-    creator: body.creator ?? '',
+    creator: state.creator ?? '',
     extensions: original?.extensions,
-    characterVersion: body.characterVersion ?? '',
+    characterVersion: state.characterVersion ?? '',
+    // Persona format is locked to W++; attributes assembled from the trait fields.
     persona: {
-      kind: body.kind,
-      attributes,
+      kind: 'wpp' as const,
+      attributes: wppAttributes,
     },
     imageSettings: {
       type: body.imageType,
@@ -526,19 +815,21 @@ function getPayload(ev: any, state: EditState, original?: NewCharacter) {
   return payload
 }
 
-async function generateAvatar(description: string) {
+async function generateAvatar(description: string, seed?: number) {
   const { user } = userStore.getState()
   if (!user) {
     return toastStore.error(`Image generation settings missing`)
   }
 
-  // const image = await imageApi.generateImageAsync(description)
-  // return image
-
   return new Promise<File>((resolve, reject) => {
-    characterStore.generateAvatar(user, description, (err, image) => {
-      if (image) return resolve(image)
-      reject(err)
-    })
+    characterStore.generateAvatar(
+      user,
+      description,
+      (err, image) => {
+        if (image) return resolve(image)
+        reject(err)
+      },
+      seed
+    )
   })
 }

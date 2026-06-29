@@ -3,8 +3,9 @@ import { AppSchema } from '../../common/types/schema'
 import { EVENTS, events } from '../emitter'
 import { FileInputResult } from '../shared/FileInput'
 import { createDebounce, storage } from '../shared/util'
+import { getVisitorId } from '../shared/fingerprint'
 import { api, clearAuth, getAuth, getUserId, isLoggedIn, setAuth } from './api'
-import { createStore } from './create'
+import { createStore, getStore } from './create'
 import { localApi } from './data/storage'
 import { usersApi } from './data/user'
 import { publish, subscribe } from './socket'
@@ -136,17 +137,19 @@ export const userStore = createStore<UserState>(
         toastStore.error(`Could get retrieve key: ${res.error}`)
       }
     },
-    async getProfile() {
+    async getProfile(_: UserState) {
       const res = await usersApi.getProfile()
-      if (res.error) return toastStore.error(`Failed to get profile`)
+      if (res.error) return void toastStore.error(`Failed to get profile`)
       if (res.result) {
+        // Build the self-persona (Your Character) used in chats from the profile.
+        getStore('character').loadImpersonate(res.result)
         return { profile: res.result }
       }
     },
 
-    async removeProfileAvatar() {
+    async removeProfileAvatar(_: UserState) {
       const res = await usersApi.removeProfileAvatar()
-      if (res.error) return toastStore.error(`Could not update profile: ${res.error}`)
+      if (res.error) return void toastStore.error(`Could not update profile: ${res.error}`)
       if (res.result) {
         return { profile: res.result }
       }
@@ -157,6 +160,29 @@ export const userStore = createStore<UserState>(
       if (res.result) {
         const sub = user ? getUserSubscriptionTier(user, res.result.tiers) : undefined
         return { tiers: res.result.tiers, sub }
+      }
+    },
+
+    async *redeemPromo(_, code: string) {
+      if (!code.trim()) {
+        toastStore.error('Please enter a code')
+        return
+      }
+      yield { subLoading: true }
+      const res = await api.post('/user/promo/redeem', { code: code.trim() })
+      yield { subLoading: false }
+      if (res.error) {
+        toastStore.error(res.error)
+        return
+      }
+      if (res.result) {
+        const parts: string[] = []
+        if (res.result.credits) parts.push(`${res.result.credits} credits`)
+        if (res.result.days) parts.push(`${res.result.days} premium days`)
+        toastStore.success(
+          parts.length ? `Redeemed! You received ${parts.join(' and ')}.` : 'Code redeemed!'
+        )
+        yield { user: res.result.user }
       }
     },
 
@@ -183,8 +209,13 @@ export const userStore = createStore<UserState>(
       }
       yield { loading: true }
 
+      // On login the server may create a new account, so send the device
+      // fingerprint for the multi-account abuse check (ignored when linking).
+      const fingerprint = action === 'login' ? await getVisitorId() : undefined
+
       const res = await api.post(action === 'link' ? '/user/link-google' : '/user/login/google', {
         token: data.credential,
+        fingerprint,
       })
 
       yield { loading: false }
@@ -352,7 +383,7 @@ export const userStore = createStore<UserState>(
       }
     },
 
-    async subscriptionStatus() {
+    async subscriptionStatus(_: UserState) {
       if (!isLoggedIn()) return
       const res = await api.get('/admin/billing/subscribe/status')
       if (res.result) {
@@ -360,10 +391,10 @@ export const userStore = createStore<UserState>(
       }
     },
 
-    async getConfig() {
+    async getConfig(_: UserState) {
       const res = await usersApi.getConfig()
 
-      if (res.error) return toastStore.error(`Failed to get user config`)
+      if (res.error) return void toastStore.error(`Failed to get user config`)
       if (res.result) {
         if (res.result.username) {
           storage.localSetItem(ACCOUNT_KEY, res.result.username)
@@ -373,16 +404,19 @@ export const userStore = createStore<UserState>(
       }
     },
 
-    async getECU() {
-      const res = await localStorage.getItem('ecu')
-      return res === true ? true : false
-    },
-
-    async updateProfile(_, profile: { handle: string; avatar?: File }) {
-      const res = await usersApi.updateProfile(profile.handle, profile.avatar)
+    async updateProfile(
+      _,
+      profile: { handle: string; avatar?: File; persona?: string; description?: string }
+    ) {
+      const res = await usersApi.updateProfile(profile.handle, profile.avatar, {
+        persona: profile.persona,
+        description: profile.description,
+      })
       if (res.error) toastStore.error(`Failed to update profile: ${res.error}`)
       if (res.result) {
         toastStore.success(`Updated profile`)
+        // Rebuild the self-persona used in chats from the saved profile.
+        getStore('character').loadImpersonate(res.result)
         return { profile: res.result }
       }
     },
@@ -426,7 +460,7 @@ export const userStore = createStore<UserState>(
 
     async changePassword(_, password: string, onSuccess?: Function) {
       const res = await api.post('/user/password', { password })
-      if (res.error) return toastStore.error('Failed to change password')
+      if (res.error) return void toastStore.error('Failed to change password')
       if (res.result) {
         toastStore.success(`Successfully changed password`)
         onSuccess?.()
@@ -460,7 +494,38 @@ export const userStore = createStore<UserState>(
       }
     },
 
-    async unverifyPatreon() {
+    // Sign in with a previously-linked Patreon account (mirrors the Google login
+    // branch of handleGoogleCallback). Only succeeds if the Patreon is linked.
+    async *loginPatreon(_, code: string, onDone?: (error?: string) => void) {
+      yield { loading: true }
+      // Login may create a new account, so include the device fingerprint for
+      // the multi-account abuse check. `url` is the redirect_uri the browser used
+      // at authorize — the server needs the exact same value for the token
+      // exchange (same origin as this callback).
+      const fingerprint = await getVisitorId()
+      const url = `${location.origin}/oauth/patreon`
+      const res = await api.post('/user/login/patreon', { code, fingerprint, url })
+      yield { loading: false }
+
+      if (res.result) {
+        yield {
+          loggedIn: true,
+          user: res.result.user,
+          profile: res.result.profile,
+          jwt: res.result.token,
+          userType: getUserType(res.result.user),
+        }
+        setAuth(res.result.token)
+        publish({ type: 'login', token: res.result.token })
+        events.emit(EVENTS.loggedIn)
+        onDone?.()
+        return
+      }
+
+      onDone?.(res.error || 'Could not sign in with Patreon')
+    },
+
+    async unverifyPatreon(_: UserState) {
       const res = await api.post('/user/unverify/patreon')
       if (res.result) {
         toastStore.success('Unlinked Patreon account')
@@ -507,7 +572,7 @@ export const userStore = createStore<UserState>(
       const res = await api.post('/user/login', { username, password })
       yield { loading: false }
       if (res.error) {
-        return toastStore.error(`Authentication failed`)
+        return void toastStore.error(`Authentication failed`)
       }
 
       setAuth(res.result.token)
@@ -533,14 +598,16 @@ export const userStore = createStore<UserState>(
     async *register(
       _,
       newUser: { handle: string; username: string; password: string },
+      fingerprint: string | undefined,
+      consent: boolean,
       onSuccess?: () => void
     ) {
       yield { loading: true }
 
-      const res = await api.post('/user/register', newUser)
+      const res = await api.post('/user/register', { ...newUser, fingerprint, consent })
       yield { loading: false }
       if (res.error) {
-        return toastStore.error(`Failed to register: ${res.error}`)
+        return void toastStore.error(`Failed to register: ${res.error}`)
       }
 
       setAuth(res.result.token)
@@ -557,7 +624,7 @@ export const userStore = createStore<UserState>(
       publish({ type: 'login', token: res.result.token })
       events.emit(EVENTS.loggedIn)
     },
-    async *logout() {
+    async *logout(_: UserState) {
       clearAuth()
       publish({ type: 'logout' })
       const ui = await getUIsettings(true)
@@ -572,7 +639,7 @@ export const userStore = createStore<UserState>(
       events.emit(EVENTS.loggedOut)
     },
 
-    async *deleteAccount() {
+    async *deleteAccount(_: UserState) {
       const res = await api.method('delete', '/user/my-account')
       if (res.result) {
         toastStore.error('Account deleted')
@@ -598,7 +665,7 @@ export const userStore = createStore<UserState>(
         toastStore.error(`Failed to save UI settings: ${e.message}`)
       }
 
-      return { ui: next, current, [mode]: current }
+      return { ui: next, current }
     },
 
     async saveCustomUI({ ui }, update: Partial<UI.CustomUI>) {
@@ -619,9 +686,9 @@ export const userStore = createStore<UserState>(
     async tryCustomUI({ ui }, update: Partial<UI.CustomUI>) {
       const prop = ui.mode === 'light' ? 'light' : 'dark'
       const current = { ...ui[prop], ...update }
-      const next = { ...ui, current, [prop]: current }
+      const next: UI.UISettings = { ...ui, [prop]: current }
       await updateTheme(next)
-      return next
+      return { ui: next, current }
     },
 
     tryUI({ ui }, update: Partial<UI.UISettings>) {
@@ -685,7 +752,7 @@ export const userStore = createStore<UserState>(
         | 'mistral'
     ) {
       const res = await usersApi.deleteApiKey(kind)
-      if (res.error) return toastStore.error(`Failed to update settings: ${res.error}`)
+      if (res.error) return void toastStore.error(`Failed to update settings: ${res.error}`)
 
       if (!user) return
       toastStore.success('Key removed')
@@ -718,7 +785,7 @@ export const userStore = createStore<UserState>(
       }
     },
 
-    async clearGuestState() {
+    async clearGuestState(_: UserState) {
       try {
         const chats = await localApi.loadItem('chats')
         for (const chat of chats) {
@@ -819,7 +886,7 @@ function init(): UserState {
       subLoading: false,
     }
   }
-  localStorage.setItem('ecu', true)
+  localStorage.setItem('ecu', 'true')
   return {
     userType: undefined,
     userLevel: 0,
@@ -840,6 +907,10 @@ function init(): UserState {
 }
 
 async function updateTheme(ui: UI.UISettings) {
+  // Dark-only app. Coerce here — the universal point every theme path (guest,
+  // logged-in receiveUI, saveUI of defaults) flows through — so a saved or
+  // default 'light' mode can never paint a white UI.
+  ui.mode = 'dark'
   storage.localSetItem(getUIKey(), JSON.stringify(ui))
   const root = document.documentElement
 
@@ -861,7 +932,7 @@ async function updateTheme(ui: UI.UISettings) {
 
   for (let shade = 100; shade <= 1000; shade += 100) {
     const index = shade / 100 - 1
-    const num = ui.mode === 'light' ? 1000 - shade : shade
+    const num = shade // light mode is retired; always dark
 
     if (shade <= 900) {
       const color = getRootVariable(`--${ui.theme}-${num}`)
@@ -910,6 +981,10 @@ function getUIsettings(guest = false) {
 
   const ui = { ...UI.defaultUIsettings, ...settings }
 
+  // Light theme is retired — the app is dark-only. Force the mode regardless of
+  // any previously-saved preference so we never render a half-styled light UI.
+  ui.mode = 'dark'
+
   if (!ui.dark.chatEmphasisColor) {
     ui.dark.chatQuoteColor = UI.defaultUIsettings.dark.chatQuoteColor
     ui.light.chatQuoteColor = UI.defaultUIsettings.light.chatQuoteColor
@@ -923,14 +998,17 @@ function getUIsettings(guest = false) {
 }
 
 subscribe('credits-updated', { credits: 'any' }, (body) => {
-  userStore.setState({
-    user: { ...userStore.getState().user, credits: body.credits },
-  })
+  const cur = userStore.getState().user
+  if (cur) {
+    userStore.setState({ user: { ...cur, credits: body.credits } })
+  }
 })
-subscribe('recharged', { amount: 'any' }, (body) => {
-  userStore.setState({
-    user: { ...userStore.getState().user, recharged: new Date().getTime() },
-  })
+subscribe('recharged', { amount: 'any' }, (_body) => {
+  const cur = userStore.getState().user
+  if (cur) {
+    // nextCredits is used as a refresh-trigger timestamp
+    userStore.setState({ user: { ...cur, nextCredits: new Date().getTime() } })
+  }
 })
 
 async function setBackground(content: any) {

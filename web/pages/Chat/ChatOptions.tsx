@@ -1,17 +1,14 @@
 import {
-  Book,
+  Brain,
   Download,
-  Palette,
-  Settings,
+  SlidersHorizontal,
   User,
-  Sliders,
   Trash,
   Users,
   Camera,
-  VenetianMask,
+  MaskHappy,
   AlertTriangle,
-  Map,
-} from 'lucide-solid'
+} from '/web/icons'
 import { Component, Show, createMemo, JSX } from 'solid-js'
 import Button, { ButtonSchema } from '../../shared/Button'
 import { Toggle } from '../../shared/Toggle'
@@ -28,7 +25,6 @@ export type ChatModal =
   | 'members'
   | 'delete'
   | 'none'
-  | 'graph'
   | 'restart'
 
 const ChatOptions: Component<{
@@ -116,13 +112,8 @@ const ChatOptions: Component<{
 
         <Row>
           <Item onClick={() => props.togglePane('chat-settings')} hide={!isOwner()}>
-            <Settings /> Edit Chat
+            <SlidersHorizontal /> Reply Style
           </Item>
-       
-          <Item onClick={() => props.togglePane('preset')} hide={!isOwner()}>
-            <Sliders /> Preset
-          </Item>
-        
         </Row>
         <Row>
           <Item onClick={screenshotChat}>
@@ -133,16 +124,13 @@ const ChatOptions: Component<{
             </Show>
           </Item>
           <Item onClick={() => props.togglePane('memory')} hide={!isOwner()}>
-            <Book /> Memory
+            <Brain /> Memory
           </Item>
         </Row>
 
         <Row>
           <Item schema={cfg.anonymize ? 'primary' : 'grey'} onClick={settingStore.toggleAnonymize}>
-            <VenetianMask /> Anonymize
-          </Item>
-          <Item onClick={() => props.togglePane('ui')}>
-            <Palette /> UI
+            <MaskHappy /> Anonymize
           </Item>
         </Row>
 
@@ -157,14 +145,6 @@ const ChatOptions: Component<{
 
         <Show when={chats.chat}>
           <Row>
-            <Item
-              onClick={() => {
-                props.setModal('graph')
-              }}
-            >
-              <Map />
-              Chat Graph
-            </Item>
             <Item
               onClick={() => {
                 chatStore.option({ confirm: true, options: false })

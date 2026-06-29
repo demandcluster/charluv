@@ -103,7 +103,7 @@ export function useRef<T = HTMLElement>() {
 export function isChatPage() {
   const location = useLocation()
   const isChat = createMemo(() => {
-    return location.pathname.startsWith('/chat/') || location.pathname.startsWith('/saga/')
+    return location.pathname.startsWith('/chat/')
   })
 
   return isChat
@@ -341,7 +341,10 @@ export function getStoredValue<T = any>(id: string, initialValue: T) {
 }
 
 export function setStoredValue(id: string, value: any) {
-  const key = `agnaistic-ls-${id}`
+  // Must match getStoredValue's key — they were on different prefixes
+  // (agnaistic- vs charluv-), so reads never saw writes and persistence
+  // silently no-op'd (also broke the create-wizard draft resume).
+  const key = `charluv-ls-${id}`
   localStorage.setItem(key, JSON.stringify(value))
 }
 
@@ -484,14 +487,14 @@ export function useGoogleReady() {
   createEffect(() => {
     const timer = setInterval(() => {
       const win: any = window
-      if (win.default_gsi) {
-        console.log('ready')
+      // Google Identity Services (loaded from index.html) exposes
+      // window.google.accounts.id once ready. The old `default_gsi` flag was never
+      // set by anything, so this never flipped and the sign-in button never rendered.
+      if (win.google?.accounts?.id) {
         setReady(true)
         clearInterval(timer)
-      } else {
-        console.log('not ready')
       }
-    }, 500)
+    }, 300)
 
     return () => clearInterval(timer)
   })

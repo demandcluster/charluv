@@ -1,10 +1,10 @@
 import { Component, createMemo, createSignal, For, Show } from 'solid-js'
-import { CircleX, VenetianMask } from 'lucide-solid'
-import Button from '../../shared/Button'
+import { CircleX } from '/web/icons'
 import { CharacterPill } from '../../shared/CharacterPill'
-import { characterStore, chatStore, settingStore, userStore } from '../../store'
+import { characterStore, chatStore, userStore } from '../../store'
 import { msgStore } from '../../store'
 import InputBar from './components/InputBar'
+import StageIndicator from './components/StageIndicator'
 import { ContextState } from '/web/store/context'
 import { AppSchema } from '/common/types'
 
@@ -67,14 +67,6 @@ export const ChatFooter: Component<{
             msgs.waiting ? 'opacity-70 saturate-0' : ''
           }`}
         >
-          <Button
-            size="md"
-            schema="bordered"
-            onClick={() => settingStore.toggleImpersonate(true)}
-            classList={{ 'impersonate-btn': true }}
-          >
-            <VenetianMask size={16} />
-          </Button>
           <For each={props.pills}>
             {(bot) => (
               <CharacterPill
@@ -95,6 +87,9 @@ export const ChatFooter: Component<{
               <CircleX size={16} onClick={() => msgStore.removeAttachment(props.ctx?.chat?._id!)} />
             </div>
           </div>
+        </Show>
+        <Show when={chats.chat?.mode !== 'event'}>
+          <StageIndicator char={chats.char} />
         </Show>
         <InputBar
           chat={chats.chat!}

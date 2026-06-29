@@ -7,9 +7,12 @@ import './store'
 import { Component, createMemo, Show, lazy, onMount, Switch, Match } from 'solid-js'
 import { Route, Router, useLocation } from '@solidjs/router'
 import NavBar from './shared/NavBar'
+import GuestTopBar from './shared/GuestTopBar'
+import UserTopBar from './shared/UserTopBar'
+import { IconContext } from './icons'
 import Notifications from './Toasts'
+import UpdatePrompt from './shared/UpdatePrompt'
 import CharacterRoutes from './pages/Character'
-import ScenarioRoutes from './pages/Scenario'
 import { settingStore } from './store/settings'
 import { userStore } from './store/user'
 import LoginPage from './pages/Login'
@@ -18,17 +21,9 @@ import Navigation from './Navigation'
 import Loading from './shared/Loading'
 import Button from './shared/Button'
 
-import CharacterList from './pages/Character/CharacterList'
-
-import PremiumOptions from './pages/Premium/PremiumOptions'
 import ThankYou from './pages/Premium/ThankYou'
-import Error from './pages/Premium/Error'
 import PremiumInfo from './pages/Premium/Info'
 
-import MatchRoutes from './pages/Match'
-
-import ImpersonateModal from './pages/Character/ImpersonateModal'
-import ChubRoutes from './pages/Chub'
 import Redirect from './shared/Redirect'
 import Maintenance from './shared/Maintenance'
 import CharacterChats from './pages/Character/ChatList'
@@ -43,6 +38,7 @@ import FAQ from './pages/Home/FAQ'
 import CreateChatForm from './pages/Chat/CreateChatForm'
 import Modal from './shared/Modal'
 import { ContextProvider } from './store/context'
+import AgeGate from './shared/AgeGate'
 import MemoryGuide from './pages/Guides/Memory'
 import NovelGuide from './pages/Guides/NovelAI'
 import { ImageModal } from './pages/Chat/ImageModal'
@@ -51,8 +47,8 @@ import { CheckoutCancel, CheckoutSuccess } from './pages/Profile/Checkout'
 import { markdown } from './shared/markdown'
 import SoundsPage from './pages/Sounds'
 import PatreonOauth from './pages/Settings/PatreonOauth'
-import { SagaDetail } from './pages/Saga/Detail'
-import { SagaList } from './pages/Saga/List'
+
+const DiscoverPage = lazy(() => import('./pages/Discover'))
 
 const App: Component = () => {
   const state = userStore()
@@ -61,8 +57,10 @@ const App: Component = () => {
   return (
     <Router root={Layout}>
       <CharacterRoutes />
-      <ScenarioRoutes />
-      <MatchRoutes />
+      {/* Legacy swipe/Match UI retired — redirect to the Discover gallery. */}
+      <Route path="/likes" component={() => <Redirect internal="/discover" />} />
+      <Route path="/likes/list" component={() => <Redirect internal="/discover" />} />
+      <Route path="/likes/:id/profile" component={() => <Redirect internal="/discover" />} />
       <Route path="/checkout">
         <Route path="/success" component={CheckoutSuccess} />
         <Route path="/cancel" component={CheckoutCancel} />
@@ -71,21 +69,19 @@ const App: Component = () => {
         path="/discord"
         component={() => <Redirect external="https://discord.gg/8E6FRdsvhg" />}
       />
-      <ChubRoutes />
       <Route path="/chats/create/:id?" component={() => <CreateChatForm />} />
       <Route path="/chats" component={CharacterChats} />
       <Route path="/chat" component={ChatDetail} />
-      <Show when={cfg.config.guidanceAccess || state.user?.admin}>
-        <Route path="/saga" component={SagaList} />
-        <Route path="/saga/:id" component={SagaDetail} />
-      </Show>
       <Route path="/chat/:id" component={ChatDetail} />
-      <Route path={['/info', '/']} component={HomePage} />
-      <Route path="/presets/:id" component={lazy(() => import('./pages/GenerationPresets'))} />
-      <Route
-        path="/presets"
-        component={lazy(() => import('./pages/GenerationPresets/PresetList'))}
-      />
+      <Route path="/discover" component={DiscoverPage} />
+      <Route path="/discover/:id" component={lazy(() => import('./pages/Discover/Profile'))} />
+      <Route path="/create" component={lazy(() => import('./pages/Create'))} />
+      <Route path="/mine" component={lazy(() => import('./pages/MyAI'))} />
+      <Route path="/mine/:id" component={lazy(() => import('./pages/MyAI/Profile'))} />
+      <Route path="/event" component={lazy(() => import('./pages/Chat/EventPage'))} />
+      <Route path="/" component={DiscoverPage} />
+      <Route path="/blog" component={HomePage} />
+      <Route path="/info" component={HomePage} />
       <Show when={cfg.flags.sounds}>
         <Route path="/sounds" component={SoundsPage} />
       </Show>
@@ -96,8 +92,6 @@ const App: Component = () => {
       <Route path="/help" component={lazy(() => import('./pages/Home/Help'))} />
       <Route path="/terms" component={lazy(() => import('./pages/Home/terms'))} />
       <Route path="/share" component={lazy(() => import('./pages/Home/Share'))} />
-      <Route path="/memory" component={lazy(() => import('./pages/Memory/Library'))} />
-      <Route path="/memory/:id" component={lazy(() => import('./pages/Memory/EditMemoryPage'))} />
 
       <Route path="/checkout">
         <Route path="/success" component={CheckoutSuccess} />
@@ -109,9 +103,7 @@ const App: Component = () => {
         <Route path="/novel" component={NovelGuide} />
       </Route>
       <Show when={state.loggedIn}>
-        <Route path="/shop" component={PremiumOptions} />
         <Route path="/thankyou" component={ThankYou} />
-        <Route path="/shop/error" component={Error} />
         <Route path="/premium" component={PremiumInfo} />
 
         <Route path="/invites" component={lazy(() => import('./pages/Invite/InvitesPage'))} />
@@ -126,12 +118,14 @@ const App: Component = () => {
           <Route path="/admin/users" component={lazy(() => import('./pages/Admin/UsersPage'))} />
           <Route path="/share" component={lazy(() => import('./pages/Home/Share'))} />
 
-          <Route path="/admin/shared" component={lazy(() => import('./pages/Admin/SharePage'))} />
+          <Route
+            path="/admin/moderation"
+            component={lazy(() => import('./pages/Admin/SharePage'))}
+          />
           <Route
             path="/admin/subscriptions"
             component={lazy(() => import('./pages/Admin/SubscriptionList'))}
           />
-          <Route path="/admin/shared" component={lazy(() => import('./pages/Admin/SharePage'))} />
           <Route
             path="/admin/subscriptions/:id"
             component={lazy(() => import('./pages/Admin/SubscriptionModel'))}
@@ -141,6 +135,7 @@ const App: Component = () => {
             component={lazy(() => import('./pages/Admin/Announcements'))}
           />
           <Route path="/admin/tiers/:id" component={lazy(() => import('./pages/Admin/Tiers'))} />
+          <Route path="/admin/promo" component={lazy(() => import('./pages/Admin/PromoCodes'))} />
         </Show>
       </Show>
 
@@ -178,85 +173,116 @@ const Layout: Component<{ children?: any }> = (props) => {
   })
 
   const isChat = createMemo(() => {
-    return location.pathname.startsWith('/chat/') || location.pathname.startsWith('/saga/')
+    return location.pathname.startsWith('/chat/')
   })
+
+  // Logged-out visitors browsing the landing/gallery get a full-width top bar
+  // instead of the left drawer. Chat pages keep the drawer for everyone (guest
+  // chat needs the chat options pane).
+  const guestLanding = createMemo(() => !state.loggedIn && !isChat())
+
+  // Pages that paint their own full-bleed chrome opt out of the centered,
+  // boxed content wrapper so their background runs edge-to-edge.
+  const fullBleed = createMemo(
+    () =>
+      location.pathname === '/' ||
+      location.pathname === '/blog' ||
+      location.pathname === '/info' ||
+      location.pathname.startsWith('/discover') ||
+      location.pathname === '/mine' ||
+      location.pathname.startsWith('/mine/') ||
+      location.pathname === '/event'
+  )
 
   const bgStyles = useCharacterBg('layout')
 
   return (
     <ContextProvider>
-      <style>{css}</style>
-      <div class="scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-[var(--hl-900)] app flex flex-col justify-between">
-        <NavBar />
-        <div class="flex w-full grow flex-row overflow-y-hidden">
-          <Navigation />
+      <IconContext.Provider
+        value={{ weight: 'duotone', size: '1em', color: 'var(--hl-500)', mirrored: false }}
+      >
+        <style>{css}</style>
+        <AgeGate />
+        <div class="scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-[var(--hl-900)] app flex flex-col justify-between">
+          <Switch fallback={<NavBar />}>
+            <Match when={guestLanding()}>
+              <GuestTopBar />
+            </Match>
+            <Match when={state.loggedIn && !isChat()}>
+              <UserTopBar />
+            </Match>
+          </Switch>
+          <div class="flex w-full grow flex-row overflow-y-hidden">
+            <Show when={!guestLanding()}>
+              <Navigation />
+            </Show>
 
-          <main
-            id="main-content"
-            class="w-full overflow-y-auto"
-            classList={{
-              'sm:ml-[302px]': cfg.showMenu,
-              'sm:ml-0': !cfg.showMenu,
-            }}
-            data-background
-            style={{ ...bgStyles(), 'scrollbar-gutter': 'stable both-edges' }}
-          >
-            <div
-              class={`mx-auto h-full min-h-full ${isChat() ? maxW() : 'max-w-8xl'}`}
+            <main
+              id="main-content"
+              class="w-full overflow-y-auto"
               classList={{
-                'content-background': !isChat(),
+                'sm:ml-[302px]': cfg.showMenu && !guestLanding(),
+                'sm:ml-0': !cfg.showMenu || guestLanding(),
               }}
+              data-background
+              style={{ ...bgStyles(), 'scrollbar-gutter': 'stable both-edges' }}
             >
-              <Switch>
-                <Match when={cfg.init}>
-                  {props.children}
-                  <Maintenance />
-                </Match>
+              <div
+                class={`mx-auto h-full min-h-full ${
+                  isChat() ? maxW() : fullBleed() ? 'max-w-full' : 'max-w-8xl'
+                }`}
+                classList={{
+                  'content-background': !isChat() && !fullBleed(),
+                }}
+              >
+                <Switch>
+                  <Match when={cfg.init}>
+                    {props.children}
+                    <Maintenance />
+                  </Match>
 
-                <Match when={cfg.initLoading}>
-                  <div class="flex h-[80vh] flex-col items-center justify-center gap-2">
-                    <div>
-                      Login issues? Try{' '}
-                      <a class="link" onClick={() => userStore.logout()}>
-                        Logging out
-                      </a>{' '}
-                      then log back in.
+                  <Match when={cfg.initLoading}>
+                    <div class="flex h-[80vh] flex-col items-center justify-center gap-2">
+                      <div>
+                        Login issues? Try{' '}
+                        <a class="link" onClick={() => userStore.logout()}>
+                          Logging out
+                        </a>{' '}
+                        then log back in.
+                      </div>
+                      <Loading />
                     </div>
-                    <Loading />
-                  </div>
-                </Match>
-                <Match when>
-                  <div class="flex flex-col items-center gap-2">
-                    <div>Charluv failed to load</div>
-                    <div>
-                      <Button onClick={reload}>Try Again</Button>
+                  </Match>
+                  <Match when>
+                    <div class="flex flex-col items-center gap-2">
+                      <div>Charluv failed to load</div>
+                      <div>
+                        <Button onClick={reload}>Try Again</Button>
+                      </div>
                     </div>
-                  </div>
-                </Match>
-              </Switch>
-            </div>
-          </main>
+                  </Match>
+                </Switch>
+              </div>
+            </main>
+          </div>
         </div>
-      </div>
-      <Notifications />
-      <ImpersonateModal
-        show={cfg.showImpersonate}
-        close={() => settingStore.toggleImpersonate(false)}
-      />
-      <PerformanceModal
-        show={cfg.showPerformance}
-        close={() => settingStore.togglePerformance(false)}
-      />
-      <InfoModal />
-      <ProfileModal />
-      <For each={rootModals.modals}>{(modal) => modal.element}</For>
-      <ImageModal />
-      <SettingsModal />
-      <div
-        class="absolute bottom-0 left-0 right-0 top-0 z-10 h-[100vh] w-full bg-black bg-opacity-20 sm:hidden"
-        classList={{ hidden: !cfg.showMenu }}
-        onClick={() => settingStore.closeMenu()}
-      ></div>
+        <Notifications />
+        <UpdatePrompt />
+        <PerformanceModal
+          show={cfg.showPerformance}
+          close={() => settingStore.togglePerformance(false)}
+        />
+        <InfoModal />
+        <ProfileModal />
+        <For each={rootModals.modals}>{(modal) => modal.element}</For>
+        <ImageModal />
+        <SettingsModal />
+        <div
+          class="absolute bottom-0 left-0 right-0 top-0 z-10 h-[100vh] w-full bg-black bg-opacity-20 sm:hidden"
+          classList={{ hidden: !cfg.showMenu }}
+          onClick={() => settingStore.closeMenu()}
+        ></div>
+      </IconContext.Provider>
     </ContextProvider>
   )
 }

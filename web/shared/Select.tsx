@@ -1,6 +1,6 @@
 import { Component, JSX, For, createMemo, Show } from 'solid-js'
 import { FormLabel } from './FormLabel'
-import { ChevronDown } from 'lucide-solid'
+import { ChevronDown } from '/web/icons'
 import { AIAdapter, PresetAISettings, ThirdPartyFormat } from '../../common/adapters'
 import { getAISettingServices, isValidServiceSetting } from './util'
 import { forms } from '../emitter'

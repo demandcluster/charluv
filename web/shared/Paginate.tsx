@@ -1,7 +1,7 @@
 import { Component, Index, Show, createEffect, createMemo, createSignal } from 'solid-js'
 import Button from './Button'
 import { clamp } from '/common/util'
-import { ChevronFirst, ChevronLast, ChevronLeft, ChevronRight } from 'lucide-solid'
+import { ChevronFirst, ChevronLast, ChevronLeft, ChevronRight } from '/web/icons'
 import { useDeviceType } from './hooks'
 import { storage } from './util'
 import TextInput from './TextInput'

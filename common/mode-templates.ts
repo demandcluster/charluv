@@ -40,31 +40,11 @@ export const cyoaTemplate = (service: AIAdapter, model?: string) => {
   return (
     service === 'claude'
       ? claudeCyoa
-      : service === 'novel'
-      ? novelCyoa
-      : service === 'agnaistic' || service === 'kobold' || service === 'ooba'
+      : service === 'charluv' || service === 'kobold' || service === 'ooba'
       ? alpacaCyoa
       : typicalCyoa
   ).replace(/{{jailbreak}}/gi, jailbreak || '')
 }
-
-const novelCyoa = neat`
-Recent conversation history:
-{{history}}
-
-{ Provide 1 word positive emotion to describe {{user}}'s reaction to the last message }
-Emotion: [emote1 | words=1 | tokens=5]
-{ Provide 1 word negative emotion to describe {{user}}'s reaction to the last message }
-Emotion: [emote2 | words=1 | tokens=5 ]
-{ Provide 1 word realstic emotion to describe {{user}}'s reaction to the last message }
-Emotion: [emote3 | words=1 | tokens=5 ]
-{ {{user}}'s natural, long, and detailed response expressing "[emote1]" emotion }
-{{user}}: [action1 | tokens=100]
-{ {{user}}'s natural, long, and detailed response expressing "[emote2]" emotion }
-{{user}}: [action2 | tokens=100]
-{ {{user}}'s natural, long, and detailed response expressing "[emote3]" emotion }
-{{user}}: [action3 | tokens=100]
-`
 
 const typicalCyoa = `
 Recent conversation history:

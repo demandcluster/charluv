@@ -14,6 +14,7 @@ import { cyoaTemplate } from '/common/mode-templates'
 import { AIAdapter } from '/common/adapters'
 import { parseTemplate } from '/common/template-parser'
 import { obtainLock, releaseLock } from './lock'
+import { ClientGoneError } from '../../queue'
 import { v4 } from 'uuid'
 
 const validInference = {
@@ -187,7 +188,7 @@ export const guidance = wrap(async ({ userId, log, body, socketId }) => {
   if (!userId || body.user.credits < 10) {
     throw errors.MissingCredits
   }
-  const credits = await store.credits.updateCredits(userId!, -10)
+  await store.credits.updateCredits(userId!, -10)
   const props: InferenceRequest = {
     user: body.user,
     log,
@@ -203,8 +204,17 @@ export const guidance = wrap(async ({ userId, log, body, socketId }) => {
     jsonSchema: body.jsonSchema,
   }
 
-  const result = await guidanceAsync(props)
-  return result
+  try {
+    const result = await guidanceAsync(props)
+    return result
+  } catch (ex) {
+    if (ex instanceof ClientGoneError) {
+      // Client disconnected before generation; refund the up-front charge.
+      await store.credits.updateCredits(userId!, 10)
+      return { values: {} }
+    }
+    throw ex
+  }
 })
 
 export const inferenceModels = wrap(async (req) => {

@@ -19,12 +19,16 @@ type UserInfo = {
   billing: AppSchema.User['billing']
   patreon: AppSchema.User['patreon']
   stripeSessions?: string[]
+  creditsRestricted?: boolean
+  restrictedReason?: 'ip' | 'fingerprint' | 'both'
 }
 
 type AdminState = {
   users: AppSchema.User[]
   info?: UserInfo
-  shared?: number
+  published?: AppSchema.Character[]
+  pending?: AppSchema.Character[]
+  reports?: any[]
   metrics?: {
     totalUsers: number
     connected: number
@@ -38,6 +42,7 @@ type AdminState = {
   patreonTiers: Patreon.Tier[]
   impersonating: boolean
   config?: AppSchema.Configuration
+  promos: AppSchema.PromoCode[]
 }
 
 export const adminStore = createStore<AdminState>('admin', {
@@ -46,6 +51,7 @@ export const adminStore = createStore<AdminState>('admin', {
   prices: [],
   patreonTiers: [],
   impersonating: isImpersonating(),
+  promos: [],
 })((_) => {
   return {
     async impersonate(_, userId: string) {
@@ -59,26 +65,48 @@ export const adminStore = createStore<AdminState>('admin', {
       setAltAuth(token)
     },
 
-    async getShared() {
-      const res = await api.get<{ shared: number }>('/admin/submitted')
-      if (res.error) toastStore.error(`Failed to get submitted characters: ${res.error}`)
-      if (res.result) return { shared: res.result }
+    async getPublished() {
+      const res = await api.get<{ characters: AppSchema.Character[] }>('/admin/published')
+      if (res.error) toastStore.error(`Failed to load published characters: ${res.error}`)
+      if (res.result) return { published: res.result.characters }
     },
-    async declineShared(_, body: string) {
-      const res = await api.post('/admin/submitted/declined', body)
-      if (res.result?.error) {
-        toastStore.error(`Failed to decline character: ${res.result.error}`)
-      }
-      if (res.result?.success) toastStore.success(`Update Decline Reason`)
-      onSucces?.()
+    async moderatePublished(
+      _,
+      charId: string,
+      action: 'reviewed' | 'unpublish' | 'delete',
+      reason?: string
+    ) {
+      const res = await api.post(`/admin/published/${charId}`, { action, reason })
+      if (res.error) toastStore.error(`Action failed: ${res.error}`)
+      if (res.result?.success) toastStore.success(`Done`)
+      return res.result?.success
     },
-    async acceptShared(_, body: string) {
-      const res = await api.post('/admin/submitted/accept', body)
-      if (res.result?.error) {
-        toastStore.error(`Failed to accept character: ${res.result.error}`)
-      }
-      if (res.result?.success) toastStore.success(`Rewarded User`)
-      onSucces?.()
+    async getPending() {
+      const res = await api.get<{ characters: AppSchema.Character[] }>('/admin/pending')
+      if (res.error) toastStore.error(`Failed to load pending characters: ${res.error}`)
+      if (res.result) return { pending: res.result.characters }
+    },
+    async moderatePending(
+      _,
+      charId: string,
+      action: 'approve' | 'reject' | 'delete',
+      reason?: string
+    ) {
+      const res = await api.post(`/admin/pending/${charId}`, { action, reason })
+      if (res.error) toastStore.error(`Action failed: ${res.error}`)
+      if (res.result?.success) toastStore.success(`Done`)
+      return res.result?.success
+    },
+    async getReports() {
+      const res = await api.get<{ reports: any[] }>('/admin/reports')
+      if (res.error) toastStore.error(`Failed to load reports: ${res.error}`)
+      if (res.result) return { reports: res.result.reports }
+    },
+    async resolveReport(_, charId: string, action: 'dismiss' | 'hide' | 'delete', reason?: string) {
+      const res = await api.post(`/admin/reports/${charId}`, { action, reason })
+      if (res.error) toastStore.error(`Action failed: ${res.error}`)
+      if (res.result?.success) toastStore.success(`Done`)
+      return res.result?.success
     },
     unimpersonate(state) {
       if (!state.impersonating) return
@@ -119,6 +147,14 @@ export const adminStore = createStore<AdminState>('admin', {
       const res = await api.get<UserInfo>(`/admin/users/${userId}/info`)
       if (res.error) toastStore.error(`Failed to get user info: ${res.error}`)
       if (res.result) return { info: res.result }
+    },
+    async clearRestriction(_, userId: string, onSuccess?: () => void) {
+      const res = await api.post(`/admin/users/${userId}/clear-restriction`)
+      if (res.error) return toastStore.error(`Failed to clear restriction: ${res.error}`)
+      if (res.result) {
+        toastStore.success('Restriction cleared')
+        onSuccess?.()
+      }
     },
     async getMetrics() {
       const res = await api.get('/admin/metrics')
@@ -208,6 +244,38 @@ export const adminStore = createStore<AdminState>('admin', {
       const res = await api.get('/settings')
       if (res.result) {
         return { config: res.result.serverConfig }
+      }
+    },
+    async getPromos() {
+      const res = await api.get('/admin/promo')
+      if (res.result) return { promos: res.result.codes }
+      if (res.error) toastStore.error(`Failed to load promo codes: ${res.error}`)
+    },
+    async createPromo(_, input: Partial<AppSchema.PromoCode>, onSuccess?: () => void) {
+      const res = await api.post('/admin/promo', input)
+      if (res.error) return toastStore.error(`Failed to create code: ${res.error}`)
+      if (res.result) {
+        toastStore.success('Promo code created')
+        adminStore.getPromos()
+        onSuccess?.()
+      }
+    },
+    async updatePromo(_, id: string, patch: Partial<AppSchema.PromoCode>, onSuccess?: () => void) {
+      const res = await api.post(`/admin/promo/${id}`, patch)
+      if (res.error) return toastStore.error(`Failed to update code: ${res.error}`)
+      if (res.result) {
+        toastStore.success('Promo code updated')
+        adminStore.getPromos()
+        onSuccess?.()
+      }
+    },
+    async deletePromo(_, id: string, onSuccess?: () => void) {
+      const res = await api.method('delete', `/admin/promo/${id}`)
+      if (res.error) return toastStore.error(`Failed to delete code: ${res.error}`)
+      if (res.result) {
+        toastStore.success('Promo code deleted')
+        adminStore.getPromos()
+        onSuccess?.()
       }
     },
   }

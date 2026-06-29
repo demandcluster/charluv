@@ -1,7 +1,7 @@
 import { assertValid } from '/common/valid'
 import { store } from '../../db'
-import { generateImage } from '../../image'
-import { handle } from '../wrap'
+import { generateImage, IMAGE_COST } from '../../image'
+import { handle, StatusError } from '../wrap'
 
 export const createImage = handle(async ({ body, userId, socketId, log, params }) => {
   assertValid(
@@ -22,6 +22,14 @@ export const createImage = handle(async ({ body, userId, socketId, log, params }
 
   if (userId === 'anon') {
     return { success: false }
+  }
+
+  // Charge logged-in users for image generation / regeneration.
+  if (userId) {
+    if (user?.credits && user.credits < IMAGE_COST) {
+      throw new StatusError('Not enough credits', 400)
+    }
+    await store.credits.updateCredits(userId, -IMAGE_COST)
   }
 
   generateImage(

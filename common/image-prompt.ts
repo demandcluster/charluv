@@ -118,7 +118,7 @@ export function getMaxImageContext(user: AppSchema.User) {
 
     case 'horde':
     default:
-      return 512
+      return 768
   }
 }
 

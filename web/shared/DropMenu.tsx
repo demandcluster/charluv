@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp } from 'lucide-solid'
+import { ChevronDown, ChevronUp } from '/web/icons'
 import { Component, createMemo, createSignal, Show } from 'solid-js'
 import { useEffect } from './hooks'
 import { v4 } from 'uuid'
@@ -53,7 +53,7 @@ export const DropMenu: Component<{
   customPosition?: string
   class?: string
 }> = (props) => {
-  let ref: HTMLDivElement
+  let ref!: HTMLDivElement
   const [auto, setAuto] = createSignal<{ horz?: Horz; vert?: Vert }>()
   const [opened, setOpened] = createSignal(false)
   const [id, _setId] = createSignal('dropdown-' + v4())

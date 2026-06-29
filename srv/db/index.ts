@@ -8,12 +8,14 @@ import * as msgs from './messages'
 import * as memory from './memory'
 import * as shop from './shop'
 import * as matches from './matches'
+import * as reports from './reports'
 import * as credits from './credits'
 import * as scenario from './scenario'
-import * as invitecode from './invitecode'
 import * as oauth from './oauth'
 import * as subs from './subscriptions'
 import * as announce from './announcements'
+import * as promo from './promo'
+import * as notifications from './notifications'
 
 export { db } from './client'
 
@@ -27,11 +29,13 @@ export const store = {
   msgs,
   memory,
   shop,
-  invitecode,
   matches,
+  reports,
   credits,
   scenario,
   oauth,
   subs,
   announce,
+  promo,
+  notifications,
 }

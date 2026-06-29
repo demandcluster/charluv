@@ -66,9 +66,9 @@ export const GeneralSettings: Component<
   })
 
   const [_, setSwipesPerGeneration] = createSignal(props.inherit?.swipesPerGeneration || 1)
-  const [tokens, setTokens] = createSignal(props.inherit?.maxTokens || 150)
+  const [, setTokens] = createSignal(props.inherit?.maxTokens || 150)
 
-  const [context, setContext] = createSignal(
+  const [, setContext] = createSignal(
     props.inherit?.maxContextLength || defaultPresets.basic.maxContextLength
   )
 
@@ -366,7 +366,7 @@ export const GeneralSettings: Component<
           label="Replicate Model by Version (SHA)"
           helperText="Which Replicate model to use (see https://replicate.com/collections/language-models)"
           value={replicate.version}
-          placeholder={`E.g. ${defaultPresets.replicate_vicuna_13b.replicateModelVersion}`}
+          placeholder="E.g. a model version SHA"
           disabled={!!replicate.model || props.disabled}
           service={props.service}
           aiSetting={'replicateModelVersion'}
@@ -429,11 +429,10 @@ export const GeneralSettings: Component<
           recommendLabel="Max"
         />
         <Toggle
-          class="hidden"
           fieldName="streamResponse"
           label="Stream Response"
           helperText="Stream the AI's response as it is generated"
-          value={false} //{props.inherit?.streamResponse ?? false}
+          value={props.inherit?.streamResponse ?? true}
           disabled={props.disabled}
         />
         <StoppingStrings inherit={props.inherit} service={props.service} format={props.format} />

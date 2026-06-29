@@ -3,7 +3,7 @@ import { AppSchema } from '../../common/types/schema'
 import { DropMenu } from './DropMenu'
 import { CharacterAvatar } from './AvatarIcon'
 import Button from './Button'
-import { ChevronDown, Users } from 'lucide-solid'
+import { ChevronDown, Users } from '/web/icons'
 import { FormLabel } from './FormLabel'
 import CharacterSelectList from './CharacterSelectList'
 

@@ -33,6 +33,10 @@ export type AllDoc =
   | AppSchema.Configuration
   | AppSchema.SagaTemplate
   | AppSchema.SagaSession
+  | AppSchema.CharacterReport
+  | AppSchema.Notification
+  | AppSchema.PromoCode
+  | AppSchema.PromoRedemption
 
 export type OAuthScope = keyof typeof oauthScopes
 
@@ -45,6 +49,42 @@ export namespace AppSchema {
   export type Persona = Library.Persona
   export type BaseCharacter = Library.BaseCharacter
   export type Character = Library.Character
+  export type CharacterModeration = Library.CharacterModeration
+  export type ModerationFlag = Library.ModerationFlag
+
+  /** A user report filed against a published character. One per (reporter, char). */
+  export interface CharacterReport {
+    _id: string
+    kind: 'character-report'
+    charId: string
+    /** Owner of the reported character (denormalized for the admin queue). */
+    charOwnerId: string
+    reporterId: string
+    reason: string
+    note?: string
+    createdAt: string
+    /** Set once an admin has actioned the report (dismissed / unpublished / deleted). */
+    resolved?: boolean
+    resolvedAt?: string
+    resolvedBy?: string
+  }
+
+  /**
+   * A durable per-user notification (e.g. a moderation outcome). Persisted so a
+   * user who was offline when it was raised still receives it: undelivered ones
+   * are replayed over the socket on their next login, then marked delivered.
+   */
+  export interface Notification {
+    _id: string
+    kind: 'notification'
+    userId: string
+    message: string
+    /** Optional admin-broadcast level (mirrors the legacy admin-notification toast). */
+    level?: number
+    createdAt: string
+    /** Set once the message has been pushed to a live socket for this user. */
+    deliveredAt?: string
+  }
 
   export type GenSettings = Preset.GenSettings
   export type UserGenPreset = Preset.UserGenPreset
@@ -111,12 +151,42 @@ export namespace AppSchema {
     incart: false
   }
 
+  export interface PromoCode {
+    _id: string
+    kind: 'promo-code'
+    code: string
+    credits?: number
+    days?: number
+    maxUses: number
+    uses: number
+    enabled: boolean
+    expiresAt?: string
+    createdAt: string
+    createdBy: string
+    updatedAt?: string
+  }
+
+  export interface PromoRedemption {
+    _id: string
+    kind: 'promo-redemption'
+    codeId: string
+    userId: string
+    code: string
+    credits: number
+    days: number
+    createdAt: string
+  }
+
   export interface Profile {
     _id: string
     kind: 'profile'
     userId: string
     handle: string
     avatar?: string
+    /** How the user describes themselves as a character — injected as {{user}}'s
+     * persona in chats (replaces the old per-chat character impersonation). */
+    description?: string
+    persona?: string
   }
 
   export interface User {
@@ -134,6 +204,16 @@ export namespace AppSchema {
 
     admin: boolean
     lastIp?: string
+    /** Device identifier (FingerprintJS visitorId) captured at registration, with
+     * consent, to detect multiple-account abuse. */
+    fingerprint?: string
+    /** ISO timestamp when the user accepted the identifier-collection checkbox at registration. */
+    identifierConsentAt?: string
+    /** True when this account matched an existing fingerprint or IP at signup: it
+     * receives no signup bonus and no automatic free-credit refills until cleared. */
+    creditsRestricted?: boolean
+    /** Why the account was restricted (admin context; never shown to end users). */
+    restrictedReason?: 'ip' | 'fingerprint' | 'both'
     role?: 'moderator' | 'admin'
 
     novelApiKey: string
@@ -274,7 +354,25 @@ export namespace AppSchema {
   export interface Chat {
     _id: string
     kind: 'chat'
-    mode?: 'standard' | 'adventure' | 'companion'
+    mode?: 'standard' | 'adventure' | 'companion' | 'event'
+    /** Event scene metadata. Present only when `mode === 'event'`.
+     * `when` (time of day) and `vibe` (tone) are optional scene flavour.
+     * `directorEvents` sets how often the director injects an unprompted world
+     * beat to drive the story.
+     * `note` is the director's standing instruction (set on start) used to steer
+     * the scene — who speaks, what beats happen. Director-only; never shown to
+     * characters as scene context. */
+    event?: {
+      location: string
+      description: string
+      when?: string
+      vibe?: string
+      directorEvents?: 'none' | 'rare' | 'normal' | 'regular'
+      note?: string
+    }
+    /** When true, this chat neither writes nor recalls long-term memory.
+     * Set on event creation; also user-toggleable in chat settings. */
+    memoryDisabled?: boolean
     userId: string
     memoryId?: string
     userEmbedId?: string

@@ -1,9 +1,10 @@
 import { Component, Match, Switch, createEffect, createSignal, on, onMount } from 'solid-js'
+import { AppSchema } from '/common/types'
 import { adminStore, userStore } from '/web/store'
 import { useNavigate } from '@solidjs/router'
 import PageHeader from '/web/shared/PageHeader'
 import { getStrictForm } from '/web/shared/util'
-import { SaveIcon } from 'lucide-solid'
+import { SaveIcon } from '/web/icons'
 import Button from '/web/shared/Button'
 import { Page } from '/web/Layout'
 import Loading from '/web/shared/Loading'
@@ -16,7 +17,7 @@ import { Images } from './Config/Images'
 export { ServerConfiguration as default }
 
 const ServerConfiguration: Component = () => {
-  let form: HTMLFormElement
+  let form: HTMLFormElement = undefined!
   const user = userStore()
   const nav = useNavigate()
 
@@ -70,21 +71,28 @@ const ServerConfiguration: Component = () => {
       maxGuidanceVariables: 'number',
       googleClientId: 'string',
       googleEnabled: 'boolean',
-      modPresetId: 'string',
       modPrompt: 'string',
       modFieldPrompt: 'string',
       charlibGuidelines: 'string',
       lockSeconds: 'number',
       charlibPublish: ['off', 'users', 'subscribers', 'moderators', 'admins'],
+      publishDailyFree: 'number',
+      publishDailyPremium: 'number',
+      publishReward: 'number',
+      publishMinGreeting: 'number',
+      publishMinDescription: 'number',
+      publishMinScenario: 'number',
+      publishMinPersonality: 'number',
     })
 
     adminStore.updateServerConfig({
       ...body,
-      actionCalls: [],
+      actionCalls: [] as AppSchema.ActionCall[],
       slots: slots(),
       imagesModels: models[0](),
-      enabledAdapters: [],
+      enabledAdapters: [] as string[],
       modSchema: modschema(),
+      modPresetId: state.config?.modPresetId || '',
     })
   }
 

@@ -3,8 +3,6 @@ import { db } from './client'
 import { AppSchema } from '../../common/types/schema'
 import { now } from './util'
 
-import { store } from '.'
-import { config } from '../config'
 import { WithId } from 'mongodb'
 
 // let PAGE_SIZE = config.limits.msgPageSize

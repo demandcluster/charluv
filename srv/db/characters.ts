@@ -18,6 +18,12 @@ export type CharacterUpdate = Partial<
     | 'tags'
     | 'favorite'
     | 'match'
+    | 'draft'
+    | 'published'
+    | 'publishedAt'
+    | 'publishRewarded'
+    | 'moderation'
+    | 'reportCount'
     | 'xp'
     | 'share'
     | 'premium'
@@ -38,6 +44,15 @@ export type CharacterUpdate = Partial<
     | 'imageSettings'
     | 'json'
     | 'folder'
+    | 'progression'
+    | 'gender'
+    | 'artStyle'
+    | 'ageRange'
+    | 'category'
+    | 'nsfw'
+    | 'loraName'
+    | 'imageSeed'
+    | 'gallery'
   >
 >
 
@@ -57,6 +72,7 @@ export async function createCharacter(
     | 'tags'
     | 'favorite'
     | 'match'
+    | 'draft'
     | 'xp'
     | 'premium'
     | 'share'
@@ -76,6 +92,15 @@ export async function createCharacter(
     | 'voiceDisabled'
     | 'imageSettings'
     | 'json'
+    | 'progression'
+    | 'gender'
+    | 'artStyle'
+    | 'ageRange'
+    | 'category'
+    | 'nsfw'
+    | 'loraName'
+    | 'imageSeed'
+    | 'gallery'
   >
 ) {
   const newChar: AppSchema.Character = {
@@ -109,43 +134,75 @@ export async function getPublicCharacter(name: string) {
   return char
 }
 
-export async function getSubmitted() {
-  const list = await db('character').find({ kind: 'character', share: 'submitted' }).toArray()
-  return list || []
+/** Load a character by id regardless of owner (admin / moderation use). */
+export async function getCharacterById(id: string) {
+  const char = await db('character').findOne({ _id: id, kind: 'character' })
+  return char || undefined
 }
 
-export async function declineSubmitted(characterId: string, userId: string, reason: string) {
-  const shareReason = `declined:${reason}`
-  console.log('char', characterId, userId, reason)
-  const update = { share: shareReason, updatedAt: now() }
-
-  await db('character').updateOne({ _id: characterId, userId }, { $set: update })
-  return { characterId, userId, reason }
+/** Live published characters for the admin stage-2 review queue (unreviewed first). */
+export async function getPublishedForReview() {
+  const list = await db('character')
+    .find({ kind: 'character', published: true })
+    .sort({ 'moderation.moderated': 1, publishedAt: -1 })
+    .limit(500)
+    .toArray()
+  return list
 }
 
-function clearChar(char?: any) {
-  if (!char._id && !char.userId && !char.updatedAt && !char.createdAt) return char
-  delete char?._id
-  delete char?.userId
-  delete char?.updatedAt
-  delete char?.createdAt
-  return char
+/**
+ * Characters that FAILED the automated publish check and are awaiting a human
+ * decision: rejected by the AI, not yet actioned by a moderator. These are not
+ * published (not live) — an admin approves (publishes) or confirms the rejection.
+ */
+export async function getPendingModeration() {
+  const list = await db('character')
+    .find({
+      kind: 'character',
+      'moderation.status': 'rejected',
+      'moderation.moderated': { $ne: true },
+    })
+    .sort({ 'moderation.autoCheckedAt': -1 })
+    .limit(500)
+    .toArray()
+  return list
 }
 
-export async function acceptSubmitted(characterId: string, userId: string, amount: string) {
-  const update = { share: 'accepted', updatedAt: now() }
-  await db('character').updateOne({ _id: characterId, userId }, { $set: update })
-  const char = await db('character').findOne({ kind: 'character', _id: characterId })
-  const admin = await db('user').findOne({ kind: 'user', admin: true, username: 'admin' })
-  if (!admin || !char) return
-  char.share = 'private'
-  char.xp = 0
-
-  await createCharacter(admin?._id, clearChar(char))
-  await db('user').updateOne({ _id: userId }, { $inc: { credits: parseInt(amount) } })
-
-  return { characterId, userId, amount }
+/** Delete a character by id regardless of owner (admin moderation action). */
+export async function adminDeleteCharacter(charId: string) {
+  await db('character').deleteOne({ _id: charId, kind: 'character' })
 }
+
+/** Number of characters this user has published since the start of the UTC day. */
+export async function countPublishedToday(userId: string) {
+  const start = new Date()
+  start.setUTCHours(0, 0, 0, 0)
+  return db('character').countDocuments({
+    kind: 'character',
+    userId,
+    publishedAt: { $gte: start.getTime() },
+  })
+}
+
+/**
+ * Update publish/moderation state on a character by id only (no userId scope).
+ * Used by report auto-hide and admin moderation actions, which act on characters
+ * the caller does not own.
+ */
+export async function setCharacterModeration(
+  characterId: string,
+  update: Pick<
+    CharacterUpdate,
+    'published' | 'publishedAt' | 'publishRewarded' | 'moderation' | 'reportCount'
+  >
+) {
+  await db('character').updateOne(
+    { _id: characterId, kind: 'character' },
+    { $set: { ...update, updatedAt: now() } }
+  )
+  return db('character').findOne({ _id: characterId, kind: 'character' })
+}
+
 export async function bulkUpdate(
   userId: string,
   charIds: string[],
@@ -188,9 +245,47 @@ export async function getCharacter(
   return char || undefined
 }
 
+/**
+ * The user's existing personal copy of a Discover template, if any. A clone's
+ * `parent` points back to the template it was matched from, so this is how we
+ * avoid spawning a second copy when the user matches the same character again.
+ */
+export async function getUserCopyOfTemplate(userId: string, templateId: string) {
+  const char = await db('character').findOne({
+    kind: 'character',
+    userId,
+    parent: templateId,
+    draft: { $ne: true },
+  })
+  return char || undefined
+}
+
+/** The user's current unfinished wizard draft, if any. One draft per user. */
+export async function getDraftCharacter(userId: string) {
+  const char = await db('character').findOne({ userId, kind: 'character', draft: true })
+  return char || undefined
+}
+
+/**
+ * Atomically claim the single free portrait for the user's active draft. Returns
+ * true exactly once per draft (the create wizard's first auto-generation, bundled
+ * into the creation fee); every later generation returns false and is charged.
+ * The `freePortraitUsed: { $ne: true }` guard makes the claim race-safe, so
+ * concurrent requests can't both win the freebie. Eligibility is derived entirely
+ * from server state — the client's request only signals intent.
+ */
+export async function claimDraftFreePortrait(userId: string) {
+  const res = await db('character').updateOne(
+    { userId, kind: 'character', draft: true, freePortraitUsed: { $ne: true } },
+    { $set: { freePortraitUsed: true } }
+  )
+  return res.modifiedCount === 1
+}
+
 export async function getCharacters(userId: string) {
   const list = await db('character')
-    .find({ userId })
+    // Hide unfinished wizard drafts from the My AI list.
+    .find({ userId, draft: { $ne: true } })
     .project({
       _id: 1,
       userId: 1,
@@ -205,9 +300,23 @@ export async function getCharacters(userId: string) {
       xp: 1,
       children: 1,
       match: 1,
+      published: 1,
+      moderation: 1,
+      reportCount: 1,
       parent: 1,
       voiceDisabled: 1,
       folder: 1,
+      // The My AI list filters and cards need these: gender/artStyle/nsfw/category
+      // drive the filter chips and tag search; progression/loraName render the
+      // stage badge and archetype/LoRA pills. Without them the filters match
+      // nothing (undefined !== 'female') and the pills never show.
+      gender: 1,
+      artStyle: 1,
+      ageRange: 1,
+      nsfw: 1,
+      category: 1,
+      progression: 1,
+      loraName: 1,
     })
     .toArray()
 
@@ -219,6 +328,28 @@ export async function deleteCharacter(opts: { charId: string; userId: string }) 
   const chats = await db('chat').find({ characterId: opts.charId, userId: opts.userId }).toArray()
   await db('chat-message').deleteMany({ chatId: { $in: chats.map((ch) => ch._id) } })
   await db('chat').deleteMany({ characterId: opts.charId, userId: opts.userId })
+}
+
+/**
+ * True if any character *other than* `exceptId` still references this LoRA name.
+ * Cloning a character copies the parent's `loraName`, so the stored LoRA on the
+ * image server is shared — it must outlive the deletion of any single character
+ * that points at it.
+ */
+export async function anyCharacterUsesLora(loraName: string, exceptId?: string) {
+  if (!loraName) return false
+  const query: any = { kind: 'character', loraName }
+  if (exceptId) query._id = { $ne: exceptId }
+  const found = await db('character').findOne(query, { projection: { _id: 1 } })
+  return !!found
+}
+
+/** Drop the LoRA association from a character. Does not touch the image server. */
+export async function clearCharacterLora(charId: string, userId: string) {
+  await db('character').updateOne(
+    { _id: charId, userId, kind: 'character' },
+    { $set: { updatedAt: now() }, $unset: { loraName: '' } }
+  )
 }
 
 export async function getCharacterList(charIds: string[], userId?: string) {

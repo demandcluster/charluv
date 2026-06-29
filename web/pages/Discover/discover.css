@@ -1,0 +1,369 @@
+/* Discover — "warm dusk" editorial aesthetic with the Charluv green accent.
+   Palette + page background live in ../warm-dusk.css (shared with the blog page).
+   Scoped under .dsc-root so it never bleeds into the legacy theme. */
+@import '../warm-dusk.css';
+
+.dsc-root {
+  padding: clamp(1.25rem, 4vw, 3.5rem) clamp(1rem, 5vw, 4rem) 5rem;
+}
+
+/* ---- header ---- */
+.dsc-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.25rem 2rem;
+  flex-wrap: wrap;
+  margin-bottom: clamp(1.5rem, 4vw, 2.75rem);
+}
+.dsc-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+.dsc-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 600;
+  font-size: clamp(2.4rem, 7vw, 5rem);
+  line-height: 0.92;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+.dsc-title em {
+  font-style: italic;
+  color: var(--dsc-green);
+}
+.dsc-create {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--dsc-green);
+  background: var(--dsc-green);
+  color: oklch(0.2 0.03 350);
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 0.6rem 1.2rem;
+  border-radius: 999px;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: 0 12px 28px -16px var(--dsc-green-deep);
+  transition: background 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+.dsc-create:hover {
+  background: var(--dsc-green-deep);
+  transform: translateY(-2px);
+  box-shadow: 0 16px 34px -16px var(--dsc-green-deep);
+}
+.dsc-create:focus-visible {
+  outline: 2px solid var(--dsc-cream);
+  outline-offset: 2px;
+}
+.dsc-tag {
+  color: var(--dsc-muted);
+  max-width: 48ch;
+  margin: 0;
+  font-size: clamp(0.9rem, 1.4vw, 1.1rem);
+  line-height: 1.5;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dsc-create {
+    transition: none;
+  }
+}
+
+/* ---- filter rail ---- */
+.dsc-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+  padding-bottom: 1.5rem;
+  margin-bottom: clamp(1.5rem, 4vw, 2.5rem);
+  border-bottom: 1px solid var(--dsc-line);
+}
+.dsc-group {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+.dsc-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--dsc-muted);
+  margin-right: 0.15rem;
+}
+.dsc-chip {
+  appearance: none;
+  border: 1px solid var(--dsc-line);
+  background: transparent;
+  color: var(--dsc-cream);
+  padding: 0.34rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 180ms ease, border-color 180ms ease, color 180ms ease;
+}
+.dsc-chip:hover {
+  border-color: var(--dsc-green);
+}
+.dsc-chip[data-on='true'] {
+  background: var(--dsc-green);
+  border-color: var(--dsc-green);
+  color: oklch(0.2 0.03 350);
+  font-weight: 700;
+}
+.dsc-spacer {
+  flex: 1;
+}
+.dsc-search {
+  background: var(--dsc-bg-2);
+  border: 1px solid var(--dsc-line);
+  color: var(--dsc-cream);
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  font-size: 0.9rem;
+  min-width: 12rem;
+}
+.dsc-search:focus-visible {
+  outline: 2px solid var(--dsc-green);
+  outline-offset: 2px;
+}
+
+/* ---- gallery ---- */
+.dsc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: clamp(0.9rem, 2vw, 1.4rem);
+}
+/* Keep two cards per row on phones rather than one giant stack. */
+@media (max-width: 640px) {
+  .dsc-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.7rem;
+  }
+  .dsc-name {
+    font-size: 1rem;
+  }
+  .dsc-card:nth-child(7n + 1) {
+    aspect-ratio: 3 / 4;
+  }
+}
+.dsc-card {
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
+  background: linear-gradient(160deg, var(--dsc-surface), var(--dsc-bg-2));
+  border: 1px solid var(--dsc-line);
+  cursor: pointer;
+  isolation: isolate;
+  transition: transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 260ms ease;
+}
+/* asymmetry: every 7th card spans taller for editorial rhythm */
+.dsc-card:nth-child(7n + 1) {
+  aspect-ratio: 3 / 5;
+}
+.dsc-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 18px 40px -18px oklch(0 0 0 / 0.7), 0 0 0 1px var(--dsc-green);
+}
+.dsc-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -2;
+}
+.dsc-ph {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  display: grid;
+  place-items: center;
+  font-family: 'Fraunces', serif;
+  font-size: 4rem;
+  color: oklch(0.55 0.06 350);
+  background: linear-gradient(150deg, oklch(0.32 0.07 350), oklch(0.26 0.05 165));
+}
+.dsc-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(to top, oklch(0.15 0.03 350 / 0.92) 8%, transparent 55%);
+}
+.dsc-meta {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0.85rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.dsc-name {
+  font-family: 'Fraunces', serif;
+  font-size: 1.25rem;
+  line-height: 1.05;
+  font-weight: 600;
+}
+.dsc-name span {
+  color: var(--dsc-muted);
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+.dsc-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.dsc-pill {
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.12rem 0.5rem;
+  border-radius: 6px;
+  background: oklch(0.95 0.02 75 / 0.12);
+  color: var(--dsc-cream);
+  backdrop-filter: blur(2px);
+}
+/* Marks a character that has a trained image LoRA (consistent appearance). */
+.dsc-pill-lora {
+  background: var(--dsc-green);
+  color: oklch(0.2 0.03 350);
+  font-weight: 700;
+  backdrop-filter: none;
+  /* Keep the brand casing "LoRA" — the base pill forces uppercase ("LORA"). */
+  text-transform: none;
+  letter-spacing: 0;
+}
+.dsc-engage {
+  display: flex;
+  gap: 0.9rem;
+  font-size: 0.74rem;
+  color: var(--dsc-muted);
+}
+.dsc-badge {
+  position: absolute;
+  top: 0.7rem;
+  left: 0.7rem;
+  z-index: 1;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.55rem;
+  border-radius: 7px;
+  background: var(--dsc-green);
+  color: oklch(0.2 0.03 350);
+}
+.dsc-badge[data-nsfw='true'] {
+  background: var(--dsc-wine);
+  color: var(--dsc-cream);
+  left: auto;
+  right: 0.7rem;
+}
+/* Plum progression marker: an icon-only badge (tooltip "Scenario progression")
+   that flags the character has a relationship arc — no extra text. */
+.dsc-badge-progress {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  background: var(--dsc-plum);
+  color: var(--dsc-cream);
+}
+/* On My AI the top-left slot holds the level badge, so stack the marker below it. */
+.dsc-badge-progress.myai-progress {
+  top: 2.7rem;
+}
+/* Caption explaining the plum progression marker (the tooltip alone isn't
+   discoverable on touch). Shown only when a card on screen actually has it. */
+.dsc-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: -0.25rem 0 0.5rem;
+  font-size: 0.8rem;
+  color: var(--dsc-muted);
+}
+.dsc-legend-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem;
+  border-radius: 6px;
+  background: var(--dsc-plum);
+  color: var(--dsc-cream);
+  flex-shrink: 0;
+}
+.dsc-cta {
+  position: absolute;
+  inset: auto 0.7rem 0.7rem 0.7rem;
+  z-index: 2;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 220ms ease, transform 220ms ease;
+  border: none;
+  background: var(--dsc-cream);
+  color: oklch(0.2 0.03 350);
+  font-weight: 700;
+  padding: 0.55rem;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.dsc-card:hover .dsc-cta,
+.dsc-card:focus-within .dsc-cta {
+  opacity: 1;
+  transform: translateY(0);
+}
+.dsc-cta:hover {
+  background: var(--dsc-green);
+}
+
+/* ---- states ---- */
+.dsc-empty,
+.dsc-loading {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  text-align: center;
+  color: var(--dsc-muted);
+  padding: clamp(3rem, 9vw, 6rem) 1rem;
+  font-family: 'Fraunces', serif;
+  font-size: 1.3rem;
+}
+.dsc-empty p {
+  margin: 0;
+  max-width: 30ch;
+}
+.dsc-skel {
+  border-radius: 18px;
+  aspect-ratio: 3 / 4;
+  background: linear-gradient(
+    100deg,
+    var(--dsc-bg-2) 30%,
+    var(--dsc-surface) 50%,
+    var(--dsc-bg-2) 70%
+  );
+  background-size: 200% 100%;
+  animation: dsc-shimmer 1.3s linear infinite;
+}
+@keyframes dsc-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dsc-card,
+  .dsc-cta,
+  .dsc-skel {
+    transition: none;
+    animation: none;
+  }
+}

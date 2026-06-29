@@ -9,7 +9,7 @@ import { exportPreset, presetStore, settingStore, userStore } from '../store'
 import { isUsableService } from './util'
 import { defaultPresets } from '/common/default-preset'
 import { isDefaultPreset } from '/common/presets'
-import { DownloadIcon } from 'lucide-solid'
+import { DownloadIcon } from '/web/icons'
 
 export const PresetSelect: Component<{
   label?: JSX.Element | string

@@ -1,16 +1,16 @@
 import * as horde from '../../common/horde-gen'
-import { HORDE_GUEST_KEY, getHordeModels } from '../api/horde'
+import { HORDE_GUEST_KEY } from '../api/horde'
 import { sendOne } from '../api/ws'
-import { decryptText } from '../db/util'
 import { config } from '../config'
-const { hordeKeyPremium } = config
 import { logger } from '../middleware'
 import { ModelAdapter } from './type'
 import { sanitise, trimResponseV2 } from '/common/requests/util'
-import { toArray } from '/common/util'
 import { AppSchema } from '/common/types'
 import { store } from '../db'
 import { isConnected } from '../db/client'
+import { validateGenerationGate } from './gate'
+
+const { hordeKeyPremium } = config
 
 export const handleHorde: ModelAdapter = async function* ({
   char,
@@ -32,72 +32,30 @@ export const handleHorde: ModelAdapter = async function* ({
 
     yield { prompt }
 
-    let newLevel = await store.users.validateSubscription(user)
-
-    if (
-      'subscription' in opts === false ||
-      opts.subscription === undefined ||
-      newLevel === undefined
-    ) {
+    if ('subscription' in opts === false || opts.subscription === undefined) {
       opts.subscription = await getSubscriptionPreset(user, false, gen)
     }
-    if (!opts.subscription || !opts.subscription.preset) {
+
+    const gate = await validateGenerationGate({
+      user,
+      guest,
+      subscription: opts.subscription,
+      log: opts.log,
+    })
+    if (gate.error) {
+      yield { error: gate.error }
+      return
+    }
+    if (gate.warning) {
+      yield { warning: gate.warning }
+    }
+
+    if (!opts.subscription?.preset) {
       yield { error: 'Subscriptions are not enabled' }
       return
     }
 
-    if (opts.subscription.error) {
-      yield { error: opts.subscription.error }
-      return
-    }
-
-    if (opts.subscription.warning) {
-      yield { warning: opts.subscription.warning }
-    }
-
-    const level = opts.subscription.level ?? -1
     const preset = opts.subscription.preset
-
-    if (newLevel === undefined) {
-      newLevel = -1
-    }
-
-    if (newLevel instanceof Error) {
-      yield { error: newLevel.message }
-      return
-    }
-
-    if (preset.subLevel > -1 && preset.subLevel > newLevel) {
-      opts.log.error(
-        {
-          preset: preset.name,
-          presetLevel: preset.subLevel,
-          newLevel,
-          userLevel: user.sub?.level,
-        },
-        `Subscription insufficient`
-      )
-      yield { error: 'Your account is ineligible for this model - Subscription tier insufficient' }
-      return
-    }
-
-    if (!preset.allowGuestUsage && guest) {
-      yield { error: 'Please sign in to use this model' }
-      return
-    }
-
-    const models = getHordeModels()
-    const userModels = toArray('')
-
-    const modelsMatch = models
-      .filter((m) => {
-        const lowered = m.name.toLowerCase()
-        for (const um of userModels) {
-          if (lowered.includes(um.toLowerCase())) return true
-        }
-        return false
-      })
-      .map((m) => m.name)
 
     // Max tokens and max context limit are decided by the subscription preset
     // We've already set the max context length prior to calling this handler
@@ -160,7 +118,7 @@ export async function getSubscriptionPreset(
   let preset
   const fallback = await store.subs.getDefaultSubscription()
   if (gen.registered) {
-    const subId = gen.registered?.agnaistic?.subscriptionId
+    const subId = gen.registered?.charluv?.subscriptionId
     preset = subId ? await store.subs.getSubscription(subId) : fallback
   }
   if (user?.premium && !user.sub?.level) {

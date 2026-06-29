@@ -1,18 +1,31 @@
 import { AppSchema } from '../../common/types/schema'
 import { api } from './api'
 import { createStore } from './create'
-import { userStore } from './user'
 import { toastStore } from './toasts'
-import { data } from './data'
-import { chatStore } from './chat'
+import { chatStore, startChat } from './chat'
 import { characterStore } from './character'
 
 //import { chatsApi } from './data/chats'
 type Matchesstate = {
   Matches: {
     loaded: boolean
-    list: AppSchema.Match[]
+    list: AppSchema.Character[]
   }
+  discover: {
+    loading: boolean
+    loaded: boolean
+    list: AppSchema.Character[]
+    selected?: AppSchema.Character
+  }
+}
+
+export type DiscoverFilters = {
+  gender?: string
+  artStyle?: string
+  category?: string
+  nsfw?: boolean
+  search?: string
+  sort?: 'trending' | 'popular' | 'new'
 }
 
 export type NewMatch = {
@@ -26,24 +39,43 @@ export type NewMatch = {
   premium: boolean
   description: string
   match: boolean
-  persona: AppSchema.CharacterPersona
+  persona: AppSchema.Persona
 }
 
 export const matchStore = createStore<Matchesstate>('Match', {
   Matches: { loaded: false, list: [] },
+  discover: { loading: false, loaded: false, list: [] },
 })((get, set) => {
   return {
-    logout() {
-      return { Matches: { loaded: false, list: [] } }
+    logout(_: Matchesstate) {
+      return {
+        Matches: { loaded: false, list: [] },
+        discover: { loading: false, loaded: false, list: [] },
+      }
     },
-    getMatches: async (_, lastid) => {
-      const state = userStore()
-      const { ui } = state
+    loadDiscover: async (_: Matchesstate, filters: DiscoverFilters = {}) => {
+      set({ discover: { ...get().discover, loading: true } })
+      const query: Record<string, any> = { sort: filters.sort || 'trending' }
+      if (filters.gender) query.gender = filters.gender
+      if (filters.artStyle) query.artStyle = filters.artStyle
+      if (filters.category) query.category = filters.category
+      if (filters.search) query.search = filters.search
+      if (filters.nsfw === false) query.nsfw = 'false'
+
+      const res = await api.get('/match/discover', query)
+      if (res.error) {
+        toastStore.error('Failed to load Discover')
+        set({ discover: { ...get().discover, loading: false } })
+      } else {
+        set({ discover: { loading: false, loaded: true, list: res.result.characters } })
+      }
+    },
+    getMatches: async (_: Matchesstate, lastid?: string) => {
       const res = await api.get('/match')
       if (res.error) toastStore.error('Failed to retrieve Matches')
       else {
         if (lastid) {
-          const ss = res.result.characters.findIndex((i) => i._id === lastid)
+          const ss = res.result.characters.findIndex((i: AppSchema.Character) => i._id === lastid)
           if (ss) {
             res.result.characters = [
               ...res.result.characters.splice(ss),
@@ -53,9 +85,7 @@ export const matchStore = createStore<Matchesstate>('Match', {
         }
 
         return {
-          characters: {
-            // ids: res.result.characters.map((i) => i._id),
-            // ids: res.result.characters,
+          Matches: {
             list: res.result.characters,
             loaded: true,
           },
@@ -69,29 +99,71 @@ export const matchStore = createStore<Matchesstate>('Match', {
 
       if (res.error) toastStore.error('Failed to retrieve Match')
       else {
-        const chx = res.result.characters.filter((i) => i._id === id)
+        const chx = res.result.characters.filter((i: AppSchema.Character) => i._id === id)
 
-        return { characters: { list: chx, loaded: true } }
+        return { Matches: { list: chx, loaded: true } }
       }
     },
-    createMatch: async (_, char: AppSchema.Character, navi) => {
-      const form = new FormData()
+    createMatch: async (
+      _,
+      char: AppSchema.Character,
+      navi: (url: string) => void,
+      name?: string
+    ) => {
+      // A user's personal copy of a Discover template has `parent` set to the
+      // template's id. If they already matched this character, resume that copy
+      // instead of cloning another — startChat reopens the latest chat (or makes
+      // one). The server enforces the same idempotency as a safety net.
+      if (!characterStore.getState().characters.loaded) {
+        await characterStore.getCharacters()
+      }
+      const existing = characterStore
+        .getState()
+        .characters.list.find((c) => c.parent === char._id && !c.draft)
+      if (existing) {
+        await startChat(existing, navi)
+        return
+      }
 
-      const res = await api.post(`/match/${char._id}`)
+      const res = await api.post(`/match/${char._id}`, { name })
 
       if (res.error) toastStore.error(`Failed to create Match: ${res.error}`)
       else {
         toastStore.success(`Successfully created Match`)
 
-        // const props = charsIds().list[charsIds().list.length - 1];
-        // console.log(charsIds().list,this.id,charsIds().list[charsIds().list.length - 1],props);
-        const charId = res.result?._id
+        const clone = res.result as AppSchema.Character
 
-        navi(`/chats/create/${charId}`)
+        // Refresh the character list so the freshly-cloned copy is available
+        // (otherwise it isn't selectable or loaded).
+        await characterStore.getCharacters(true)
 
-        return true
+        // Create a chat directly and jump straight into it, skipping the
+        // create-chat form step entirely.
+        chatStore.createChat(
+          clone._id,
+          {
+            name: clone.name,
+            greeting: clone.greeting,
+            scenario: clone.scenario,
+            sampleChat: clone.sampleChat,
+            useOverrides: false,
+          },
+          (chatId) => navi(`/chat/${chatId}`)
+        )
+
+        return
       }
-      debugger
+    },
+
+    getDiscoverChar: async (_, id: string) => {
+      const res = await api.get(`/match/${id}`)
+
+      if (res.error) {
+        toastStore.error(`Failed to load companion`)
+        return
+      }
+
+      set({ discover: { ...get().discover, selected: res.result } })
     },
   }
 })

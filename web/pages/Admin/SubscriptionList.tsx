@@ -1,5 +1,5 @@
 import { A, useNavigate } from '@solidjs/router'
-import { Copy, Plus, Trash } from 'lucide-solid'
+import { Copy, Plus, Trash } from '/web/icons'
 import { Component, createSignal, For, onMount, Show } from 'solid-js'
 import Button from '../../shared/Button'
 import { ConfirmModal } from '../../shared/Modal'

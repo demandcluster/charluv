@@ -76,6 +76,17 @@ export function getStoppingStrings(opts: AdapterProps, extras: string[] = []) {
       unique.add(`\n${member.handle}:`)
       seen.add(member.handle)
     }
+
+    // Scene narration (world beats) is its own "Narrator"/"Director" message,
+    // generated on a separate path. A snappy model otherwise tacks a narration
+    // passage onto a character's reply ("\nNarrator: ..."); stop the turn when it
+    // tries to hand off to the narrator. Skip if this speaker IS the narrator.
+    for (const speaker of ['Narrator', 'Director']) {
+      if (opts.replyAs.name === speaker) continue
+      if (seen.has(speaker)) continue
+      unique.add(`\n${speaker}:`)
+      seen.add(speaker)
+    }
   }
 
   if (opts.gen.stopSequences && !Array.isArray(opts.gen.stopSequences)) {

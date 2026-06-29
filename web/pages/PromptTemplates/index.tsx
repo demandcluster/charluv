@@ -2,7 +2,7 @@ import { Component, For, Show, createMemo, createSignal, onMount } from 'solid-j
 import PageHeader from '/web/shared/PageHeader'
 import Button from '/web/shared/Button'
 import { presetStore } from '/web/store/presets'
-import { Copy, Plus, Save, Trash } from 'lucide-solid'
+import { Copy, Plus, Save, Trash } from '/web/icons'
 import Divider from '/web/shared/Divider'
 import { templates } from '../../../common/presets/templates'
 import { useRootModal } from '/web/shared/hooks'
@@ -117,7 +117,7 @@ const TemplateModal: Component<{
   initial?: string
   close: () => void
 }> = (props) => {
-  let form: HTMLFormElement
+  let form!: HTMLFormElement
 
   const submit = () => {
     const { name, template } = getStrictForm(form, { name: 'string', template: 'string' })

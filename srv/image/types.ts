@@ -14,6 +14,8 @@ export type ImageGenerateRequest = {
   characterId?: string
   requestId?: string
   parentId: string | undefined
+  /** Locked seed for consistent results (editor only; chat omits it). */
+  seed?: number
 }
 
 export type ImageRequestOpts = {
@@ -21,6 +23,15 @@ export type ImageRequestOpts = {
   prompt: string
   negative: string
   settings: BaseImageSettings | undefined
+  /** Z-Image stored LoRA to generate the character from (i2L Mode A). */
+  loraName?: string
+  /** Locked seed for reproducible/consistent generation. */
+  seed?: number
+  /** Output dimensions (chat images are smaller than character/avatar images). */
+  width?: number
+  height?: number
+  /** Diffusion steps (gallery/avatar is tuned faster than chat). */
+  steps?: number
 }
 
 export type ImageAdapter = (
@@ -29,4 +40,4 @@ export type ImageAdapter = (
   guestId?: string
 ) => Promise<ImageAdapterResponse>
 
-export type ImageAdapterResponse = { ext: string; content: Buffer | string }
+export type ImageAdapterResponse = { ext: string; content: Buffer | string; seed?: number }

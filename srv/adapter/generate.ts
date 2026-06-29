@@ -22,16 +22,18 @@ import needle from 'needle'
 import { HORDE_GUEST_KEY } from '../api/horde'
 import { getTokenCounter } from '../tokenize'
 import { getAppConfig } from '../api/settings'
-import { getHandlers, getSubscriptionPreset, handlers } from './agnaistic'
-import { deepClone, getSubscriptionModelLimits, parseStops, tryParse } from '/common/util'
+import { getHandlers, getSubscriptionPreset, handlers } from './charluv'
+import { getSubscriptionModelLimits, parseStops, tryParse } from '/common/util'
 import { isDefaultTemplate, templates } from '/common/presets/templates'
 import {
   GuidanceParams,
   calculateGuidanceCounts,
   runGuidance,
 } from '/common/guidance/guidance-parser'
-import { getCachedSubscriptionModels } from '../db/subscriptions'
+import { getCachedSubscriptionModels, getCachedTiers } from '../db/subscriptions'
+import { inferenceGate, priorityForUser } from '../queue'
 import { sendOne } from '../api/ws'
+import { recallMemories } from '../memory/store'
 import { ResponseSchema } from '/common/types/library'
 
 let version = ''
@@ -81,9 +83,25 @@ export type InferenceRequest = {
   reguidance?: string[]
 
   imageData?: string
+  images?: string[]
+
+  /**
+   * Leading `system` message for chat-completion calls. Overrides the served
+   * model's default chat-template system prompt (the companion/LEVEL preamble)
+   * so utility calls like publish moderation aren't answered in-character.
+   */
+  system?: string
+
+  /**
+   * Route this call to the dedicated moderation endpoint (original vision model)
+   * instead of the user-facing chat model. Set by the publish/edit moderation path.
+   */
+  moderation?: boolean
 
   jsonSchema?: any
   jsonValues?: Record<string, any>
+  /** Queue priority: 0 premium, 1 free, 2 guest, 3 background. Defaults to 3 (utility). */
+  queuePriority?: number
 }
 
 export async function inferenceAsync(opts: InferenceRequest) {
@@ -134,7 +152,7 @@ export async function inferenceAsync(opts: InferenceRequest) {
 
     if (
       opts.guidance &&
-      (opts.settings?.service === 'horde' || opts.settings?.service === 'agnaistic')
+      (opts.settings?.service === 'horde' || opts.settings?.service === 'charluv')
     ) {
       try {
         const values = JSON.parse(generated)
@@ -207,10 +225,24 @@ export async function guidanceAsync(opts: InferenceRequest) {
 }
 
 export async function createInferenceStream(opts: InferenceRequest) {
-  const settings = await getRequestPreset(opts)
+  // getRequestPreset can return a SHARED cached preset object, so clone before
+  // applying any per-request override — otherwise stop/temp/maxTokens leak into
+  // the cache and affect every other request. (This also makes opts.temp /
+  // opts.maxTokens actually take effect: they were declared but never applied, so
+  // callers like the event director ran at the default temp instead of the 0.2
+  // election / 0.7 world-beat temps they asked for.)
+  const settings = { ...(await getRequestPreset(opts)) }
 
   if (opts.stop) {
     settings.stopSequences = opts.stop
+  }
+
+  if (opts.temp !== undefined) {
+    settings.temp = opts.temp
+  }
+
+  if (opts.maxTokens !== undefined) {
+    settings.maxTokens = opts.maxTokens
   }
 
   const handler = getHandlers(settings)
@@ -237,10 +269,24 @@ export async function createInferenceStream(opts: InferenceRequest) {
     lists: opts.lists,
     jsonSchema: opts.jsonSchema,
     imageData: opts.imageData,
+    images: opts.images,
+    system: opts.system,
+    moderation: opts.moderation,
     jsonValues: opts.jsonValues,
   })
 
-  return { stream, service: settings.service || '' }
+  const gated = inferenceGate.gateStream(
+    {
+      kind: 'text',
+      priority: (opts.queuePriority ?? 3) as any,
+      userId: opts.guest ? undefined : opts.user?._id,
+      socketId: opts.guest,
+      requestId: opts.requestId,
+    },
+    () => stream
+  )
+
+  return { stream: gated, service: settings.service || '' }
 }
 
 async function getRequestPreset(opts: InferenceRequest) {
@@ -248,26 +294,12 @@ async function getRequestPreset(opts: InferenceRequest) {
 
   if (opts.settings) {
     const model = getCachedSubscriptionModels().find((m) => m._id === opts.settings?._id)
-    if (model) {
-      preset = model
-    } else {
-      preset = opts.settings
-    }
-  } else if (opts.user.defaultPreset) {
-    if (isDefaultPreset(opts.user.defaultPreset)) {
-      preset = deepClone(defaultPresets[opts.user.defaultPreset])
-    }
-
-    const user = await store.presets.getUserPreset(opts.user.defaultPreset)
-    if (user) {
-      preset = user
-    }
+    preset = model || opts.settings
   } else {
-    const models = getCachedSubscriptionModels()
-    const model = models.find((m) => m.isDefaultSub)
-    if (model) {
-      preset = model
-    }
+    // Custom user presets are retired — inference always runs on the platform's
+    // default subscription model (the self-hosted endpoint), never a user's
+    // saved preset.
+    preset = getCachedSubscriptionModels().find((m) => m.isDefaultSub)
   }
 
   if (!preset) {
@@ -358,6 +390,28 @@ export async function createChatStream(
       [...opts.lines].reverse(),
       encoder
     )
+
+    // RAG: recall long-term memories relevant to the recent conversation and
+    // inject them into the {{memory}} slot (additive to any book memory). Scoped
+    // to the chat owner + the SPEAKING character (replyAs) so each companion only
+    // recalls its own memories — in a multi-char/event chat the main char
+    // (chat.characterId) is not necessarily the one replying.
+    try {
+      const charId = opts.replyAs?._id || opts.chat?.characterId
+      const ownerId = opts.chat?.userId
+      if (charId && ownerId && opts.lines?.length) {
+        const query = [...opts.lines].slice(-3).join('\n')
+        const memories = opts.chat?.memoryDisabled
+          ? []
+          : await recallMemories(ownerId, charId, query, { k: 5 })
+        if (memories.length) {
+          const block = ['What you remember:'].concat(memories.map((m) => `- ${m.text}`)).join('\n')
+          opts.parts.memory = opts.parts.memory ? `${opts.parts.memory}\n${block}` : block
+        }
+      }
+    } catch (err) {
+      log.warn({ err }, 'Long-term memory recall failed')
+    }
   }
 
   if (opts.settings?.thirdPartyUrl) {
@@ -435,8 +489,20 @@ export async function createChatStream(
     jsonValues: opts.jsonValues,
   })
 
+  const priority = priorityForUser(opts.user as any, !!guestSocketId, getCachedTiers())
+  const gatedStream = inferenceGate.gateStream(
+    {
+      kind: 'text',
+      priority,
+      userId: guestSocketId ? undefined : opts.user._id,
+      socketId: guestSocketId,
+      requestId: opts.requestId,
+    },
+    () => stream
+  )
+
   return {
-    stream,
+    stream: gatedStream,
     adapter,
     settings: gen,
     user: opts.user,
@@ -473,10 +539,9 @@ export async function getResponseEntities(
   const genSettings = await getGenerationSettings(user, chat, adapter)
   const settings = mapPresetsToAdapter(genSettings, adapter)
 
-  const chatScenarios = chat.scenarioIds
-    ? await store.scenario.getScenariosById(chat.scenarioIds)
-    : []
-  const resolvedScenario = resolveScenario(chat, char, chatScenarios)
+  // Scenario books (the retired event state-machine) no longer feed the prompt —
+  // resolveScenario only uses the character's/chat's plain-text scenario now.
+  const resolvedScenario = resolveScenario(chat, char, [])
 
   if (genSettings.promptTemplateId) {
     if (isDefaultTemplate(genSettings.promptTemplateId)) {

@@ -2,52 +2,48 @@ import { Component } from 'solid-js'
 import PageHeader from '../../shared/PageHeader'
 import { markdown } from '../../shared/markdown'
 import { setComponentPageTitle } from '../../shared/util'
-import logo from '../../asset/logo.png'
 import logoDark from '../../asset/logoDark.png'
 
 const text = `
 
-# Our Patreon
+# Premium via Patreon
 
-The easiest and most complete form of premium is subscribing to our [Patreon](https://patreon.com/charluv) Premium Tier. You get all the benefits of premium and more.
+Premium is available through our [Patreon](https://patreon.com/charluv) Premium tier — that's the only way to subscribe. Everything is handled on Patreon; you never enter payment details on our site.
 
+# Why go premium?
 
-# Why get premium?
+- A larger, faster-refilling credit pool — chat and create more without running dry.
+- Longer responses and more conversation memory.
+- Access to premium characters, including ones with custom voices.
 
-Premium members get their credits continously refilled to **1,000 credits** (instead of 200) and at a much faster rate than regular members do. Your messages are handled with higher priority (they skip the queue if there is one). You also get longer outputs and large history (memory) than regular users.  You also get access to some premium characters that have custom ElevenLabs voices *(more premium characters to be added)*. **NEW FEATURE FOR PREMIUM:** Premium users can now create presets and change most of the AI settings.
+# Support us in other ways
 
-# Can I support you in other ways?
+Join the free tier on [Patreon](https://patreon.com/charluv), and tell people about us — Reddit, X, YouTube, TikTok, wherever you are. The more people who find us, the better our odds of sticking around.
 
-Yes, you can! Join the free tier on [Patreon](https://patreon.com/charluv). Tell everyone about us, Reddit, Twitter, YouTube, Facebook, Instagram, TikTok, whatever you use. The more people know about us, the more likely we will survive.
-We also looking for new characters that can be used as matches, if you created a character that you want to contribute, share the ID with us on [Discord](https://charluv.com/discord) and if it passes moderation, we add it to the matches and reward you with 1,000 credits.
-Since Matches have scripted scenarios (other than the self-made characters), we will do that step for you.
+You can also **publish your own characters**. Create a character, open it from **My AI**, and hit **Make Public**. If it passes the automated check it goes live in Discover for everyone and you earn a one-time **500 credit** reward — it's fully self-serve, nothing to send us.
 
-## Credits overview
+## Credits
 
-| Feature          | Credits |
-| ---------------- | -------:|
-| Send message     |       10|
-| Regenerate msg   |       10|
-| Generate image   |       20|
-| Regenerate img   |       20|
-| Create character |       50|
-| Edit character   |       20|
+| Action | Credits |
+| ------ | ------: |
+| Send or regenerate a message | 10 |
+| Generate or regenerate an image | 25 |
+| Create a character | 100 |
+| Edit a character | 30 |
+| Publish a character *(one-time reward)* | **+500** |
 
-## Recharge rate
+## Recharge
 
-The recharge rate for regular members is dynamic and based on the average total amount of users we have online. 
-|                   |  Regular   | Premium  |
-| ----------------- | ---------: | -------: |
-| Increase every    | 2 minutes  | 2 minutes |
-| Amount increase   | 5          | 20        |
-| Capped at*   | 200 | 1000|
+Credits top up automatically every 2 minutes:
 
+|              | Free | Premium |
+| ------------ | ---: | ------: |
+| Per top-up   |  +5  |   +20   |
+| Refills up to | 500 | 5,000 |
 
-## Subscription
+## Managing your subscription
 
-The [subscriptions](/settings?tab=3) can be activated from the tab under settings and under your user profile. 
-For support about subscriptions, please contact us on [Discord](https://charluv.com/discord), or on [Patreon](https://patreon.com/charluv).
-Transactions are handled externally by Stripe, PayPal or Patreon and you don't fill any details on our site.
+Manage or cancel your subscription from your [profile](/profile). For help, reach us on [Discord](https://charluv.com/discord) or [Patreon](https://patreon.com/charluv).
 
 `
 

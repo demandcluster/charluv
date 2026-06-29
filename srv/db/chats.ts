@@ -61,7 +61,8 @@ export async function create(
     | 'genPreset'
     | 'mode'
     | 'imageSource'
-  >,
+  > &
+    Partial<Pick<AppSchema.Chat, 'characters' | 'event' | 'memoryDisabled' | 'memberIds'>>,
   profile: AppSchema.Profile,
   impersonating?: AppSchema.Character
 ) {
@@ -77,7 +78,7 @@ export async function create(
     mode: props.mode,
     characterId,
     userId: props.userId,
-    memberIds: [],
+    memberIds: props.memberIds || [],
     name: props.name,
     greeting: props.greeting,
     sampleChat: props.sampleChat,
@@ -91,9 +92,18 @@ export async function create(
     messageCount: props.greeting ? 1 : 0,
     tempCharacters: {},
     imageSource: props.imageSource,
+    characters: props.characters,
+    event: props.event,
+    memoryDisabled: props.memoryDisabled,
   }
 
   await db('chat').insertOne(doc)
+
+  // Roll this chat up to the public Discover template (the copy's parent, or self).
+  await db('character').updateOne(
+    { _id: char.parent || characterId },
+    { $inc: { 'engagement.chats': 1 } }
+  )
 
   if (props.greeting) {
     const { parsed } = await parseTemplate(props.greeting, {
@@ -139,6 +149,21 @@ export async function deleteAllChats(characterId?: string) {
 
   await db('chat').deleteMany(chatQuery)
   await db('chat-message').deleteMany({ chatId: { $in: chatIds } })
+}
+
+/** Delete every chat (and its messages) a user has with a single character. */
+export async function deleteChatsByCharacter(userId: string, characterId: string) {
+  const chatIds = await db('chat')
+    .find({ characterId, userId })
+    .toArray()
+    .then((chats) => chats.map((ch) => ch._id))
+
+  if (!chatIds.length) return
+
+  await db('chat').deleteMany({ _id: { $in: chatIds } })
+  await db('chat-message').deleteMany({ chatId: { $in: chatIds } })
+  await db('chat-invite').deleteMany({ chatId: { $in: chatIds } })
+  await db('chat-member').deleteMany({ chatId: { $in: chatIds } })
 }
 
 export async function canViewChat(senderId: string, chat: AppSchema.Chat) {

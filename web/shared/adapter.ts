@@ -6,24 +6,7 @@ import { Option } from './Select'
 import { ADAPTER_LABELS, AIAdapter, AdapterSetting } from '../../common/adapters'
 import { storage } from './util'
 
-const tempSettings: { [key in AIAdapter]?: Array<AdapterSetting> } = {
-  novel: [
-    {
-      field: 'module',
-      label: 'AI Module',
-      secret: false,
-      setting: {
-        type: 'list',
-        options: [
-          { label: 'None', value: 'vanilla' },
-          { label: 'Instruct', value: 'special_instruct' },
-          { label: 'Prose', value: 'special_proseaugmenter' },
-          { label: 'Text Adventure', value: 'theme_textadventure' },
-        ],
-      },
-    },
-  ],
-}
+const tempSettings: { [key in AIAdapter]?: Array<AdapterSetting> } = {}
 
 export const AutoPreset = {
   chat: 'chat',

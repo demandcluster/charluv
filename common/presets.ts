@@ -176,20 +176,6 @@ export const serviceGenMap: { [key in ChatAdapter]?: GenMap } = {
     order: 'sampler_order',
     minP: 'min_p',
   },
-  novel: {
-    maxTokens: 'max_length',
-    repetitionPenalty: 'repetition_penalty',
-    repetitionPenaltyRange: 'repetition_penalty_range',
-    repetitionPenaltySlope: 'repetition_penalty_slope',
-    tailFreeSampling: 'tail_free_sampling',
-    temp: 'temperature',
-    topK: 'top_k',
-    topP: 'top_p',
-    typicalP: 'typical_p',
-    topA: 'top_a',
-    order: '',
-    minP: '',
-  },
   ooba: {
     maxTokens: 'max_new_tokens',
     topP: 'top_p',
@@ -261,116 +247,7 @@ export const serviceGenMap: { [key in ChatAdapter]?: GenMap } = {
     claudeModel: 'claudeModel',
     minP: '',
   },
-  scale: {
-    maxTokens: '',
-    repetitionPenalty: '',
-    repetitionPenaltyRange: '',
-    repetitionPenaltySlope: '',
-    tailFreeSampling: '',
-    temp: 'temperature',
-    topK: '',
-    topP: '',
-    typicalP: '',
-    topA: '',
-    order: '',
-    frequencyPenalty: '',
-    presencePenalty: '',
-    gaslight: '',
-    oaiModel: '',
-    minP: '',
-  },
-  goose: {
-    maxTokens: 'max_tokens',
-    repetitionPenalty: 'repetition_penalty',
-    repetitionPenaltyRange: 'repetition_penalty_slope',
-    repetitionPenaltySlope: 'repetition_penalty_range',
-    tailFreeSampling: 'tfs',
-    temp: 'temperature',
-    topK: 'top_k',
-    topP: 'top_p',
-    typicalP: 'typical_p',
-    topA: 'top_a',
-    order: '',
-    frequencyPenalty: 'frequency_penalty',
-    presencePenalty: 'presence_penalty',
-    gaslight: '',
-    oaiModel: '',
-    minP: '',
-  },
-  replicate: {
-    maxTokens: 'max_tokens',
-    repetitionPenalty: 'repetition_penalty',
-    repetitionPenaltyRange: '',
-    repetitionPenaltySlope: '',
-    tailFreeSampling: '',
-    temp: 'temperature',
-    topK: '',
-    topP: 'top_p',
-    typicalP: '',
-    topA: '',
-    order: '',
-    frequencyPenalty: '',
-    presencePenalty: '',
-    gaslight: '',
-    replicateModelType: 'replicateModelType',
-    replicateModelVersion: 'replicateModelVersion',
-    minP: '',
-  },
-  openrouter: {
-    maxTokens: 'max_tokens',
-    temp: 'temperature',
-    repetitionPenalty: '',
-    repetitionPenaltyRange: '',
-    repetitionPenaltySlope: '',
-    tailFreeSampling: '',
-    topA: '',
-    topK: '',
-    topP: '',
-    typicalP: '',
-    addBosToken: '',
-    antiBond: '',
-    banEosToken: '',
-    claudeModel: '',
-    encoderRepitionPenalty: '',
-    frequencyPenalty: '',
-    gaslight: '',
-    minP: '',
-  },
-  mancer: {
-    maxTokens: 'max_new_tokens',
-    topP: 'top_p',
-    temp: 'temperature',
-    typicalP: 'typical_p',
-    repetitionPenalty: 'repetition_penalty',
-    encoderRepitionPenalty: 'encoder_repetition_penalty',
-    topK: 'top_k',
-    penaltyAlpha: 'penalty_alpha',
-    addBosToken: 'add_bos_token',
-    banEosToken: 'ban_eos_token',
-    skipSpecialTokens: 'skip_special_tokens',
-    topA: '',
-    order: '',
-    repetitionPenaltyRange: '',
-    repetitionPenaltySlope: '',
-    tailFreeSampling: '',
-    minP: 'min_p',
-  },
-  petals: {
-    maxTokens: '',
-    repetitionPenalty: '',
-    repetitionPenaltyRange: '',
-    repetitionPenaltySlope: '',
-    tailFreeSampling: '',
-    temp: '',
-    topK: '',
-    topP: '',
-    typicalP: '',
-    topA: '',
-    gaslight: '',
-    claudeModel: '',
-    minP: '',
-  },
-  agnaistic: {
+  charluv: {
     maxTokens: 'max_tokens',
     temp: 'temperature',
     repetitionPenalty: '',
@@ -399,7 +276,6 @@ export function isDefaultPreset(value?: string): value is GenerationPreset {
 
 export function getFallbackPreset(adapter: AIAdapter): Partial<AppSchema.GenSettings> {
   switch (adapter) {
-    case 'petals':
     case 'horde':
       return deepClone(defaultPresets.horde)
 
@@ -407,35 +283,13 @@ export function getFallbackPreset(adapter: AIAdapter): Partial<AppSchema.GenSett
     case 'ooba':
       return deepClone(defaultPresets.basic)
 
-    case 'agnaistic':
-      return deepClone(defaultPresets.agnai)
+    case 'charluv':
+      return deepClone(defaultPresets.charluv)
 
     case 'openai':
       return deepClone(defaultPresets.openai)
 
-    case 'novel':
-      return deepClone(defaultPresets.novel_clio)
-
-    case 'scale':
-      return deepClone(defaultPresets.scale)
-
     case 'claude':
       return deepClone(defaultPresets.claude)
-
-    case 'goose':
-      return deepClone({ ...defaultPresets.basic, service: 'goose' })
-
-    case 'replicate':
-      return deepClone(defaultPresets.replicate_vicuna_13b)
-
-    /** TODO: Create default preset for OpenRouter... */
-    case 'openrouter':
-      return deepClone(defaultPresets.openai)
-
-    case 'mancer':
-      return deepClone(defaultPresets.mancer)
-
-    case 'venus':
-      return deepClone(defaultPresets.venus)
   }
 }
