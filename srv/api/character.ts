@@ -875,8 +875,25 @@ const addGalleryImage = handle(async ({ userId, params, body }) => {
   if (!url) throw new StatusError('Invalid image data', 400)
 
   gallery.push(url)
-  await store.characters.updateCharacter(params.id, userId!, { gallery })
-  return { gallery }
+
+  const update: CharacterUpdate = { gallery }
+
+  // Publish moderation reviews the avatar + gallery only at publish time, and
+  // Discover/Profile render gallery images — so adding a new image to a live public
+  // character would put unmoderated content on the gallery immediately. Mirror the
+  // edit path: take it private for review; the owner re-publishes to re-run the
+  // automated check. publishRewarded is left set so re-publishing isn't re-rewarded.
+  if (char.published) {
+    update.published = false
+    update.moderation = {
+      ...(char.moderation || { status: 'approved' }),
+      status: 'review',
+      moderated: false,
+    }
+  }
+
+  await store.characters.updateCharacter(params.id, userId!, update)
+  return { gallery, published: update.published ?? char.published }
 })
 
 const removeGalleryImage = handle(async ({ userId, params, body }) => {

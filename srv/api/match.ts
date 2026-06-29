@@ -83,6 +83,17 @@ const createCharacter = handle(async (req) => {
     newChar.children = 0
     delete (newChar as any).engagement
     delete (newChar as any).creatorName
+    // The matched template may itself be a published Discover character owned by
+    // another user. getMatch returns the full doc, so the clone would otherwise
+    // inherit the original's publish/moderation/report state — silently relisting
+    // a personal copy as a public template (the Discover query selects
+    // published:true) with no moderation or owner intent. Reset to an unpublished,
+    // unmoderated copy; the user must explicitly publish it themselves.
+    newChar.published = false
+    delete (newChar as any).publishedAt
+    delete (newChar as any).publishRewarded
+    delete (newChar as any).moderation
+    delete (newChar as any).reportCount
   }
   if (newChar && req.body?.name) {
     newChar.name = String(req.body.name)

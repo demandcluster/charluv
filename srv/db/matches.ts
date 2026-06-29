@@ -2,13 +2,23 @@ import { db } from './client'
 import { AppSchema } from '../../common/types/schema'
 
 export async function getMatch(userId: string, id: string) {
+  // Premium gate: a premium template is visible only to premium viewers (guests
+  // and free users get premium=false). Mirrors the gallery query (discover /
+  // getMatches) — without this, a premium character hidden from the gallery is
+  // still returned by direct ID, leaking its profile and feeding the clone flow.
+  const user = userId ? await db('user').findOne({ kind: 'user', _id: userId }) : undefined
+  const premium = user?.premium || false
+
   // A public template is either a legacy admin-curated char (match) or a
   // user-published one (published), and must not be hidden by moderation.
   const char = await db('character').findOne({
     kind: 'character',
     _id: id,
     'moderation.status': { $ne: 'hidden' },
-    $or: [{ match: true }, { published: true }],
+    $and: [
+      { $or: [{ match: true }, { published: true }] },
+      { $or: [{ premium: false }, { premium }] },
+    ],
   })
 
   if (!char) return char
