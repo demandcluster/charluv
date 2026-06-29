@@ -2,7 +2,6 @@ import { expect } from 'chai'
 import './init'
 import {
   ARCHETYPES,
-  DEFAULT_ARCHETYPE_ID,
   STAGE_DEFINITIONS,
   formatStageToken,
   getProgressionSteps,
@@ -34,10 +33,10 @@ describe('Progression archetypes', () => {
     expect(resolveStage(999, { archetype: 'casual' })?.stage).to.equal('HARDCORE')
   })
 
-  it('falls back to the default archetype for an unknown id', () => {
-    const def = getProgressionSteps({ archetype: 'does-not-exist' })
-    const expected = getProgressionSteps({ archetype: DEFAULT_ARCHETYPE_ID })
-    expect(def).to.deep.equal(expected)
+  it('returns no steps for an unknown archetype id (no fallback)', () => {
+    // An unknown/removed archetype id resolves to no progression — the character
+    // is treated as fixed, never silently falling back to a default archetype.
+    expect(getProgressionSteps({ archetype: 'does-not-exist' })).to.deep.equal([])
   })
 
   it('honours a fully custom map over the archetype', () => {

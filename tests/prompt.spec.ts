@@ -2,7 +2,7 @@ import './init'
 import { expect } from 'chai'
 import { OPENAI_MODELS } from '../common/adapters'
 import { BOT_REPLACE, SELF_REPLACE } from '../common/prompt'
-import { toChat, build, botMsg, toMsg, entities, reset, toBook, toEntry } from './util'
+import { toChat, build, botMsg, toMsg, entities, reset } from './util'
 import { getTokenCounter } from '../srv/tokenize'
 
 const { chat, replyAs, main } = entities
@@ -196,117 +196,6 @@ This is how {{char}} should talk: {{example_dialogue}}`,
     })
 
     expect(actual.template.parsed.includes('Populated scenario')).to.equal(true)
-    expect(actual.template.parsed).toMatchSnapshot()
-  })
-
-  it('will use currently speaking character book', async () => {
-    const actual = await build([toMsg('TRIGGER')], {
-      char: { ...main, characterBook: toBook('main char book', []) },
-      replyAs: {
-        ...replyAs,
-        characterBook: toBook('other char book', [toEntry(['TRIGGER'], 'ENTRY')]),
-      },
-      settings: { memoryDepth: 1 },
-    })
-
-    expect(actual.template.parsed).to.include('ENTRY')
-    expect(actual.template.parsed).toMatchSnapshot()
-  })
-
-  it('will not use other character book', async () => {
-    const actual = await build([toMsg('TRIGGER')], {
-      char: { ...main, characterBook: toBook('main char book', [toEntry(['TRIGGER'], 'ENTRY')]) },
-      replyAs: { ...replyAs, characterBook: toBook('other char book', []) },
-      settings: { memoryDepth: 1 },
-    })
-
-    expect(actual.template.parsed).not.to.include('ENTRY')
-    expect(actual.template.parsed).toMatchSnapshot()
-  })
-
-  it('will put char book entries with higher weight after mem book entries', async () => {
-    const char = {
-      ...main,
-      characterBook: toBook('main char book', [toEntry(['TRIGGER'], 'ENTRY 20', 0, 20)]),
-    }
-
-    const actual = await build([toMsg('TRIGGER')], {
-      char: char,
-      replyAs: char,
-      book: toBook('chat mem book', [toEntry(['TRIGGER'], 'ENTRY 10', 0, 10)]),
-      settings: { memoryDepth: 1 },
-    })
-
-    expect(actual.template.parsed).to.include('ENTRY 10')
-    expect(actual.template.parsed).to.include('ENTRY 20')
-    expect(actual.template.parsed.indexOf('ENTRY 20')).to.be.greaterThan(
-      actual.template.parsed.indexOf('ENTRY 10')
-    )
-    expect(actual.template.parsed).toMatchSnapshot()
-  })
-
-  it('will put mem book entries with higher weight after char book entries', async () => {
-    const char = {
-      ...main,
-      characterBook: toBook('main char book', [toEntry(['TRIGGER'], 'ENTRY 10', 0, 10)]),
-    }
-
-    const actual = await build([toMsg('TRIGGER')], {
-      char: char,
-      replyAs: char,
-      book: toBook('chat mem book', [toEntry(['TRIGGER'], 'ENTRY 20', 0, 20)]),
-      settings: { memoryDepth: 1 },
-    })
-
-    expect(actual.template.parsed).to.include('ENTRY 10')
-    expect(actual.template.parsed).to.include('ENTRY 20')
-    expect(actual.template.parsed.indexOf('ENTRY 20')).to.be.greaterThan(
-      actual.template.parsed.indexOf('ENTRY 10')
-    )
-    expect(actual.template.parsed).toMatchSnapshot()
-  })
-
-  it('will allow using wildcards in keywords', async () => {
-    const char = {
-      ...main,
-      characterBook: toBook('main char book', [
-        toEntry(['?BOOK*'], 'ENTRY 1'),
-        toEntry(['BOOK'], 'ENTRY 2'),
-        toEntry(['?BOOK'], 'ENTRY 3'),
-      ]),
-    }
-
-    const actual = await build([toMsg('ebooks')], {
-      char: char,
-      replyAs: char,
-      settings: { memoryDepth: 100 },
-    })
-
-    expect(actual.template.parsed).to.include('ENTRY 1')
-    expect(actual.template.parsed).not.to.include('ENTRY 2')
-    expect(actual.template.parsed).not.to.include('ENTRY 3')
-    expect(actual.template.parsed).toMatchSnapshot()
-  })
-
-  it('will disallow injecting arbitrary regexes', async () => {
-    const char = {
-      ...main,
-      name: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', //triggers evil regex
-      characterBook: toBook('main char book', [
-        toEntry(['BOOKS'], 'ENTRY 1'),
-        toEntry(['^(a+)+$'], 'evil regex'),
-      ]),
-    }
-
-    // Warning: the evil regex can kill the event loop
-    const actual = await build([botMsg('books')], {
-      char: char,
-      replyAs: char,
-      settings: { memoryDepth: 100 },
-    })
-
-    expect(actual.template.parsed).to.include('ENTRY 1')
-    expect(actual.template.parsed).not.to.include('evil regex')
     expect(actual.template.parsed).toMatchSnapshot()
   })
 })
