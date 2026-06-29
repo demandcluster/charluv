@@ -112,6 +112,12 @@ const EventPage: Component = () => {
               <p class="evt-dek">Pick a place, a moment, and who's in the room.</p>
             </div>
 
+            <div class="evt-help" style="border: 1px solid var(--bg-700); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px;">
+              Heads up: events run on a different AI model than normal chat — it's
+              built to direct multi-character scenes, so replies may read a little
+              differently.
+            </div>
+
             {/* THE BILLBOARD — required prose */}
             <div class="evt-block evt-billboard">
               <div>

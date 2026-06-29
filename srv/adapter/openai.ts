@@ -159,7 +159,11 @@ export type Completion<T = Inference> = {
 
 export const handleOAI: ModelAdapter = async function* (opts) {
   const { char, members, user, prompt, log, gen, guest, kind, isThirdParty } = opts
-  const base = getBaseUrl(user, !!gen.thirdPartyUrlNoSuffix, isThirdParty, opts.moderation)
+  // Event/group chats run entirely on the original orchestration model (the mod
+  // endpoint, Qwen): the chat finetune (tutu) can't keep to one character in a
+  // multi-character scene. Route the whole reply there, like moderation calls do.
+  const useModEndpoint = !!opts.moderation || opts.chat?.mode === 'event'
+  const base = getBaseUrl(user, !!gen.thirdPartyUrlNoSuffix, isThirdParty, useModEndpoint)
   const handle = opts.impersonate?.name || opts.sender?.handle || 'You'
   if (!user.oaiKey && !base.changed) {
     yield { error: `OpenAI request failed: No OpenAI API key not set. Check your settings.` }
@@ -180,20 +184,15 @@ export const handleOAI: ModelAdapter = async function* (opts) {
 
   const isEvent = opts.chat?.mode === 'event'
 
-  // Stop the model from speaking for anyone but the elected character. In a 1:1
-  // chat getStoppingStrings adds "\nName:" for the user + the Narrator/Director
-  // labels; harmless and prevents stray narration. In an EVENT chat we do the
-  // OPPOSITE: the chat finetune writes the whole scene anyway, and stopping at the
-  // first other speaker would cut off before THIS character even talks — so we let
-  // it generate and extract the speaker's turn afterward (see below). Only the
-  // preset's own stopSequences apply there.
+  // Stop the model from speaking for anyone but the elected character: "\nName:"
+  // for each other present character + the user, plus the Narrator/Director labels.
+  // Applies to events too — the mod model (Qwen) stays in one character, so cutting
+  // at any drift keeps the reply clean. extractSpeakerTurn below is a safety net.
   const narratorStops =
     opts.replyAs?.name === 'Narrator' || opts.replyAs?.name === 'Director'
       ? []
       : ['\nNarrator :', '\nDirector :']
-  const stopSet = isEvent
-    ? new Set<string>(gen.stopSequences || [])
-    : new Set<string>([`\n${handle}:`, ...narratorStops, ...getStoppingStrings(opts)])
+  const stopSet = new Set<string>([`\n${handle}:`, ...narratorStops, ...getStoppingStrings(opts)])
 
   // Mild temp cap for event replies (see EVENT_REPLY_TEMP_CAP). Detected via chat
   // mode — the client sends kind:'send' for event turns. Director calls run via
