@@ -312,9 +312,10 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
   if (character.draft) throw new StatusError('Finish creating the character before publishing', 400)
 
   // Minimum-quality thresholds + the fields Discover/profile rely on (avatar,
-  // gender, art style, age range).
+  // gender, art style, age range). Admins bypass this gate so special characters
+  // that deliberately omit some details can still be published.
   const { ok, requirements, fields } = checkPublishRequirements(character, publishMins(config))
-  if (!ok) {
+  if (!ok && !user.admin) {
     const missingFields = fields.filter((f) => !f.ok).map((f) => f.label)
     const missingLen = requirements
       .filter((r) => !r.ok)

@@ -5,6 +5,7 @@ import Button from '../../shared/Button'
 import { charsApi, PublishStatus } from '../../store/data/chars'
 import { imageApi } from '../../store/data/image'
 import { characterStore } from '../../store/character'
+import { userStore } from '../../store'
 import { subscribe } from '../../store/socket'
 import {
   checkPublishRequirements,
@@ -29,9 +30,16 @@ const MakePublicModal: Component<{
     rewarded?: number
   }>({})
 
+  // Admins bypass the minimum-requirements gate so special characters that
+  // deliberately omit some details can still be published (server enforces the
+  // same exemption).
+  const isAdmin = createMemo(() => !!userStore().user?.admin)
   const reqs = createMemo(() => checkPublishRequirements(props.char, status()?.mins))
   const ready = createMemo(
-    () => reqs().ok && (status()?.enabled ?? true) && (status()?.remaining ?? 1) > 0
+    () =>
+      (reqs().ok || isAdmin()) &&
+      (status()?.enabled ?? true) &&
+      ((status()?.remaining ?? 1) > 0 || isAdmin())
   )
 
   createEffect(() => {
@@ -181,6 +189,11 @@ const MakePublicModal: Component<{
                 )}
               </For>
             </ul>
+            <Show when={isAdmin() && !reqs().ok}>
+              <p class="text-500 mt-2 text-xs italic">
+                Admin override: you can publish despite unmet requirements.
+              </p>
+            </Show>
           </div>
 
           {/* Content rules */}
