@@ -171,6 +171,17 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     defaultPresets.openai.oaiModel
   const maxResponseLength = gen.maxTokens ?? defaultPresets.openai.maxTokens
 
+  // Scene narration is its own "Narrator"/"Director" message (separate path). A
+  // character reply must never switch into a narration passage, so stop generation
+  // the moment the model starts one. Newline-anchored like the speaker stop so an
+  // in-dialogue mention ("the narrator said") doesn't trip it. Skip when the
+  // speaker IS the narrator/director. This is the generation-level guard; the
+  // post-hoc trim (sanitiseAndTrim) is the backstop.
+  const narratorStops =
+    opts.replyAs?.name === 'Narrator' || opts.replyAs?.name === 'Director'
+      ? []
+      : ['\nNarrator:', '\nNarrator :', '\nDirector:', '\nDirector :']
+
   const body: any = {
     model: oaiModel,
     stream: (gen.streamResponse && kind !== 'summary') ?? defaultPresets.openai.streamResponse,
@@ -179,7 +190,7 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     top_p: gen.topP ?? 1,
     // Filter falsy entries — a null/empty stop value makes strict OpenAI-compatible
     // servers (e.g. vLLM) reject the request with HTTP 400.
-    stop: [`\n${handle}:`].concat(gen.stopSequences || []).filter(Boolean),
+    stop: [`\n${handle}:`, ...narratorStops].concat(gen.stopSequences || []).filter(Boolean),
   }
 
   body.presence_penalty = gen.presencePenalty ?? defaultPresets.openai.presencePenalty

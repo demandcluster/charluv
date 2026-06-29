@@ -13,9 +13,9 @@ export type DirectorFrequency = 'none' | 'rare' | 'normal' | 'regular'
  * so these are the chance of considering, not of firing. */
 export const DIRECTOR_EVENT_CHANCE: Record<DirectorFrequency, number> = {
   none: 0,
-  rare: 0.15,
-  normal: 0.33,
-  regular: 0.6,
+  rare: 0.06,
+  normal: 0.18,
+  regular: 0.35,
 }
 
 /** The scene block injected into the chat scenario so every prompt sees the event context. */

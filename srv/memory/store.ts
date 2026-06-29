@@ -51,7 +51,7 @@ const MAX_RECONCILE = 8
  * reply, so this bounds how fast memory can grow from one exchange; genuine turns
  * rarely yield more than one or two durable facts.
  */
-const MAX_AUTO_FACTS_PER_PASS = 3
+const MAX_AUTO_FACTS_PER_PASS = 2
 
 type ReconcileDecision = {
   /** A new fact already covered by this existing one; do not store the new fact. */
@@ -240,14 +240,17 @@ export async function extractAndStoreMemories(
   if (!characterId || !transcript.trim() || !isTextLlmConfigured()) return
 
   const system =
-    `You extract durable, long-term facts from a conversation between ${userName} and ${charName}. ` +
-    `Return ONLY facts that stay true across days and weeks — names, relationships, family, jobs, ` +
-    `where someone lives, preferences, promises, personal history — about ${userName} AND about ` +
-    `${charName} (including personal details ${charName} states or invents about itself). ` +
-    `Do NOT include momentary scene events (who arrived, where someone is sitting, what is happening ` +
-    `right now), passing feelings, or trivial small-talk. Write each fact as a single concise ` +
-    `self-contained sentence in the third person. Respond with ONLY JSON: ` +
-    `{"facts":["<fact>", ...]}. Use an empty array when nothing durable was said.`
+    `You maintain a small, high-value long-term memory about ${userName} and ${charName}. ` +
+    `From the exchange, extract ONLY genuinely important, lasting facts a partner would clearly ` +
+    `still remember weeks later — for example: their name, age, where they live or work, ` +
+    `family/relationship status, a major life event, a strongly stated preference or hard boundary, ` +
+    `or an explicit promise or plan — about ${userName} OR ${charName} (including personal details ` +
+    `${charName} states or invents about itself). ` +
+    `Be very selective: MOST exchanges contain nothing worth saving — then return an empty array. ` +
+    `Do NOT save: small talk, the current scene or activity, momentary moods or feelings, flirting or ` +
+    `compliments, opinions about the moment, vague or trivial details, or anything not clearly durable. ` +
+    `Write each fact as one short self-contained sentence in the third person. Respond with ONLY JSON: ` +
+    `{"facts":["<fact>", ...]}. Prefer an empty array; never include a fact you are unsure is important.`
 
   let raw: string | null = null
   try {
