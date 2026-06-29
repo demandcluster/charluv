@@ -57,8 +57,8 @@ export async function generateImage({ chatId, messageId, onDone, ...opts }: Gene
     return summary
   }
   const charType = entities.char?.tags?.includes('anime')
-    ? '(anime style:0.9) '
-    : '(realistic style:0.9) '
+    ? 'Anime style artwork of '
+    : 'Photorealistic image of '
   // Always lead with the character's appearance prompt (the look saved at
   // creation) so chat images stay consistent regardless of what the scene caption
   // happened to describe. It's first so the token trim below keeps it.
@@ -72,7 +72,7 @@ export async function generateImage({ chatId, messageId, onDone, ...opts }: Gene
     .then((tokens) => tokens.slice(0, max - 15))
     .then(decode)
 
-  const newPrompt = charType + trimmed + ' ' + charType
+  const newPrompt = charType + trimmed
 
   if (!isLoggedIn()) {
     return { error: "Sorry, members only.. don't worry it is free!" }

@@ -641,7 +641,7 @@ export const CreateCharacterForm: Component<{
                   <TextInput
                     isMultiline
                     fieldName="systemPrompt"
-                    placeholder="Custom system instruction injected after the Charluv levels preamble."
+                    placeholder="Custom system instruction injected after the Charluv 18+ safeguard."
                     value={editor.state.systemPrompt ?? ''}
                     onChange={(ev) => editor.update('systemPrompt', ev.currentTarget.value)}
                     class="h-40"

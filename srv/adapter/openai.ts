@@ -274,7 +274,7 @@ export const handleOAI: ModelAdapter = async function* (opts) {
         'tools: attached to request'
       )
     }
-  } else if (markerMode && Array.isArray(body.messages) && body.messages[0]?.role === 'system') {
+  } else if (markerMode) {
     const instr = markerInstructions(
       opts.replyAs?.name || char?.name || 'the character',
       handle,
@@ -282,7 +282,19 @@ export const handleOAI: ModelAdapter = async function* (opts) {
       memoryToolEnabled
     )
     // Prepend (not append) so it isn't read as part of the trailing "<name>:" cue.
-    if (instr) body.messages[0].content = `${instr.trim()}\n\n${body.messages[0].content}`
+    // Attach to the leading message regardless of its role: the system message in a
+    // standard chat payload, or the single user message in flatChatCompletion mode
+    // (the self-hosted endpoint sends one flat user message with no system message,
+    // so the old `role === 'system'` guard dropped the instructions entirely — which
+    // disabled memory and auto-image). Fall back to the /completions text prompt.
+    if (instr) {
+      const head = Array.isArray(body.messages) ? body.messages[0] : undefined
+      if (head && typeof head.content === 'string') {
+        head.content = `${instr.trim()}\n\n${head.content}`
+      } else if (typeof body.prompt === 'string') {
+        body.prompt = `${instr.trim()}\n\n${body.prompt}`
+      }
+    }
     log.debug({ imageToolEnabled, memoryToolEnabled }, 'tools: marker instructions injected')
   }
 

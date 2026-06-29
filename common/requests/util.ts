@@ -74,6 +74,15 @@ export function trimResponseV2(
     }
   }
 
+  // Scene narration is a separate "Narrator"/"Director" message. Cut a reply that
+  // switches into a narration passage (catches the cases the stop sequence misses:
+  // no leading newline, or text streamed past the stop). Skip if the speaker is
+  // itself the narrator/director.
+  for (const speaker of ['Narrator', 'Director']) {
+    if (char.name === speaker) continue
+    endTokens.push(`${speaker}:`)
+  }
+
   let index = -1
   let trimmed = allEndTokens.concat(...endTokens).reduce((prev, endToken) => {
     const idx = generated.indexOf(endToken)
