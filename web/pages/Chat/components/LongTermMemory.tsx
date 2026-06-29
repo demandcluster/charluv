@@ -152,12 +152,7 @@ const LongTermMemory: Component<{
                       {sourceLabel(mem.source)} · {new Date(mem.createdAt).toLocaleDateString()}
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    schema="red"
-                    onClick={() => remove(mem._id)}
-                    disabled={busy()}
-                  >
+                  <Button size="sm" schema="red" onClick={() => remove(mem._id)} disabled={busy()}>
                     <Trash size={14} />
                   </Button>
                 </div>

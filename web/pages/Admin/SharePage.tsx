@@ -70,7 +70,9 @@ const PendingTab: Component = () => {
               <div class="text-600 mt-1 flex flex-wrap gap-1 text-xs">
                 <For each={char.moderation?.flags || []}>
                   {(f: string) => (
-                    <span class="rounded bg-[var(--bg-700)] px-2 py-0.5">{FLAG_LABELS[f] || f}</span>
+                    <span class="rounded bg-[var(--bg-700)] px-2 py-0.5">
+                      {FLAG_LABELS[f] || f}
+                    </span>
                   )}
                 </For>
               </div>

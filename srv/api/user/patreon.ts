@@ -41,7 +41,10 @@ async function authorize(code: string, refresh?: boolean, redirectUri?: string) 
   if (result.statusCode && result.statusCode > 200) {
     // Surface Patreon's actual error (e.g. invalid_grant, redirect_uri mismatch)
     // instead of swallowing it — both in the logs and the message.
-    logger.error({ statusCode: result.statusCode, body: result.body }, 'Patreon token exchange failed')
+    logger.error(
+      { statusCode: result.statusCode, body: result.body },
+      'Patreon token exchange failed'
+    )
     const detail =
       result.body && typeof result.body === 'object'
         ? result.body.error_description || result.body.error

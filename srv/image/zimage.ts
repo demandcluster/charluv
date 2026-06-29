@@ -181,7 +181,9 @@ export async function zimageDeleteLora(name: string): Promise<void> {
 
   if (result && 'err' in result) {
     const e = result.err
-    throw new Error(`Image request failed: ${e?.code ? `Service unreachable - ${e.code}` : e?.message || e}`)
+    throw new Error(
+      `Image request failed: ${e?.code ? `Service unreachable - ${e.code}` : e?.message || e}`
+    )
   }
 
   if (result?.statusCode && result.statusCode >= 400 && result.statusCode !== 404) {

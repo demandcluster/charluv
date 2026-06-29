@@ -78,9 +78,9 @@ export const CharLibrary: Component<{ setSchema: Setter<JsonField[]> }> = (props
       </div>
       <div class="text-700 text-sm font-bold">Moderation (optional overrides)</div>
       <div class="text-600 text-xs">
-        Publishing runs on the local vision model with a built-in prompt and
-        schema (underage / violence / non-consent / incest / illegal). Leave
-        these blank to use the defaults; fill them to override.
+        Publishing runs on the local vision model with a built-in prompt and schema (underage /
+        violence / non-consent / incest / illegal). Leave these blank to use the defaults; fill them
+        to override.
       </div>
 
       <TextInput

@@ -28,8 +28,9 @@ export async function getShopOrder(id: string) {
   return order[0] || null
 }
 export async function getShopOrdersFrom(created: string) {
-  
-  const orders = await db('order').find({"status": "pending", createdAt: {$gt: created}}).toArray()
+  const orders = await db('order')
+    .find({ status: 'pending', createdAt: { $gt: created } })
+    .toArray()
   return orders
 }
 

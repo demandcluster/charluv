@@ -16,7 +16,7 @@ const GuestTopBar: Component = () => {
   return (
     <header
       data-header=""
-      class="bg-[var(--menu-bg)] flex h-[56px] shrink-0 items-center justify-between gap-4 border-b border-[var(--bg-800)] px-4 sm:px-8"
+      class="flex h-[56px] shrink-0 items-center justify-between gap-4 border-b border-[var(--bg-800)] bg-[var(--menu-bg)] px-4 sm:px-8"
     >
       <A href="/" aria-label="Charluv home" class="flex items-center">
         <span class="flex items-center rounded-md px-3 py-1.5" style={{ background: '#55b89c' }}>

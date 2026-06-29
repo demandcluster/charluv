@@ -19,7 +19,11 @@ import { logger } from './middleware'
 function utilityEndpoint() {
   const inf = config.inference
   return inf.modUrl
-    ? { url: inf.modUrl, key: inf.modApiKey || inf.textApiKey, model: inf.modModel || inf.textModel }
+    ? {
+        url: inf.modUrl,
+        key: inf.modApiKey || inf.textApiKey,
+        model: inf.modModel || inf.textModel,
+      }
     : { url: inf.textUrl, key: inf.textApiKey, model: inf.textModel }
 }
 

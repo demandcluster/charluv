@@ -258,11 +258,7 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     // carry one or more images. vLLM's OpenAI endpoint only sees them as
     // `image_url` content parts, so fold them into the last user message —
     // otherwise the check is text-only.
-    const visionImages = opts.images?.length
-      ? opts.images
-      : opts.imageData
-      ? [opts.imageData]
-      : []
+    const visionImages = opts.images?.length ? opts.images : opts.imageData ? [opts.imageData] : []
     if (visionImages.length && messages.length) {
       const target =
         [...messages].reverse().find((m) => m.role === 'user') ?? messages[messages.length - 1]
@@ -494,7 +490,9 @@ export const handleOAI: ModelAdapter = async function* (opts) {
       // Event replies: the model writes the whole scene, so pull out only the
       // elected character's own turn. Non-event: normal trim.
       const finalText = isEvent
-        ? sanitise(extractSpeakerTurn(sanitise((text || '').replace(prompt, '')), opts.replyAs.name))
+        ? sanitise(
+            extractSpeakerTurn(sanitise((text || '').replace(prompt, '')), opts.replyAs.name)
+          )
         : sanitiseAndTrim(text || '', prompt, opts.replyAs, opts.characters, members)
       // Empty after extraction/trim means the model produced nothing usable for
       // this speaker (e.g. it narrated/spoke only as others). Surface an error so

@@ -241,9 +241,7 @@ const ProfilePage: Component<{ footer?: (children: any) => void }> = (props) => 
               also lives on the Subscription tab). PatreonControls self-gates on
               config.patreonAuth, so this renders nothing when Patreon is off. */}
           <Show
-            when={
-              state.user?._id !== 'anon' && !admin.impersonating && settings.config.patreonAuth
-            }
+            when={state.user?._id !== 'anon' && !admin.impersonating && settings.config.patreonAuth}
           >
             <div class="flex justify-center">
               <TitleCard class="flex w-fit flex-col items-center justify-center gap-1" type="hl">

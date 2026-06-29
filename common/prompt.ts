@@ -581,9 +581,7 @@ export async function buildPromptParts(
   // position, so the model can't drift into a "Narrator:" passage.
   if (!systemKind && opts.chat.mode === 'event') {
     const directive = buildEventCharacterPrompt(replyAs.name)
-    parts.systemPrompt = parts.systemPrompt
-      ? `${parts.systemPrompt}\n\n${directive}`
-      : directive
+    parts.systemPrompt = parts.systemPrompt ? `${parts.systemPrompt}\n\n${directive}` : directive
 
     const ujbDirective = `(OOC: Reply ONLY as ${replyAs.name} — only ${replyAs.name}'s own dialogue and actions. Do NOT begin with "Narrator:" or narrate the room, the host, or any other person; another narrator handles all scene description.)`
     parts.ujb = parts.ujb ? `${parts.ujb}\n\n${ujbDirective}` : ujbDirective
@@ -1147,8 +1145,7 @@ export function fromJsonResponse(schema: JsonField[], response: any, output: any
       // Calling .trim() on a boolean throws, so type-check first.
       output[key] =
         value === true ||
-        (typeof value === 'string' &&
-          ['true', 'yes', '1'].includes(value.trim().toLowerCase()))
+        (typeof value === 'string' && ['true', 'yes', '1'].includes(value.trim().toLowerCase()))
     }
   }
 

@@ -333,69 +333,69 @@ const Chats: Component<{
                       </div>
                     }
                   >
-                  <div class="flex w-full justify-between gap-2 rounded-lg bg-[var(--bg-800)] p-1 hover:bg-[var(--bg-700)]">
-                    <A
-                      class="flex w-10/12 cursor-pointer gap-2 sm:w-11/12"
-                      href={`/chat/${chat._id}`}
-                    >
-                      <div class="ml-4 flex items-center">
-                        <div class="relative flex-shrink-0">
-                          <For each={chat.characters.slice(0, 3).reverse()}>
-                            {(ch, i) => {
-                              const positionStyle = getAvatarPositionStyle(chat, i)
-                              if (positionStyle === undefined) return
+                    <div class="flex w-full justify-between gap-2 rounded-lg bg-[var(--bg-800)] p-1 hover:bg-[var(--bg-700)]">
+                      <A
+                        class="flex w-10/12 cursor-pointer gap-2 sm:w-11/12"
+                        href={`/chat/${chat._id}`}
+                      >
+                        <div class="ml-4 flex items-center">
+                          <div class="relative flex-shrink-0">
+                            <For each={chat.characters.slice(0, 3).reverse()}>
+                              {(ch, i) => {
+                                const positionStyle = getAvatarPositionStyle(chat, i)
+                                if (positionStyle === undefined) return
 
-                              return (
-                                <div
-                                  class={`absolute top-1/2 -translate-y-1/2 transform ${positionStyle}`}
-                                >
-                                  <CharacterAvatar
-                                    char={props.allChars[ch._id]}
-                                    surround
-                                    zoom={1.75}
-                                    format={{ size: 'md', corners: 'circle' }}
-                                  />
-                                </div>
-                              )
-                            }}
-                          </For>
+                                return (
+                                  <div
+                                    class={`absolute top-1/2 -translate-y-1/2 transform ${positionStyle}`}
+                                  >
+                                    <CharacterAvatar
+                                      char={props.allChars[ch._id]}
+                                      surround
+                                      zoom={1.75}
+                                      format={{ size: 'md', corners: 'circle' }}
+                                    />
+                                  </div>
+                                )
+                              }}
+                            </For>
+                          </div>
                         </div>
-                      </div>
 
-                      <div class="flex max-w-[90%] flex-col justify-center gap-0 pl-14">
-                        <div class="overflow-hidden text-ellipsis whitespace-nowrap font-bold leading-5">
-                          {chat.characters.map((c) => c.name).join(', ')}
-                        </div>
-                        <div class="flex gap-2 overflow-hidden text-ellipsis whitespace-nowrap text-sm leading-4">
-                          <Show when={chat.name}>
-                            <span>{chat.name || ''} </span>
-                          </Show>
-                          <span class="flex text-xs italic text-[var(--text-600)]">
-                            {toDuration(new Date(chat.updatedAt))} ago
-                            <Show when={chat.messageCount !== undefined}>
-                              &nbsp;({chat.messageCount})
+                        <div class="flex max-w-[90%] flex-col justify-center gap-0 pl-14">
+                          <div class="overflow-hidden text-ellipsis whitespace-nowrap font-bold leading-5">
+                            {chat.characters.map((c) => c.name).join(', ')}
+                          </div>
+                          <div class="flex gap-2 overflow-hidden text-ellipsis whitespace-nowrap text-sm leading-4">
+                            <Show when={chat.name}>
+                              <span>{chat.name || ''} </span>
                             </Show>
-                          </span>
+                            <span class="flex text-xs italic text-[var(--text-600)]">
+                              {toDuration(new Date(chat.updatedAt))} ago
+                              <Show when={chat.messageCount !== undefined}>
+                                &nbsp;({chat.messageCount})
+                              </Show>
+                            </span>
+                          </div>
                         </div>
+                      </A>
+                      <div class="flex items-center gap-1 px-2">
+                        <button
+                          type="button"
+                          aria-label={`Rename chat ${chat.name || ''}`.trim()}
+                          onClick={() => startRename(chat)}
+                        >
+                          <Edit size={20} class="icon-button" />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Delete chat ${chat.name || ''}`.trim()}
+                          onClick={() => setDelete(chat._id)}
+                        >
+                          <Trash size={20} class="icon-button" />
+                        </button>
                       </div>
-                    </A>
-                    <div class="flex items-center gap-1 px-2">
-                      <button
-                        type="button"
-                        aria-label={`Rename chat ${chat.name || ''}`.trim()}
-                        onClick={() => startRename(chat)}
-                      >
-                        <Edit size={20} class="icon-button" />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={`Delete chat ${chat.name || ''}`.trim()}
-                        onClick={() => setDelete(chat._id)}
-                      >
-                        <Trash size={20} class="icon-button" />
-                      </button>
                     </div>
-                  </div>
                   </Show>
                 )}
               </For>

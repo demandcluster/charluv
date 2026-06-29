@@ -19,10 +19,8 @@
   --cr-on-accent: oklch(0.99 0.01 350);
 
   min-height: 100%;
-  background:
-    radial-gradient(120% 80% at 85% -10%, oklch(0.34 0.1 350 / 0.65), transparent 60%),
-    radial-gradient(90% 60% at -10% 110%, oklch(0.3 0.11 5 / 0.4), transparent 55%),
-    var(--dsc-bg);
+  background: radial-gradient(120% 80% at 85% -10%, oklch(0.34 0.1 350 / 0.65), transparent 60%),
+    radial-gradient(90% 60% at -10% 110%, oklch(0.3 0.11 5 / 0.4), transparent 55%), var(--dsc-bg);
   color: var(--dsc-cream);
   padding: clamp(1.25rem, 4vw, 3.5rem) clamp(1rem, 5vw, 4rem) 6rem;
   font-family: 'Lato', system-ui, sans-serif;
@@ -365,8 +363,7 @@
   border-radius: 999px;
   font-size: 0.9rem;
   cursor: pointer;
-  transition: background 180ms ease, border-color 180ms ease, color 180ms ease,
-    transform 180ms ease;
+  transition: background 180ms ease, border-color 180ms ease, color 180ms ease, transform 180ms ease;
 }
 .cr-pill:hover {
   border-color: var(--cr-accent);

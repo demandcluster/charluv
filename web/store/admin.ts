@@ -102,12 +102,7 @@ export const adminStore = createStore<AdminState>('admin', {
       if (res.error) toastStore.error(`Failed to load reports: ${res.error}`)
       if (res.result) return { reports: res.result.reports }
     },
-    async resolveReport(
-      _,
-      charId: string,
-      action: 'dismiss' | 'hide' | 'delete',
-      reason?: string
-    ) {
+    async resolveReport(_, charId: string, action: 'dismiss' | 'hide' | 'delete', reason?: string) {
       const res = await api.post(`/admin/reports/${charId}`, { action, reason })
       if (res.error) toastStore.error(`Action failed: ${res.error}`)
       if (res.result?.success) toastStore.success(`Done`)

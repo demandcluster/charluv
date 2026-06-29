@@ -57,12 +57,21 @@ const AgeGate: Component = () => {
           >
             Welcome to <span style={{ color: 'oklch(0.74 0.11 165)' }}>Charluv</span>
           </div>
-          <p style={{ color: 'oklch(0.72 0.03 350)', 'line-height': '1.6', 'margin-bottom': '2rem' }}>
-            Charluv is an adult AI companion platform that may contain mature, NSFW content. You must
-            be 18 or older to enter. By continuing you confirm you are at least 18 and consent to
-            viewing adult content.
+          <p
+            style={{ color: 'oklch(0.72 0.03 350)', 'line-height': '1.6', 'margin-bottom': '2rem' }}
+          >
+            Charluv is an adult AI companion platform that may contain mature, NSFW content. You
+            must be 18 or older to enter. By continuing you confirm you are at least 18 and consent
+            to viewing adult content.
           </p>
-          <div style={{ display: 'flex', gap: '0.75rem', 'justify-content': 'center', 'flex-wrap': 'wrap' }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: '0.75rem',
+              'justify-content': 'center',
+              'flex-wrap': 'wrap',
+            }}
+          >
             <button
               onClick={confirm}
               style={{
