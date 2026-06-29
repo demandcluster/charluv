@@ -180,8 +180,6 @@ export function validateBody<T extends Validator>(
     }
 
     if (isOptionalUnion(bodyType)) {
-      if (value === null || value === undefined) continue
-
       if (typeof value !== 'string') {
         errors.push(
           `.${prop} is ${typeof value}, expected undefined or literal of ${bodyType

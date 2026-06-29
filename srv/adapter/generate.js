@@ -410,15 +410,10 @@ async function getResponseEntities(chat, senderId, gen) {
     }
     return { char, user, adapter, settings, gen: genSettings, model, book, resolvedScenario };
 }
-async function getGenerationSettings(user, chat, adapter, guest) {
+async function getGenerationSettings(user, chat, adapter) {
     if (chat.genPreset) {
         if ((0, presets_1.isDefaultPreset)(chat.genPreset)) {
             return { ...presets_1.defaultPresets[chat.genPreset], src: 'user-chat-genpreset-default' };
-        }
-        if (guest) {
-            if (chat.genSettings)
-                return { ...chat.genSettings, src: 'guest-chat-gensettings' };
-            return { ...(0, presets_1.getFallbackPreset)(adapter), src: 'guest-fallback' };
         }
         const preset = await db_1.store.presets.getUserPreset(chat.genPreset);
         if (preset) {
@@ -427,8 +422,7 @@ async function getGenerationSettings(user, chat, adapter, guest) {
         }
     }
     if (chat.genSettings) {
-        const src = guest ? 'guest-chat-gensettings' : 'user-chat-gensettings';
-        return { ...chat.genSettings, src };
+        return { ...chat.genSettings, src: 'user-chat-gensettings' };
     }
     if (user.defaultPreset) {
         if ((0, presets_1.isDefaultPreset)(user.defaultPreset)) {
@@ -445,13 +439,8 @@ async function getGenerationSettings(user, chat, adapter, guest) {
         if ((0, presets_1.isDefaultPreset)(servicePreset)) {
             return {
                 ...presets_1.defaultPresets[servicePreset],
-                src: `${guest ? 'guest' : 'user'}-service-defaultpreset`,
+                src: 'user-service-defaultpreset',
             };
-        }
-        // No user presets are persisted for anonymous users
-        // Do not try to check the database for them
-        if (guest) {
-            return { ...(0, presets_1.getFallbackPreset)(adapter), src: 'guest-fallback' };
         }
         const preset = await db_1.store.presets.getUserPreset(servicePreset);
         if (preset) {
@@ -461,7 +450,7 @@ async function getGenerationSettings(user, chat, adapter, guest) {
     }
     return {
         ...(0, presets_1.getFallbackPreset)(adapter),
-        src: guest ? 'guest-fallback-last' : 'user-fallback-last',
+        src: 'user-fallback-last',
     };
 }
 //# sourceMappingURL=generate.js.map

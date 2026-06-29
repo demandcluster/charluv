@@ -557,17 +557,11 @@ export async function getResponseEntities(
 async function getGenerationSettings(
   user: AppSchema.User,
   chat: AppSchema.Chat,
-  adapter: AIAdapter,
-  guest?: boolean
+  adapter: AIAdapter
 ): Promise<Partial<AppSchema.GenSettings>> {
   if (chat.genPreset) {
     if (isDefaultPreset(chat.genPreset)) {
       return { ...defaultPresets[chat.genPreset], src: 'user-chat-genpreset-default' }
-    }
-
-    if (guest) {
-      if (chat.genSettings) return { ...chat.genSettings, src: 'guest-chat-gensettings' }
-      return { ...getFallbackPreset(adapter), src: 'guest-fallback' }
     }
 
     const preset = await store.presets.getUserPreset(chat.genPreset)
@@ -578,8 +572,7 @@ async function getGenerationSettings(
   }
 
   if (chat.genSettings) {
-    const src = guest ? 'guest-chat-gensettings' : 'user-chat-gensettings'
-    return { ...chat.genSettings, src }
+    return { ...chat.genSettings, src: 'user-chat-gensettings' }
   }
 
   if (user.defaultPreset) {
@@ -599,14 +592,8 @@ async function getGenerationSettings(
     if (isDefaultPreset(servicePreset)) {
       return {
         ...defaultPresets[servicePreset],
-        src: `${guest ? 'guest' : 'user'}-service-defaultpreset`,
+        src: 'user-service-defaultpreset',
       }
-    }
-
-    // No user presets are persisted for anonymous users
-    // Do not try to check the database for them
-    if (guest) {
-      return { ...getFallbackPreset(adapter), src: 'guest-fallback' }
     }
 
     const preset = await store.presets.getUserPreset(servicePreset)
@@ -618,6 +605,6 @@ async function getGenerationSettings(
 
   return {
     ...getFallbackPreset(adapter),
-    src: guest ? 'guest-fallback-last' : 'user-fallback-last',
+    src: 'user-fallback-last',
   }
 }
