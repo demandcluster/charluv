@@ -42,7 +42,12 @@ export function sanitiseAndTrim(
   const trimmed = trimResponseV2(parsed, char, members, characters, ['END_OF_DIALOG'])
     .split(`${char.name}:`)
     .join('')
-  return trimmed || parsed
+  // Return the trimmed text even when it's empty. An empty trim means the reply
+  // led with another speaker or "Narrator:"/"Director:" — i.e. the model wrote a
+  // foreign turn / a whole scene (common with the chat finetune in event chats).
+  // The old `|| parsed` fallback resurrected that raw multi-speaker screenplay,
+  // which is exactly the off-the-rails output we want to suppress.
+  return trimmed
 }
 
 export function sanitise(generated: string) {

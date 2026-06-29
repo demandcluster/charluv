@@ -84,7 +84,7 @@ export const CHARLUV_TEMP_PRESETS = [
   { id: 'charluv-precise', label: 'Precise', temp: 0.4, hint: 'Focused and consistent' },
   { id: 'charluv-balanced', label: 'Balanced', temp: 0.8, hint: 'Natural variety (default)' },
   { id: 'charluv-creative', label: 'Creative', temp: 1.1, hint: 'More varied and surprising' },
-  { id: 'charluv-wild', label: 'Wild', temp: 1.4, hint: 'Unpredictable, high variety' },
+  { id: 'charluv-wild', label: 'Wild', temp: 1.2, hint: 'Unpredictable, high variety' },
 ] as const
 
 export const DEFAULT_CHARLUV_PRESET = 'charluv-balanced'
@@ -99,5 +99,5 @@ export const charluvPresets = {
   'charluv-precise': { ...charluvBase, name: 'Precise', temp: 0.4, topP: 1.0, minP: 0 },
   'charluv-balanced': { ...charluvBase, name: 'Balanced', temp: 0.8, topP: 0.98, minP: 0.02 },
   'charluv-creative': { ...charluvBase, name: 'Creative', temp: 1.1, topP: 0.95, minP: 0.05 },
-  'charluv-wild': { ...charluvBase, name: 'Wild', temp: 1.4, topP: 0.92, minP: 0.08 },
+  'charluv-wild': { ...charluvBase, name: 'Wild', temp: 1.2, topP: 0.92, minP: 0.08 },
 } satisfies Record<string, Partial<AppSchema.GenSettings>>

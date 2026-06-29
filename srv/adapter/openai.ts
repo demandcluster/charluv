@@ -6,6 +6,7 @@ import { AppSchema } from '../../common/types/schema'
 import { config } from '../config'
 import { AppLog } from '../middleware'
 import { requestFullCompletion, toChatCompletionPayload } from './chat-completion'
+import { getStoppingStrings } from './prompt'
 import { decryptText } from '../db/util'
 import { streamCompletion } from './stream'
 import { getTokenCounter } from '../tokenize'
@@ -82,6 +83,11 @@ const IMAGE_TOOL_KINDS = new Set([
  * native OpenAI tools/tool_calls path instead.
  */
 const NATIVE_TOOLS = process.env.CHARLUV_NATIVE_TOOLS === '1'
+
+/** Temperature ceiling for event/group character replies. The scene context tempts
+ * the model into narrating and speaking for others; a lower temp keeps it on the
+ * "reply only as this character" rails. Only caps — a cooler preset is left as-is. */
+const EVENT_REPLY_TEMP_CAP = 0.5
 
 const IMG_MARKER = /<image>([\s\S]*?)<\/image>/gi
 const MEM_MARKER = /<remember>([\s\S]*?)<\/remember>/gi
@@ -171,26 +177,37 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     defaultPresets.openai.oaiModel
   const maxResponseLength = gen.maxTokens ?? defaultPresets.openai.maxTokens
 
-  // Scene narration is its own "Narrator"/"Director" message (separate path). A
-  // character reply must never switch into a narration passage, so stop generation
-  // the moment the model starts one. Newline-anchored like the speaker stop so an
-  // in-dialogue mention ("the narrator said") doesn't trip it. Skip when the
-  // speaker IS the narrator/director. This is the generation-level guard; the
-  // post-hoc trim (sanitiseAndTrim) is the backstop.
+  // Stop the model from speaking for anyone but the elected character. Critical in
+  // event/group chats: without these the model writes the whole scene as one reply
+  // (every other character's lines + "Narrator:" narration). getStoppingStrings
+  // builds "\nName:" for each OTHER present character + member, the Narrator/Director
+  // labels, and the preset's own stopSequences. We add the spaced "Name :" narrator
+  // variants and the user cue on top. Skipped names when the speaker IS that role.
   const narratorStops =
     opts.replyAs?.name === 'Narrator' || opts.replyAs?.name === 'Director'
       ? []
-      : ['\nNarrator:', '\nNarrator :', '\nDirector:', '\nDirector :']
+      : ['\nNarrator :', '\nDirector :']
+  const stopSet = new Set<string>([`\n${handle}:`, ...narratorStops, ...getStoppingStrings(opts)])
+
+  // Event/group replies need tighter instruction-following: at the chat's normal
+  // temp (0.8 balanced, up to 1.4 "wild") the model drifts into narrating the
+  // scene and speaking for other characters despite the "reply only as X" directive.
+  // Cap the temp for event replies so it stays in its own voice. Detected via the
+  // chat mode — the client sends kind:'send' for event turns, so kind won't say so.
+  // Utility calls (director) run via inferenceAsync with an empty chat, unaffected.
+  const baseTemp = gen.temp ?? defaultPresets.openai.temp
+  const temperature =
+    opts.chat?.mode === 'event' ? Math.min(baseTemp, EVENT_REPLY_TEMP_CAP) : baseTemp
 
   const body: any = {
     model: oaiModel,
     stream: (gen.streamResponse && kind !== 'summary') ?? defaultPresets.openai.streamResponse,
-    temperature: gen.temp ?? defaultPresets.openai.temp,
+    temperature,
     max_tokens: maxResponseLength,
     top_p: gen.topP ?? 1,
     // Filter falsy entries — a null/empty stop value makes strict OpenAI-compatible
     // servers (e.g. vLLM) reject the request with HTTP 400.
-    stop: [`\n${handle}:`, ...narratorStops].concat(gen.stopSequences || []).filter(Boolean),
+    stop: Array.from(stopSet).filter(Boolean),
   }
 
   body.presence_penalty = gen.presencePenalty ?? defaultPresets.openai.presencePenalty
@@ -470,9 +487,22 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     }
 
     const swipeText = markerMode ? stripMarkers(accumulated).trim() : accumulated
-    gen.swipesPerGeneration! > 1
-      ? yield sanitiseAndTrim(swipeText, prompt, char, opts.characters, members)
-      : yield sanitiseAndTrim(text || '', prompt, opts.replyAs, opts.characters, members)
+    if (gen.swipesPerGeneration! > 1) {
+      yield sanitiseAndTrim(swipeText, prompt, char, opts.characters, members)
+    } else {
+      const finalText = sanitiseAndTrim(text || '', prompt, opts.replyAs, opts.characters, members)
+      // A non-empty raw reply that trims to nothing means it was entirely a foreign
+      // turn / scene narration (the chat finetune writing the whole scene in an
+      // event). Surface an error instead of storing an empty bubble, so the caller
+      // (the event loop) can stop or retry cleanly — and tool-only replies still go
+      // through (handled by the empty-text guard above).
+      if (!finalText && !imagePrompt && !rememberFacts.length) {
+        log.warn('OpenAI reply trimmed to empty (foreign/narration-only); dropping')
+        yield { error: `OpenAI request failed: Received empty response. Try again.` }
+        return
+      }
+      yield finalText
+    }
   } catch (ex: any) {
     log.error({ err: ex }, 'OpenAI failed to parse')
     yield { error: `OpenAI request failed: ${ex.message}` }
