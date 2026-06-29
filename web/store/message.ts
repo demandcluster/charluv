@@ -30,6 +30,10 @@ import { botGen, GenerateOpts } from './data/bot-generate'
 
 const SOFT_PAGE_SIZE = 20
 
+/** Platform-wide voice/TTS kill switch. Typed `boolean` so the disabled code paths
+ * stay type-checked. Flip to false to re-enable the feature. */
+const VOICE_DISABLED: boolean = true
+
 type ChatId = string
 
 export type VoiceState = 'generating' | 'playing'
@@ -640,6 +644,12 @@ export const msgStore = createStore<MsgState>(
     ) {
       stopSpeech()
 
+      // Voice/TTS is disabled platform-wide. Never request or play voice.
+      if (VOICE_DISABLED) {
+        yield { speaking: undefined }
+        return
+      }
+
       if (!voice.service) {
         yield { speaking: undefined }
         return
@@ -1072,6 +1082,8 @@ async function onMessageReceived(body: {
 }
 
 function getMessageSpeechInfo(msg: AppSchema.ChatMessage, user: AppSchema.User | undefined) {
+  // Voice/TTS disabled platform-wide — no speech info, no generating indicator.
+  if (VOICE_DISABLED) return
   if (msg.adapter === 'image' || !msg.characterId || msg.userId) return
   const { characters } = getStore('character').getState()
   const char = characters.map[msg.characterId]

@@ -175,7 +175,8 @@ const ChatDetail: Component = () => {
     )
   })
   const isOwner = createMemo(() => chats.chat?.userId === user.user?._id)
-  const tts = createMemo(() => (user.user?.texttospeech?.enabled ?? true) && !!chats.char?.voice)
+  // Voice/TTS is disabled platform-wide — never surface the voice UI.
+  const tts = createMemo(() => false)
 
   const waitingMsg = createMemo(() => {
     if (!msgs.waiting) return
