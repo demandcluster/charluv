@@ -313,7 +313,9 @@ const Create: Component = () => {
 
   const setPortrait = async (file?: File) => {
     if (!file) return
-    setAvatarFile(file)
+    // Functional-updater form: Solid's Setter<File> rejects a bare File argument
+    // (the `U extends Function` overload branch), so set via a returning fn.
+    setAvatarFile(() => file)
     const data = await imageApi.getImageData(file)
     if (data) setAvatarUrl(data)
   }
