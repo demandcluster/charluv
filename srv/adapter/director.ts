@@ -50,6 +50,17 @@ export async function electSpeaker(opts: ElectOpts): Promise<string> {
       maxTokens: 24,
       temp: 0.2,
       jsonSchema: buildSpeakerSchema(ids),
+      // Orchestration (speaker election + world beats) runs on the original Qwen
+      // model via the mod endpoint — it follows structured/JSON instructions far
+      // better than the chat finetune (tutu), which broke delegation. tutu only
+      // does the in-character replies. Falls back to the text endpoint if no mod
+      // endpoint is configured.
+      moderation: true,
+      // Clean utility system prompt: override any roleplay default baked into the
+      // served model's chat template (and protect against the tutu fallback when
+      // no mod endpoint is set) so the model does the tool task, not in-character
+      // prose. The schema (guided_json) still forces the output shape on top.
+      system: `You are a scene director that picks the next speaker. Respond only with the requested JSON. Do not roleplay or answer in character.`,
     })
 
     const picked = parseSpeaker(generated, ids)
@@ -89,6 +100,13 @@ export async function proposeDirectorEvent(opts: DirectorEventOpts): Promise<str
       maxTokens: 100,
       temp: 0.7,
       jsonSchema: buildDirectorEventSchema(),
+      // World-beat narration is orchestration too — run it on the original Qwen
+      // model (mod endpoint), not the chat finetune. See electSpeaker.
+      moderation: true,
+      // Clean utility system prompt so the model narrates the world as a director
+      // tool, not in character — overrides any roleplay default on the served
+      // model (and the tutu fallback). See electSpeaker.
+      system: `You are an unseen scene director narrating world events. Respond only with the requested JSON. Do not roleplay or speak as any character.`,
     })
     return parseNarration(generated)
   } catch (err) {

@@ -9,12 +9,26 @@ import { logger } from './middleware'
  * full streaming adapter. Shared server-side utility; returns null when the
  * endpoint is unconfigured or errors so callers can fall back deterministically.
  */
-export function isTextLlmConfigured() {
-  return !!config.inference.textUrl
+/**
+ * Pick the endpoint for small internal tasks (classification, extraction). These
+ * run on the original orchestration model (the moderation/"mod" endpoint, Qwen) —
+ * it handles structured/JSON tasks better than the user-facing chat finetune
+ * (tutu). Falls back to the text endpoint when no separate mod endpoint is set, so
+ * single-endpoint deployments are unchanged.
+ */
+function utilityEndpoint() {
+  const inf = config.inference
+  return inf.modUrl
+    ? { url: inf.modUrl, key: inf.modApiKey || inf.textApiKey, model: inf.modModel || inf.textModel }
+    : { url: inf.textUrl, key: inf.textApiKey, model: inf.textModel }
 }
 
-function chatUrl() {
-  const url = (config.inference.textUrl || '').replace(/\/+$/, '')
+export function isTextLlmConfigured() {
+  return !!(config.inference.modUrl || config.inference.textUrl)
+}
+
+function chatUrl(base: string) {
+  const url = (base || '').replace(/\/+$/, '')
   if (!url) return ''
   const version = url.match(/\/v\d+$/) ? '' : '/v1'
   return `${url}${version}/chat/completions`
@@ -25,14 +39,15 @@ export async function classify(
   user: string,
   opts: { maxTokens?: number; timeoutMs?: number } = {}
 ): Promise<string | null> {
-  const url = chatUrl()
+  const endpoint = utilityEndpoint()
+  const url = chatUrl(endpoint.url)
   if (!url) return null
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (config.inference.textApiKey) headers.Authorization = `Bearer ${config.inference.textApiKey}`
+  if (endpoint.key) headers.Authorization = `Bearer ${endpoint.key}`
 
   const body = {
-    model: config.inference.textModel || 'default',
+    model: endpoint.model || 'default',
     messages: [
       { role: 'system', content: system },
       { role: 'user', content: user },

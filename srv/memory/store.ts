@@ -46,6 +46,13 @@ const RELATED_MIN = 0.6
 /** Cap on related memories sent to the LLM in one reconciliation prompt. */
 const MAX_RECONCILE = 8
 
+/**
+ * Max facts a single auto-extraction pass may store. Extraction runs on every
+ * reply, so this bounds how fast memory can grow from one exchange; genuine turns
+ * rarely yield more than one or two durable facts.
+ */
+const MAX_AUTO_FACTS_PER_PASS = 3
+
 type ReconcileDecision = {
   /** A new fact already covered by this existing one; do not store the new fact. */
   skip?: LongTermMemory
@@ -213,6 +220,63 @@ export async function rememberFact(
     'memory: stored'
   )
   return doc
+}
+
+/**
+ * Automatic memory extraction. The roleplay model won't reliably emit the inline
+ * `<remember>` marker mid-immersion, so durable facts are also pulled out of the
+ * exchange by a separate, model-agnostic classification pass (temp 0, non-stream)
+ * and stored with source 'auto'. Each extracted fact still goes through the same
+ * rememberFact pipeline (ephemeral filter, reconcile, dedup), so this is additive
+ * to — and safely overlapping with — the marker path. Best-effort: never throws.
+ */
+export async function extractAndStoreMemories(
+  userId: string,
+  characterId: string,
+  userName: string,
+  charName: string,
+  transcript: string
+): Promise<void> {
+  if (!characterId || !transcript.trim() || !isTextLlmConfigured()) return
+
+  const system =
+    `You extract durable, long-term facts from a conversation between ${userName} and ${charName}. ` +
+    `Return ONLY facts that stay true across days and weeks — names, relationships, family, jobs, ` +
+    `where someone lives, preferences, promises, personal history — about ${userName} AND about ` +
+    `${charName} (including personal details ${charName} states or invents about itself). ` +
+    `Do NOT include momentary scene events (who arrived, where someone is sitting, what is happening ` +
+    `right now), passing feelings, or trivial small-talk. Write each fact as a single concise ` +
+    `self-contained sentence in the third person. Respond with ONLY JSON: ` +
+    `{"facts":["<fact>", ...]}. Use an empty array when nothing durable was said.`
+
+  let raw: string | null = null
+  try {
+    raw = await classify(system, transcript, { maxTokens: 200 })
+  } catch (err) {
+    logger.warn({ err, characterId }, 'memory: auto-extraction request failed')
+    return
+  }
+
+  const parsed = parseJsonObject<{ facts?: string[] }>(raw)
+  const facts = Array.isArray(parsed?.facts) ? parsed!.facts : []
+  if (!facts.length) return
+
+  // Overstore guard: this runs on every reply, so cap how many facts a single
+  // exchange can contribute. A normal turn surfaces at most one or two durable
+  // facts; anything beyond the cap is the model padding with scene fluff. The
+  // rememberFact pipeline (ephemeral filter, reconcile, cosine + LLM dedup) still
+  // drops repeats and near-duplicates on top of this.
+  const deduped = Array.from(
+    new Set(facts.filter((f) => typeof f === 'string' && f.trim()).map((f) => f.trim()))
+  ).slice(0, MAX_AUTO_FACTS_PER_PASS)
+
+  for (const fact of deduped) {
+    try {
+      await rememberFact(userId, characterId, fact, 'auto')
+    } catch (err) {
+      logger.error({ err, characterId }, 'memory: failed to store auto-extracted fact')
+    }
+  }
 }
 
 /**

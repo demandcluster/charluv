@@ -379,6 +379,20 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
   // is unavailable or returns nothing.
   const craftImagePrompt = async (traits: string): Promise<string> => {
     if (!traits.trim()) return traits
+    // Art style is derived from tags first (anime/realistic), falling back to the
+    // manual facet — mirrors how the save payload resolves artStyle.
+    const artStyle = state.tags?.includes('anime')
+      ? 'anime'
+      : state.tags?.includes('realistic')
+      ? 'realistic'
+      : state.artStyle
+    // zimage has no style-weight syntax, so lead the prompt with an explicit style
+    // sentence — without it every character renders realistic regardless of the
+    // chosen art style.
+    const stylePrefix =
+      artStyle === 'anime'
+        ? 'early-2000s anime hybrid cel/digital look, bright saturated colors high quality art of '
+        : 'Photorealistic image of '
     const instruction =
       `Write ONE vivid, natural-language image prompt for a character portrait. ` +
       `Use descriptive sentences, NOT comma-separated tags or keyword lists. ` +
@@ -390,14 +404,14 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
       const res = await genApi.basicInference({
         prompt: instruction,
         settings: defaultPresets['charluv-balanced'],
-        overrides: { maxTokens: 150, temp: 0.6, streamResponse: false },
+        overrides: { maxTokens: 300, temp: 0.6, streamResponse: false },
       })
       const text =
         res && 'result' in res ? ((res.result as any)?.response as string | undefined) : ''
       const clean = (text || '').replace(/^["'\s]+|["'\s]+$/g, '').trim()
-      return clean || traits
+      return stylePrefix + (clean || traits)
     } catch {
-      return traits
+      return stylePrefix + traits
     }
   }
 

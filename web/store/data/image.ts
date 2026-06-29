@@ -57,7 +57,7 @@ export async function generateImage({ chatId, messageId, onDone, ...opts }: Gene
     return summary
   }
   const charType = entities.char?.tags?.includes('anime')
-    ? 'Anime style artwork of '
+    ? 'early-2000s anime hybrid cel/digital look, bright saturated colors high quality art of '
     : 'Photorealistic image of '
   // Always lead with the character's appearance prompt (the look saved at
   // creation) so chat images stay consistent regardless of what the scene caption

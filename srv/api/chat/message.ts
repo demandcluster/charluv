@@ -6,7 +6,7 @@ import { sendGuest, sendMany, sendOne } from '../ws'
 import { obtainLock, releaseLock } from './lock'
 import { generateImage } from '../../image'
 import { getXpPerMessage } from '/common/progression'
-import { rememberFact } from '../../memory/store'
+import { rememberFact, extractAndStoreMemories } from '../../memory/store'
 import { AppSchema } from '../../../common/types/schema'
 import { v4 } from 'uuid'
 import { Response } from 'express'
@@ -89,6 +89,18 @@ const genValidator = {
   jsonValues: 'any?',
   response: 'string?',
 } as const
+
+/** Reply kinds that should trigger automatic long-term memory extraction: fresh
+ * character replies only. Retries/continues re-cover an already-seen turn, and
+ * ooc/summary/chat-query aren't in-character exchanges worth mining. */
+const AUTO_MEMORY_KINDS = new Set<GenRequest['kind']>([
+  'send',
+  'request',
+  'self',
+  'send-event:world',
+  'send-event:character',
+  'send-event:hidden',
+])
 
 export const getMessages = handle(async ({ userId, params, query }) => {
   const chatId = params.id
@@ -723,6 +735,31 @@ async function generateOneReply(ctx: {
         log.error({ err }, 'Failed to store long-term memory')
       )
     }
+  }
+
+  // Auto memory extraction: the roleplay model rarely emits the inline <remember>
+  // marker on its own, so a separate background pass pulls durable facts out of
+  // this exchange and stores them (source 'auto'). Fired AFTER the reply (not
+  // awaited) so it adds zero user-facing latency; the marker path above still runs
+  // as a second source. Only on fresh character replies — not retries/continues
+  // (which re-cover the same turn) or utility kinds (summary, chat-query).
+  if (
+    AUTO_MEMORY_KINDS.has(body.kind) &&
+    replyAs._id &&
+    userId &&
+    !chat.memoryDisabled &&
+    responseText.trim()
+  ) {
+    const userName = body.sender?.handle || 'User'
+    const transcript = [
+      userMsg?.msg ? `${userName}: ${userMsg.msg}` : '',
+      `${replyAs.name}: ${responseText}`,
+    ]
+      .filter(Boolean)
+      .join('\n')
+    extractAndStoreMemories(userId, replyAs._id, userName, replyAs.name, transcript).catch((err) =>
+      log.error({ err }, 'Failed to auto-extract long-term memory')
+    )
   }
 
   // Summaries are a cheap utility generation (no user-facing message); don't
