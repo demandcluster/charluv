@@ -81,7 +81,7 @@ class PriorityGate {
         // Admitted — but drop the request if its client has already disconnected,
         // freeing the slot for the next waiter. Fails open (treats as present) on
         // any presence-check error so an outage never wrongly drops requests.
-        let present = true;
+        let present;
         try {
             present = await this.presence({ userId: opts.userId, socketId: opts.socketId });
         }

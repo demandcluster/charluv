@@ -6,8 +6,6 @@ import { attributes, manifest } from '/web/asset/sprite'
 import { imageApi } from '/web/store/data/image'
 import { parseHex } from '../colors'
 
-export { AvatarCanvas as default }
-
 const BASE_URL = `https://cdn.aivo.chat/sprites`
 const BLANK_IMG = `${BASE_URL}/blank.png`
 const CACHE_TTL_SECS = 120
@@ -257,3 +255,5 @@ function shortHash(body: FullSprite) {
 function debug(...args: any[]) {
   console.debug(...args)
 }
+
+export { AvatarCanvas as default }

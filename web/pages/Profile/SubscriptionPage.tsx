@@ -29,10 +29,6 @@ export const SubscriptionPage: Component = (props) => {
   const candidates = createMemo(() => {
     return cfg.tiers
       .filter((t) => {
-        const isPatronOf = user.sub?.type === 'patreon' && cfg.tier?._id === t._id
-        isPatronOf
-        // if (isPatronOf) return false
-
         const usable = t.level !== user.sub?.level
         return usable && t.enabled && !t.deletedAt && !!t.productId
       })

@@ -11,8 +11,6 @@ import Select from '/web/shared/Select'
 import { TierCard } from '../Profile/TierCard'
 import { Page } from '/web/Layout'
 
-export { TiersPage as default }
-
 const TiersPage: Component = (props) => {
   let form: any
   const params = useParams()
@@ -235,3 +233,5 @@ const TiersPage: Component = (props) => {
     </Page>
   )
 }
+
+export { TiersPage as default }

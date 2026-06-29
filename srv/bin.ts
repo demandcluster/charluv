@@ -206,18 +206,6 @@ async function execAsync(command: string) {
   cmd.stderr?.on('error', console.error)
 
   return 0
-
-  return new Promise((resolve, reject) => {
-    cmd.on('error', (err) => {
-      console.error(err)
-      reject(err)
-    })
-
-    cmd.on('exit', (code) => {
-      if (code !== 0 && code !== 1) reject(code)
-      else resolve(code)
-    })
-  })
 }
 
 function fileExists(file: string) {

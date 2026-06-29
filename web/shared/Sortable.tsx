@@ -4,8 +4,6 @@ import { FormLabel } from './FormLabel'
 import { Menu, Power } from '/web/icons'
 import TextInput from './TextInput'
 
-export { Sortable as default }
-
 export type SortItem = {
   id: number
   value: string | number
@@ -159,3 +157,5 @@ const Sortable: Component<{
     </>
   )
 }
+
+export { Sortable as default }

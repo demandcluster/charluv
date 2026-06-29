@@ -201,8 +201,7 @@ export async function parseTemplate(
 
   /** Replace iterators */
   if (opts.limit && opts.limit.output) {
-    for (const [id, { lines, src }] of Object.entries(opts.limit.output)) {
-      src
+    for (const [id, { lines }] of Object.entries(opts.limit.output)) {
       const filled = await fillPromptWithLines({
         encoder: opts.limit.encoder,
         tokenLimit: opts.limit.context,

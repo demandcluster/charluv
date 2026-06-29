@@ -14,8 +14,6 @@ import { getStrictForm } from '/web/shared/util'
 import { toastStore } from '/web/store'
 import { Page } from '/web/Layout'
 
-export { PromptTemplates as default }
-
 const PromptTemplates: Component = () => {
   const state = presetStore((s) => ({ templates: s.templates }))
 
@@ -183,3 +181,5 @@ const TemplateModal: Component<{
 
   return null
 }
+
+export { PromptTemplates as default }

@@ -1,4 +1,4 @@
-import { Accessor, Component, Setter, Show, createMemo } from 'solid-js'
+import { Component, Show, createMemo } from 'solid-js'
 import TextInput from '../../../shared/TextInput'
 import { userStore } from '../../../store'
 import Button from '../../../shared/Button'
@@ -59,39 +59,3 @@ const NovelAISettings: Component = () => {
 }
 
 export default NovelAISettings
-
-// @ts-ignore
-const novelLogin = async (opts: {
-  user: Accessor<string>
-  pass: Accessor<string>
-  setUser: Setter<string>
-  setPass: Setter<string>
-  setLoading: Setter<boolean>
-}) => {
-  opts.setLoading(true)
-  const sodium = await import('libsodium-wrappers-sumo')
-  await sodium.ready
-
-  const key = sodium
-    .crypto_pwhash(
-      64,
-      new Uint8Array(Buffer.from(opts.pass())),
-      sodium.crypto_generichash(
-        sodium.crypto_pwhash_SALTBYTES,
-        opts.pass().slice(0, 6) + opts.user() + 'novelai_data_access_key'
-      ),
-      2,
-      2e6,
-      sodium.crypto_pwhash_ALG_ARGON2ID13,
-      'base64'
-    )
-    .slice(0, 64)
-
-  userStore.novelLogin(key, (err?: boolean) => {
-    opts.setLoading(false)
-    if (!err) {
-      opts.setPass('')
-      opts.setUser('')
-    }
-  })
-}

@@ -39,7 +39,7 @@ let error
 try {
   const latest = getCurrent()
 
-  const [version, label] = latest.split('-')
+  const [version] = latest.split('-')
   let [major, minor, patch] = version.split('.').map((val) => Number(val))
 
   switch (bump) {
@@ -72,8 +72,6 @@ try {
 }
 
 function getCurrent() {
-  const opts = { stdio: 'ignore' }
-
   try {
     const result = JSON.parse(execSync(`npm view ${pkg.name} --json`).toString())
     return result['dist-tags'].latest

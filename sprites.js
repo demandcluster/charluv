@@ -11,7 +11,7 @@ const attrs = new Map()
 
 for (const name of names) {
   if (!name.endsWith('.png')) continue
-  const [gender, attr, type, ...files] = name.split('-')
+  const [, attr, type, ...files] = name.split('-')
   const file = files.join('-')
 
   if (!map[attr]) {

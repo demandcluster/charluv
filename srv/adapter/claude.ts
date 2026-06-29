@@ -410,7 +410,6 @@ async function createClaudePrompt(opts: AdapterProps) {
   }
   if (!addedAllInserts) {
     addRemainingInserts()
-    addedAllInserts = true
   }
 
   const messages = [gaslight, ...history.reverse()]

@@ -475,9 +475,7 @@ const ChangeFolder: Component<{ char?: AppSchema.Character; close: () => void }>
       folder = folder.slice(0, -1)
     }
 
-    characterStore.editPartialCharacter(props.char?._id!, { folder: ref.value }, () =>
-      props.close()
-    )
+    characterStore.editPartialCharacter(props.char?._id!, { folder }, () => props.close())
   }
 
   return (

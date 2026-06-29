@@ -111,7 +111,7 @@ export async function upload(attachment: Attachment, name: string, ttl?: number)
 
 export async function saveFile(filename: string, content: any, ttl?: number) {
   if (config.storage.enabled) {
-    const res = await s3.putObject({
+    await s3.putObject({
       Expires: ttl ? new Date(Date.now() + ttl * 1000) : undefined,
       Bucket: config.storage.bucket,
       Key: `assets/${filename}`,
@@ -119,7 +119,6 @@ export async function saveFile(filename: string, content: any, ttl?: number) {
       ContentType: getType(filename),
       ACL: 'public-read',
     })
-    res
     return `/assets/` + filename
   }
 
@@ -229,9 +228,6 @@ function getType(filename: string) {
 
     case '.wav':
       return 'audio/wav'
-
-    case '.gif':
-      return 'image/gif'
   }
 
   return 'octet-stream'

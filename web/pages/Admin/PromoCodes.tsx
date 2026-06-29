@@ -9,8 +9,6 @@ import { Card } from '/web/shared/Card'
 import { Page } from '/web/Layout'
 import { AppSchema } from '/common/types'
 
-export { PromoCodesPage as default }
-
 function genCode(len = 8) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
   let out = ''
@@ -334,3 +332,5 @@ const PromoCodesPage: Component = () => {
     </Page>
   )
 }
+
+export { PromoCodesPage as default }

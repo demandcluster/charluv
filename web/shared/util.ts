@@ -77,7 +77,6 @@ export function downloadJson(content: string | object, filename: string = 'charl
 }
 
 export function getHeaderBg(mode: UI.UISettings['mode']) {
-  mode
   const rgb = getRootRgb('bg-900')
   const styles: JSX.CSSProperties = {
     background: rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.7)` : 'bg-900',

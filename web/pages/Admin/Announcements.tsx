@@ -24,8 +24,6 @@ import { markdown } from '/web/shared/markdown'
 import { Page } from '/web/Layout'
 import Select from '/web/shared/Select'
 
-export { AnnoucementPage as default }
-
 const AnnoucementPage: Component = () => {
   const params = useParams()
 
@@ -270,3 +268,5 @@ const Announcement: Component<{}> = (props) => {
     </Page>
   )
 }
+
+export { AnnoucementPage as default }

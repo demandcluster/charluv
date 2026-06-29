@@ -35,7 +35,7 @@ const Modal: Component<Props> = (props) => {
   const minHeight = createMemo(() => (props.fixedHeight ? 'modal-height-fixed' : ''))
 
   const defaultSubmit = (ev: Event) => {
-    ev.preventDefault
+    ev.preventDefault()
   }
 
   // on-screen readers require focusing on the dialog to work

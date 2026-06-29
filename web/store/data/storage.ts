@@ -118,7 +118,7 @@ const fallbacks: { [key in StorageKey]: LocalStorage[key] } = {
 export async function handleGuestInit() {
   const cfg = await api.get<AppSchema.AppConfig>('/settings')
   if (cfg.error) {
-    const entities = getGuestInitEntities()
+    const entities = await getGuestInitEntities()
     return localApi.result({ ...entities, config: emptyCfg })
   }
 

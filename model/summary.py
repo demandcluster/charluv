@@ -1,21 +1,24 @@
+import logging
 from args import args
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from device import device, torch_dtype
+
+log = logging.getLogger(__name__)
 
 enabled = False
 
 if args.all or args.summary:
     model = "Qiliang/bart-large-cnn-samsum-ChatGPT_v3"
 
-    print("Preparing summarizer...")
+    log.info("Preparing summarizer...")
     transformer = AutoModelForSeq2SeqLM.from_pretrained(
         model, torch_dtype=torch_dtype
     ).to(device)
     tokenizer = AutoTokenizer.from_pretrained(model)
-    print("Summarizer ready")
+    log.info("Summarizer ready")
     enabled = True
 else:
-    print("Summarizer skipped")
+    log.info("Summarizer skipped")
 
 
 def summarize(text: str) -> str:

@@ -1,17 +1,19 @@
+import logging
 from os.path import abspath
 import chromadb
 from chromadb.utils import embedding_functions
 from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
-from args import args
 from server import app
 from flask import request
+
+log = logging.getLogger(__name__)
 
 enabled = False
 dir = abspath("./db")
 
 
-print(f"Preparing ChromaDB... {dir}")
+log.info("Preparing ChromaDB... %s", dir)
 client = chromadb.Client(
     Settings(
         anonymized_telemetry=False,
@@ -40,7 +42,8 @@ def memoryReembed(chat_id):
 
     try:
         client.delete_collection(chat_id)
-    except:
+    except Exception:
+        # Collection may not exist yet; reembedding from scratch is fine.
         pass
 
     collection = client.get_or_create_collection(name=chat_id, embedding_function=embed)
@@ -79,7 +82,8 @@ def embedContent(name):
 
     try:
         client.delete_collection(name)
-    except:
+    except Exception:
+        # Collection may not exist yet; recreating below is fine.
         pass
 
     collection = client.get_or_create_collection(
@@ -110,7 +114,7 @@ def recallContent(name):
         )
 
         return {"result": results}
-    except:
+    except Exception:
         return {"result": None}
 
 
@@ -126,5 +130,5 @@ def listCollections():
     return {"result": results}
 
 
-print("ChromaDB ready")
+log.info("ChromaDB ready")
 enabled = True

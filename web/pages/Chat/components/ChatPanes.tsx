@@ -23,8 +23,6 @@ import ChatSettings from '../ChatSettings'
 import LongTermMemory from './LongTermMemory'
 import { usePaneManager } from '/web/shared/hooks'
 
-export { ChatPanes as default }
-
 export const useValidChatPane = () => {
   const [search] = useSearchParams()
 
@@ -208,3 +206,5 @@ const ChatPanes: Component<{}> = (props) => {
     </Show>
   )
 }
+
+export { ChatPanes as default }

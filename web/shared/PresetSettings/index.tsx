@@ -28,8 +28,6 @@ import { presetValidator } from '/common/presets'
 import { AppSchema } from '/common/types'
 import { MemorySettings } from './Memory'
 
-export { PresetSettings as default }
-
 type TempSetting = AdapterSetting & { value: any }
 
 const PresetSettings: Component<PresetProps & { onSave: () => void }> = (props) => {
@@ -313,3 +311,5 @@ function updateValue(values: TempSetting[], service: AIAdapter, field: string, n
     val.field === field ? { ...val, value: nextValue } : val
   )
 }
+
+export { PresetSettings as default }

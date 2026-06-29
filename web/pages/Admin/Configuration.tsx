@@ -14,8 +14,6 @@ import { General } from './Config/General'
 import { Voice } from './Config/Voice'
 import { Images } from './Config/Images'
 
-export { ServerConfiguration as default }
-
 const ServerConfiguration: Component = () => {
   let form: HTMLFormElement = undefined!
   const user = userStore()
@@ -135,3 +133,5 @@ const ServerConfiguration: Component = () => {
     </Page>
   )
 }
+
+export { ServerConfiguration as default }

@@ -35,8 +35,6 @@ import { TitleCard } from '/web/shared/Card'
 import { EVENTS, events } from '/web/emitter'
 import { AppSchema } from '/common/types'
 
-export { ChatDetail as default }
-
 // Characters whose legacy memory book we've already migrated this session.
 const migratedBooks = new Set<string>()
 
@@ -573,3 +571,5 @@ const ChatDetail: Component = () => {
     </>
   )
 }
+
+export { ChatDetail as default }

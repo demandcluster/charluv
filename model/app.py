@@ -1,6 +1,10 @@
+import logging
 from args import args
 from flask import request
 from server import app
+
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+log = logging.getLogger(__name__)
 
 
 @app.get("/pipeline/status")
@@ -34,7 +38,7 @@ import memory
 import summary
 
 
-print(
+log.info(
     'Pipeline API started: Remember to enable "USE LOCAL PIPELINE" in your Agnaistic account settings'
 )
 app.run(host="localhost", port=5001)

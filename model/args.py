@@ -19,4 +19,4 @@ args, unknown = parser.parse_known_args()
 
 if args.all is True:
     args.memory = True
-    args.summarizer = True
+    args.summary = True
