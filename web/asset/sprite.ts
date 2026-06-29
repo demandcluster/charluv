@@ -3,6 +3,13 @@ import manifestJson from './sprites/manifest.json'
 
 export const manifest = manifestJson as Manifest
 
+/** Uniform random integer in [0, max) backed by the platform CSPRNG. */
+function randomInt(max: number) {
+  const buf = new Uint32Array(1)
+  crypto.getRandomValues(buf)
+  return Math.floor((buf[0] / 0x1_0000_0000) * max)
+}
+
 export const attributes: SpriteAttr[] = [
   'back_hair',
   'body',
@@ -44,7 +51,7 @@ for (const attr of attributes) {
 export const defaultBody = getRandomBody()
 
 export function randomExpression(attr: SpriteAttr) {
-  const idx = Math.floor(Math.random() * manifest.attributes[attr].length)
+  const idx = randomInt(manifest.attributes[attr].length)
   return manifest.attributes[attr][idx]
 }
 
@@ -91,13 +98,12 @@ export function getRandomBody(retain: Partial<FullSprite> = {}) {
 }
 
 function randomHex() {
-  const values = Array.from({ length: 6 }, (v) => Math.floor(Math.random() * 16))
+  const values = Array.from({ length: 6 }, (v) => randomInt(16))
     .map((v) => v.toString(16))
     .join('')
   return '#' + values
 }
 
 function randomElement<T>(elems: T[]) {
-  const rand = Math.floor(Math.random() * elems.length)
-  return elems[rand]
+  return elems[randomInt(elems.length)]
 }

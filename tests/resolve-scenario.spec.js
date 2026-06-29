@@ -14,20 +14,20 @@ describe('Resolve scenario', () => {
         const actual = (0, prompt_1.resolveScenario)({ ...chat, scenario: 'Chat scenario', overrides: (0, util_1.toPersona)('Chat persona') }, { ...main, scenario: 'Main char scenario' }, []);
         (0, chai_1.expect)(actual).to.equal('Chat scenario');
     });
-    it('will append additional scenarios to the main character scenario', () => {
+    it('ignores attached scenario books (the feature is disabled)', () => {
         const book = { ...scenarioBook, text: 'Additional scenario' };
         const actual = (0, prompt_1.resolveScenario)({ ...chat, scenario: undefined, overrides: undefined }, { ...main, scenario: 'Main char scenario' }, [book]);
-        (0, chai_1.expect)(actual).to.equal('Main char scenario\nAdditional scenario');
+        (0, chai_1.expect)(actual).to.equal('Main char scenario');
     });
     it('will not append additional scenarios to the overriding chat scenario', () => {
         const book = { ...scenarioBook, text: 'Additional scenario' };
         const actual = (0, prompt_1.resolveScenario)({ ...chat, scenario: 'Chat scenario', overrides: (0, util_1.toPersona)('Chat persona') }, { ...main, scenario: 'Main char scenario' }, [book]);
         (0, chai_1.expect)(actual).to.equal('Chat scenario');
     });
-    it('will overwrite main character scenario when the additional scenario has overwrite flag', () => {
+    it('ignores the overwrite flag on scenario books (the feature is disabled)', () => {
         const book = { ...scenarioBook, text: 'Overwritten scenario', overwriteCharacterScenario: true };
         const actual = (0, prompt_1.resolveScenario)({ ...chat, scenario: undefined, overrides: undefined }, { ...main, scenario: 'Main char scenario' }, [book]);
-        (0, chai_1.expect)(actual).to.equal('Overwritten scenario');
+        (0, chai_1.expect)(actual).to.equal('Main char scenario');
     });
     it('will not overwrite chat scenario when override is on and the additional scenario has overwrite flag', () => {
         const book = { ...scenarioBook, text: 'Overwritten scenario', overwriteCharacterScenario: true };

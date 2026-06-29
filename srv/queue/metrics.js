@@ -9,7 +9,7 @@ exports.startMetricsPoller = startMetricsPoller;
 const needle_1 = __importDefault(require("needle"));
 const middleware_1 = require("../middleware");
 function matchMetric(text, name) {
-    const escaped = name.replace(/[:]/g, '\\:');
+    const escaped = name.replace(/[.*+?^${}()|[\]\\:]/g, '\\$&');
     const re = new RegExp(`^${escaped}(?:\\{[^}]*\\})?\\s+([0-9.eE+-]+)`, 'm');
     const m = re.exec(text);
     return m ? Number(m[1]) : undefined;

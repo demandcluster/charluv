@@ -1,5 +1,6 @@
 import cors from 'cors'
 import express from 'express'
+import rateLimit from 'express-rate-limit'
 import multer from 'multer'
 import { logMiddleware } from './middleware'
 import api, { keyedRouter } from './api'
@@ -23,12 +24,38 @@ export function createApp() {
   const app = express()
   const server = createServer(app)
 
+  // Behind a reverse proxy (charluv.com) the client IP arrives via
+  // X-Forwarded-For. Trust the configured number of hops so the rate limiter
+  // keys on the real client, not the proxy.
+  app.set('trust proxy', config.trustProxy)
+
+  // Per-IP rate limit covering every route (API, keyed API, and the static SPA
+  // fallback). WebSocket traffic is served off the raw http server and bypasses
+  // this. Generous default; tune via RATE_LIMIT_MAX / RATE_LIMIT_WINDOW_MS.
+  app.use(
+    rateLimit({
+      windowMs: config.rateLimit.windowMs,
+      limit: config.rateLimit.max,
+      standardHeaders: 'draft-7',
+      legacyHeaders: false,
+    })
+  )
+
   app.use(express.urlencoded({ limit: `${config.limits.upload}mb`, extended: false }))
   app.use(express.json({ limit: `${config.limits.payload}mb` }))
   app.use(logMiddleware())
+  const allowedOrigins = new Set(config.corsOrigins)
   app.use(
     cors({
-      origin: true,
+      // Auth is carried in the Authorization header (not cookies), so we never
+      // enable credentials. Cross-origin browser callers are restricted to the
+      // configured allowlist; same-origin SPA requests and server-side API-key
+      // callers are unaffected.
+      origin: (origin, callback) => {
+        // Non-browser / same-origin requests have no Origin header.
+        if (!origin) return callback(null, true)
+        callback(null, allowedOrigins.has(origin))
+      },
       optionsSuccessStatus: 200,
     })
   )

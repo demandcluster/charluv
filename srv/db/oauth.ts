@@ -1,4 +1,4 @@
-import Chance from 'chance'
+import { randomBytes } from 'crypto'
 import { getUser } from './user'
 import { AppSchema, OAuthScope } from '../../common/types'
 import { v4 } from 'uuid'
@@ -6,7 +6,17 @@ import { StatusError, errors } from '../api/wrap'
 import { now } from './util'
 import { db } from './client'
 
-const rand = new Chance()
+const KEY_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+
+/** Cryptographically secure random alphanumeric string. */
+function secureToken(length: number) {
+  const bytes = randomBytes(length)
+  let out = ''
+  for (let i = 0; i < length; i++) {
+    out += KEY_ALPHABET[bytes[i] % KEY_ALPHABET.length]
+  }
+  return out
+}
 
 async function getApiKeys(userId: string) {
   const keys = await db('apikey').find({ userId }).toArray()
@@ -21,7 +31,7 @@ export async function prepare(userId: string, origin: string, scopes: OAuthScope
     _id: v4(),
     kind: 'apikey',
     code: `${userId}__${v4()}`,
-    apikey: 'sk-v1-' + rand.string({ length: 42 }),
+    apikey: 'sk-v1-' + secureToken(42),
     scopes,
     origin,
     userId,

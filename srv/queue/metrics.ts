@@ -2,7 +2,7 @@ import needle from 'needle'
 import { logger } from '../middleware'
 
 function matchMetric(text: string, name: string): number | undefined {
-  const escaped = name.replace(/[:]/g, '\\:')
+  const escaped = name.replace(/[.*+?^${}()|[\]\\:]/g, '\\$&')
   const re = new RegExp(`^${escaped}(?:\\{[^}]*\\})?\\s+([0-9.eE+-]+)`, 'm')
   const m = re.exec(text)
   return m ? Number(m[1]) : undefined

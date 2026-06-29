@@ -63,7 +63,22 @@ export const config = {
   jwtExpiry: env('JWT_EXPIRY', '120d'),
   host: env('APP_HOST', '0.0.0.0'),
   port: +env('PORT', '3001'),
+  // Number of reverse-proxy hops to trust for client IP (X-Forwarded-For).
+  // charluv.com runs behind a proxy, so default to 1. Set to 0 to use the
+  // socket address directly (no proxy).
+  trustProxy: +env('TRUST_PROXY', '1'),
+  rateLimit: {
+    windowMs: +env('RATE_LIMIT_WINDOW_MS', '60000'),
+    max: +env('RATE_LIMIT_MAX', '600'),
+  },
   assetUrl: env('ASSET_URL', ''),
+  corsOrigins: env(
+    'CORS_ORIGINS',
+    'https://charluv.com,https://www.charluv.com,https://dev.charluv.com'
+  )
+    .split(',')
+    .map((o) => o.trim())
+    .filter((o) => !!o),
   assetFolder: env('ASSET_FOLDER', resolve(__dirname, '..', 'dist', 'assets')),
   extraFolder: env('EXTRA_FOLDER', ''),
   billing: {

@@ -610,6 +610,9 @@ export function applyDotProperty<T>(obj: T, property: string, value: any) {
 
   for (let i = 0; i < props.length; i++) {
     const prop = props[i]
+    if (prop === '__proto__' || prop === 'constructor' || prop === 'prototype') {
+      break
+    }
     if (i === props.length - 1) {
       ref[prop] = value
       break

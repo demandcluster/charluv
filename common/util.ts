@@ -562,7 +562,7 @@ export type HydratedJson = {
   history: string
 }
 
-export const JSON_NAME_RE = () => /{{[a-zA-Z0-9 _'!@#$&*%()^=+-:;",\.<>?\/\[\]]+}}/g
+export const JSON_NAME_RE = () => /{{[a-zA-Z0-9 _'!@#$&*%()^=+:;",\.<>?\/\[\]-]+}}/g
 
 export function jsonHydrator(def: Ensure<AppSchema.Character['json']>) {
   const map = new Map<string, string>()

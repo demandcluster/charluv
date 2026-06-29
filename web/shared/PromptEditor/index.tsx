@@ -371,7 +371,7 @@ const PromptEditor: Component<
         ref={ref}
         onKeyUp={onChange}
         disabled={props.disabled || !!templateId()}
-        placeholder={props.placeholder?.replace(/\n/g, '\u000A')}
+        placeholder={props.placeholder}
         onKeyDown={onTemplateKeyDown}
       />
 

@@ -9,6 +9,9 @@ env:
   node-version: '18.4.0'
   pnpm-version: 8.6.0
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
