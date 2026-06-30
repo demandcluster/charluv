@@ -740,14 +740,6 @@ const editFullCharacter = handle(async (req) => {
   // these two are ignored.
   const existing = await store.characters.getCharacter(req.userId!, id)
 
-  // A character carrying a custom system_prompt is a power/safety-sensitive
-  // definition (e.g. imported jailbreak-style cards whose prompt can try to
-  // subvert the levels/18+ safeguard). It is not user-editable — only an
-  // admin/moderator may change it. Block the edit outright for everyone else.
-  if (existing?.systemPrompt && !req.user?.admin) {
-    throw errors.Forbidden
-  }
-
   const parsedVersion = parseInt(existing?.characterVersion ?? '', 10)
   const nextVersion = Number.isFinite(parsedVersion) ? String(parsedVersion + 1) : '1'
 

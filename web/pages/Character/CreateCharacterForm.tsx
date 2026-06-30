@@ -15,14 +15,7 @@ import PageHeader from '../../shared/PageHeader'
 import TextInput, { ButtonInput } from '../../shared/TextInput'
 import { FormLabel } from '../../shared/FormLabel'
 import FileInput, { FileInputResult } from '../../shared/FileInput'
-import {
-  characterStore,
-  tagStore,
-  toastStore,
-  chatStore,
-  settingStore,
-  userStore,
-} from '../../store'
+import { characterStore, tagStore, toastStore, chatStore, settingStore } from '../../store'
 import { useNavigate } from '@solidjs/router'
 import Select from '../../shared/Select'
 import TagInput from '../../shared/TagInput'
@@ -32,7 +25,7 @@ import { JSX, For } from 'solid-js'
 import { Card, SolidCard, TitleCard } from '../../shared/Card'
 import { usePane } from '../../shared/hooks'
 import Modal, { ConfirmModal } from '/web/shared/Modal'
-import { ToggleButtons } from '../../shared/Toggle'
+import { Toggle, ToggleButtons } from '../../shared/Toggle'
 import { CharEditor, useCharEditor } from './editor'
 import { ARCHETYPES, getArchetypeLabel } from '/common/progression'
 import { rootModalStore } from '/web/store/root-modal'
@@ -88,12 +81,12 @@ export const CreateCharacterForm: Component<{
     }
   })
 
-  const user = userStore()
-
-  // A character carrying a custom system_prompt is a power/safety-sensitive
-  // definition (e.g. imported jailbreak-style cards). It is read-only for
-  // everyone but admins/moderators — the server rejects the edit too.
-  const locked = createMemo(() => !!state.edit?.systemPrompt && !user.user?.admin)
+  // Advanced fields (system prompt + post-history instructions) are hidden
+  // behind an opt-in toggle. Default it on when the character already carries
+  // either value so an editor can see/change what's there.
+  const [showAdvanced, setShowAdvanced] = createSignal(
+    !!state.edit?.systemPrompt || !!state.edit?.postHistoryInstructions
+  )
 
   const [imgUrl, setImageUrl] = createSignal<string>()
 
@@ -163,12 +156,6 @@ export const CreateCharacterForm: Component<{
   })
 
   const onSubmit = async (ev: Event) => {
-    if (locked()) {
-      toastStore.warn(
-        `This character has a custom system prompt and can only be edited by an admin.`
-      )
-      return
-    }
     const payload = editor.payload(true) as any
 
     if (props.temp && props.chat) {
@@ -213,13 +200,11 @@ export const CreateCharacterForm: Component<{
         <X />
         {props.close ? 'Close' : 'Cancel'}
       </Button>
-      <Show when={!locked()}>
-        <Button onClick={onSubmit} disabled={state.creating}>
-          <Save />
-          {props.editId && !forceNew() ? 'Update' : 'Create'}
-          <CreditCost amount={props.editId && !forceNew() ? 30 : 100} class="ml-1" />
-        </Button>
-      </Show>
+      <Button onClick={onSubmit} disabled={state.creating}>
+        <Save />
+        {props.editId && !forceNew() ? 'Update' : 'Create'}
+        <CreditCost amount={props.editId && !forceNew() ? 30 : 100} class="ml-1" />
+      </Button>
     </>
   )
 
@@ -250,16 +235,7 @@ export const CreateCharacterForm: Component<{
           editor.prepare(form)
         }}
       >
-        <Show when={locked()}>
-          <div class="mb-3">
-            <TitleCard type="rose">
-              This character has a custom system prompt and is locked. It can only be edited by an
-              admin or moderator. You can still chat with it.
-            </TitleCard>
-          </div>
-        </Show>
-
-        <div class="flex flex-col gap-4" classList={{ 'pointer-events-none opacity-60': locked() }}>
+        <div class="flex flex-col gap-4">
           <Show when={!isPage}>
             <div> {props.children} </div>
           </Show>
@@ -632,11 +608,19 @@ export const CreateCharacterForm: Component<{
                 </Show>
               </Card>
 
-              <Show when={user.user?.admin}>
-                <Card class="flex flex-col gap-3 border-[1px] border-[var(--rose-600)]">
+              <Toggle
+                fieldName="_showAdvanced"
+                label="Advanced"
+                helperText="Unlock the system prompt and post-history instructions. These are injected after the Charluv 18+ safeguard."
+                value={showAdvanced()}
+                onChange={setShowAdvanced}
+              />
+
+              <Show when={showAdvanced()}>
+                <Card class="flex flex-col gap-3">
                   <FormLabel
-                    label="System prompt (admin only)"
-                    helperText="Power/safety-sensitive override. A character with a system prompt is locked from non-admin editing. Clear this field to unlock it for the owner."
+                    label="System prompt"
+                    helperText="Custom system instruction for this character. Injected after the Charluv 18+ safeguard."
                   />
                   <TextInput
                     isMultiline
