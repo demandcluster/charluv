@@ -881,6 +881,8 @@ const CharacterGallery: Component<{
     const res = await charsApi.setCover(props.charId, url)
     setBusy(false)
     if (res.result && 'avatar' in res.result) {
+      // The previous cover swapped into the gallery; reflect the server's new list.
+      if (Array.isArray(res.result.gallery)) setGallery(res.result.gallery)
       props.onCoverChange?.(res.result.avatar)
       toastStore.success('Cover updated')
     } else if (res.error) {

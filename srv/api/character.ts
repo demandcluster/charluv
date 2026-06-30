@@ -921,8 +921,22 @@ const setCover = handle(async ({ userId, params, body }) => {
     throw new StatusError('Cover image is not part of this character', 400)
   }
 
-  await store.characters.updateCharacter(params.id, userId!, { avatar: body.url })
-  return { avatar: body.url }
+  // Swap, don't duplicate: the picked gallery image becomes the cover, and the
+  // previous cover takes its freed slot so it stays in the gallery at the same
+  // position (instead of the new cover lingering in the gallery as a copy).
+  const oldAvatar = char.avatar
+  const gallery = (char.gallery || []).slice()
+  const idx = gallery.indexOf(body.url)
+  if (idx >= 0) {
+    if (oldAvatar && oldAvatar !== body.url && !gallery.includes(oldAvatar)) {
+      gallery[idx] = oldAvatar
+    } else {
+      gallery.splice(idx, 1)
+    }
+  }
+
+  await store.characters.updateCharacter(params.id, userId!, { avatar: body.url, gallery })
+  return { avatar: body.url, gallery }
 })
 
 /**
