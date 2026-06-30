@@ -166,7 +166,7 @@ export const handleOAI: ModelAdapter = async function* (opts) {
   const base = getBaseUrl(user, !!gen.thirdPartyUrlNoSuffix, isThirdParty, useModEndpoint)
   const handle = opts.impersonate?.name || opts.sender?.handle || 'You'
   if (!user.oaiKey && !base.changed) {
-    yield { error: `OpenAI request failed: No OpenAI API key not set. Check your settings.` }
+    yield { error: `CharluvAI request failed: No API key set. Check your settings.` }
     return
   }
 
@@ -383,132 +383,147 @@ export const handleOAI: ModelAdapter = async function* (opts) {
     ? `${base.url}/chat/completions`
     : `${base.url}/completions`
 
-  const iter = body.stream
-    ? streamCompletion(opts.user._id, url, headers, body, 'OpenAI', opts.log)
-    : requestFullCompletion(opts.user._id, url, headers, body, 'OpenAI', opts.log)
-  let accumulated = ''
-  let response: Completion<Inference> | undefined
+  // Empty completions happen intermittently; a single clean re-request usually
+  // lands a real reply (the same thing a user's manual "rerun" does), so retry
+  // once before surfacing an error.
+  const EMPTY_RETRIES = 1
+  empty: for (let attempt = 0; attempt <= EMPTY_RETRIES; attempt++) {
+    const iter = body.stream
+      ? streamCompletion(opts.user._id, url, headers, body, 'CharluvAI', opts.log)
+      : requestFullCompletion(opts.user._id, url, headers, body, 'CharluvAI', opts.log)
+    let accumulated = ''
+    let response: Completion<Inference> | undefined
 
-  while (true) {
-    let generated = await iter.next()
+    while (true) {
+      let generated = await iter.next()
 
-    // Both the streaming and non-streaming generators return a full completion and yield errors.
-    if (generated.done) {
-      response = generated.value
-      break
-    }
-
-    if (generated.value.error) {
-      yield { error: generated.value.error }
-      return
-    }
-
-    // Only the streaming generator yields individual tokens.
-    if ('token' in generated.value) {
-      accumulated += generated.value.token
-      const shown = markerMode ? stripMarkers(accumulated) : accumulated
-      yield { partial: sanitiseAndTrim(shown, prompt, char, opts.characters, members) }
-    }
-  }
-
-  try {
-    let text = getCompletionContent(response, log)
-    if (text instanceof Error) {
-      yield { error: `OpenAI returned an error: ${text.message}` }
-      return
-    }
-
-    let imagePrompt = ''
-    const rememberFacts: string[] = []
-
-    if (NATIVE_TOOLS) {
-      // Streaming returns tool_calls on the choice; non-streaming nests under message.
-      const choice0 = response?.choices?.[0] as any
-      const toolCalls: any[] = choice0?.tool_calls || choice0?.message?.tool_calls || []
-      log.debug(
-        {
-          finish_reason: choice0?.finish_reason,
-          toolCallCount: toolCalls.length,
-          names: toolCalls.map((t: any) => t?.function?.name),
-        },
-        'tools: response tool_calls'
-      )
-      if (imageToolEnabled) {
-        const call = toolCalls.find((t: any) => t?.function?.name === 'generate_image')
-        try {
-          const args = call?.function?.arguments ? JSON.parse(call.function.arguments) : undefined
-          if (typeof args?.prompt === 'string') imagePrompt = args.prompt.trim()
-        } catch {
-          log.warn({ args: call?.function?.arguments }, 'Bad generate_image tool arguments')
-        }
+      // Both the streaming and non-streaming generators return a full completion and yield errors.
+      if (generated.done) {
+        response = generated.value
+        break
       }
-      if (memoryToolEnabled) {
-        for (const t of toolCalls) {
-          if (t?.function?.name !== 'remember' || !t.function.arguments) continue
-          try {
-            const args = JSON.parse(t.function.arguments)
-            if (typeof args?.fact === 'string' && args.fact.trim())
-              rememberFacts.push(args.fact.trim())
-          } catch {
-            log.warn({ args: t.function.arguments }, 'Bad remember tool arguments')
-          }
-        }
-      }
-    } else if (markerMode && typeof text === 'string') {
-      // Parse in-band markers the model wrote, then strip them from the reply.
-      const { images, facts } = parseMarkers(text)
-      if (imageToolEnabled && images[0]) imagePrompt = images[0]
-      if (memoryToolEnabled) rememberFacts.push(...facts)
-      text = stripMarkers(text).trim()
-      if (imagePrompt || rememberFacts.length) {
-        log.debug({ image: !!imagePrompt, facts: rememberFacts.length }, 'tools: markers parsed')
-      }
-    }
 
-    // Empty text is only an error when there's no tool action to surface (the
-    // model may reply with just an image or a memory write).
-    if (!text?.length && !imagePrompt && !rememberFacts.length) {
-      log.error({ body: response }, 'OpenAI request failed: Empty response')
-      yield { error: `OpenAI request failed: Received empty response. Try again.` }
-      return
-    }
-
-    // Surface tool intent so the message handler can act on it.
-    if (imagePrompt || rememberFacts.length) {
-      yield {
-        meta: {
-          ...(imagePrompt ? { imageTool: { prompt: imagePrompt } } : {}),
-          ...(rememberFacts.length ? { rememberFacts } : {}),
-        },
-      }
-    }
-
-    const swipeText = markerMode ? stripMarkers(accumulated).trim() : accumulated
-    if (gen.swipesPerGeneration! > 1) {
-      yield sanitiseAndTrim(swipeText, prompt, char, opts.characters, members)
-    } else {
-      // Event replies: the model writes the whole scene, so pull out only the
-      // elected character's own turn. Non-event: normal trim.
-      const finalText = isEvent
-        ? sanitise(
-            extractSpeakerTurn(sanitise((text || '').replace(prompt, '')), opts.replyAs.name)
-          )
-        : sanitiseAndTrim(text || '', prompt, opts.replyAs, opts.characters, members)
-      // Empty after extraction/trim means the model produced nothing usable for
-      // this speaker (e.g. it narrated/spoke only as others). Surface an error so
-      // the caller (the event loop) retries cleanly instead of storing an empty
-      // bubble. Tool-only replies still go through (guarded by the empty-text check).
-      if (!finalText && !imagePrompt && !rememberFacts.length) {
-        log.warn('OpenAI reply had no content for the speaker; dropping')
-        yield { error: `OpenAI request failed: Received empty response. Try again.` }
+      if (generated.value.error) {
+        yield { error: generated.value.error }
         return
       }
-      yield finalText
+
+      // Only the streaming generator yields individual tokens.
+      if ('token' in generated.value) {
+        accumulated += generated.value.token
+        const shown = markerMode ? stripMarkers(accumulated) : accumulated
+        yield { partial: sanitiseAndTrim(shown, prompt, char, opts.characters, members) }
+      }
     }
-  } catch (ex: any) {
-    log.error({ err: ex }, 'OpenAI failed to parse')
-    yield { error: `OpenAI request failed: ${ex.message}` }
-    return
+
+    try {
+      let text = getCompletionContent(response, log)
+      if (text instanceof Error) {
+        yield { error: `CharluvAI returned an error: ${text.message}` }
+        return
+      }
+
+      let imagePrompt = ''
+      const rememberFacts: string[] = []
+
+      if (NATIVE_TOOLS) {
+        // Streaming returns tool_calls on the choice; non-streaming nests under message.
+        const choice0 = response?.choices?.[0] as any
+        const toolCalls: any[] = choice0?.tool_calls || choice0?.message?.tool_calls || []
+        log.debug(
+          {
+            finish_reason: choice0?.finish_reason,
+            toolCallCount: toolCalls.length,
+            names: toolCalls.map((t: any) => t?.function?.name),
+          },
+          'tools: response tool_calls'
+        )
+        if (imageToolEnabled) {
+          const call = toolCalls.find((t: any) => t?.function?.name === 'generate_image')
+          try {
+            const args = call?.function?.arguments ? JSON.parse(call.function.arguments) : undefined
+            if (typeof args?.prompt === 'string') imagePrompt = args.prompt.trim()
+          } catch {
+            log.warn({ args: call?.function?.arguments }, 'Bad generate_image tool arguments')
+          }
+        }
+        if (memoryToolEnabled) {
+          for (const t of toolCalls) {
+            if (t?.function?.name !== 'remember' || !t.function.arguments) continue
+            try {
+              const args = JSON.parse(t.function.arguments)
+              if (typeof args?.fact === 'string' && args.fact.trim())
+                rememberFacts.push(args.fact.trim())
+            } catch {
+              log.warn({ args: t.function.arguments }, 'Bad remember tool arguments')
+            }
+          }
+        }
+      } else if (markerMode && typeof text === 'string') {
+        // Parse in-band markers the model wrote, then strip them from the reply.
+        const { images, facts } = parseMarkers(text)
+        if (imageToolEnabled && images[0]) imagePrompt = images[0]
+        if (memoryToolEnabled) rememberFacts.push(...facts)
+        text = stripMarkers(text).trim()
+        if (imagePrompt || rememberFacts.length) {
+          log.debug({ image: !!imagePrompt, facts: rememberFacts.length }, 'tools: markers parsed')
+        }
+      }
+
+      // Empty text is only an error when there's no tool action to surface (the
+      // model may reply with just an image or a memory write).
+      if (!text?.length && !imagePrompt && !rememberFacts.length) {
+        if (attempt < EMPTY_RETRIES) {
+          log.warn({ attempt }, 'CharluvAI returned an empty response; retrying')
+          continue empty
+        }
+        log.error({ body: response }, 'CharluvAI request failed: Empty response')
+        yield { error: `CharluvAI request failed: Received empty response. Try again.` }
+        return
+      }
+
+      // Surface tool intent so the message handler can act on it.
+      if (imagePrompt || rememberFacts.length) {
+        yield {
+          meta: {
+            ...(imagePrompt ? { imageTool: { prompt: imagePrompt } } : {}),
+            ...(rememberFacts.length ? { rememberFacts } : {}),
+          },
+        }
+      }
+
+      const swipeText = markerMode ? stripMarkers(accumulated).trim() : accumulated
+      if (gen.swipesPerGeneration! > 1) {
+        yield sanitiseAndTrim(swipeText, prompt, char, opts.characters, members)
+      } else {
+        // Event replies: the model writes the whole scene, so pull out only the
+        // elected character's own turn. Non-event: normal trim.
+        const finalText = isEvent
+          ? sanitise(
+              extractSpeakerTurn(sanitise((text || '').replace(prompt, '')), opts.replyAs.name)
+            )
+          : sanitiseAndTrim(text || '', prompt, opts.replyAs, opts.characters, members)
+        // Empty after extraction/trim means the model produced nothing usable for
+        // this speaker (e.g. it narrated/spoke only as others). Surface an error so
+        // the caller (the event loop) retries cleanly instead of storing an empty
+        // bubble. Tool-only replies still go through (guarded by the empty-text check).
+        if (!finalText && !imagePrompt && !rememberFacts.length) {
+          if (attempt < EMPTY_RETRIES) {
+            log.warn({ attempt }, 'CharluvAI reply had no content for the speaker; retrying')
+            continue empty
+          }
+          log.warn('CharluvAI reply had no content for the speaker; dropping')
+          yield { error: `CharluvAI request failed: Received empty response. Try again.` }
+          return
+        }
+        yield finalText
+      }
+      return
+    } catch (ex: any) {
+      log.error({ err: ex }, 'CharluvAI failed to parse')
+      yield { error: `CharluvAI request failed: ${ex.message}` }
+      return
+    }
   }
 }
 

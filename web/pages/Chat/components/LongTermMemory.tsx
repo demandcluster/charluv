@@ -1,4 +1,5 @@
-import { Component, For, JSX, Show, createMemo, createSignal, onMount } from 'solid-js'
+import { Component, For, JSX, Show, createMemo, createSignal, onCleanup, onMount } from 'solid-js'
+import { subscribe } from '../../../store/socket'
 import { Trash } from '/web/icons'
 import { AppSchema } from '../../../../common/types/schema'
 import Button from '../../../shared/Button'
@@ -60,6 +61,14 @@ const LongTermMemory: Component<{
   }
 
   onMount(load)
+
+  // Live refresh: the model stores/supersedes memories in a background pass after
+  // a reply, and other sessions may add/remove them. The server pushes a signal
+  // per affected character; refetch when it's the one we're viewing.
+  const unsubscribe = subscribe('character-memory', { characterId: 'string' }, (body) => {
+    if (body.characterId === charId()) load()
+  })
+  onCleanup(() => unsubscribe?.())
 
   const add = async () => {
     const id = charId()

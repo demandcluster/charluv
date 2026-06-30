@@ -958,6 +958,7 @@ const removeCharacterMemory = handle(async ({ userId, params }) => {
   if (!char) throw errors.NotFound
 
   await deleteMemory(userId!, params.memId)
+  sendOne(userId!, { type: 'character-memory', characterId: params.id })
   const memories = await listMemories(userId!, params.id)
   return { memories: memories.map(({ embedding, ...m }) => m) }
 })

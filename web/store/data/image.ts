@@ -47,6 +47,19 @@ export const imageApi = {
   ALLOWED_TYPES,
 }
 
+/**
+ * The realistic/anime lead-in for a character's image prompt. Derived from the
+ * saved art style (with a legacy fall-back to the `anime` tag) so every
+ * generation path — in-chat scenes and the character avatar — prefixes the same
+ * way.
+ */
+export function getStylePrefix(char?: { artStyle?: string; tags?: string[] } | null) {
+  const anime = char?.artStyle === 'anime' || char?.tags?.includes('anime')
+  return anime
+    ? 'early-2000s anime hybrid cel/digital look, bright saturated colors high quality art of '
+    : 'Photorealistic image of '
+}
+
 export async function generateImage({ chatId, messageId, onDone, ...opts }: GenerateOpts) {
   const entities = await getPromptEntities()
   const summary = opts.prompt
@@ -56,9 +69,7 @@ export async function generateImage({ chatId, messageId, onDone, ...opts }: Gene
   if (!summary.result) {
     return summary
   }
-  const charType = entities.char?.tags?.includes('anime')
-    ? 'early-2000s anime hybrid cel/digital look, bright saturated colors high quality art of '
-    : 'Photorealistic image of '
+  const charType = getStylePrefix(entities.char)
   // Always lead with the character's appearance prompt (the look saved at
   // creation) so chat images stay consistent regardless of what the scene caption
   // happened to describe. It's first so the token trim below keeps it.

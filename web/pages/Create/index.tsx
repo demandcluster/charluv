@@ -467,7 +467,8 @@ const Create: Component = () => {
         if (file) setPortrait(file)
       },
       undefined,
-      opts?.free
+      opts?.free,
+      { artStyle: answers.artStyle }
     )
   }
 

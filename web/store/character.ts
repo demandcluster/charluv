@@ -5,7 +5,7 @@ import { createStore, getStore } from './create'
 import { subscribe } from './socket'
 import { toastStore } from './toasts'
 import { charsApi } from './data/chars'
-import { imageApi } from './data/image'
+import { getStylePrefix, imageApi } from './data/image'
 import { getAssetUrl, toMap } from '../shared/util'
 import { toCharacterMap } from '../pages/Character/util'
 import { getUserId } from './api'
@@ -419,7 +419,8 @@ export const characterStore = createStore<CharacterState>(
       persona: AppSchema.Persona | string,
       onDone?: (err: any, image?: File) => void,
       seed?: number,
-      noCharge?: boolean
+      noCharge?: boolean,
+      style?: { artStyle?: string; tags?: string[] }
     ) {
       try {
         let prompt =
@@ -428,6 +429,8 @@ export const characterStore = createStore<CharacterState>(
             : await createAppearancePrompt(user, { persona })
 
         prompt = prompt.replace(/\n+/g, ', ').replace(/\s+/g, ' ')
+        // Lead with the realistic/anime style, consistent with in-chat images.
+        prompt = getStylePrefix(style) + prompt
         yield { generate: { image: null, loading: true, blob: null }, hordeStatus: undefined }
         imageCallback = onDone
         const res = await imageApi.generateImageWithPrompt({

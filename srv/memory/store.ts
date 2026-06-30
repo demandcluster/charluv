@@ -3,6 +3,17 @@ import { getDb } from '../db/client'
 import { embed } from './embed'
 import { logger } from '../middleware'
 import { classify, isTextLlmConfigured, parseJsonObject } from '../textgen'
+import { sendOne } from '../api/ws/bus'
+
+/**
+ * Push a live signal so an open long-term-memory pane refetches. Best-effort:
+ * memory writes happen in a fire-and-forget background pass, so a failed push
+ * must never disrupt them. Imported from the ws bus (not the ws index) to avoid
+ * a module cycle through the chat handlers.
+ */
+export function notifyMemoryChanged(userId: string, characterId: string) {
+  sendOne(userId, { type: 'character-memory', characterId }).catch(() => {})
+}
 
 // Memory text is user PII (names, preferences, etc.). Logs carry only metadata by
 // default; set MEMORY_DEBUG_LOG_TEXT=1 (dev only) to include the text for verification.
@@ -190,6 +201,7 @@ export async function rememberFact(
         { characterId, removed: decision.removeIds.length, reason: decision.reason },
         'memory: superseded outdated memories'
       )
+      notifyMemoryChanged(userId, characterId)
     }
 
     if (decision.skip) {
@@ -219,6 +231,7 @@ export async function rememberFact(
     { characterId, source, length: trimmed.length, ...(LOG_TEXT ? { text: trimmed } : {}) },
     'memory: stored'
   )
+  notifyMemoryChanged(userId, characterId)
   return doc
 }
 

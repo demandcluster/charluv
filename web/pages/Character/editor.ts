@@ -357,7 +357,10 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
 
   const createAvatar = async () => {
     const prompt = await craftImagePrompt(buildImagePrompt())
-    const avatar = await generateAvatar(prompt, state.imageSeed)
+    const avatar = await generateAvatar(prompt, state.imageSeed, {
+      artStyle: state.artStyle,
+      tags: state.tags,
+    })
     if (!avatar) return
 
     return receiveAvatar(avatar)
@@ -367,7 +370,10 @@ export function useCharEditor(editing?: NewCharacter & { _id?: string }) {
   // character's avatar (used to populate the gallery).
   const createGalleryImage = async () => {
     const prompt = await craftImagePrompt(buildImagePrompt())
-    const file = await generateAvatar(prompt, state.imageSeed)
+    const file = await generateAvatar(prompt, state.imageSeed, {
+      artStyle: state.artStyle,
+      tags: state.tags,
+    })
     if (!file) return
     return imageApi.getImageData(file)
   }
@@ -815,7 +821,11 @@ function getPayload(ev: any, state: EditState, original?: NewCharacter) {
   return payload
 }
 
-async function generateAvatar(description: string, seed?: number) {
+async function generateAvatar(
+  description: string,
+  seed?: number,
+  style?: { artStyle?: string; tags?: string[] }
+) {
   const { user } = userStore.getState()
   if (!user) {
     return toastStore.error(`Image generation settings missing`)
@@ -829,7 +839,9 @@ async function generateAvatar(description: string, seed?: number) {
         if (image) return resolve(image)
         reject(err)
       },
-      seed
+      seed,
+      undefined,
+      style
     )
   })
 }

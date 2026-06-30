@@ -64,13 +64,24 @@ export function subscribe<T extends string, U extends Validator>(
 ) {
   if (once) {
     const handlers = onceListeners.get(type) || []
-    handlers.push({ validator, fn: handler, predicate: once })
+    const entry = { validator, fn: handler, predicate: once }
+    handlers.push(entry)
     onceListeners.set(type, handlers)
-    return
+    return () => {
+      const list = onceListeners.get(type)
+      const i = list ? list.indexOf(entry) : -1
+      if (i >= 0) list!.splice(i, 1)
+    }
   }
   const handlers = listeners.get(type) || []
-  handlers.push({ validator, fn: handler })
+  const entry = { validator, fn: handler }
+  handlers.push(entry)
   listeners.set(type, handlers)
+  return () => {
+    const list = listeners.get(type)
+    const i = list ? list.indexOf(entry) : -1
+    if (i >= 0) list!.splice(i, 1)
+  }
 }
 
 const squelched = new Set([
