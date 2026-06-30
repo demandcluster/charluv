@@ -116,14 +116,13 @@ const Navigation: Component = () => {
   })
 
   const sha = createMemo(() => {
-    const apiSha = state.config.version.startsWith('development')
-      ? 'dev'
-      : state.config.version.slice(0, 4)
-    // const webSha = window.charluv_version.startsWith('{{')
-    //   ? ''
-    //   : `/ ${window.charluv_version.slice(0, 4)}`
-
-    return `${apiSha}`
+    // The deploy commit SHA, injected into index.html by .github/inject.js at
+    // build time (replaces the {{unknown}} placeholder with GITHUB_SHA). The
+    // server's version.txt is unmaintained, so prefer the web build hash; the
+    // placeholder survives in local/dev builds.
+    const web = window.charluv_version
+    if (!web || web.startsWith('{{')) return 'dev'
+    return web.slice(0, 7)
   })
 
   return (

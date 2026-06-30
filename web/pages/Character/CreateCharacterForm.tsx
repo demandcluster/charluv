@@ -608,41 +608,6 @@ export const CreateCharacterForm: Component<{
                 </Show>
               </Card>
 
-              <Toggle
-                fieldName="_showAdvanced"
-                label="Advanced"
-                helperText="Unlock the system prompt and post-history instructions. These are injected after the Charluv 18+ safeguard."
-                value={showAdvanced()}
-                onChange={setShowAdvanced}
-              />
-
-              <Show when={showAdvanced()}>
-                <Card class="flex flex-col gap-3">
-                  <FormLabel
-                    label="System prompt"
-                    helperText="Custom system instruction for this character. Injected after the Charluv 18+ safeguard."
-                  />
-                  <TextInput
-                    isMultiline
-                    fieldName="systemPrompt"
-                    placeholder="Custom system instruction injected after the Charluv 18+ safeguard."
-                    value={editor.state.systemPrompt ?? ''}
-                    onChange={(ev) => editor.update('systemPrompt', ev.currentTarget.value)}
-                    class="h-40"
-                  />
-                  <TextInput
-                    isMultiline
-                    fieldName="postHistoryInstructions"
-                    label="Post-history instructions"
-                    placeholder="Instruction injected after the chat history (e.g. response length)."
-                    value={editor.state.postHistoryInstructions ?? ''}
-                    onChange={(ev) =>
-                      editor.update('postHistoryInstructions', ev.currentTarget.value)
-                    }
-                  />
-                </Card>
-              </Show>
-
               <Card class="flex flex-col gap-3">
                 <TextInput
                   isMultiline
@@ -691,6 +656,41 @@ export const CreateCharacterForm: Component<{
                   tokenCount={(v) => setTokens((prev) => ({ ...prev, sample: v }))}
                 />
               </Card>
+
+              <Toggle
+                fieldName="_showAdvanced"
+                label="Advanced"
+                helperText="Unlock the system prompt and post-history instructions. These are injected after the Charluv 18+ safeguard."
+                value={showAdvanced()}
+                onChange={setShowAdvanced}
+              />
+
+              <Show when={showAdvanced()}>
+                <Card class="flex flex-col gap-3">
+                  <FormLabel
+                    label="System prompt"
+                    helperText="Custom system instruction for this character. Injected after the Charluv 18+ safeguard."
+                  />
+                  <TextInput
+                    isMultiline
+                    fieldName="systemPrompt"
+                    placeholder="Custom system instruction injected after the Charluv 18+ safeguard."
+                    value={editor.state.systemPrompt ?? ''}
+                    onChange={(ev) => editor.update('systemPrompt', ev.currentTarget.value)}
+                    class="h-40"
+                  />
+                  <TextInput
+                    isMultiline
+                    fieldName="postHistoryInstructions"
+                    label="Post-history instructions"
+                    placeholder="Instruction injected after the chat history (e.g. response length)."
+                    value={editor.state.postHistoryInstructions ?? ''}
+                    onChange={(ev) =>
+                      editor.update('postHistoryInstructions', ev.currentTarget.value)
+                    }
+                  />
+                </Card>
+              </Show>
             </div>
 
             {/* Image generation settings are no longer user-editable here, but the
