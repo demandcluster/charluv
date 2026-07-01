@@ -476,23 +476,34 @@ const Create: Component = () => {
       `"zodiac" (their zodiac sign), ` +
       `"outfit" (one specific, fully-clothed outfit that suits their job and vibe). ` +
       `No commentary before or after the JSON.`
-    try {
-      const res = await genApi.basicInference({
+    const call = (moderation: boolean) =>
+      genApi.basicInference({
         prompt: instruction,
         settings: defaultPresets['charluv-balanced'],
-        // 8 keys need real headroom — at the old 320 the trailing keys (zodiac,
-        // outfit) got truncated, which is why only some traits filled after
-        // `mind`/`zodiac` were added.
         overrides: { maxTokens: 700, temp: 0.95, streamResponse: false },
-        // Traits come out stronger on the orchestration model (Qwen) — the same
-        // endpoint event chats run on. The image prompt (craftPrompt) stays on
-        // the main chat model, which does better there.
-        moderation: true,
+        moderation,
       })
-      const text =
-        res && 'result' in res ? ((res.result as any)?.response as string | undefined) : ''
+    // TEMP DEBUG — dump everything both endpoints return so nothing is hidden.
+    const dump = (label: string, r: any) => {
+      console.log(`[enrichDetails] ${label} — full object:`, r)
+      console.log(`[enrichDetails] ${label} — JSON:`, JSON.stringify(r))
+      console.log(`[enrichDetails] ${label} — keys:`, r && typeof r === 'object' ? Object.keys(r) : typeof r)
+      console.log(`[enrichDetails] ${label} — result:`, r?.result)
+      console.log(`[enrichDetails] ${label} — result.response:`, JSON.stringify(r?.result?.response))
+      console.log(`[enrichDetails] ${label} — error/status:`, r?.error, r?.status)
+    }
+    try {
+      const modRes: any = await call(true).catch((e) => ({ threw: String(e) }))
+      const mainRes: any = await call(false).catch((e) => ({ threw: String(e) }))
+      dump('MOD (qwen)', modRes)
+      dump('MAIN (tutu)', mainRes)
+      const pick = (r: any) => (r && 'result' in r ? (r.result?.response as string) : '')
+      const text = pick(modRes) || pick(mainRes) || ''
+      console.log('[enrichDetails] chosen text →', JSON.stringify(text))
+      console.log('[enrichDetails] parsed →', parseJsonLoose(text || ''))
       return parseJsonLoose(text || '') || {}
-    } catch {
+    } catch (err) {
+      console.log('[enrichDetails] threw:', err)
       return {}
     }
   }
