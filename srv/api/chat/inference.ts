@@ -24,6 +24,7 @@ const validInference = {
   presetId: 'string?',
   jsonSchema: 'any?',
   imageData: 'string?',
+  moderation: 'boolean?',
 } as const
 
 const validInferenceApi = {
@@ -405,6 +406,9 @@ export const inference = wrap(async ({ socketId, userId, body, log, get }, res) 
     guest: userId ? undefined : socketId,
     jsonSchema: body.jsonSchema,
     imageData: body.imageData,
+    // Route to the mod/orchestration model (Qwen) when requested — same endpoint
+    // event chats use. Falls back to the main text model if modUrl is unset.
+    moderation: body.moderation,
   })
 
   return { response: inference.generated, meta: inference.meta }

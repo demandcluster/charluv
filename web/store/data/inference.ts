@@ -26,6 +26,10 @@ type InferenceOpts = {
 
   /** Base64 image */
   image?: string
+
+  /** Route to the dedicated orchestration/mod model (Qwen) instead of the
+   * user-facing chat model — the same endpoint event chats use. */
+  moderation?: boolean
 }
 
 export function inferenceSubscribe<T = any>(requestId: string, handler: TickHandler<T>) {
@@ -96,6 +100,7 @@ export async function basicInference(opts: InferenceOpts) {
     prompt,
     imageData: image,
     jsonSchema: opts.jsonSchema,
+    moderation: opts.moderation,
     settings: { ...preset, stream: false },
   })
 

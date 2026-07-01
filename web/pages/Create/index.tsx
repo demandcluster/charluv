@@ -481,6 +481,10 @@ const Create: Component = () => {
         prompt: instruction,
         settings: defaultPresets['charluv-balanced'],
         overrides: { maxTokens: 320, temp: 0.95, streamResponse: false },
+        // Traits come out stronger on the orchestration model (Qwen) — the same
+        // endpoint event chats run on. The image prompt (craftPrompt) stays on
+        // the main chat model, which does better there.
+        moderation: true,
       })
       const text =
         res && 'result' in res ? ((res.result as any)?.response as string | undefined) : ''
