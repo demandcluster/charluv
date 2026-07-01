@@ -901,6 +901,34 @@
   text-align: center;
   padding: 0 0.4rem;
 }
+.cr-portrait-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+  width: 80%;
+  max-width: 16rem;
+}
+.cr-progress-track {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--dsc-line);
+  overflow: hidden;
+}
+.cr-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--cr-accent-deep), var(--cr-accent));
+  transition: width 0.2s ease-out;
+}
+.cr-portrait-quip {
+  font-size: 0.78rem;
+  font-style: italic;
+  color: var(--dsc-muted);
+  text-align: center;
+  min-height: 1.1rem;
+}
 .cr-prompt-label {
   margin-top: 0.9rem;
 }

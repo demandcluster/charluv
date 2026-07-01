@@ -1,4 +1,14 @@
-import { Component, For, Show, createEffect, createMemo, createSignal, onMount } from 'solid-js'
+import {
+  Component,
+  For,
+  Show,
+  batch,
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+  onMount,
+} from 'solid-js'
 import { createStore } from 'solid-js/store'
 import { A, useNavigate } from '@solidjs/router'
 import {
@@ -289,6 +299,68 @@ const TraitCard: Component<{ label: string; value: string; dot?: string; onEdit:
   </button>
 )
 
+/**
+ * Faux progress shown while a portrait is being made (prompt write ~10s + image
+ * ~15s). The bar eases toward — but never reaches — 100% over a window a little
+ * longer than the real wait, so the photo almost always lands while the bar is
+ * mid-fill and the whole thing feels quicker than expected. The rotating quips
+ * just keep it lively; they're cosmetic, not real status.
+ */
+const PORTRAIT_QUIPS = [
+  'Picking the perfect dress…',
+  'Imagining a hairstyle…',
+  'Mixing eye colors…',
+  'Dabbing on freckles…',
+  'Choosing the right smile…',
+  'Adjusting the lighting…',
+  'Finding a flattering angle…',
+  'Sketching the cheekbones…',
+  'Consulting the muses…',
+  'Aligning the universe…',
+  'Negotiating with the pixels…',
+  'Summoning a little charm…',
+  'Steadying the brush…',
+  'Almost ready…',
+]
+
+const PortraitProgress: Component = () => {
+  const [pct, setPct] = createSignal(6)
+  const [quip, setQuip] = createSignal(PORTRAIT_QUIPS[0])
+
+  onMount(() => {
+    const start = Date.now()
+    // Time constant tuned so the bar sits ~80% around the real ~25s completion
+    // and asymptotes to a 95% cap (never visually "done" before the photo).
+    const TAU = 15000
+    let q = 0
+
+    const tick = setInterval(() => {
+      const elapsed = Date.now() - start
+      setPct(Math.min(95, 6 + 94 * (1 - Math.exp(-elapsed / TAU))))
+    }, 150)
+
+    const rotate = setInterval(() => {
+      q = (q + 1) % PORTRAIT_QUIPS.length
+      setQuip(PORTRAIT_QUIPS[q])
+    }, 2600)
+
+    onCleanup(() => {
+      clearInterval(tick)
+      clearInterval(rotate)
+    })
+  })
+
+  return (
+    <div class="cr-portrait-progress">
+      <span class="cr-portrait-spinner">Generating…</span>
+      <div class="cr-progress-track" aria-hidden="true">
+        <div class="cr-progress-fill" style={{ width: `${pct()}%` }} />
+      </div>
+      <span class="cr-portrait-quip">{quip()}</span>
+    </div>
+  )
+}
+
 /* ---------------------------------------------------------------- page */
 
 const Create: Component = () => {
@@ -485,9 +557,13 @@ const Create: Component = () => {
       setDetails(d)
       const prompt = await craftPrompt(d)
       setImagePrompt(prompt)
-      setPromptLoading(false)
-      // First portrait is free — bundled into the creation fee charged on finish.
-      generatePortrait({ free: true })
+      // Flip prompt-loading off and image-gen on atomically so the portrait
+      // progress (shown while either is true) never sees a gap and resets.
+      batch(() => {
+        setPromptLoading(false)
+        // First portrait is free — bundled into the creation fee charged on finish.
+        generatePortrait({ free: true })
+      })
     })()
   })
 
@@ -969,7 +1045,7 @@ const Create: Component = () => {
                           when={genBusy() || promptLoading()}
                           fallback={<span>Your portrait appears here</span>}
                         >
-                          <span class="cr-portrait-spinner">Generating…</span>
+                          <PortraitProgress />
                         </Show>
                       </div>
                     }

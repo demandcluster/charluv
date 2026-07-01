@@ -660,7 +660,7 @@ export const CreateCharacterForm: Component<{
               <Toggle
                 fieldName="_showAdvanced"
                 label="Advanced"
-                helperText="Unlock the system prompt and post-history instructions. These are injected after the Charluv 18+ safeguard."
+                helperText="Unlock the system prompt and post-history instructions. Used for special characters (generally not needed)."
                 value={showAdvanced()}
                 onChange={setShowAdvanced}
               />
@@ -669,12 +669,12 @@ export const CreateCharacterForm: Component<{
                 <Card class="flex flex-col gap-3">
                   <FormLabel
                     label="System prompt"
-                    helperText="Custom system instruction for this character. Injected after the Charluv 18+ safeguard."
+                    helperText="Used for special characters (generally not needed)."
                   />
                   <TextInput
                     isMultiline
                     fieldName="systemPrompt"
-                    placeholder="Custom system instruction injected after the Charluv 18+ safeguard."
+                    placeholder="Custom system instruction for this character."
                     value={editor.state.systemPrompt ?? ''}
                     onChange={(ev) => editor.update('systemPrompt', ev.currentTarget.value)}
                     class="h-40"
