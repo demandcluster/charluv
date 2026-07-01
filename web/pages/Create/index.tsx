@@ -34,7 +34,6 @@ import { getStoredValue, setStoredValue } from '../../shared/hooks'
 import { imageApi } from '../../store/data/image'
 import { genApi } from '../../store/data/inference'
 import { defaultPresets } from '/common/presets'
-import { JsonField } from '/common/prompt'
 import FileInput, { FileInputResult } from '../../shared/FileInput'
 import CreditCost from '../../shared/CreditCost'
 import ImportCharacterModal from '../Character/ImportCharacter'
@@ -362,13 +361,6 @@ const PortraitProgress: Component = () => {
   )
 }
 
-/** A required string field for a guided-decoding JSON schema. */
-const str = (name: string, description: string): JsonField => ({
-  name,
-  disabled: false,
-  type: { type: 'string', description },
-})
-
 /* ---------------------------------------------------------------- page */
 
 const Create: Component = () => {
@@ -474,28 +466,24 @@ const Create: Component = () => {
     ].join(', ')
     const instruction =
       `Invent a believable, distinctive persona for an AI companion based on: ${brief}. ` +
-      `Imagine every missing detail yourself. Fill in every field.`
-    // Guided-decoding schema: the orchestration model (Qwen) doesn't reliably
-    // emit every key when free-forming, which left some traits blank. Constrain
-    // the output to this exact object so all fields are always present and valid.
-    const schema: JsonField[] = [
-      str('description', 'Two vivid sentences, third person. Do not state the name.'),
-      str('job', 'Their occupation.'),
-      str('personality', '4-6 comma-separated traits.'),
-      str('mind', 'One sentence on how they think — worldview, intelligence, quirks.'),
-      str('likes', '4-6 comma-separated things.'),
-      str('hates', '3-4 comma-separated things.'),
-      str('zodiac', 'Their zodiac sign.'),
-      str('outfit', 'One specific, fully-clothed outfit that suits their job and vibe.'),
-    ]
+      `Imagine every missing detail yourself. Respond with ONLY minified JSON and these keys: ` +
+      `"description" (two vivid sentences, third person, do not state the name), ` +
+      `"job" (their occupation), ` +
+      `"personality" (4-6 comma-separated traits), ` +
+      `"mind" (one sentence on how they think — worldview, intelligence, quirks), ` +
+      `"likes" (4-6 comma-separated things), ` +
+      `"hates" (3-4 comma-separated things), ` +
+      `"zodiac" (their zodiac sign), ` +
+      `"outfit" (one specific, fully-clothed outfit that suits their job and vibe). ` +
+      `No commentary before or after the JSON.`
     try {
       const res = await genApi.basicInference({
         prompt: instruction,
         settings: defaultPresets['charluv-balanced'],
-        // Headroom so guided decoding never truncates mid-object (a cut-off
-        // schema object fails to parse entirely).
-        overrides: { maxTokens: 512, temp: 0.95, streamResponse: false },
-        jsonSchema: schema,
+        // 8 keys need real headroom — at the old 320 the trailing keys (zodiac,
+        // outfit) got truncated, which is why only some traits filled after
+        // `mind`/`zodiac` were added.
+        overrides: { maxTokens: 700, temp: 0.95, streamResponse: false },
         // Traits come out stronger on the orchestration model (Qwen) — the same
         // endpoint event chats run on. The image prompt (craftPrompt) stays on
         // the main chat model, which does better there.
