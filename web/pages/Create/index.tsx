@@ -58,6 +58,8 @@ const CUSTOM = '__custom__'
 /** Guided-decoding schema for enrichDetails — mirrors the keys the instruction asks for. */
 const DETAIL_FIELDS: JsonField[] = [
   'name',
+  'age',
+  'country',
   'description',
   'job',
   'personality',
@@ -506,6 +508,8 @@ const Create: Component = () => {
       `Invent a believable, distinctive persona for an AI companion based on: ${brief}. ` +
       `Imagine every missing detail yourself. Respond with ONLY minified JSON and these keys: ` +
       `"name" (a first name only — no surname — that authentically fits their gender and ethnicity), ` +
+      `"age" (a specific age in years, a number within ${answers.age}), ` +
+      `"country" (the specific country they are from — one that authentically fits their ${ethnicityLabel()} ethnicity), ` +
       `"description" (two vivid sentences, third person, do not state the name), ` +
       `"job" (their occupation), ` +
       `"personality" (4-6 comma-separated traits), ` +
@@ -745,16 +749,30 @@ const Create: Component = () => {
     const species = isNonHuman() ? [answers.ethnicity] : ['human']
 
     const d = details()
+
+    // Prefer the AI-imagined exact age, but only when it actually falls inside
+    // the chosen range ("18-21", "40+") — otherwise keep the range.
+    const exactAge = (() => {
+      const n = parseInt(d.age || '', 10)
+      if (!Number.isFinite(n)) return
+      const [lo, hi] = answers.age.includes('-')
+        ? answers.age.split('-').map((s) => parseInt(s, 10))
+        : [parseInt(answers.age, 10), Infinity]
+      if (!Number.isFinite(lo)) return
+      return n >= lo && n <= hi ? String(n) : undefined
+    })()
+
     const attributes: NonNullable<AppSchema.Persona['attributes']> = {
       species,
-      age: [answers.age],
+      age: [exactAge || answers.age],
       body: [labelOfImg(BODIES, answers.body)],
       appearance: [appearance],
       personality: [d.personality || v.personality],
       sexuality: ['heterosexual'],
     }
-    // Country only makes sense for humans.
-    if (!isNonHuman()) attributes.country = [ethnicity]
+    // Country only makes sense for humans. The AI picks a specific country to
+    // match the ethnicity; the raw ethnicity label is only a fallback.
+    if (!isNonHuman()) attributes.country = [d.country || ethnicity]
     // Fold in the AI-imagined details so the character has a real backstory and a
     // fully-populated W++ persona (not just the handful the wizard asked about).
     if (d.description) attributes.description = [d.description]

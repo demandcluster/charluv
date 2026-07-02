@@ -58,7 +58,11 @@ const Profile: Component = () => {
 
   const age = createMemo(() => {
     const c = char()
-    return c?.ageRange || attr(c, 'age')
+    // Prefer an exact W++ age ("23") over the coarse wizard range ("18-21");
+    // the range is only a fallback for characters without an age trait.
+    const exact = attr(c, 'age')
+    if (exact && /\d/.test(exact)) return exact
+    return c?.ageRange || exact
   })
 
   // Just the number, for the "Julia, 18" title (age may be "18", "18-21", "18 years old").
