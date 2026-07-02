@@ -412,7 +412,11 @@ export const handleOAI: ModelAdapter = async function* (opts) {
       if ('token' in generated.value) {
         accumulated += generated.value.token
         const shown = markerMode ? stripMarkers(accumulated) : accumulated
-        yield { partial: sanitiseAndTrim(shown, prompt, char, opts.characters, members) }
+        // Trim against the REPLYING character, not the main char. In event/group
+        // chats the elected speaker is opts.replyAs; trimming against the main
+        // `char` treated the speaker's text as a foreign turn and emptied every
+        // partial, so the reply never streamed and only appeared at the end.
+        yield { partial: sanitiseAndTrim(shown, prompt, opts.replyAs, opts.characters, members) }
       }
     }
 
@@ -494,7 +498,7 @@ export const handleOAI: ModelAdapter = async function* (opts) {
 
       const swipeText = markerMode ? stripMarkers(accumulated).trim() : accumulated
       if (gen.swipesPerGeneration! > 1) {
-        yield sanitiseAndTrim(swipeText, prompt, char, opts.characters, members)
+        yield sanitiseAndTrim(swipeText, prompt, opts.replyAs, opts.characters, members)
       } else {
         // Event replies: the model writes the whole scene, so pull out only the
         // elected character's own turn. Non-event: normal trim.
