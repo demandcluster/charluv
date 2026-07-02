@@ -122,6 +122,9 @@ export const defaultUIsettings: UISettings = {
 
   chatWidth: 'full',
   chatAvatarMode: true,
+  // Split view is the default chat layout; only an explicit user choice
+  // (persisted viewMode) overrides it.
+  viewMode: 'split',
   logPromptsToBrowserConsole: false,
   contextWindowLine: false,
   imageWrap: false,

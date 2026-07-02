@@ -234,7 +234,7 @@ const UISettings: Component = () => {
           { label: 'Background: Cover', value: 'background-cover' },
           { label: 'Background: Contain', value: 'background-contain' },
         ]}
-        value={state.ui.viewMode || 'standard'}
+        value={state.ui.viewMode || 'split'}
         onChange={(next) => userStore.saveUI({ viewMode: next.value as any })}
       />
 

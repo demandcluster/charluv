@@ -98,10 +98,13 @@ export async function generateImage({ chatId, messageId, onDone, ...opts }: Gene
   if (!summary.result) {
     return summary
   }
-  // Always lead with the character's appearance prompt (the look saved at
-  // creation) so chat images stay consistent regardless of what the scene caption
-  // happened to describe. It's first so the token trim below keeps it.
-  const appearance = entities.char?.appearance?.trim()
+  // Characters with a trained LoRA get their identity from the LoRA itself, so
+  // the saved appearance prompt is skipped: it bakes in the creation outfit and
+  // setting, which fights whatever the scene caption says they're wearing/doing.
+  // Without a LoRA the appearance prompt is the only visual anchor, so it still
+  // leads (first so the token trim below keeps it).
+  const hasLora = !!entities.char?.loraName
+  const appearance = hasLora ? undefined : entities.char?.appearance?.trim()
   const prompt = [appearance, summary.result.response].filter(Boolean).join(', ')
 
   const characterId = entities.messages.reduceRight((id, msg) => id || msg.characterId)

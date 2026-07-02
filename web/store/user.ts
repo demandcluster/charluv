@@ -591,7 +591,9 @@ export const userStore = createStore<UserState>(
       }
 
       if (res.result.user.ui) {
-        yield { ui: res.result.user.ui }
+        // Backfill new defaults (e.g. viewMode) for accounts whose saved UI
+        // predates them — an explicit saved choice still wins.
+        yield { ui: { ...defaultUIsettings, ...res.result.user.ui } }
       }
 
       onSuccess?.(res.result.token)
