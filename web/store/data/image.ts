@@ -60,6 +60,33 @@ export function getStylePrefix(char?: { artStyle?: string; tags?: string[] } | n
     : 'Photorealistic image of '
 }
 
+const STYLE_PREFIXES = [
+  'early-2000s anime hybrid cel/digital look, bright saturated colors high quality art of ',
+  'Photorealistic image of ',
+]
+
+/**
+ * Prefix `prompt` with the style lead-in exactly once. Several callers (the
+ * create wizard's craftPrompt, the editor's craftImagePrompt) already bake a
+ * lead-in into the prompt they pass along — strip any existing one first so the
+ * generated image never opens with "Photorealistic image of Photorealistic
+ * image of …".
+ */
+export function withStylePrefix(prompt: string, style?: { artStyle?: string; tags?: string[] }) {
+  let body = prompt.trimStart()
+  let stripped = true
+  while (stripped) {
+    stripped = false
+    for (const p of STYLE_PREFIXES) {
+      if (body.toLowerCase().startsWith(p.trim().toLowerCase())) {
+        body = body.slice(p.trim().length).replace(/^[\s,]+/, '')
+        stripped = true
+      }
+    }
+  }
+  return getStylePrefix(style) + body
+}
+
 export async function generateImage({ chatId, messageId, onDone, ...opts }: GenerateOpts) {
   const entities = await getPromptEntities()
   const summary = opts.prompt
@@ -69,7 +96,6 @@ export async function generateImage({ chatId, messageId, onDone, ...opts }: Gene
   if (!summary.result) {
     return summary
   }
-  const charType = getStylePrefix(entities.char)
   // Always lead with the character's appearance prompt (the look saved at
   // creation) so chat images stay consistent regardless of what the scene caption
   // happened to describe. It's first so the token trim below keeps it.
@@ -83,7 +109,9 @@ export async function generateImage({ chatId, messageId, onDone, ...opts }: Gene
     .then((tokens) => tokens.slice(0, max - 15))
     .then(decode)
 
-  const newPrompt = charType + trimmed
+  // withStylePrefix dedupes: appearance prompts saved by the wizard/editor
+  // already open with a style lead-in.
+  const newPrompt = withStylePrefix(trimmed, entities.char)
 
   if (!isLoggedIn()) {
     return { error: "Sorry, members only.. don't worry it is free!" }

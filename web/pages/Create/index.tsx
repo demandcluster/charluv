@@ -41,6 +41,7 @@ import { getAssetUrl, random } from '../../shared/util'
 import { DEFAULT_ARCHETYPE_ID, getArchetypeLabel } from '/common/progression'
 import { AppSchema } from '/common/types'
 import { NewCharacter } from '../../store/character'
+import { JsonField } from '/common/prompt'
 
 /* ---------------------------------------------------------------- types */
 
@@ -53,6 +54,19 @@ type ImgOption = {
 }
 
 const CUSTOM = '__custom__'
+
+/** Guided-decoding schema for enrichDetails — mirrors the keys the instruction asks for. */
+const DETAIL_FIELDS: JsonField[] = [
+  'name',
+  'description',
+  'job',
+  'personality',
+  'mind',
+  'likes',
+  'hates',
+  'zodiac',
+  'outfit',
+].map((name) => ({ name, disabled: false, type: { type: 'string' } as any }))
 
 /* ---------------------------------------------------------------- options */
 
@@ -436,19 +450,31 @@ const Create: Component = () => {
   // Pull the first JSON object out of a (possibly chatty) LLM reply.
   const parseJsonLoose = (text: string): Record<string, string> | null => {
     const match = text.match(/\{[\s\S]*\}/)
-    if (!match) return null
-    try {
-      const obj = JSON.parse(match[0])
-      if (!obj || typeof obj !== 'object') return null
-      const out: Record<string, string> = {}
-      for (const [k, v] of Object.entries(obj)) {
-        const val = Array.isArray(v) ? v.join(', ') : v
-        if (typeof val === 'string' && val.trim()) out[k] = val.trim()
-      }
-      return out
-    } catch {
-      return null
+    if (match) {
+      try {
+        const obj = JSON.parse(match[0])
+        if (obj && typeof obj === 'object') {
+          const out: Record<string, string> = {}
+          for (const [k, v] of Object.entries(obj)) {
+            const val = Array.isArray(v) ? v.join(', ') : v
+            if (typeof val === 'string' && val.trim()) out[k] = val.trim()
+          }
+          return out
+        }
+      } catch {}
     }
+    // Truncated or malformed JSON (e.g. the model hit max tokens mid-string):
+    // salvage every completed "key": "value" pair instead of dropping everything.
+    const out: Record<string, string> = {}
+    const pair = /"([A-Za-z_][\w-]*)"\s*:\s*"((?:[^"\\]|\\.)*)"/g
+    let m: RegExpExecArray | null
+    while ((m = pair.exec(text))) {
+      try {
+        const val = String(JSON.parse(`"${m[2]}"`)).trim()
+        if (val) out[m[1]] = val
+      } catch {}
+    }
+    return Object.keys(out).length ? out : null
   }
 
   // Let the AI imagine the parts the wizard never asked for — a job, a backstory,
@@ -489,6 +515,9 @@ const Create: Component = () => {
         // endpoint event chats run on. The image prompt (craftPrompt) stays on
         // the main chat model, which does better there.
         moderation: true,
+        // vLLM guided decoding: force valid JSON with exactly these keys so a
+        // chatty or truncated reply can't blank the whole persona.
+        jsonSchema: DETAIL_FIELDS,
       })
       const text =
         res && 'result' in res ? ((res.result as any)?.response as string | undefined) : ''
@@ -552,22 +581,49 @@ const Create: Component = () => {
     )
   }
 
+  // Trait selections as they looked when the persona/prompt was last crafted.
+  // `name` is excluded: the model may fill it in and the user edits it freely on
+  // the finish step — neither should flag the crafted text as stale.
+  const traitFingerprint = () => JSON.stringify({ ...answers, name: '' })
+  const [finishFingerprint, setFinishFingerprint] = createSignal('')
+  const traitsStale = () =>
+    finishInit() && finishFingerprint() !== '' && traitFingerprint() !== finishFingerprint()
+
+  // LLM pass shared by the first visit and the stale-trait refresh: imagine the
+  // persona details, then turn everything into an image prompt.
+  const runFinishCraft = async () => {
+    setFinishFingerprint(traitFingerprint())
+    const d = await enrichDetails()
+    setDetails(d)
+    // Let the model name the character (fits gender + ethnicity) unless the
+    // user already typed one — the old random picker skewed male/generic.
+    if (d.name && !answers.name.trim()) setAnswers('name', d.name)
+    const prompt = await craftPrompt(d)
+    setImagePrompt(prompt)
+  }
+
+  // Re-run the craft after the user edited traits from the finish step. The
+  // portrait is left alone — regenerating costs credits, so that stays a click.
+  const refreshFromTraits = () => {
+    if (promptLoading()) return
+    setPromptLoading(true)
+    void (async () => {
+      await runFinishCraft()
+      setPromptLoading(false)
+    })()
+  }
+
   // On reaching the finish step: focus the name field, ask the LLM for a prompt,
   // then auto-generate the first portrait. Runs once so editing/regenerating and
-  // stepping back and forth don't clobber the user's tweaks.
+  // stepping back and forth don't clobber the user's tweaks; trait edits surface
+  // a "traits changed" banner (traitsStale) instead of silently re-running.
   createEffect(() => {
     if (step() !== 5 || finishInit()) return
     setFinishInit(true)
     nameRef?.focus()
     setPromptLoading(true)
     void (async () => {
-      const d = await enrichDetails()
-      setDetails(d)
-      // Let the model name the character (fits gender + ethnicity) unless the
-      // user already typed one — the old random picker skewed male/generic.
-      if (d.name && !answers.name.trim()) setAnswers('name', d.name)
-      const prompt = await craftPrompt(d)
-      setImagePrompt(prompt)
+      await runFinishCraft()
       // Flip prompt-loading off and image-gen on atomically so the portrait
       // progress (shown while either is true) never sees a gap and resets.
       batch(() => {
@@ -817,6 +873,7 @@ const Create: Component = () => {
     setAvatarUrl(undefined)
     setImagePrompt('')
     setFinishInit(false)
+    setFinishFingerprint('')
     setStep(0)
   }
 
@@ -1044,6 +1101,22 @@ const Create: Component = () => {
         {/* Step 6 — Finish */}
         <Show when={step() === 5}>
           <Step title="Meet your date" sub="Tweak anything, then bring them to life.">
+            <Show when={traitsStale()}>
+              <div class="cr-stale-banner" role="status">
+                <span>
+                  You changed some traits — the description and image prompt still match the old
+                  look.
+                </span>
+                <button
+                  class="cr-btn"
+                  type="button"
+                  onClick={refreshFromTraits}
+                  disabled={promptLoading()}
+                >
+                  <Sparkles size={15} /> {promptLoading() ? 'Updating…' : 'Update description'}
+                </button>
+              </div>
+            </Show>
             <div class="cr-finish">
               {/* LEFT — portrait with the name overlaid, refine controls, tags */}
               <div class="cr-finish-left">

@@ -27,6 +27,12 @@ export const register = handle(async (req) => {
     throw new StatusError('You must accept the identifier policy to register', 400)
   }
 
+  // The consent gate always sends a fingerprint; a request without one is a
+  // scripted signup trying to dodge the multi-account check.
+  if (!req.body.fingerprint) {
+    throw new StatusError('You must accept the identifier policy to register', 400)
+  }
+
   const fpMatch = await store.users.checkFingerprint(req.body.fingerprint)
   const ipMatch = await store.users.checkIp(req.ip)
   const verdict = classifyRegistration({ fpMatch, ipMatch })
@@ -99,7 +105,10 @@ export const oathGoogleLogin = handle(async (req) => {
   // existing account + the profile link flow instead.
   const fpMatch = await store.users.checkFingerprint(body.fingerprint)
   const ipMatch = await store.users.checkIp(ip)
-  const verdict = classifyRegistration({ fpMatch, ipMatch })
+  let verdict = classifyRegistration({ fpMatch, ipMatch })
+  // No fingerprint offered = nothing to match against, so it can't be trusted
+  // as "clean" — withhold farmable credits instead of allowing outright.
+  if (!body.fingerprint && verdict === 'allow') verdict = 'restrict'
 
   if (verdict === 'block') {
     throw new StatusError(
@@ -165,7 +174,10 @@ export const oauthPatreonLogin = handle(async (req) => {
   // No linked account: create one, but only if it clears the abuse check.
   const fpMatch = await store.users.checkFingerprint(body.fingerprint)
   const ipMatch = await store.users.checkIp(ip)
-  const verdict = classifyRegistration({ fpMatch, ipMatch })
+  let verdict = classifyRegistration({ fpMatch, ipMatch })
+  // No fingerprint offered = nothing to match against, so it can't be trusted
+  // as "clean" — withhold farmable credits instead of allowing outright.
+  if (!body.fingerprint && verdict === 'allow') verdict = 'restrict'
 
   if (verdict === 'block') {
     throw new StatusError(

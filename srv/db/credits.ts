@@ -5,22 +5,31 @@ import { getUserSubscriptionTier } from '../../common/util'
 import { getCachedTiers } from './subscriptions'
 
 export async function updateCredits(userId: string, amount: number, nextCredits: number = 0) {
-  const user = await db('user').findOne({ kind: 'user', _id: userId })
-  if (!user) {
-    throw errors.NotFound
-  }
-  const credits = user.credits + amount
+  // Atomic $inc (not read-modify-write) so concurrent spends/refills can't lose
+  // updates; spends additionally require the balance to cover the amount so a
+  // race can't drive it negative.
+  const filter: Record<string, any> = { kind: 'user', _id: userId }
+  if (amount < 0) filter.credits = { $gte: -amount }
 
-  const nc = nextCredits > 0 ? nextCredits : user.nextCredits
-  await db('user')
-    .updateOne({ kind: 'user', _id: userId }, { $set: { credits, nextCredits: nc } })
-    .catch((err) => {
+  const update: Record<string, any> = { $inc: { credits: amount } }
+  if (nextCredits > 0) update.$set = { nextCredits }
+
+  const result = await db('user')
+    .findOneAndUpdate(filter, update, { returnDocument: 'after' })
+    .catch(() => {
       throw new StatusError('Database error', 500)
     })
 
-  sendOne(userId, { type: 'credits-updated', credits })
+  const updated = result.value
+  if (!updated) {
+    const exists = await db('user').findOne({ kind: 'user', _id: userId })
+    if (!exists) throw errors.NotFound
+    throw errors.MissingCredits
+  }
 
-  return { credits }
+  sendOne(userId, { type: 'credits-updated', credits: updated.credits })
+
+  return { credits: updated.credits }
 }
 
 export async function getFreeCredits() {

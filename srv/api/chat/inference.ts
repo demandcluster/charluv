@@ -329,7 +329,6 @@ export const inferenceApi = wrap(async (req, res) => {
   if (!body.stream) {
     try {
       const result = await inferenceAsync(request)
-      await releaseLock(req.userId)
       return {
         id: req.requestId,
         object: 'text_completion',
@@ -344,6 +343,8 @@ export const inferenceApi = wrap(async (req, res) => {
       }
     } catch (ex: any) {
       throw new StatusError(ex.message, 500)
+    } finally {
+      await releaseLock(req.userId)
     }
   }
 
@@ -353,39 +354,40 @@ export const inferenceApi = wrap(async (req, res) => {
   res.setHeader('Connection', 'keep-alive')
   res.flushHeaders()
 
-  const { stream } = await createInferenceStream(request)
+  try {
+    const { stream } = await createInferenceStream(request)
 
-  let partial = ''
+    let partial = ''
 
-  for await (const gen of stream) {
-    if (typeof gen === 'string') {
-      res.write('data: [DONE]')
-      break
-    }
-
-    if ('partial' in gen) {
-      const token = gen.partial.slice(partial.length)
-      partial = gen.partial
-      const tick = {
-        id: req.requestId,
-        object: 'text_completion',
-        created: Date.now(),
-        model: presetId,
-        choices: [{ index: 0, text: token, finish_reason: null, logprobs: null }],
+    for await (const gen of stream) {
+      if (typeof gen === 'string') {
+        res.write('data: [DONE]')
+        break
       }
-      res.write(`data: ${JSON.stringify(tick)}\n\n`)
-      continue
-    }
 
-    if ('error' in gen) {
-      await releaseLock(req.userId)
-      const tick = { error: { message: gen.error } }
-      res.write(`data: ${JSON.stringify(tick)}`)
-      break
+      if ('partial' in gen) {
+        const token = gen.partial.slice(partial.length)
+        partial = gen.partial
+        const tick = {
+          id: req.requestId,
+          object: 'text_completion',
+          created: Date.now(),
+          model: presetId,
+          choices: [{ index: 0, text: token, finish_reason: null, logprobs: null }],
+        }
+        res.write(`data: ${JSON.stringify(tick)}\n\n`)
+        continue
+      }
+
+      if ('error' in gen) {
+        const tick = { error: { message: gen.error } }
+        res.write(`data: ${JSON.stringify(tick)}`)
+        break
+      }
     }
+  } finally {
+    await releaseLock(req.userId)
   }
-
-  await releaseLock(req.userId)
   res.end()
 })
 

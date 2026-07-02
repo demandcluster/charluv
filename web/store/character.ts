@@ -5,7 +5,7 @@ import { createStore, getStore } from './create'
 import { subscribe } from './socket'
 import { toastStore } from './toasts'
 import { charsApi } from './data/chars'
-import { getStylePrefix, imageApi } from './data/image'
+import { imageApi, withStylePrefix } from './data/image'
 import { getAssetUrl, toMap } from '../shared/util'
 import { toCharacterMap } from '../pages/Character/util'
 import { getUserId } from './api'
@@ -430,7 +430,8 @@ export const characterStore = createStore<CharacterState>(
 
         prompt = prompt.replace(/\n+/g, ', ').replace(/\s+/g, ' ')
         // Lead with the realistic/anime style, consistent with in-chat images.
-        prompt = getStylePrefix(style) + prompt
+        // withStylePrefix dedupes: wizard/editor prompts arrive already prefixed.
+        prompt = withStylePrefix(prompt, style)
         yield { generate: { image: null, loading: true, blob: null }, hordeStatus: undefined }
         imageCallback = onDone
         const res = await imageApi.generateImageWithPrompt({

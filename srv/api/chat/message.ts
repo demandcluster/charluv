@@ -487,6 +487,10 @@ export const generateMessageV2 = handle(async (req, res) => {
       // message-error) must still tell the client to stop waiting — the
       // `generating: true` ack already put it into the waiting state.
       if (repliedThisTurn.length === 0) {
+        // The turn fee was charged up-front; the user got nothing, so give it back.
+        await store.credits
+          .updateCredits(userId!, EVENT_TURN_COST)
+          .catch((err) => log.error({ err }, 'Failed to refund failed event turn'))
         sendMany(members, {
           type: 'message-error',
           requestId,
@@ -500,19 +504,21 @@ export const generateMessageV2 = handle(async (req, res) => {
     return
   }
 
-  await generateOneReply({
-    req,
-    body,
-    chat,
-    replyAs,
-    impersonate,
-    members,
-    userMsg,
-    requestId,
-    eventTurn: false,
-  })
-
-  await releaseLock(chatId)
+  try {
+    await generateOneReply({
+      req,
+      body,
+      chat,
+      replyAs,
+      impersonate,
+      members,
+      userMsg,
+      requestId,
+      eventTurn: false,
+    })
+  } finally {
+    await releaseLock(chatId)
+  }
   return
 })
 

@@ -120,14 +120,20 @@ export class PriorityGate {
   }
 
   private emit(opts: GateOpts, position: number) {
-    const ev: PositionEvent = {
-      type: 'queue-position',
-      kind: opts.kind,
-      position,
-      requestId: opts.requestId,
+    // Position updates are best-effort; a throwing sender must never leak the
+    // slot the caller just acquired.
+    try {
+      const ev: PositionEvent = {
+        type: 'queue-position',
+        kind: opts.kind,
+        position,
+        requestId: opts.requestId,
+      }
+      if (opts.userId) this.sender.toUser(opts.userId, ev)
+      else if (opts.socketId) this.sender.toGuest(opts.socketId, ev)
+    } catch (err) {
+      logger.warn({ err }, 'inference gate: position emit failed, ignoring')
     }
-    if (opts.userId) this.sender.toUser(opts.userId, ev)
-    else if (opts.socketId) this.sender.toGuest(opts.socketId, ev)
   }
 }
 

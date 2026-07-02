@@ -944,3 +944,16 @@
   font-size: 0.78rem;
   color: var(--dsc-muted);
 }
+.cr-stale-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 0.6rem;
+  border: 1px solid oklch(0.72 0.16 5 / 0.45);
+  background: var(--cr-accent-soft);
+  font-size: 0.85rem;
+}

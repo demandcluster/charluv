@@ -95,16 +95,23 @@ class PriorityGate {
         this.emit(opts, 0); // clear the badge on admission
     }
     emit(opts, position) {
-        const ev = {
-            type: 'queue-position',
-            kind: opts.kind,
-            position,
-            requestId: opts.requestId,
-        };
-        if (opts.userId)
-            this.sender.toUser(opts.userId, ev);
-        else if (opts.socketId)
-            this.sender.toGuest(opts.socketId, ev);
+        // Position updates are best-effort; a throwing sender must never leak the
+        // slot the caller just acquired.
+        try {
+            const ev = {
+                type: 'queue-position',
+                kind: opts.kind,
+                position,
+                requestId: opts.requestId,
+            };
+            if (opts.userId)
+                this.sender.toUser(opts.userId, ev);
+            else if (opts.socketId)
+                this.sender.toGuest(opts.socketId, ev);
+        }
+        catch (err) {
+            middleware_1.logger.warn({ err }, 'inference gate: position emit failed, ignoring');
+        }
     }
 }
 exports.PriorityGate = PriorityGate;
