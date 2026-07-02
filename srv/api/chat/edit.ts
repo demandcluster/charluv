@@ -26,6 +26,7 @@ export const updateChat = handle(async ({ params, body, user, userId }) => {
       imageSource: 'string?',
       imageSettings: 'any?',
       memoryDisabled: 'boolean?',
+      chatModel: ['qwen', 'tutu'],
     },
     body,
     true
@@ -55,6 +56,7 @@ export const updateChat = handle(async ({ params, body, user, userId }) => {
     imageSource: (body.imageSource as any) ?? prev.imageSource,
     imageSettings: body.imageSettings,
     memoryDisabled: body.memoryDisabled ?? prev.memoryDisabled,
+    chatModel: body.chatModel ?? prev.chatModel,
   }
 
   if (body.useOverrides === false) {

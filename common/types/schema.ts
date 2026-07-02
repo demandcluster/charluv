@@ -408,6 +408,11 @@ export namespace AppSchema {
     genPreset?: GenerationPreset | string
     genSettings?: Omit<GenSettings, 'name'>
 
+    /** Which self-hosted model writes the replies. Absent = 'qwen' (the mod
+     * endpoint / Qwen3.6 MoE). 'tutu' opts the chat back into the uncensored
+     * chat finetune. Additive field — no migration. */
+    chatModel?: 'qwen' | 'tutu'
+
     scenarioIds?: string[]
     scenarioStates?: string[]
 

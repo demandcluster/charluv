@@ -9,6 +9,7 @@ import { requestFullCompletion, toChatCompletionPayload } from './chat-completio
 import { getStoppingStrings } from './prompt'
 import { decryptText } from '../db/util'
 import { streamCompletion } from './stream'
+import { sendGuest, sendOne } from '../api/ws'
 import { getTokenCounter } from '../tokenize'
 import { isZImageConfigured } from '../image/zimage'
 import { toJsonSchema } from '../../common/prompt'
@@ -159,11 +160,17 @@ export type Completion<T = Inference> = {
 
 export const handleOAI: ModelAdapter = async function* (opts) {
   const { char, members, user, prompt, log, gen, guest, kind, isThirdParty } = opts
-  // Event/group chats run entirely on the original orchestration model (the mod
-  // endpoint, Qwen): the chat finetune (tutu) can't keep to one character in a
-  // multi-character scene. Route the whole reply there, like moderation calls do.
-  const useModEndpoint = !!opts.moderation || opts.chat?.mode === 'event'
-  const base = getBaseUrl(user, !!gen.thirdPartyUrlNoSuffix, isThirdParty, useModEndpoint)
+  // Model routing:
+  // - Moderation + event/group chats always run on the mod endpoint (Qwen) — the
+  //   chat finetune (tutu) can't keep to one character in a multi-character scene.
+  // - Real chats also default to Qwen now; `chat.chatModel === 'tutu'` is the
+  //   per-chat opt-out (Reply Style pane).
+  // - Utility inference with no real chat (empty `chat` from inferenceAsync —
+  //   e.g. the create-wizard/editor image prompts and chat summaries) stays on
+  //   the text endpoint (tutu), which does better at image prompts.
+  const chatModel = opts.chat?._id ? opts.chat.chatModel || 'qwen' : 'tutu'
+  const useModEndpoint = !!opts.moderation || opts.chat?.mode === 'event' || chatModel === 'qwen'
+  let base = getBaseUrl(user, !!gen.thirdPartyUrlNoSuffix, isThirdParty, useModEndpoint)
   const handle = opts.impersonate?.name || opts.sender?.handle || 'You'
   if (!user.oaiKey && !base.changed) {
     yield { error: `CharluvAI request failed: No API key set. Check your settings.` }
@@ -377,11 +384,41 @@ export const handleOAI: ModelAdapter = async function* (opts) {
 
   log.debug(body, 'OpenAI payload')
 
-  const url = gen.thirdPartyUrlNoSuffix
+  let url = gen.thirdPartyUrlNoSuffix
     ? base.url
     : useChat
     ? `${base.url}/chat/completions`
     : `${base.url}/completions`
+
+  // Qwen (the mod endpoint) refuses some content with a reply that always opens
+  // with "I cannot generate". When that happens on a regular chat call, re-run
+  // the request on the text endpoint (Broken Tutu) and tell the user they can
+  // switch the chat's model under Reply Style. Never fall back for moderation
+  // (must stay fail-closed on the strict model) or guided-JSON calls (guided
+  // decoding cannot refuse).
+  const REFUSAL_PREFIX = 'i cannot generate'
+  const refusalHead = (text: string) => text.replace(/^[\s"'*_]+/, '').toLowerCase()
+  const canFallback = base.mod && !opts.moderation && !opts.jsonSchema && !!config.inference.textUrl
+  let fellBack = false
+  const fallbackToTutu = () => {
+    fellBack = true
+    base = getBaseUrl(user, !!gen.thirdPartyUrlNoSuffix, isThirdParty, false)
+    body.model = config.inference.textModel || body.model
+    url = gen.thirdPartyUrlNoSuffix
+      ? base.url
+      : useChat
+      ? `${base.url}/chat/completions`
+      : `${base.url}/completions`
+    if (config.inference.textApiKey) {
+      headers.Authorization = `Bearer ${config.inference.textApiKey}`
+    } else {
+      delete headers.Authorization
+    }
+    log.warn('Qwen refused the reply; retrying on the text endpoint (tutu)')
+    const message = `Qwen3.6 refused to reply — Charluv Broken Tutu answered instead. You can switch the model under Reply Style.`
+    if (guest) sendGuest(guest, { type: 'notification', level: 'warn', message })
+    else sendOne(user._id, { type: 'notification', level: 'warn', message })
+  }
 
   // Empty completions happen intermittently; a single clean re-request usually
   // lands a real reply (the same thing a user's manual "rerun" does), so retry
@@ -393,6 +430,9 @@ export const handleOAI: ModelAdapter = async function* (opts) {
       : requestFullCompletion(opts.user._id, url, headers, body, 'CharluvAI', opts.log)
     let accumulated = ''
     let response: Completion<Inference> | undefined
+    // Hold partials back while the reply could still be a refusal, so a refusal
+    // never streams to the client before the fallback kicks in.
+    let sniffing = canFallback && !fellBack
 
     while (true) {
       let generated = await iter.next()
@@ -411,6 +451,23 @@ export const handleOAI: ModelAdapter = async function* (opts) {
       // Only the streaming generator yields individual tokens.
       if ('token' in generated.value) {
         accumulated += generated.value.token
+        if (sniffing) {
+          const head = refusalHead(accumulated)
+          if (head.length < REFUSAL_PREFIX.length) {
+            // Still ambiguous — keep buffering (partials are cumulative, so
+            // nothing is lost once they resume).
+            if (REFUSAL_PREFIX.startsWith(head)) continue
+            sniffing = false
+          } else {
+            sniffing = false
+            if (head.startsWith(REFUSAL_PREFIX)) {
+              await iter.return?.(undefined)?.catch(() => {})
+              fallbackToTutu()
+              attempt = -1 // fresh empty-retry budget on the new endpoint
+              continue empty
+            }
+          }
+        }
         const shown = markerMode ? stripMarkers(accumulated) : accumulated
         // Trim against the REPLYING character, not the main char. In event/group
         // chats the elected speaker is opts.replyAs; trimming against the main
@@ -425,6 +482,18 @@ export const handleOAI: ModelAdapter = async function* (opts) {
       if (text instanceof Error) {
         yield { error: `CharluvAI returned an error: ${text.message}` }
         return
+      }
+
+      // Non-streamed refusals (and any that ended before the sniffer decided).
+      if (
+        canFallback &&
+        !fellBack &&
+        typeof text === 'string' &&
+        refusalHead(text).startsWith(REFUSAL_PREFIX)
+      ) {
+        fallbackToTutu()
+        attempt = -1
+        continue empty
       }
 
       let imagePrompt = ''
