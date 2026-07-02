@@ -6,7 +6,9 @@
 }
 
 .app .content-background {
-  background-color: rgba(var(--rgb-bg-900), 0.9);
+  /* Dusk surface (between --menu-bg and --content-bg) so boxed pages sit in the
+     same palette as the chrome, not the theme's teal. */
+  background-color: oklch(0.15 0.035 349 / 0.92);
   @apply h-max rounded-lg pb-4;
 }
 
@@ -59,6 +61,11 @@
 
 #main-content {
   transition: margin-left 400ms ease;
+  /* Match the dusk chrome: without this, wide screens show the theme's teal
+     --bg-900 in the gutters around boxed (max-w-8xl) pages and below short
+     pages, visibly clashing with the menu/top bar. Full-bleed pages and chat
+     backgrounds paint over it as before. */
+  background-color: var(--content-bg);
 }
 
 @media (min-width: 1280px) {

@@ -13,6 +13,11 @@
      so the nav rail anchors the page and cards visually float above it. */
   --menu-bg: oklch(0.14 0.04 350);
 
+  /* Base of the main content area — the same "warm dusk" tone Discover paints
+     (--dsc-bg), so gutters around boxed pages and space below short pages blend
+     with the chrome instead of exposing the theme's teal --bg-900. */
+  --content-bg: oklch(0.18 0.03 350);
+
   /* Charluv green accent (logo: #55b89c) */
   --hl-100: #e6f7f1;
   --hl-200: #c2ebde;
