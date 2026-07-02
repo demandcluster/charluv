@@ -326,6 +326,11 @@ export const generateMessageV2 = handle(async (req, res) => {
             text: m.msg,
           }))
 
+        // Airtime balance: characters with no line in the visible history get a
+        // tie-breaker preference in the election (they've been left out so far).
+        const recentSpeakers = new Set(recent.map((m) => m.name))
+        const quiet = roster.filter((r) => !recentSpeakers.has(r.name)).map((r) => r.name)
+
         let speakerId = await electSpeaker({
           user: body.user!,
           log,
@@ -333,6 +338,7 @@ export const generateMessageV2 = handle(async (req, res) => {
           roster: roster.map((r) => ({ id: r.id, name: r.name, hook: r.hook })),
           recent,
           repliedThisTurn,
+          quiet,
           // The user is present in the scene (with their self-persona), so the
           // director treats them as a known participant — not a stranger.
           present: {
@@ -418,6 +424,9 @@ export const generateMessageV2 = handle(async (req, res) => {
             requestId: slotRequestId,
             eventTurn: true,
             lines,
+            // Resolved once before the loop — saves a getResponseEntities round
+            // trip (user + preset + character reads) per elected speaker.
+            entities,
             // chat.overrides is set on event chats, so scenario text = chat.scenario
             // (the event block); the 4th arg makes the stage token + meta the speaker's.
             resolvedScenario: resolveScenario(chat, eventReplyAs, [], eventReplyAs),
@@ -582,6 +591,9 @@ async function generateOneReply(ctx: {
   // values are used (non-event path is unchanged).
   lines?: string[]
   resolvedScenario?: string
+  // Event mode: the turn loop resolves entities once and passes them here — one
+  // getResponseEntities per turn instead of one per reply.
+  entities?: Awaited<ReturnType<typeof getResponseEntities>>
 }): Promise<{ ok: boolean; text: string; speakerId: string }> {
   const { req, body, chat, replyAs, impersonate, members, userMsg, requestId } = ctx
   const { userId, log } = req
@@ -604,7 +616,11 @@ async function generateOneReply(ctx: {
     })
   }
 
-  const entities = await getResponseEntities(chat, body.sender.userId, body.settings)
+  // Shallow copy of shared turn entities so the per-speaker resolvedScenario
+  // override below can't leak into the next reply of the same event turn.
+  const entities = ctx.entities
+    ? { ...ctx.entities }
+    : await getResponseEntities(chat, body.sender.userId, body.settings)
   // Event mode: use this speaker's resolved scenario (stage token + meta) so the
   // prompt createChatStream rebuilds reflects the elected character, not the main char.
   if (ctx.resolvedScenario !== undefined) {

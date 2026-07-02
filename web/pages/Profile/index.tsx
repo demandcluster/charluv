@@ -196,6 +196,33 @@ const ProfilePage: Component<{ footer?: (children: any) => void }> = (props) => 
             />
           </Show>
 
+          <Show when={state.user?.creditsRestricted}>
+            <TitleCard type="orange" class="flex flex-col gap-2">
+              <div class="font-bold">Limited credits</div>
+              <div class="text-sm">
+                This account was flagged at signup as a possible duplicate, so free credit refills
+                are paused. If you think this is a mistake, request a review — a human will take a
+                look.
+              </div>
+              <Show
+                when={!state.user?.restrictionAppeal}
+                fallback={
+                  <div class="text-sm font-bold">
+                    Review requested on{' '}
+                    {new Date(state.user?.restrictionAppeal?.at!).toLocaleDateString()} — hang
+                    tight.
+                  </div>
+                }
+              >
+                <div class="flex justify-start">
+                  <Button size="sm" onClick={() => userStore.appealRestriction()}>
+                    Request a review
+                  </Button>
+                </div>
+              </Show>
+            </TitleCard>
+          </Show>
+
           <Show when={state.user?._id !== 'anon' && canuseGoogle() && !admin.impersonating}>
             <div class="flex justify-center">
               <TitleCard class="flex w-fit flex-col items-center justify-center gap-1" type="hl">
@@ -293,7 +320,7 @@ const ProfilePage: Component<{ footer?: (children: any) => void }> = (props) => 
               </div>
             }
             fieldName="avatar"
-            accept="image/jpeg,image/png"
+            accept="image/jpeg,image/png,image/webp,image/avif"
             helperText={'File size limit of 2MB'}
             onUpdate={onAvatar}
           />

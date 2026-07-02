@@ -21,6 +21,8 @@ type UserInfo = {
   stripeSessions?: string[]
   creditsRestricted?: boolean
   restrictedReason?: 'ip' | 'fingerprint' | 'both'
+  restrictionAppeal?: { at: string; message?: string }
+  deviceRotation?: boolean
 }
 
 type AdminState = {

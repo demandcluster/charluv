@@ -54,19 +54,22 @@ export const register = handle(async (req) => {
     ip: req.ip,
     consentAt: new Date().toISOString(),
   })
+  await store.users.recordFingerprint(user._id, req.body.fingerprint)
 
   req.log.info({ user: user.username, id: user._id, verdict }, 'User registered')
   return { profile, token, user }
 })
 
 export const login = handle(async (req) => {
-  assertValid({ username: 'string', password: 'string' }, req.body)
+  assertValid({ username: 'string', password: 'string', fingerprint: 'string?' }, req.body)
   const result = await store.users.authenticate(req.body.username.trim(), req.body.password)
 
   if (!result) {
     throw new StatusError('Unauthorized', 401)
   }
   await store.users.updateIp(result.user._id, req.ip)
+  // Track devices across logins for the rotation flag (3+ devices / 7 days).
+  await store.users.recordFingerprint(result.user._id, req.body.fingerprint)
 
   return result
 })
@@ -94,6 +97,7 @@ export const oathGoogleLogin = handle(async (req) => {
   const existing = await store.users.findByGoogleSub(payload.sub)
   if (existing) {
     await store.users.updateUser(existing._id, { google: payload as any })
+    await store.users.recordFingerprint(existing._id, body.fingerprint)
     const accessToken = await createAccessToken(existing.username, existing)
     const profile = await store.users.getProfile(existing._id)
     return { user: toSafeUser(existing), token: accessToken, profile }
@@ -168,6 +172,7 @@ export const oauthPatreonLogin = handle(async (req) => {
     const accessToken = await createAccessToken(existing.username, existing)
     const profile = await store.users.getProfile(existing._id)
     await store.users.updateIp(existing._id, ip)
+    await store.users.recordFingerprint(existing._id, body.fingerprint)
     return { user: toSafeUser(existing), token: accessToken, profile }
   }
 
@@ -326,4 +331,15 @@ export const unlinkPatreon = handle(async (req) => {
   await store.users.unlinkPatreonAccount(req.userId, 'user initiated')
 
   return { success: true }
+})
+
+/**
+ * A credit-restricted user requests a human review of the restriction. The
+ * appeal shows up on their account in the admin user panel, where the existing
+ * "Clear restriction" button resolves it.
+ */
+export const appealRestriction = handle(async (req) => {
+  assertValid({ message: 'string?' }, req.body)
+  const appeal = await store.users.requestRestrictionAppeal(req.userId!, req.body.message)
+  return { success: true, appeal }
 })

@@ -160,21 +160,39 @@ const InfoModel: Component<{ show: boolean; close: () => void; userId: string; n
         </Show>
         <Button onClick={() => adminStore.impersonate(state.info?.userId!)}>Impersonate</Button>
         <Show when={state.info?.creditsRestricted}>
-          <div class="flex items-center gap-2">
-            <span class="rounded bg-orange-700 px-2 py-1 text-sm text-white">
-              Credit-restricted ({state.info?.restrictedReason})
-            </span>
-            <Button
-              size="sm"
-              onClick={() =>
-                adminStore.clearRestriction(state.info!.userId, () =>
-                  adminStore.getInfo(state.info!.userId)
-                )
-              }
-            >
-              Clear restriction
-            </Button>
+          <div class="flex flex-col items-center gap-2">
+            <div class="flex items-center gap-2">
+              <span class="rounded bg-orange-700 px-2 py-1 text-sm text-white">
+                Credit-restricted ({state.info?.restrictedReason})
+              </span>
+              <Button
+                size="sm"
+                onClick={() =>
+                  adminStore.clearRestriction(state.info!.userId, () =>
+                    adminStore.getInfo(state.info!.userId)
+                  )
+                }
+              >
+                Clear restriction
+              </Button>
+            </div>
+            <Show when={state.info?.restrictionAppeal}>
+              <div class="rounded bg-blue-800 px-2 py-1 text-sm text-white">
+                Appeal requested {new Date(state.info!.restrictionAppeal!.at).toLocaleDateString()}
+                <Show when={state.info?.restrictionAppeal?.message}>
+                  : “{state.info!.restrictionAppeal!.message}”
+                </Show>
+              </div>
+            </Show>
           </div>
+        </Show>
+        <Show when={state.info?.deviceRotation}>
+          <span
+            class="rounded bg-red-800 px-2 py-1 text-sm text-white"
+            title="3+ distinct device fingerprints seen within the last 7 days"
+          >
+            Device rotation flagged
+          </span>
         </Show>
         <table class="w-full table-auto">
           <tbody>

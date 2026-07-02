@@ -60,6 +60,9 @@ export function buildDirectorPrompt(opts: {
    * in the scene (characters react to them), but the user is NEVER an electable
    * speaker — the speaker enum is built from the character roster ids only. */
   user?: { name: string; hook: string }
+  /** Names of present characters with no line in the recent history. Airtime
+   * balance: when the election is otherwise a toss-up, prefer one of them. */
+  quiet?: string[]
 }): string {
   const characters = opts.roster.map((r) => `- ${r.name} (id: ${r.id}): ${r.hook}`).join('\n')
   const userLine = opts.user
@@ -89,6 +92,16 @@ export function buildDirectorPrompt(opts: {
         `Decide who speaks NEXT. Prefer the character the user is directly addressing.`,
         `A bystander should be chosen ONLY if they have a strong, specific reason to interject.`,
       ]
+
+  // Airtime nudge, never an override: the addressed/most-relevant character
+  // still wins; this only breaks ties toward characters who haven't spoken.
+  if (opts.quiet?.length) {
+    instructions.push(
+      `${opts.quiet.join(', ')} ${
+        opts.quiet.length > 1 ? 'have' : 'has'
+      } not spoken recently — when the choice is otherwise even, prefer giving them the moment (only if it fits the scene).`
+    )
+  }
 
   return [
     `Setting: ${setting}. Event: ${opts.event.description}.${mood}`,

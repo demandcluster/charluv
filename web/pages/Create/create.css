@@ -957,3 +957,12 @@
   background: var(--cr-accent-soft);
   font-size: 0.85rem;
 }
+.cr-trait-changed {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--cr-accent);
+}

@@ -137,6 +137,8 @@ export async function getUserInfo(userId: string) {
           google: 1,
           creditsRestricted: 1,
           restrictedReason: 1,
+          restrictionAppeal: 1,
+          deviceRotation: 1,
         },
       }
     ),

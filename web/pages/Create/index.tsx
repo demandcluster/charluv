@@ -298,10 +298,22 @@ const makeDefaultAnswers = (): Answers => ({
 const swatchColor = (arr: Swatch[], label: string) => arr.find((s) => s.label === label)?.color
 
 /** One read-only-but-editable choice on the review step. Click to jump back. */
-const TraitCard: Component<{ label: string; value: string; dot?: string; onEdit: () => void }> = (
-  props
-) => (
+const TraitCard: Component<{
+  label: string
+  value: string
+  dot?: string
+  /** Edited since the description/prompt were last written (see craftedAnswers). */
+  changed?: boolean
+  onEdit: () => void
+}> = (props) => (
   <button class="cr-trait" type="button" onClick={props.onEdit} title={`Edit ${props.label}`}>
+    <Show when={props.changed}>
+      <span
+        class="cr-trait-changed"
+        title="Changed since the description was written"
+        aria-hidden="true"
+      />
+    </Show>
     <span class="cr-trait-label">{props.label}</span>
     <span class="cr-trait-value">
       <Show when={props.dot}>
@@ -582,17 +594,29 @@ const Create: Component = () => {
   }
 
   // Trait selections as they looked when the persona/prompt was last crafted.
-  // `name` is excluded: the model may fill it in and the user edits it freely on
-  // the finish step — neither should flag the crafted text as stale.
-  const traitFingerprint = () => JSON.stringify({ ...answers, name: '' })
-  const [finishFingerprint, setFinishFingerprint] = createSignal('')
-  const traitsStale = () =>
-    finishInit() && finishFingerprint() !== '' && traitFingerprint() !== finishFingerprint()
+  // `name` is excluded everywhere below: the model may fill it in and the user
+  // edits it freely on the finish step — neither should flag the text as stale.
+  const [craftedAnswers, setCraftedAnswers] = createSignal<Answers | null>(null)
+
+  /** True when any of the given trait keys differ from the crafted snapshot. */
+  const traitChanged = (...keys: (keyof Answers)[]) => {
+    const snap = craftedAnswers()
+    if (!snap) return false
+    return keys.some((k) => answers[k] !== snap[k])
+  }
+
+  const traitsStale = () => {
+    const snap = craftedAnswers()
+    if (!snap) return false
+    return (Object.keys(answers) as (keyof Answers)[]).some(
+      (k) => k !== 'name' && answers[k] !== snap[k]
+    )
+  }
 
   // LLM pass shared by the first visit and the stale-trait refresh: imagine the
   // persona details, then turn everything into an image prompt.
   const runFinishCraft = async () => {
-    setFinishFingerprint(traitFingerprint())
+    setCraftedAnswers({ ...answers })
     const d = await enrichDetails()
     setDetails(d)
     // Let the model name the character (fits gender + ethnicity) unless the
@@ -873,7 +897,7 @@ const Create: Component = () => {
     setAvatarUrl(undefined)
     setImagePrompt('')
     setFinishInit(false)
-    setFinishFingerprint('')
+    setCraftedAnswers(null)
     setStep(0)
   }
 
@@ -1175,7 +1199,7 @@ const Create: Component = () => {
                   </button>
                   <FileInput
                     fieldName="crPortrait"
-                    accept="image/png,image/jpeg,image/webp"
+                    accept="image/png,image/jpeg,image/webp,image/avif"
                     onUpdate={uploadPortrait}
                   />
                 </div>
@@ -1208,51 +1232,69 @@ const Create: Component = () => {
 
               {/* RIGHT — the choices as editable trait cards */}
               <div class="cr-traits">
-                <TraitCard label="Ethnicity" value={ethnicityLabel()} onEdit={() => setStep(1)} />
+                <TraitCard
+                  label="Ethnicity"
+                  value={ethnicityLabel()}
+                  changed={traitChanged('ethnicity', 'ethnicityCustom')}
+                  onEdit={() => setStep(1)}
+                />
                 <TraitCard
                   label="Skin"
                   value={answers.skinTone}
                   dot={swatchColor(SKIN_TONES, answers.skinTone)}
+                  changed={traitChanged('skinTone')}
                   onEdit={() => setStep(1)}
                 />
                 <TraitCard
                   label="Hair"
                   value={`${answers.hairColor} ${hairStyleLabel()}`}
                   dot={swatchColor(HAIR_COLORS, answers.hairColor)}
+                  changed={traitChanged('hairColor', 'hairStyle', 'hairStyleCustom')}
                   onEdit={() => setStep(2)}
                 />
                 <TraitCard
                   label="Eyes"
                   value={answers.eyeColor}
                   dot={swatchColor(EYE_COLORS, answers.eyeColor)}
+                  changed={traitChanged('eyeColor')}
                   onEdit={() => setStep(2)}
                 />
                 <TraitCard
                   label="Body"
                   value={labelOfImg(BODIES, answers.body)}
+                  changed={traitChanged('body')}
                   onEdit={() => setStep(3)}
                 />
                 <Show when={!isMale()}>
                   <TraitCard
                     label="Bust"
                     value={labelOfImg(BREASTS, answers.breast)}
+                    changed={traitChanged('breast')}
                     onEdit={() => setStep(3)}
                   />
                   <TraitCard
                     label="Butt"
                     value={labelOfImg(BUTTS, answers.butt)}
+                    changed={traitChanged('butt')}
                     onEdit={() => setStep(3)}
                   />
                 </Show>
-                <TraitCard label="Age" value={answers.age} onEdit={() => setStep(0)} />
+                <TraitCard
+                  label="Age"
+                  value={answers.age}
+                  changed={traitChanged('age', 'gender')}
+                  onEdit={() => setStep(0)}
+                />
                 <TraitCard
                   label="Style"
                   value={labelOfImg(STYLES, answers.artStyle)}
+                  changed={traitChanged('artStyle')}
                   onEdit={() => setStep(0)}
                 />
                 <TraitCard
                   label="Vibe"
                   value={getArchetypeLabel(vibe().archetype, answers.gender)}
+                  changed={traitChanged('vibe')}
                   onEdit={() => setStep(4)}
                 />
 

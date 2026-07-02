@@ -77,9 +77,66 @@ export async function clearRestriction(userId: string) {
     { kind: 'user', _id: userId },
     {
       $set: { creditsRestricted: false, credits },
-      $unset: { restrictedReason: '' },
+      $unset: { restrictedReason: '', restrictionAppeal: '' },
     }
   )
+}
+
+/** How many distinct fingerprints within the window flip the device-rotation flag. */
+const ROTATION_LIMIT = 3
+const ROTATION_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
+const FINGERPRINT_HISTORY_CAP = 20
+
+/**
+ * Record a device fingerprint seen at login/registration and recompute the
+ * device-rotation flag (3+ distinct devices within 7 days). Best-effort — a
+ * failure here must never block a login.
+ */
+export async function recordFingerprint(userId: string, fingerprint?: string) {
+  if (!fingerprint) return
+  try {
+    const user = await db('user').findOne(
+      { kind: 'user', _id: userId },
+      { projection: { fingerprints: 1 } }
+    )
+    if (!user) return
+
+    const at = new Date().toISOString()
+    const history = (user.fingerprints || []).filter((f) => f && f.fp)
+    const last = history[history.length - 1]
+    // Same device as last time: refresh its timestamp instead of appending.
+    if (last?.fp === fingerprint) last.at = at
+    else history.push({ fp: fingerprint, at })
+
+    const trimmed = history.slice(-FINGERPRINT_HISTORY_CAP)
+    const cutoff = Date.now() - ROTATION_WINDOW_MS
+    const recent = new Set(
+      trimmed.filter((f) => new Date(f.at).valueOf() >= cutoff).map((f) => f.fp)
+    )
+    const deviceRotation = recent.size >= ROTATION_LIMIT
+
+    await db('user').updateOne(
+      { kind: 'user', _id: userId },
+      { $set: { fingerprints: trimmed, deviceRotation } }
+    )
+  } catch (err) {
+    logger.warn({ err, userId }, 'Failed to record login fingerprint')
+  }
+}
+
+/**
+ * A credit-restricted user asks for a human review. Idempotent: a pending
+ * appeal is left untouched so the original request date is preserved.
+ */
+export async function requestRestrictionAppeal(userId: string, message?: string) {
+  const user = await db('user').findOne({ kind: 'user', _id: userId })
+  if (!user) throw errors.NotFound
+  if (!user.creditsRestricted) throw new StatusError('Account is not restricted', 400)
+  if (user.restrictionAppeal) return user.restrictionAppeal
+
+  const appeal = { at: new Date().toISOString(), message: message?.slice(0, 500) || undefined }
+  await db('user').updateOne({ kind: 'user', _id: userId }, { $set: { restrictionAppeal: appeal } })
+  return appeal
 }
 
 export async function updateProfile(userId: string, props: Partial<AppSchema.Profile>) {
@@ -568,8 +625,11 @@ export function toSafeUser(user: AppSchema.User) {
   // OAuth login (Google/Patreon) reads the raw doc, so strip it here centrally.
   delete (user as any).hash
 
-  // Abuse-detection internals: never expose to the client.
+  // Abuse-detection internals: never expose to the client. (restrictionAppeal
+  // stays visible — the user submitted it and the UI shows its pending state.)
   delete (user as any).fingerprint
+  delete (user as any).fingerprints
+  delete (user as any).deviceRotation
   delete (user as any).restrictedReason
   delete (user as any).lastIp
   delete (user as any).identifierConsentAt

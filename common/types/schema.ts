@@ -214,6 +214,15 @@ export namespace AppSchema {
     creditsRestricted?: boolean
     /** Why the account was restricted (admin context; never shown to end users). */
     restrictedReason?: 'ip' | 'fingerprint' | 'both'
+    /** Recent device fingerprints seen at login/registration (newest last, capped).
+     * Admin context only — used to detect device-rotation abuse. */
+    fingerprints?: Array<{ fp: string; at: string }>
+    /** True while 3+ distinct fingerprints were seen within the last 7 days.
+     * Recomputed on every recorded login; admin context only. */
+    deviceRotation?: boolean
+    /** Set when a credit-restricted user asks for a review of their restriction.
+     * Cleared when an admin clears the restriction. */
+    restrictionAppeal?: { at: string; message?: string }
     role?: 'moderator' | 'admin'
 
     novelApiKey: string

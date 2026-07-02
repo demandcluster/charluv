@@ -196,7 +196,7 @@ const InputBar: Component<{
   }
 
   const attach = async (file: File) => {
-    const ext = file.name.split('.').slice(-1)[0]
+    const ext = file.name.split('.').slice(-1)[0].toLowerCase()
     const isAllowed = ALLOWED_TYPES.has(ext)
     if (!isAllowed) {
       toastStore.warn(`Invalid file type: Must be an image`)
@@ -348,7 +348,7 @@ const InputBar: Component<{
               fieldName="imageCaption"
               parentClass="hidden"
               onUpdate={onFile}
-              accept="image/jpg,image/png,image/jpeg"
+              accept="image/jpg,image/png,image/jpeg,image/webp,image/avif"
             />
             <LabelButton for="imageCaption" schema="secondary" class="w-full" alignLeft>
               <ImageUp size={18} />

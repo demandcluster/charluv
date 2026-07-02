@@ -569,7 +569,10 @@ export const userStore = createStore<UserState>(
     async *login(_, username: string, password: string, onSuccess?: (token: string) => void) {
       yield { loading: true }
 
-      const res = await api.post('/user/login', { username, password })
+      // Best-effort device id so the server can track device rotation across
+      // logins (same consent basis as registration).
+      const fingerprint = await getVisitorId().catch(() => undefined)
+      const res = await api.post('/user/login', { username, password, fingerprint })
       yield { loading: false }
       if (res.error) {
         return void toastStore.error(`Authentication failed`)
@@ -623,6 +626,17 @@ export const userStore = createStore<UserState>(
       onSuccess?.()
       publish({ type: 'login', token: res.result.token })
       events.emit(EVENTS.loggedIn)
+    },
+    async appealRestriction({ user }, message?: string) {
+      const res = await api.post<{ appeal: { at: string; message?: string } }>(
+        '/user/restriction-appeal',
+        { message }
+      )
+      if (res.error) return void toastStore.error(`Could not request a review: ${res.error}`)
+      if (res.result?.appeal && user) {
+        toastStore.success('Review requested — an admin will take a look')
+        return { user: { ...user, restrictionAppeal: res.result.appeal } }
+      }
     },
     async *logout(_: UserState) {
       clearAuth()

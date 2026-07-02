@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { loggedIn } from '../auth'
 import {
+  appealRestriction,
   changePassword,
   createApiKey,
   linkGoogleAccount,
@@ -88,6 +89,7 @@ router.delete('/config/third-party', loggedIn, deleteThirdPartyPassword)
 router.delete('/config/elevenlabs', loggedIn, deleteElevenLabsKey)
 router.delete('/presets/:id', loggedIn, deleteUserPreset)
 router.post('/password', loggedIn, changePassword)
+router.post('/restriction-appeal', loggedIn, appealRestriction)
 router.post('/ui', loggedIn, updateUI)
 router.post('/config/partial', loggedIn, updatePartialConfig)
 router.post('/config', loggedIn, updateConfig)

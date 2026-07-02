@@ -36,6 +36,8 @@ export const ALLOWED_TYPES = new Map([
   ['png', 'image/png'],
   ['apng', 'image/apng'],
   ['gif', 'image/gif'],
+  ['webp', 'image/webp'],
+  ['avif', 'image/avif'],
 ])
 
 export const imageApi = {

@@ -78,7 +78,7 @@ const ImportCharacterModal: Component<{
         <FileInput
           label="Avatar or JSON file"
           fieldName="file"
-          accept="text/json,application/json,image/png,image/jpeg,image/webp"
+          accept="text/json,application/json,image/png,image/jpeg,image/webp,image/avif"
           helperText={`Supported formats: ${SUPPORTED_FORMATS}`}
           required
           multiple={!props.single}

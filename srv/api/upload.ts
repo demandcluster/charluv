@@ -197,7 +197,7 @@ function createAssetFolder() {
   }
 }
 
-function getType(filename: string) {
+export function getType(filename: string) {
   const ext = extname(filename)
 
   switch (ext) {
@@ -216,6 +216,9 @@ function getType(filename: string) {
 
     case '.webp':
       return 'image/webp'
+
+    case '.avif':
+      return 'image/avif'
 
     case '.webm':
       return 'video/webm'
@@ -243,6 +246,7 @@ function isAllowedType(contentType: string) {
     case 'image/apng':
     case 'image/gif':
     case 'image/webp':
+    case 'image/avif':
       return true
   }
 

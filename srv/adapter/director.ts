@@ -17,6 +17,9 @@ type ElectOpts = {
   repliedThisTurn: string[]
   /** The human participant — listed as present but never an electable speaker. */
   present?: { name: string; hook: string }
+  /** Names of present characters without a line in the recent history — the
+   * director prefers them on otherwise-even elections (airtime balance). */
+  quiet?: string[]
 }
 
 /**
@@ -40,6 +43,8 @@ export async function electSpeaker(opts: ElectOpts): Promise<string> {
     recent: opts.recent,
     repliedThisTurn: opts.repliedThisTurn,
     user: opts.present,
+    // Only hint about characters that are still electable this turn.
+    quiet: opts.quiet?.filter((name) => roster.some((r) => r.name === name)),
   })
 
   try {

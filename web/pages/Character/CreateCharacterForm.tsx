@@ -1070,7 +1070,7 @@ const CharacterGallery: Component<{
         </Button>
         <FileInput
           fieldName="galleryUpload"
-          accept="image/png,image/jpeg,image/webp"
+          accept="image/png,image/jpeg,image/webp,image/avif"
           onUpdate={upload}
         />
         <Button

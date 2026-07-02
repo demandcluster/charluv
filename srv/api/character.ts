@@ -8,6 +8,7 @@ import {
   entityUpload,
   entityUploadBase64,
   entityUploadBase64Unique,
+  getType,
   handleForm,
   readAssetBase64,
 } from './upload'
@@ -353,7 +354,9 @@ const publishCharacter = handle(async ({ userId, body, log }, res) => {
     const clean = ref.split('?')[0]
     const path = clean.startsWith('/assets') ? clean : `/assets/${clean}`
     const b64 = await readAssetBase64(path)
-    if (b64) images.push(`data:image/png;base64,${b64}`)
+    // Label with the real content type (webp/avif/jpeg…), not a blanket png.
+    const mime = getType(path)
+    if (b64) images.push(`data:${mime.startsWith('image/') ? mime : 'image/png'};base64,${b64}`)
   }
 
   // Spell out the exact JSON shape in the prompt. `guided_json` rides along but
@@ -627,7 +630,9 @@ const editPartCharacter = handle(async ({ body, params, userId }) => {
 
   const update: CharacterUpdate = body as any
 
-  if (update.avatar?.startsWith('data:image/png;base64')) {
+  // Any inline image data URL (png/jpeg/webp/avif…), not just png — a non-png
+  // upload used to slip past this check and get stored as a giant data URL.
+  if (update.avatar && /^data:image\/[a-z0-9.+-]+;base64,/i.test(update.avatar)) {
     const filename = await entityUploadBase64('char', id, update.avatar)
     update.avatar = `${filename}?v=${v4().slice(0, 4)}`
   }
