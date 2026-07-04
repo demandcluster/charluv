@@ -13,6 +13,7 @@ import { sendGuest, sendOne } from '../api/ws'
 import { getTokenCounter } from '../tokenize'
 import { isZImageConfigured } from '../image/zimage'
 import { toJsonSchema } from '../../common/prompt'
+import { CHARLUV_LEVELS_PROMPT } from '../../common/progression'
 
 const baseUrl = `https://api.openai.com`
 
@@ -328,6 +329,21 @@ export const handleOAI: ModelAdapter = async function* (opts) {
       }
     }
     log.debug({ imageToolEnabled, memoryToolEnabled }, 'tools: marker instructions injected')
+  }
+
+  // Qwen isn't trained on the charluv dataset — only Broken Tutu is. Teach it
+  // the platform + LEVEL() lore at the very top of every chat request that runs
+  // on the mod endpoint. Moderation/utility calls skip it (they pass their own
+  // `system`), and if the request later falls back to tutu the preamble stays —
+  // tutu was finetuned with this exact framing present, so it's harmless there.
+  // Prepended AFTER the marker block so it lands above the marker instructions.
+  if (base.mod && !opts.moderation) {
+    const head = Array.isArray(body.messages) ? body.messages[0] : undefined
+    if (head && typeof head.content === 'string') {
+      head.content = `${CHARLUV_LEVELS_PROMPT}\n\n${head.content}`
+    } else if (typeof body.prompt === 'string') {
+      body.prompt = `${CHARLUV_LEVELS_PROMPT}\n\n${body.prompt}`
+    }
   }
 
   // Some prompts emit a `system` message after the conversation has started
