@@ -114,9 +114,14 @@ async function identity(token: string) {
   const entitledTierIds = new Set(
     member?.relationships.currently_entitled_tiers?.data?.map((d) => d.id) || []
   )
+  // The campaign-wide fallback exists for paying patrons whose entitled-tier data
+  // is missing (annual/custom pledges, payload quirks). A free member/follower has
+  // no entitlements and must NOT inherit a paid campaign tier from it.
+  const paying =
+    member?.attributes.patron_status === 'active_patron' || member?.attributes.is_gifted === true
   const tier =
     pickHighestTier(campaignTiers.filter((t) => entitledTierIds.has(t.id))) ||
-    pickHighestTier(campaignTiers)
+    (paying ? pickHighestTier(campaignTiers) : undefined)
 
   if (!tier && !member) return { user }
 
@@ -175,10 +180,16 @@ async function revalidatePatron(userId: string | AppSchema.User) {
     await store.users.unlinkPatreonAccount(existing._id, `attributing to user ${user._id}`)
   }
 
+  // Same gate as persistPatron: linking/resyncing must not grant premium to a
+  // free member — they have no next_charge_date, so the 32-day fallback would
+  // hand out renewable premium. Existing premium is left to expire via the cron.
+  const isActivePatron =
+    patron.member?.attributes.patron_status === 'active_patron' ||
+    patron.member?.attributes.is_gifted === true ||
+    (patron.sub?.level ?? 0) > 0
   const premiumUntil = patronPremiumUntil(patron.member?.attributes.next_charge_date)
   const next = await store.users.updateUser(user._id, {
-    premium: true,
-    premiumUntil: premiumUntil,
+    ...(isActivePatron ? { premium: true, premiumUntil } : {}),
     patreon: {
       ...user.patreon,
       user: patron.user,
@@ -244,7 +255,9 @@ async function persistPatron(
    * annual/custom tiers) and must not block premium for a paying patron.
    */
   const isActivePatron =
-    patron.member?.attributes.patron_status === 'active_patron' || (patron.sub?.level ?? 0) > 0
+    patron.member?.attributes.patron_status === 'active_patron' ||
+    patron.member?.attributes.is_gifted === true ||
+    (patron.sub?.level ?? 0) > 0
   const premiumUntil = patronPremiumUntil(patron.member?.attributes.next_charge_date)
 
   const next = await store.users.updateUser(userId, {
@@ -282,8 +295,13 @@ async function getCampaignTiers() {
   )
 
   if (res.statusCode && res.statusCode > 200) {
+    // A 401 here means the creator access token expired — rotate PATREON_ACCESS_TOKEN.
+    logger.warn(
+      { statusCode: res.statusCode, body: res.body?.errors || res.body },
+      'Failed to fetch Patreon campaign tiers'
+    )
     return []
   }
 
-  return res.body.included as Array<Omit<Patreon.Tier, 'relationships'>>
+  return (res.body.included || []) as Array<Omit<Patreon.Tier, 'relationships'>>
 }
