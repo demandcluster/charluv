@@ -280,22 +280,72 @@ async function persistPatron(
   return next
 }
 
-async function getCampaignTiers() {
+/**
+ * Latest creator token: the rotated pair persisted on the configuration doc
+ * wins over the (possibly stale) env pair.
+ */
+async function getCreatorAccessToken() {
+  const cfg = await store.admin.getServerConfiguration()
+  return cfg.patreonCreatorToken?.access_token || config.patreon.access_token
+}
+
+/**
+ * Refresh the creator token and persist the rotated pair. Patreon invalidates
+ * the old refresh token on use, so losing the new pair would strand us — hence
+ * the DB write. Returns the fresh access token, or undefined if refresh failed.
+ */
+async function refreshCreatorToken() {
+  const cfg = await store.admin.getServerConfiguration()
+  const refreshToken = cfg.patreonCreatorToken?.refresh_token || config.patreon.refresh_token
+
+  if (!refreshToken || !config.patreon.client_id || !config.patreon.client_secret) {
+    logger.error(
+      'Cannot refresh Patreon creator token: PATREON_REFRESH_TOKEN (or client id/secret) not configured'
+    )
+    return
+  }
+
+  try {
+    const token = await authorize(refreshToken, true)
+    const patreonCreatorToken = {
+      access_token: token.access_token,
+      refresh_token: token.refresh_token,
+      expires: new Date(Date.now() + token.expires_in * 1000).toISOString(),
+    }
+    await store.admin.updateServerConfiguration({ patreonCreatorToken })
+    logger.info('Refreshed Patreon creator token')
+    return patreonCreatorToken.access_token
+  } catch (ex) {
+    // authorize() already logged Patreon's error body
+    return
+  }
+}
+
+function fetchCampaignTiers(accessToken: string) {
   const query = ['include=tiers', 'fields[tier]=amount_cents,title,description'].join('&')
-  const res = await needle(
+  return needle(
     'get',
     `https://www.patreon.com/api/oauth2/v2/campaigns/${config.patreon.campaign_id}?${encodeURI(
       query
     )}`,
     {
       headers: {
-        Authorization: `Bearer ${config.patreon.access_token}`,
+        Authorization: `Bearer ${accessToken}`,
       },
     }
   )
+}
+
+async function getCampaignTiers() {
+  let res = await fetchCampaignTiers(await getCreatorAccessToken())
+
+  // Expired creator token — refresh, persist the rotated pair, and retry once.
+  if (res.statusCode === 401) {
+    const refreshed = await refreshCreatorToken()
+    if (refreshed) res = await fetchCampaignTiers(refreshed)
+  }
 
   if (res.statusCode && res.statusCode > 200) {
-    // A 401 here means the creator access token expired — rotate PATREON_ACCESS_TOKEN.
     logger.warn(
       { statusCode: res.statusCode, body: res.body?.errors || res.body },
       'Failed to fetch Patreon campaign tiers'

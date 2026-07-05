@@ -75,6 +75,14 @@ export interface Announcement {
 export interface Configuration {
   kind: 'configuration'
 
+  /**
+   * Rotated Patreon creator token. The PATREON_ACCESS_TOKEN env pair expires
+   * (~monthly); refreshing rotates both tokens, and env vars can't be rewritten
+   * from a running pod, so the newest pair is persisted here. When set, it wins
+   * over the env values.
+   */
+  patreonCreatorToken?: { access_token: string; refresh_token: string; expires: string }
+
   /** JSON - merges with slots.txt, but this takes precedence when field collisions occur */
   slots: string
 
