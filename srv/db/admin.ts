@@ -11,6 +11,8 @@ type UsersOpts = {
   page?: number
   subscribed?: boolean
   customerId?: string
+  restricted?: boolean
+  appealed?: boolean
 }
 
 export async function getServerConfiguration() {
@@ -99,6 +101,10 @@ export async function getUsers(opts: UsersOpts = {}) {
 
     filter.$or = filters
   }
+
+  // AND filters (unlike the $or block above) so they narrow a username search.
+  if (opts.restricted) filter.creditsRestricted = true
+  if (opts.appealed) filter.restrictionAppeal = { $exists: true }
 
   const list = await db('user').find(filter).skip(skip).limit(200).toArray()
   return list

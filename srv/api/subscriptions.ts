@@ -143,10 +143,11 @@ const updateTier = handle(async ({ body, params }) => {
 })
 
 const getProducts = handle(async (req) => {
-  if (!config.billing.private) return { products: [], prices: [] }
-
-  const products = await stripe.products.list()
-  const prices = await stripe.prices.list()
+  // Stripe and Patreon are independent — a Patreon-only deploy (no Stripe key)
+  // must still get its campaign tiers for the tier-edit dropdown.
+  const [products, prices] = config.billing.private
+    ? await Promise.all([stripe.products.list(), stripe.prices.list()])
+    : [{ data: [] }, { data: [] }]
 
   if (config.patreon.access_token && config.patreon.campaign_id) {
     const tiers = await patreon.getCampaignTiers()

@@ -33,6 +33,8 @@ const UsersPage: Component = () => {
       username: 'string',
       subscribed: 'boolean',
       customerId: 'string',
+      restricted: 'boolean',
+      appealed: 'boolean',
     })
     adminStore.getUsers(opts)
   }
@@ -68,16 +70,24 @@ const UsersPage: Component = () => {
             <TextInput class="text-xs" fieldName="username" placeholder="Username" />
             <TextInput class="text-xs" fieldName="customerId" placeholder="Customer ID" />
             <ToggleButton fieldName="subscribed">Subscribed</ToggleButton>
+            <ToggleButton fieldName="restricted">Restricted</ToggleButton>
+            <ToggleButton fieldName="appealed">Appealed</ToggleButton>
           </div>
           <Button onClick={search}>Search</Button>
         </form>
         <For each={state.users}>
           {(user) => (
             <div class="bg-800 flex h-12 flex-row items-center gap-2 rounded-xl">
-              <div class="flex w-6/12 px-2">
+              <div class="flex w-6/12 items-center gap-2 px-2">
                 <div>
                   <span class="text-600 text-[0.5rem]">{user._id}</span> {user.username}
                 </div>
+                <Show when={user.creditsRestricted}>
+                  <span class="rounded bg-orange-700 px-1 text-xs text-white">restricted</span>
+                </Show>
+                <Show when={user.restrictionAppeal}>
+                  <span class="rounded bg-blue-800 px-1 text-xs text-white">appeal</span>
+                </Show>
               </div>
               <div class="flex w-6/12 justify-end gap-2 pr-2">
                 <Select

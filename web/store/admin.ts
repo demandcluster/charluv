@@ -130,7 +130,13 @@ export const adminStore = createStore<AdminState>('admin', {
     },
     async getUsers(
       _,
-      opts: { username: string; subscribed: boolean; customerId: string },
+      opts: {
+        username: string
+        subscribed: boolean
+        customerId: string
+        restricted?: boolean
+        appealed?: boolean
+      },
       page = 0
     ) {
       const res = await api.post<{ users: AppSchema.User[] }>('/admin/users', { ...opts, page })
